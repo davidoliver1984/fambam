@@ -368,7 +368,7 @@ Introduce replaceable, self-hosted face detection and embedding generation.
 - ADR-0036: Face-recognition provider abstraction.
 - ADR-0037: Initial local model and licensing.
 - ADR-0038: Analysis data model and versioning.
-- ADR-0039: Inference deployment and compute strategy.
+- ADR-0039: Inference deployment, service identity and compute strategy.
 - ADR-0040: Biometric-data threat model.
 
 ## Exit criteria
