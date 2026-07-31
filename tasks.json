@@ -14,6 +14,12 @@
   "conventions": {
     "phase_id_format": "P##",
     "stage_id_format": "FPA-P##-S##",
+    "git_tagging": {
+      "adr_tag_format": "phase-<n>",
+      "stage_tag_format": "phase-<n>-s<NN>",
+      "definition": "Git tags track delivery history and are keyed to ADR acceptance, not to PROJECT_ROADMAP.md phase numbers. <n> is the sequential ADR number (ADR-000<n> -> phase-<n>; e.g. ADR-0001 -> phase-1, ADR-0002 -> phase-2). <NN> is a sequential, zero-padded counter of bounded implementation-stage commits delivered under that ADR's phase, in delivery order (01, 02, ...) -- it is not required to equal the roadmap FPA-P##-S## stage number.",
+      "roadmap_relationship": "PROJECT_ROADMAP.md phase identifiers (P##) and docs/IMPLEMENTATION_GUIDE.md stage identifiers (FPA-P##-S##) remain the authoritative product-level grouping and sequencing. They are not renamed or renumbered by this scheme. The delivery_log array (top level of this file) records the explicit mapping between roadmap stages and the git tags actually produced."
+    },
     "statuses": [
       "planned",
       "ready",
@@ -56,17 +62,19 @@
             "FPA-P00-S01"
           ],
           "notes": [
-            "ADR-0001 accepted 2026-07-31."
+            "ADR-0001 accepted 2026-07-31 (git tag phase-1)."
           ]
         },
         {
           "id": "FPA-P00-S03",
           "title": "Scaffold repository documentation and command interface",
-          "status": "planned",
+          "status": "in_progress",
           "dependencies": [
             "FPA-P00-S02"
           ],
-          "notes": []
+          "notes": [
+            "Task/implementation-stage identifiers aligned with the phase-N / phase-N-sNN git tagging convention (git tag phase-1-s01)."
+          ]
         }
       ]
     },
@@ -977,316 +985,379 @@
       {
         "id": "ADR-0001",
         "title": "Repository and service topology",
+        "git_tag": "phase-1",
         "status": "accepted"
       },
       {
         "id": "ADR-0002",
         "title": "Primary technology stack",
+        "git_tag": "phase-2",
         "status": "planned"
       },
       {
         "id": "ADR-0003",
         "title": "Documentation ownership and task-state conventions",
+        "git_tag": "phase-3",
         "status": "planned"
       },
       {
         "id": "ADR-0004",
         "title": "Local container strategy",
+        "git_tag": "phase-4",
         "status": "planned"
       },
       {
         "id": "ADR-0005",
         "title": "Object-storage abstraction and local provider",
+        "git_tag": "phase-5",
         "status": "planned"
       },
       {
         "id": "ADR-0006",
         "title": "Queue transport and background-job ownership",
+        "git_tag": "phase-6",
         "status": "planned"
       },
       {
         "id": "ADR-0007",
         "title": "Local observability baseline",
+        "git_tag": "phase-7",
         "status": "planned"
       },
       {
         "id": "ADR-0008",
         "title": "Authentication architecture",
+        "git_tag": "phase-8",
         "status": "planned"
       },
       {
         "id": "ADR-0009",
         "title": "Invitation model and account activation",
+        "git_tag": "phase-9",
         "status": "planned"
       },
       {
         "id": "ADR-0010",
         "title": "Account recovery and optional MFA strategy",
+        "git_tag": "phase-10",
         "status": "planned"
       },
       {
         "id": "ADR-0011",
         "title": "Family-space tenancy model",
+        "git_tag": "phase-11",
         "status": "planned"
       },
       {
         "id": "ADR-0012",
         "title": "Membership roles and permission boundaries",
+        "git_tag": "phase-12",
         "status": "planned"
       },
       {
         "id": "ADR-0013",
         "title": "Tenant context propagation",
+        "git_tag": "phase-13",
         "status": "planned"
       },
       {
         "id": "ADR-0014",
         "title": "PostgreSQL row-level security",
+        "git_tag": "phase-14",
         "status": "planned"
       },
       {
         "id": "ADR-0015",
         "title": "Family-space deletion and retention lifecycle",
+        "git_tag": "phase-15",
         "status": "planned"
       },
       {
         "id": "ADR-0016",
         "title": "Account versus person separation",
+        "git_tag": "phase-16",
         "status": "planned"
       },
       {
         "id": "ADR-0017",
         "title": "Relationship representation",
+        "git_tag": "phase-17",
         "status": "planned"
       },
       {
         "id": "ADR-0018",
         "title": "Date precision and historical uncertainty",
+        "git_tag": "phase-18",
         "status": "planned"
       },
       {
         "id": "ADR-0019",
         "title": "Person merge, split and correction strategy",
+        "git_tag": "phase-19",
         "status": "planned"
       },
       {
         "id": "ADR-0020",
         "title": "Upload architecture",
+        "git_tag": "phase-20",
         "status": "planned"
       },
       {
         "id": "ADR-0021",
         "title": "Original, canonical and presentation asset model",
+        "git_tag": "phase-21",
         "status": "planned"
       },
       {
         "id": "ADR-0022",
         "title": "Supported formats and image conversion",
+        "git_tag": "phase-22",
         "status": "planned"
       },
       {
         "id": "ADR-0023",
         "title": "Media access and signed URL strategy",
+        "git_tag": "phase-23",
         "status": "planned"
       },
       {
         "id": "ADR-0024",
         "title": "Metadata extraction and preservation",
+        "git_tag": "phase-24",
         "status": "planned"
       },
       {
         "id": "ADR-0025",
         "title": "Storage naming, partitioning and lifecycle rules",
+        "git_tag": "phase-25",
         "status": "planned"
       },
       {
         "id": "ADR-0026",
         "title": "Photo ownership and provenance model",
+        "git_tag": "phase-26",
         "status": "planned"
       },
       {
         "id": "ADR-0027",
         "title": "Albums versus dynamic collections",
+        "git_tag": "phase-27",
         "status": "planned"
       },
       {
         "id": "ADR-0028",
         "title": "Historical metadata confidence",
+        "git_tag": "phase-28",
         "status": "planned"
       },
       {
         "id": "ADR-0029",
         "title": "Comment, story and correction ownership",
+        "git_tag": "phase-29",
         "status": "planned"
       },
       {
         "id": "ADR-0030",
         "title": "Photo deletion and restoration semantics",
+        "git_tag": "phase-30",
         "status": "planned"
       },
       {
         "id": "ADR-0031",
         "title": "Event domain model",
+        "git_tag": "phase-31",
         "status": "planned"
       },
       {
         "id": "ADR-0032",
         "title": "Temporary and guest contribution access",
+        "git_tag": "phase-32",
         "status": "planned"
       },
       {
         "id": "ADR-0033",
         "title": "Notification and digest strategy",
+        "git_tag": "phase-33",
         "status": "planned"
       },
       {
         "id": "ADR-0034",
         "title": "Duplicate definitions and thresholds",
+        "git_tag": "phase-34",
         "status": "planned"
       },
       {
         "id": "ADR-0035",
         "title": "Duplicate consolidation behaviour",
+        "git_tag": "phase-35",
         "status": "planned"
       },
       {
         "id": "ADR-0036",
         "title": "Face-recognition provider abstraction",
+        "git_tag": "phase-36",
         "status": "planned"
       },
       {
         "id": "ADR-0037",
         "title": "Initial local model and licensing",
+        "git_tag": "phase-37",
         "status": "planned"
       },
       {
         "id": "ADR-0038",
         "title": "Analysis data model and versioning",
+        "git_tag": "phase-38",
         "status": "planned"
       },
       {
         "id": "ADR-0039",
         "title": "Inference deployment, service identity and compute strategy",
+        "git_tag": "phase-39",
         "status": "planned"
       },
       {
         "id": "ADR-0040",
         "title": "Biometric-data threat model",
+        "git_tag": "phase-40",
         "status": "planned"
       },
       {
         "id": "ADR-0041",
         "title": "Similarity metrics and threshold calibration",
+        "git_tag": "phase-41",
         "status": "planned"
       },
       {
         "id": "ADR-0042",
         "title": "Clustering strategy",
+        "git_tag": "phase-42",
         "status": "planned"
       },
       {
         "id": "ADR-0043",
         "title": "Human confirmation and override semantics",
+        "git_tag": "phase-43",
         "status": "planned"
       },
       {
         "id": "ADR-0044",
         "title": "Recognition consent and exclusion",
+        "git_tag": "phase-44",
         "status": "planned"
       },
       {
         "id": "ADR-0045",
         "title": "Search indexing strategy",
+        "git_tag": "phase-45",
         "status": "planned"
       },
       {
         "id": "ADR-0046",
         "title": "Date and location query semantics",
+        "git_tag": "phase-46",
         "status": "planned"
       },
       {
         "id": "ADR-0047",
         "title": "Memory-generation rules",
+        "git_tag": "phase-47",
         "status": "planned"
       },
       {
         "id": "ADR-0048",
         "title": "Personalisation boundaries and privacy",
+        "git_tag": "phase-48",
         "status": "planned"
       },
       {
         "id": "ADR-0049",
         "title": "Export format",
+        "git_tag": "phase-49",
         "status": "planned"
       },
       {
         "id": "ADR-0050",
         "title": "Backup and restore architecture",
+        "git_tag": "phase-50",
         "status": "planned"
       },
       {
         "id": "ADR-0051",
         "title": "Retention and deletion guarantees",
+        "git_tag": "phase-51",
         "status": "planned"
       },
       {
         "id": "ADR-0052",
         "title": "Consent and lawful-processing model",
+        "git_tag": "phase-52",
         "status": "planned"
       },
       {
         "id": "ADR-0053",
         "title": "Child and guardian controls",
+        "git_tag": "phase-53",
         "status": "planned"
       },
       {
         "id": "ADR-0054",
         "title": "Security incident and breach response",
+        "git_tag": "phase-54",
         "status": "planned"
       },
       {
         "id": "ADR-0055",
         "title": "Accessibility acceptance standard",
+        "git_tag": "phase-55",
         "status": "planned"
       },
       {
         "id": "ADR-0056",
         "title": "Production hosting architecture",
+        "git_tag": "phase-56",
         "status": "planned"
       },
       {
         "id": "ADR-0057",
         "title": "Cost controls and storage lifecycle",
+        "git_tag": "phase-57",
         "status": "planned"
       },
       {
         "id": "ADR-0058",
         "title": "Deployment and rollback",
+        "git_tag": "phase-58",
         "status": "planned"
       },
       {
         "id": "ADR-0059",
         "title": "Pilot support model",
+        "git_tag": "phase-59",
         "status": "planned"
       },
       {
         "id": "ADR-0060",
         "title": "Semantic-image model and licensing",
+        "git_tag": "phase-60",
         "status": "planned"
       },
       {
         "id": "ADR-0061",
         "title": "Vector storage and indexing",
+        "git_tag": "phase-61",
         "status": "planned"
       },
       {
         "id": "ADR-0062",
         "title": "Hybrid ranking",
+        "git_tag": "phase-62",
         "status": "planned"
       },
       {
         "id": "ADR-0063",
         "title": "Semantic reprocessing strategy",
+        "git_tag": "phase-63",
         "status": "planned"
       }
     ]
@@ -1304,5 +1375,23 @@
         "A small family pilot has completed core workflows."
       ]
     }
-  }
+  },
+  "delivery_log": [
+    {
+      "git_tag": "phase-1",
+      "type": "adr_acceptance",
+      "adr": "ADR-0001",
+      "roadmap_stage": "FPA-P00-S02",
+      "date": "2026-07-31",
+      "description": "ADR-0001 accepted: Repository and service topology."
+    },
+    {
+      "git_tag": "phase-1-s01",
+      "type": "implementation_stage",
+      "adr": "ADR-0001",
+      "roadmap_stage": "FPA-P00-S03",
+      "date": "2026-07-31",
+      "description": "Align tasks.json and docs/IMPLEMENTATION_GUIDE.md stage identifiers with the phase-N / phase-N-sNN git tagging convention; move IMPLEMENTATION_GUIDE.md to its canonical docs/ path."
+    }
+  ]
 }

@@ -24,7 +24,7 @@ The following documents are authoritative.
 
 1. PRODUCT_VISION.md
 2. PROJECT_ROADMAP.md
-3. IMPLEMENTATION_GUIDE.md
+3. docs/IMPLEMENTATION_GUIDE.md
 4. tasks.json
 
 If Claude believes a change is necessary it should propose an ADR rather than silently modifying the architecture.
