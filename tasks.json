@@ -85,6 +85,7 @@
           "notes": [
             "Task/implementation-stage identifiers aligned with the roadmap-phase git tagging convention. Intermediate commit, no stage tag.",
             "CONTRIBUTING.md added, baselined from dolved's conventions and adapted for fambam. Intermediate commit, no stage tag.",
+            "docs/STYLE_GUIDE.md renamed to docs/ENGINEERING_METHODOLOGY.md and referenced from CONTRIBUTING.md. Intermediate commit, no stage tag.",
             "Directory scaffold, README.md, ADR/journal templates, Makefile placeholders and CI workflow remain outstanding for this stage. phase-0-s03 will be tagged on the commit that completes all of them."
           ]
         }

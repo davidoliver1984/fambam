@@ -25,6 +25,15 @@ Do not reproduce those documents here. If an authority is missing, exists at a
 different path, or contradicts another authority, stop and reconcile the conflict
 with the human developer before treating either version as canonical.
 
+## Engineering methodology
+
+This repository follows the engineering process defined in:
+
+`docs/ENGINEERING_METHODOLOGY.md`
+
+All contributors (human and AI) should follow this methodology before making
+architectural or implementation changes.
+
 ## Engineering Philosophy
 
 The objective of this repository is not merely to build a working family photo
