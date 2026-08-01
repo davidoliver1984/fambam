@@ -108,14 +108,14 @@ contract, since these are expensive to reverse once code exists.
   versioned, since this is the one place two different languages must agree
   on a wire format.
 - Concrete broker choice, delivery guarantees, and queue topology are
-  deliberately **not** decided here and are deferred to ADR-0006 (Queue
-  transport and background-job ownership).
+  deliberately **not** decided here and are deferred to ADR-0003 (Local
+  development platform), which covers queue transport and background-job
+  ownership under the current one-ADR-per-phase methodology.
 - Production service identity, message-transport authentication/authorization
   between Laravel and Python, and compute deployment for the Python service
-  are deferred to ADR-0039, retitled **"Inference deployment, service
-  identity and compute strategy"** (previously "Inference deployment and
-  compute strategy") to reflect that service-identity/broker-security now
-  belongs there rather than to an HTTP callback concern.
+  are deferred to ADR-0011 (Local face analysis foundation), which covers
+  inference deployment, service identity and compute strategy for the Python
+  service under the current one-ADR-per-phase methodology.
 
 ## Review triggers
 
