@@ -13,9 +13,10 @@ priority over automated suggestions, and family data must remain portable.
 
 ## Current status
 
-The repository is in Phase 0, Product and Repository Foundation. Application
-services are not scaffolded yet. The canonical execution state is recorded in
-[`tasks.json`](tasks.json).
+Phase 0, Product and Repository Foundation, is complete. The repository is now
+in Phase 1, Local Development Platform, starting with acceptance of ADR-0003.
+Application services are not scaffolded yet. The canonical execution state is
+recorded in [`tasks.json`](tasks.json).
 
 ## Repository structure
 

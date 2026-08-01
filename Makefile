@@ -31,15 +31,15 @@ test: ## Run all application tests (available after Phase 1 scaffolding)
 	@exit 2
 
 test-api: ## Run API tests (available after the Laravel API is scaffolded)
-	@echo "Unavailable: apps/api is scaffolded in FPA-P01-S01." >&2
+	@echo "Unavailable: apps/api is scaffolded in FPA-P01-S02." >&2
 	@exit 2
 
 test-web: ## Run web tests (available after the web application is scaffolded)
-	@echo "Unavailable: apps/web is scaffolded in FPA-P01-S01." >&2
+	@echo "Unavailable: apps/web is scaffolded in FPA-P01-S02." >&2
 	@exit 2
 
 test-ai: ## Run image-analysis tests (available after the service is scaffolded)
-	@echo "Unavailable: apps/image-ai is scaffolded in FPA-P01-S01." >&2
+	@echo "Unavailable: apps/image-ai is scaffolded in FPA-P01-S02." >&2
 	@exit 2
 
 test-e2e: ## Run end-to-end tests (available after Phase 1 scaffolding)

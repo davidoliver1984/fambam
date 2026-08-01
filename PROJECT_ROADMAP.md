@@ -16,19 +16,25 @@
 
 ## ADR methodology
 
-Each roadmap phase with defined implementation scope has one planned phase
-architecture ADR by default. Additional ADRs may be created when a decision is
-independently significant, durable and clearer to review separately. Additional
-ADRs may be identified during planning or implementation; they are not required
-merely because a phase contains several technical subjects.
+Each roadmap phase has exactly one primary architecture ADR by default,
+accepted at that phase's leading "Accept ... ADR" stage before implementation
+begins. Additional ADRs beyond a phase's primary ADR are the exception, not
+the expectation — most phases should end with exactly one.
 
-This provides one primary architectural narrative per planned phase without
-forcing independently significant decisions into the same record or returning
-to a granular ADR for every technical subject. ADR numbering remains independent
-of roadmap phase numbering. Phase 0 is a one-time exception (see Phase 0 below).
-The explicit mapping between each planned ADR, its owning roadmap phase and its
-gating implementation stage is recorded in `tasks.json`'s `adrs.planned` list
-(`roadmap_phase` / `required_by_stage` fields).
+An additional ADR may be created during architectural planning or
+implementation only when the decision independently meets `CONTRIBUTING.md`'s
+existing criteria for an ADR and cannot be adequately captured within the
+phase's primary ADR without making that ADR harder to review or reason about
+as a whole. A distinct subtopic is not sufficient justification by itself.
+
+Every additional ADR must reference the phase's primary ADR so that the
+primary ADR remains the entry point for understanding the phase architecture.
+
+ADR numbering remains independent of roadmap phase numbering. Phase 0 is a
+one-time exception (see Phase 0 below). The explicit mapping between each
+planned ADR, its owning roadmap phase and its gating implementation stage is
+recorded in `tasks.json`'s `adrs.planned` list (`roadmap_phase` /
+`required_by_stage` fields).
 
 ## Product principles
 
