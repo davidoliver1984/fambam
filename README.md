@@ -61,6 +61,7 @@ The default host endpoints are:
 | Image AI health | `http://localhost:8010/health` |
 | Mailpit | `http://localhost:8026` |
 | LocalStack | `http://localhost:4570` |
+| Grafana | `http://localhost:3011` |
 
 Copy `.env.example` to `.env` only when local port or safe development-default
 overrides are needed. The core checks are:
@@ -73,6 +74,7 @@ make format-check
 make lint
 make typecheck
 make test
+make observability-smoke
 ```
 
 ## Documentation

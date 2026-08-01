@@ -562,6 +562,19 @@ Add reproducible local infrastructure
 
 Make requests, jobs and image-analysis failures diagnosable from the start.
 
+### Engineering rationale
+
+Establish the vendor-neutral telemetry boundary and propagation conventions
+before real upload and image-analysis workflows freeze their interfaces.
+Request, correlation and trace identifiers make local failures joinable across
+logs and spans. A synthetic message path proves the architectural mechanism
+without pretending that Phase 9's image-analysis workflow already exists.
+
+### Prerequisites
+
+- FPA-P01-S03 complete.
+- ADR-0003 accepted.
+
 ### Expected changes
 
 - Structured logs.
@@ -570,10 +583,76 @@ Make requests, jobs and image-analysis failures diagnosable from the start.
 - Basic metrics or OpenTelemetry integration.
 - Local inspection interface if accepted by ADR.
 
+### Commands
+
+```bash
+docker compose config --quiet
+make up
+make observability-smoke
+make infrastructure-smoke
+make format-check
+make lint
+make typecheck
+make test
+make foundation-check
+make contracts-check
+make security-check
+git diff --check
+```
+
 ### Verification
 
 - One upload-related synthetic request can be traced across participating services.
 - Failed jobs include actionable context without exposing sensitive media.
+
+The baseline was implemented and verified locally on 2026-08-01. Laravel and
+FastAPI emit OTLP traces and metrics to a dedicated OpenTelemetry Collector,
+which forwards them to the pinned Grafana LGTM backend. Both services emit
+structured JSON application logs with service and trace identifiers; HTTP
+responses preserve request and correlation identifiers.
+
+The synthetic upload endpoint creates a producer span and publishes a W3C
+`traceparent` message attribute to the accepted SQS queue. A one-shot stateless
+image-analysis consumer extracts that context and creates a consumer span. The
+automated smoke test compares their trace IDs, verifies both spans reached the
+Collector and checks Grafana health. This is verification scaffolding, not a
+premature implementation of the Phase 9 image-analysis worker.
+
+### Risks and edge cases
+
+- The initial smoke check proved that both spans existed but did not compare
+  trace IDs; detailed inspection exposed broken propagation. The verifier now
+  compares the producer and consumer trace IDs directly.
+- Stale synthetic messages can remain after an interrupted run. Each verification
+  message carries a correlation identifier, and the consumer discards unrelated
+  synthetic messages before evaluating the current one.
+- Custom domain spans and business metrics remain deferred until their owning
+  workflows exist, as required by ADR-0003.
+- The Grafana LGTM image is intentionally substantial; ADR-0003 records resource
+  use as a review trigger.
+- Phase-end review (run against a live stack, not just re-reading the diff)
+  found that `scripts/smoke-infrastructure.sh` (from `FPA-P01-S03`) was not
+  idempotent: it received an SQS message without ever deleting it, so
+  leftover messages from earlier runs could cause a later run to read stale
+  content and fail. Fixed by using a unique payload per run, deleting every
+  message received, and looping until the current run's payload is found
+  (confirmed idempotent across three consecutive runs). The same review also
+  found `POST /api/observability/synthetic-upload` was reachable in any
+  environment with no auth; it is now gated behind
+  `app()->environment(['local', 'testing'])` both at route registration and
+  inside the handler, and the synthetic SQS consumer's message-receive logic
+  was extracted into a tested, protocol-typed function that no longer risks
+  an unhandled `IndexError` on an empty poll response.
+
+### Documentation updates
+
+- Added the Grafana endpoint and observability smoke command to the root README.
+- Recorded the implementation and corrections in
+  `docs/journal/2026-08-01-FPA-P01-S04.md`.
+- Phase-end review complete: all verification commands re-run against a live
+  stack and passed, including three consecutive `make infrastructure-smoke`
+  runs to confirm the idempotency fix. `FPA-P01-S04` and Phase 1 completed on
+  the same completion commit.
 
 ### Commit boundary
 

@@ -6,8 +6,8 @@
     "version": "0.1.0",
     "status": "in_progress",
     "v1_release_phase": "P15",
-    "current_phase": "P01",
-    "current_stage": "FPA-P01-S04",
+    "current_phase": "P02",
+    "current_stage": "FPA-P02-S01",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-01"
   },
@@ -98,7 +98,7 @@
     {
       "id": "P01",
       "name": "Local Development Platform",
-      "status": "in_progress",
+      "status": "completed",
       "stages": [
         {
           "id": "FPA-P01-S01",
@@ -138,23 +138,28 @@
         {
           "id": "FPA-P01-S04",
           "title": "Add baseline observability",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P01-S03"
           ],
-          "notes": []
+          "notes": [
+            "OpenTelemetry traces and metrics now flow from Laravel and FastAPI through a dedicated Collector to Grafana LGTM; structured logs and HTTP responses carry operational identifiers.",
+            "A correlated synthetic SQS path verifies W3C trace-context propagation by comparing producer and consumer trace IDs.",
+            "Phase-end review (full stack booted and every verification command re-run live, not just re-read) found and Codex fixed two issues: scripts/smoke-infrastructure.sh was not idempotent (stale undeleted SQS messages could fail a later run -- fixed and confirmed idempotent across three consecutive runs), and POST /api/observability/synthetic-upload was reachable unauthenticated in any environment -- now gated to local/testing at both route registration and inside the handler. The synthetic consumer's message-receive logic was also extracted into a tested function, removing an unhandled-IndexError risk on an empty poll.",
+            "Repository scaffold, local infrastructure and observability baseline verified and Phase 1 acceptance gate passed on 2026-08-01. FPA-P01-S04 and Phase 1 completed on the same completion commit."
+          ]
         }
       ]
     },
     {
       "id": "P02",
       "name": "Identity, Authentication and Invitations",
-      "status": "planned",
+      "status": "ready",
       "stages": [
         {
           "id": "FPA-P02-S01",
           "title": "Accept identity, authentication and invitations ADR",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P01-S04"
           ],
@@ -1232,6 +1237,22 @@
       "roadmap_stage": "FPA-P01-S03",
       "date": "2026-08-01",
       "description": "FPA-P01-S03 completed: reproducible Docker Compose platform added with health-gated applications, PostgreSQL, Redis, LocalStack S3/SQS, Mailpit, persistent volumes and integration smoke checks."
+    },
+    {
+      "git_tag": "phase-1-s04",
+      "type": "stage_completion",
+      "adr": "ADR-0003",
+      "roadmap_stage": "FPA-P01-S04",
+      "date": "2026-08-01",
+      "description": "FPA-P01-S04 completed: Phase 1 OpenTelemetry baseline added (instrumentation, Collector, Grafana otel-lgtm, HTTP/SQS trace-context propagation, structured logs). Phase-end review found and fixed a non-idempotent SQS smoke test and an unauthenticated debug endpoint; both confirmed resolved before completion."
+    },
+    {
+      "git_tag": "phase-1",
+      "type": "phase_completion",
+      "adr": null,
+      "roadmap_stage": "FPA-P01-S04",
+      "date": "2026-08-01",
+      "description": "Phase 1 completed: all Local Development Platform stages and the full phase acceptance gate passed."
     }
   ]
 }

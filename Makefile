@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help up down restart status logs infrastructure-smoke foundation-check docs-check contracts-check compose-check format format-check lint typecheck test test-api test-web test-ai test-e2e security-check
+.PHONY: help up down restart status logs infrastructure-smoke observability-smoke foundation-check docs-check contracts-check compose-check format format-check lint typecheck test test-api test-web test-ai test-e2e security-check
 
 help: ## List supported repository commands
 	@awk 'BEGIN {FS = ":.*## "; printf "Family Photo Archive commands:\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -21,6 +21,9 @@ logs: ## Follow logs from all local platform services
 
 infrastructure-smoke: ## Verify PostgreSQL, Redis, S3 and SQS locally
 	@scripts/smoke-infrastructure.sh
+
+observability-smoke: ## Verify traces, propagation and structured identifiers
+	@scripts/smoke-observability.sh
 
 foundation-check: ## Validate the Phase 0 repository foundation
 	@python3 scripts/check_foundation.py
