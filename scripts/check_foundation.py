@@ -11,7 +11,13 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-IGNORED_DIRECTORIES = {".git", "node_modules", "vendor", ".venv"}
+IGNORED_DIRECTORIES = {
+    ".git",
+    ".venv",
+    "gpt_drafts",
+    "node_modules",
+    "vendor",
+}
 MARKDOWN_LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 REQUIRED_DIRECTORIES = (
     "apps/web",
@@ -52,6 +58,10 @@ def repository_files(suffix: str) -> list[Path]:
 
 def validate_json(errors: list[str]) -> None:
     for path in repository_files(".json"):
+        if path.name.startswith("tsconfig"):
+            # TypeScript configuration is JSON-with-comments and is validated
+            # by the TypeScript compiler rather than the strict JSON parser.
+            continue
         try:
             with path.open(encoding="utf-8") as handle:
                 json.load(handle)

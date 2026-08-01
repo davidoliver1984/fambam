@@ -14,9 +14,9 @@ priority over automated suggestions, and family data must remain portable.
 ## Current status
 
 Phase 0, Product and Repository Foundation, is complete. The repository is now
-in Phase 1, Local Development Platform, starting with acceptance of ADR-0003.
-Application services are not scaffolded yet. The canonical execution state is
-recorded in [`tasks.json`](tasks.json).
+in Phase 1, Local Development Platform. The three application services are
+scaffolded and verified; local infrastructure is the current stage. The
+canonical execution state is recorded in [`tasks.json`](tasks.json).
 
 ## Repository structure
 
@@ -40,17 +40,18 @@ and communicates through asynchronous, versioned messages.
 
 ## Developer commands
 
-Run `make help` from the repository root to list the command surface. During
-the foundation phase, these checks are available:
+Run `make help` from the repository root to list the command surface. The core
+checks are:
 
 ```bash
 make foundation-check
 make docs-check
 make contracts-check
+make format-check
+make lint
+make typecheck
+make test
 ```
-
-Application-specific targets are reserved for Phase 1 and intentionally report
-that their service has not been scaffolded yet.
 
 ## Documentation
 

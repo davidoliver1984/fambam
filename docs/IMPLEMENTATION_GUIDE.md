@@ -360,6 +360,18 @@ Accept ADR-0003: Local development platform
 
 Create independently testable application skeletons.
 
+### Engineering rationale
+
+Establish each accepted application boundary and its native quality tooling
+before introducing Compose or shared infrastructure. Independent health checks
+and tests keep application failures distinguishable from infrastructure failures
+in the next stage.
+
+### Prerequisites
+
+- FPA-P01-S01 complete.
+- ADR-0001, ADR-0002 and ADR-0003 accepted.
+
 ### Expected changes
 
 - Web application.
@@ -368,11 +380,72 @@ Create independently testable application skeletons.
 - Health endpoints.
 - Service-level tests.
 
+### Commands
+
+```bash
+npm create vite@latest apps/web -- --template react-ts
+composer create-project laravel/laravel apps/api
+uv init --app --name fambam-image-ai --python 3.13 apps/image-ai
+npm install
+composer require --dev larastan/larastan
+uv add fastapi 'uvicorn[standard]'
+uv add --dev ruff mypy pytest httpx
+make format-check
+make lint
+make typecheck
+make test
+make foundation-check
+make contracts-check
+npm run build
+composer validate --strict
+uv lock --check
+make security-check
+git diff --check
+```
+
 ### Verification
 
-- Each application starts independently.
-- Health tests pass.
-- Formatting, linting and type checks pass.
+- React 19.2.8, Vite 8.2.0 and TypeScript 6.0.2 are locked for the web app;
+  Laravel 13.23.0 is locked for the API; FastAPI 0.141.1 is locked for the
+  image-analysis service.
+- Node 24.7.0, PHP 8.4.5 and Python 3.13.7 are recorded in `.tool-versions`.
+- The web application starts independently and serves `/health` over HTTP.
+- Laravel starts independently and `GET /api/health` returns HTTP 200 with
+  `{"service":"api","status":"ok"}`.
+- FastAPI starts independently and `GET /health` returns HTTP 200 with
+  `{"service":"image-ai","status":"ok"}`.
+- Vitest passes 2 web tests; PHPUnit passes 2 API tests with 3 assertions;
+  pytest passes 1 image-analysis test.
+- Prettier, Pint and Ruff formatting checks pass.
+- ESLint and Ruff linting pass.
+- TypeScript, Larastan/PHPStan and mypy type checks pass.
+- The web production build, Composer validation and uv lock validation pass.
+- npm and Composer report no known dependency vulnerabilities.
+- Foundation, documentation, contract, JSON and Git whitespace checks pass.
+
+### Risks and edge cases
+
+- Vite 8 initially generated Oxlint configuration; this was replaced with the
+  ESLint baseline required by ADR-0002.
+- The generated Laravel frontend assets and Vite integration were removed so
+  Laravel remains an API rather than a second frontend application.
+- The foundation JSON validator initially treated TypeScript's JSON-with-comments
+  configuration as strict JSON and scanned ignored GPT draft files. It now
+  delegates TypeScript configuration validation to `tsc` and excludes the
+  ignored draft directory.
+- Initial strict checks found a React non-null assertion, a PHPUnit-style
+  mismatch and a Python import-path issue. Each underlying scaffold defect was
+  corrected before the successful verification run.
+- Local infrastructure, SQS/S3 integration and OpenTelemetry remain strictly in
+  FPA-P01-S03 and FPA-P01-S04.
+
+### Documentation updates
+
+- Added service-specific READMEs with native commands and health endpoints.
+- Updated the root README and Make command surface.
+- Recorded the session in `docs/journal/2026-08-01-FPA-P01-S02.md`.
+- Advanced `tasks.json` to `FPA-P01-S03` after review and the complete
+  application-scaffold verification gate passed.
 
 ### Commit boundary
 
