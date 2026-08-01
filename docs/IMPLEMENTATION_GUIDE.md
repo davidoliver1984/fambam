@@ -47,30 +47,42 @@ General rules:
 
 ## Git tagging convention
 
-Git tags track delivery history and are keyed to ADR acceptance, not to
-`PROJECT_ROADMAP.md` phase numbers. This is deliberate: an ADR can be
-approved and delivered well before the roadmap phase that required it is
-otherwise complete, so tagging by ADR sequence keeps the tag history
-matching the actual order decisions and implementation landed in.
+Git tags map directly onto this project's roadmap identifiers, matching the
+convention already established and documented in the sibling `dolved`
+project. `phase-n` is the roadmap phase number (`PROJECT_ROADMAP.md`'s
+`P##`) and `phase-n-sNN` is the roadmap stage number within that phase
+(`FPA-P##-S##`). **ADR numbers never determine git phase numbers.**
 
-- Accepting ADR-000`n` is tagged `phase-n` (for example, ADR-0001 →
-  `phase-1`, ADR-0002 → `phase-2`).
-- Each bounded implementation-stage commit delivered under that ADR is
-  tagged `phase-n-s01`, `phase-n-s02`, ... in delivery order. This counter
-  is independent of the roadmap `FPA-P##-S##` stage number — a single
-  roadmap stage may span multiple `phase-n-sNN` commits, and a single
-  `phase-n-sNN` commit may close out more than one roadmap stage.
-- `PROJECT_ROADMAP.md` phase identifiers (`P##`) and this guide's stage
-  identifiers (`FPA-P##-S##`) remain the authoritative product-level
-  grouping and sequencing. They are not renamed or renumbered by this
-  scheme.
-- The explicit mapping between roadmap stages and the git tags actually
-  produced is recorded in `tasks.json` under `delivery_log`.
+Rules:
 
-Example: ADR-0001 (repository and service topology) was accepted and
-tagged `phase-1`. Its first bounded implementation commit — this alignment
-of tracking identifiers between the roadmap and the git tag history — is
-tagged `phase-1-s01`.
+- Only a **completed** planned roadmap stage receives a `phase-n-sNN` tag.
+- Intermediate commits made while a stage is still in progress receive no
+  stage tag.
+- The stage tag is applied to the single commit that completes the planned
+  roadmap stage.
+- If a stage's entire scope is accepting an ADR (for example
+  `FPA-P00-S02`), the ADR-acceptance commit is that stage's completion
+  commit and receives the tag directly.
+- Otherwise, an ADR-acceptance commit remains untagged until the
+  authorised implementation stage that follows it is itself completed and
+  accepted — accepting the ADR does not, by itself, complete an
+  implementation stage.
+- `phase-n` (the whole-phase tag, no stage suffix) is created only once,
+  on the commit that completes that phase's final stage and passes the
+  phase's full acceptance gate.
+
+`PROJECT_ROADMAP.md` phase identifiers (`P##`) and this guide's stage
+identifiers (`FPA-P##-S##`) are the direct source of the tag numbers — this
+is the same numbering, not a parallel scheme. The explicit mapping between
+roadmap stages and the git tags actually produced is recorded in
+`tasks.json` under `delivery_log`.
+
+Example: `FPA-P00-S01` was completed and tagged `phase-0-s01`.
+`FPA-P00-S02`'s entire scope was accepting ADR-0001, so the ADR-acceptance
+commit is tagged `phase-0-s02` directly. `FPA-P00-S03` is still in
+progress; its intermediate commits are untagged, and `phase-0-s03` will be
+created only on the commit that finishes it. `phase-0` will be created
+only once `FPA-P00-S03` completes and Phase 0's acceptance gate passes.
 
 ## Proposed repository shape
 

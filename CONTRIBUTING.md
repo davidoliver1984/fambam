@@ -322,9 +322,11 @@ them.
   boundary.
 - Run and record the required verification before committing.
 - Tag commits using the `phase-<n>` / `phase-<n>-s<NN>` convention defined in
-  `docs/IMPLEMENTATION_GUIDE.md` ("Git tagging convention") — `<n>` is the
-  sequential ADR number, not the `PROJECT_ROADMAP.md` phase number. Record every
-  tag produced in `tasks.json`'s `delivery_log`.
+  `docs/IMPLEMENTATION_GUIDE.md` ("Git tagging convention") — `<n>` and `<NN>`
+  map directly onto the roadmap phase and stage identifiers (`P##` /
+  `FPA-P##-S##`). ADR numbers never determine git phase numbers. Only a
+  completed planned stage's completion commit receives a stage tag; record
+  every tag produced in `tasks.json`'s `delivery_log`.
 - Push approved commits and their tags to the configured remote
   (`git@github.com:davidoliver1984/fambam.git`) only after the human developer
   has approved the change.
