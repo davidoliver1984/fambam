@@ -86,8 +86,8 @@ section.
 
 Preserve these responsibilities unless an agreed ADR changes them.
 
-> `apps/image-ai` vs. a shorter `apps/ai`: open question, not yet decided either
-> way — see the current session's discussion.
+`apps/image-ai` (rather than a shorter `apps/ai`) is the accepted path per
+ADR-0001's Decision section — not open.
 
 ## Local development principles
 
