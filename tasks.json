@@ -9,7 +9,7 @@
     "current_phase": "P00",
     "current_stage": "FPA-P00-S03",
     "created_at": "2026-07-31",
-    "updated_at": "2026-07-31"
+    "updated_at": "2026-08-01"
   },
   "conventions": {
     "phase_id_format": "P##",
@@ -73,7 +73,8 @@
             "FPA-P00-S02"
           ],
           "notes": [
-            "Task/implementation-stage identifiers aligned with the phase-N / phase-N-sNN git tagging convention (git tag phase-1-s01)."
+            "Task/implementation-stage identifiers aligned with the phase-N / phase-N-sNN git tagging convention (git tag phase-1-s01).",
+            "CONTRIBUTING.md added, baselined from dolved's conventions and adapted for fambam (git tag phase-1-s02). Directory scaffold, README.md, ADR/journal templates, Makefile placeholders and CI workflow remain outstanding for this stage."
           ]
         }
       ]
@@ -1392,6 +1393,14 @@
       "roadmap_stage": "FPA-P00-S03",
       "date": "2026-07-31",
       "description": "Align tasks.json and docs/IMPLEMENTATION_GUIDE.md stage identifiers with the phase-N / phase-N-sNN git tagging convention; move IMPLEMENTATION_GUIDE.md to its canonical docs/ path."
+    },
+    {
+      "git_tag": "phase-1-s02",
+      "type": "implementation_stage",
+      "adr": "ADR-0001",
+      "roadmap_stage": "FPA-P00-S03",
+      "date": "2026-08-01",
+      "description": "Add CONTRIBUTING.md, baselined from dolved's conventions and adapted for fambam (family-space terminology, ADR-0001 async contract, face-recognition privacy rules, fambam's ADR-sequence git tagging convention)."
     }
   ]
 }
