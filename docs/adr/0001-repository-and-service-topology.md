@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-07-31
 - Decision owners: David
-- Related stages: FPA-P00-S02, FPA-P01-S01
+- Related stages: FPA-P00-S02, FPA-P01-S02
 
 ## Context
 

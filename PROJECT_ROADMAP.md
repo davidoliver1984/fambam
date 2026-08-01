@@ -14,6 +14,18 @@
 - Completed implementation sessions should be recorded in `docs/journal/`.
 - A phase is complete only when its required verification and documentation are complete.
 
+## ADR methodology
+
+Each roadmap phase plans exactly one ADR: the architectural design document
+for that phase, accepted at that phase's leading "Accept ... ADR" stage
+before any implementation stage in the phase begins. Additional ADRs are
+created only when a significant architectural change is discovered during
+implementation of an already-accepted phase — they are not pre-planned.
+Phase 0 is a one-time exception (see Phase 0 below). The explicit mapping
+between each ADR, its owning roadmap phase and its gating implementation
+stage is recorded in `tasks.json`'s `adrs.planned` list
+(`roadmap_phase` / `required_by_stage` fields).
+
 ## Product principles
 
 1. Family-centred rather than user-centred.
@@ -49,7 +61,14 @@ Establish the repository, engineering conventions, documentation ownership and a
 
 - ADR-0001: Repository and service topology.
 - ADR-0002: Primary technology stack.
-- ADR-0003: Documentation ownership and task-state conventions.
+
+Phase 0 is a one-time exception to the one-ADR-per-phase methodology (see
+"ADR methodology" below): ADR-0001 was already accepted narrowly, before
+that methodology was adopted, so Phase 0 closes with two ADRs rather than
+one. A separate documentation-ownership ADR was considered and rejected —
+that convention doesn't meet the bar for when an ADR is warranted, and is
+already fully specified in `docs/IMPLEMENTATION_GUIDE.md` and
+`CONTRIBUTING.md`.
 
 ## Exit criteria
 
@@ -78,10 +97,7 @@ Create a reproducible local environment for the web application, API, database, 
 
 ## Required decisions
 
-- ADR-0004: Local container strategy.
-- ADR-0005: Object-storage abstraction and local S3-compatible provider.
-- ADR-0006: Queue transport and background-job ownership.
-- ADR-0007: Local observability baseline.
+- ADR-0003: Local development platform.
 
 ## Exit criteria
 
@@ -112,9 +128,7 @@ Implement secure, invite-only access suitable for an international family.
 
 ## Required decisions
 
-- ADR-0008: Authentication architecture.
-- ADR-0009: Invitation model and account activation.
-- ADR-0010: Account recovery and optional MFA strategy.
+- ADR-0004: Identity, authentication and invitations.
 
 ## Exit criteria
 
@@ -152,11 +166,7 @@ Make the family space the primary collaboration, ownership and security boundary
 
 ## Required decisions
 
-- ADR-0011: Family-space tenancy model.
-- ADR-0012: Membership roles and permission boundaries.
-- ADR-0013: Tenant context propagation.
-- ADR-0014: PostgreSQL row-level security.
-- ADR-0015: Family-space deletion and retention lifecycle.
+- ADR-0005: Family spaces and tenancy.
 
 ## Exit criteria
 
@@ -188,10 +198,7 @@ Model family history independently of login accounts.
 
 ## Required decisions
 
-- ADR-0016: Account versus person separation.
-- ADR-0017: Relationship representation.
-- ADR-0018: Date precision and historical uncertainty.
-- ADR-0019: Person merge, split and correction strategy.
+- ADR-0006: People, accounts and relationships.
 
 ## Exit criteria
 
@@ -227,12 +234,7 @@ Provide reliable photo upload, original preservation and secure media delivery.
 
 ## Required decisions
 
-- ADR-0020: Upload architecture.
-- ADR-0021: Original, canonical and presentation asset model.
-- ADR-0022: Supported formats and image conversion.
-- ADR-0023: Media access and signed URL strategy.
-- ADR-0024: Metadata extraction and preservation.
-- ADR-0025: Storage naming, partitioning and lifecycle rules.
+- ADR-0007: Media storage and upload pipeline.
 
 ## Exit criteria
 
@@ -265,11 +267,7 @@ Model photographs as family archive records rather than anonymous files.
 
 ## Required decisions
 
-- ADR-0026: Photo ownership and provenance model.
-- ADR-0027: Albums versus dynamic collections.
-- ADR-0028: Historical metadata confidence.
-- ADR-0029: Comment, story and correction ownership.
-- ADR-0030: Photo deletion and restoration semantics.
+- ADR-0008: Photo domain, provenance and organisation.
 
 ## Exit criteria
 
@@ -299,9 +297,7 @@ Support birthdays, holidays, weddings and other shared family occasions.
 
 ## Required decisions
 
-- ADR-0031: Event domain model.
-- ADR-0032: Temporary and guest contribution access.
-- ADR-0033: Notification and digest strategy.
+- ADR-0009: Events and collaborative sharing.
 
 ## Exit criteria
 
@@ -328,8 +324,7 @@ Reduce repeated uploads without risking automatic data loss.
 
 ## Required decisions
 
-- ADR-0034: Duplicate definitions and thresholds.
-- ADR-0035: Duplicate consolidation behaviour.
+- ADR-0010: Duplicate detection.
 
 ## Exit criteria
 
@@ -365,11 +360,7 @@ Introduce replaceable, self-hosted face detection and embedding generation.
 
 ## Required decisions
 
-- ADR-0036: Face-recognition provider abstraction.
-- ADR-0037: Initial local model and licensing.
-- ADR-0038: Analysis data model and versioning.
-- ADR-0039: Inference deployment, service identity and compute strategy.
-- ADR-0040: Biometric-data threat model.
+- ADR-0011: Local face analysis foundation.
 
 ## Exit criteria
 
@@ -406,10 +397,7 @@ False merges are more harmful than missed matches. Initial thresholds must favou
 
 ## Required decisions
 
-- ADR-0041: Similarity metrics and threshold calibration.
-- ADR-0042: Clustering strategy.
-- ADR-0043: Human confirmation and override semantics.
-- ADR-0044: Recognition consent and exclusion.
+- ADR-0012: Face clustering and human identity review.
 
 ## Exit criteria
 
@@ -442,8 +430,7 @@ Make the family archive easy to explore without requiring manual album organisat
 
 ## Required decisions
 
-- ADR-0045: Search indexing strategy.
-- ADR-0046: Date and location query semantics.
+- ADR-0013: Search and discovery.
 
 ## Exit criteria
 
@@ -473,8 +460,7 @@ Create a warm, useful homepage that feels like a private family home rather than
 
 ## Required decisions
 
-- ADR-0047: Memory-generation rules.
-- ADR-0048: Personalisation boundaries and privacy.
+- ADR-0014: Memories and family homepage.
 
 ## Exit criteria
 
@@ -506,9 +492,7 @@ Ensure the family can recover, move and preserve its archive independently of th
 
 ## Required decisions
 
-- ADR-0049: Export format.
-- ADR-0050: Backup and restore architecture.
-- ADR-0051: Retention and deletion guarantees.
+- ADR-0015: Export, portability, backup and recovery.
 
 ## Exit criteria
 
@@ -544,10 +528,7 @@ Perform a dedicated production-readiness pass before inviting the wider family.
 
 ## Required decisions
 
-- ADR-0052: Consent and lawful-processing model.
-- ADR-0053: Child and guardian controls.
-- ADR-0054: Security incident and breach response.
-- ADR-0055: Accessibility acceptance standard.
+- ADR-0016: Security, privacy and accessibility hardening.
 
 ## Exit criteria
 
@@ -580,10 +561,7 @@ Deploy the platform safely and validate it with a small real family cohort.
 
 ## Required decisions
 
-- ADR-0056: Production hosting architecture.
-- ADR-0057: Cost controls and storage lifecycle.
-- ADR-0058: Deployment and rollback.
-- ADR-0059: Pilot support model.
+- ADR-0017: Production deployment and family pilot.
 
 ## Exit criteria
 
@@ -621,10 +599,7 @@ Enable natural-language discovery of photographs after the core family-sharing p
 
 ## Required decisions
 
-- ADR-0060: Semantic-image model and licensing.
-- ADR-0061: Vector storage and indexing.
-- ADR-0062: Hybrid ranking.
-- ADR-0063: Semantic reprocessing strategy.
+- ADR-0018: Semantic image search.
 
 ## Exit criteria
 
