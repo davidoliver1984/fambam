@@ -250,12 +250,54 @@ Create the initial repository structure and developer command surface.
 - Makefile placeholders.
 - Initial CI workflow.
 
+### Commands
+
+```bash
+make help
+make foundation-check
+make docs-check
+make contracts-check
+git diff --check
+```
+
 ### Verification
 
-- Documentation links resolve.
-- ADR and journal templates are usable.
-- CI validates JSON and Markdown formatting.
-- `make help` lists supported commands.
+- `make help` lists the foundation checks and reserved application targets.
+- `make foundation-check` validates the required directory and file scaffold,
+  JSON syntax, Markdown formatting and local documentation links.
+- `make docs-check` validates JSON syntax, Markdown formatting and local links.
+- `make contracts-check` confirms both reserved contract directories exist.
+- `git diff --check` reports no whitespace errors.
+- The initial GitHub Actions workflow runs `make foundation-check` on pushes and
+  pull requests.
+
+The first foundation check identified missing final newlines in
+`PRODUCT_VISION.md` and `docs/ENGINEERING_METHODOLOGY.md`. Both were corrected,
+and the complete verification set then passed locally on 2026-08-01.
+
+### Risks and edge cases
+
+- Application targets deliberately fail with a clear message until their
+  services are introduced in Phase 1; placeholders must not report false
+  success.
+- The foundation validator uses only the Python standard library so it does not
+  choose application dependencies ahead of ADR-0002.
+- Phase 0 cannot pass its complete acceptance gate until its required ADR-0002
+  decision is accepted. The methodology changed on 2026-08-01 to one planned
+  ADR per roadmap phase; the separately-planned documentation-conventions
+  ADR (formerly ADR-0003) was removed as not meeting CONTRIBUTING.md's own
+  bar for when an ADR is warranted — doc/task-state conventions are already
+  fully specified in this guide's "Document ownership" section and in
+  `CONTRIBUTING.md`.
+
+### Documentation updates
+
+- Added the root repository introduction and developer commands.
+- Added reusable ADR and session-journal templates.
+- Recorded the implementation session in
+  `docs/journal/2026-08-01-FPA-P00-S03.md`.
+- Kept `tasks.json` at `FPA-P00-S03` pending the remaining Phase 0 decisions and
+  final completion commit.
 
 ### Commit boundary
 
@@ -267,7 +309,42 @@ Scaffold repository foundation
 
 # Phase 1 — Local Development Platform
 
-## FPA-P01-S01 — Scaffold web, API and image-analysis applications
+## FPA-P01-S01 — Accept local development platform ADR
+
+### Objective
+
+Decide container strategy, object-storage abstraction and local provider,
+queue transport and background-job ownership, and the local observability
+baseline, in one ADR (ADR-0003) before any Phase 1 implementation begins.
+
+### Engineering rationale
+
+These four concerns are tightly coupled in a local Docker Compose
+environment — the compose topology, the storage provider and the queue
+transport all have to agree with each other before `compose.yaml` can be
+written. Deciding them together, once, avoids sequencing implementation
+stages around partial decisions.
+
+### Prerequisites
+
+- FPA-P00-S03 complete.
+
+### Expected changes
+
+- ADR-0003 accepted.
+
+### Verification
+
+- ADR-0003 covers container strategy, object storage, queue transport and
+  observability baseline explicitly.
+
+### Commit boundary
+
+```text
+Accept ADR-0003: Local development platform
+```
+
+## FPA-P01-S02 — Scaffold web, API and image-analysis applications
 
 ### Objective
 
@@ -293,7 +370,7 @@ Create independently testable application skeletons.
 Scaffold application services
 ```
 
-## FPA-P01-S02 — Add local infrastructure services
+## FPA-P01-S03 — Add local infrastructure services
 
 ### Objective
 
@@ -321,7 +398,7 @@ Provide PostgreSQL, Redis, S3-compatible storage and local mail.
 Add reproducible local infrastructure
 ```
 
-## FPA-P01-S03 — Add baseline observability
+## FPA-P01-S04 — Add baseline observability
 
 ### Objective
 
@@ -350,9 +427,9 @@ Add local observability baseline
 
 # Phase 2 — Identity, Authentication and Invitations
 
-## FPA-P02-S01 — Accept authentication and invitation ADRs
+## FPA-P02-S01 — Accept identity, authentication and invitations ADR
 
-Define session architecture, invitation lifecycle, recovery and MFA direction before implementation.
+Define session architecture, invitation lifecycle, recovery and MFA direction before implementation (ADR-0004).
 
 ## FPA-P02-S02 — Implement account authentication
 
@@ -377,9 +454,9 @@ Add rate limiting, session invalidation, password policy, security events and MF
 
 # Phase 3 — Family Spaces and Tenancy
 
-## FPA-P03-S01 — Accept tenancy and permission ADRs
+## FPA-P03-S01 — Accept family spaces and tenancy ADR
 
-Resolve tenant boundary, roles, active context, propagation and database RLS.
+Resolve tenant boundary, roles, active context, propagation and database RLS (ADR-0005).
 
 ## FPA-P03-S02 — Implement family spaces and memberships
 
@@ -408,9 +485,9 @@ Audit membership changes and define asynchronous deletion states.
 
 # Phase 4 — People, Accounts and Relationships
 
-## FPA-P04-S01 — Accept person and relationship ADRs
+## FPA-P04-S01 — Accept people, accounts and relationships ADR
 
-Resolve account/person separation, relationship representation and uncertain dates.
+Resolve account/person separation, relationship representation and uncertain dates (ADR-0006).
 
 ## FPA-P04-S02 — Implement person records
 
@@ -439,9 +516,9 @@ Merges must be reversible or safely recoverable and preserve references.
 
 # Phase 5 — Media Storage and Upload Pipeline
 
-## FPA-P05-S01 — Accept upload and asset-model ADRs
+## FPA-P05-S01 — Accept media storage and upload pipeline ADR
 
-Resolve direct upload, object keys, supported formats, canonical assets and access strategy.
+Resolve direct upload, object keys, supported formats, canonical assets and access strategy (ADR-0007).
 
 ## FPA-P05-S02 — Implement upload initiation and completion
 
@@ -479,9 +556,9 @@ Support retries, partial failure reporting and duplicate-safe client behaviour.
 
 # Phase 6 — Photo Domain, Provenance and Organisation
 
-## FPA-P06-S01 — Accept provenance and organisation ADRs
+## FPA-P06-S01 — Accept photo domain, provenance and organisation ADR
 
-Resolve photo ownership terms, albums, dynamic collections and historical confidence.
+Resolve photo ownership terms, albums, dynamic collections and historical confidence (ADR-0008).
 
 ## FPA-P06-S02 — Implement photo and provenance records
 
@@ -514,7 +591,7 @@ Use soft deletion, derivative cleanup jobs and clear permanent-deletion rules.
 
 # Phase 7 — Events and Collaborative Sharing
 
-## FPA-P07-S01 — Accept event and guest-access ADRs
+## FPA-P07-S01 — Accept events and collaborative sharing ADR (ADR-0009)
 
 ## FPA-P07-S02 — Implement events and event albums
 
@@ -533,17 +610,21 @@ Use soft deletion, derivative cleanup jobs and clear permanent-deletion rules.
 
 ---
 
-# Phase 8 — Duplicate Detection
+# Phase 8 — Exact and Visual Duplicate Detection
 
-## FPA-P08-S01 — Implement exact duplicate detection
+## FPA-P08-S01 — Accept duplicate-detection ADR (ADR-0010)
+
+Resolve duplicate definitions, similarity thresholds and consolidation behaviour before implementation.
+
+## FPA-P08-S02 — Implement exact duplicate detection
 
 Use cryptographic hashes and family-aware duplicate policies.
 
-## FPA-P08-S02 — Implement perceptual similarity analysis
+## FPA-P08-S03 — Implement perceptual similarity analysis
 
 Generate versioned perceptual hashes and candidate scores.
 
-## FPA-P08-S03 — Implement duplicate review and consolidation
+## FPA-P08-S04 — Implement duplicate review and consolidation
 
 Never delete automatically. Preserve album, event, story and provenance associations.
 
@@ -561,9 +642,9 @@ Never delete automatically. Preserve album, event, story and provenance associat
 
 Create a private, non-repository benchmark manifest covering recent photos, age variation, groups, scans, profiles, siblings and poor-quality images.
 
-## FPA-P09-S02 — Accept provider, model, licensing and data-model ADRs
+## FPA-P09-S02 — Accept local face analysis foundation ADR
 
-Do not implement a pretrained model until code and model-weight licensing are recorded separately.
+Resolve provider abstraction, initial local model and licensing, analysis data model and versioning, inference deployment and service identity, and the biometric-data threat model, in one ADR (ADR-0011). Do not implement a pretrained model until code and model-weight licensing are recorded within it.
 
 ## FPA-P09-S03 — Implement face-analysis provider contract
 
@@ -593,7 +674,7 @@ Measure detection coverage, false detections, execution time, memory and failure
 
 # Phase 10 — Face Clustering and Human Review
 
-## FPA-P10-S01 — Accept threshold, clustering and consent ADRs
+## FPA-P10-S01 — Accept face clustering and human identity review ADR (ADR-0012)
 
 ## FPA-P10-S02 — Implement embedding storage and similarity queries
 
@@ -619,7 +700,7 @@ Measure detection coverage, false detections, execution time, memory and failure
 
 # Phase 11 — Search and Discovery
 
-## FPA-P11-S01 — Accept search-indexing ADR
+## FPA-P11-S01 — Accept search and discovery ADR (ADR-0013)
 
 ## FPA-P11-S02 — Implement metadata search
 
@@ -639,7 +720,7 @@ Measure detection coverage, false detections, execution time, memory and failure
 
 # Phase 12 — Memories and Homepage
 
-## FPA-P12-S01 — Accept memory-generation ADR
+## FPA-P12-S01 — Accept memories and family homepage ADR (ADR-0014)
 
 ## FPA-P12-S02 — Implement recent family activity
 
@@ -659,7 +740,7 @@ Measure detection coverage, false detections, execution time, memory and failure
 
 # Phase 13 — Export, Backup and Recovery
 
-## FPA-P13-S01 — Accept export and backup ADRs
+## FPA-P13-S01 — Accept export, portability, backup and recovery ADR (ADR-0015)
 
 ## FPA-P13-S02 — Implement personal and family exports
 
@@ -682,17 +763,21 @@ Measure detection coverage, false detections, execution time, memory and failure
 
 # Phase 14 — Security, Privacy and Accessibility Hardening
 
-## FPA-P14-S01 — Produce threat model and privacy data map
+## FPA-P14-S01 — Accept security, privacy and accessibility ADR (ADR-0016)
 
-## FPA-P14-S02 — Review biometric and child-data controls
+Resolve the consent and lawful-processing model, child and guardian controls, security incident and breach response, and the accessibility acceptance standard, in one ADR before the audits and hardening work below measure against it.
 
-## FPA-P14-S03 — Perform application security hardening
+## FPA-P14-S02 — Produce threat model and privacy data map
 
-## FPA-P14-S04 — Perform accessibility audit
+## FPA-P14-S03 — Review biometric and child-data controls
 
-## FPA-P14-S05 — Conduct non-technical family usability test
+## FPA-P14-S04 — Perform application security hardening
 
-## FPA-P14-S06 — Resolve production blockers
+## FPA-P14-S05 — Perform accessibility audit
+
+## FPA-P14-S06 — Conduct non-technical family usability test
+
+## FPA-P14-S07 — Resolve production blockers
 
 ### Phase verification
 
@@ -704,7 +789,7 @@ Measure detection coverage, false detections, execution time, memory and failure
 
 # Phase 15 — Production Deployment and Pilot
 
-## FPA-P15-S01 — Accept production architecture ADRs
+## FPA-P15-S01 — Accept production deployment and family pilot ADR (ADR-0017)
 
 ## FPA-P15-S02 — Provision production infrastructure
 
@@ -733,7 +818,7 @@ This phase starts only after V1 unless explicitly promoted through roadmap revie
 
 ## FPA-P16-S01 — Build semantic-search benchmark
 
-## FPA-P16-S02 — Accept model, licence and vector-store ADRs
+## FPA-P16-S02 — Accept semantic image search ADR (ADR-0018)
 
 ## FPA-P16-S03 — Implement semantic embedding provider
 

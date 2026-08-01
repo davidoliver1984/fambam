@@ -87,7 +87,9 @@
             "CONTRIBUTING.md added, baselined from dolved's conventions and adapted for fambam. Intermediate commit, no stage tag.",
             "docs/STYLE_GUIDE.md renamed to docs/ENGINEERING_METHODOLOGY.md and referenced from CONTRIBUTING.md. Intermediate commit, no stage tag.",
             "Corrected two inconsistencies flagged by Codex on starting implementation: docs/IMPLEMENTATION_GUIDE.md's six example commit-boundary messages used Conventional Commit prefixes, contradicting CONTRIBUTING.md; and CONTRIBUTING.md called apps/image-ai an open naming question when ADR-0001's Decision section already accepted that path. Intermediate commit, no stage tag.",
-            "Directory scaffold, README.md, ADR/journal templates, Makefile placeholders and CI workflow remain outstanding for this stage. phase-0-s03 will be tagged on the commit that completes all of them."
+            "Directory scaffold, README.md, ADR/journal templates, Makefile placeholders and CI workflow completed and verified locally on 2026-08-01. Intermediate work, no stage tag.",
+            "Methodology changed 2026-08-01: one planned ADR per roadmap phase; the separate documentation-conventions ADR (formerly ADR-0003) was removed as not meeting CONTRIBUTING.md's own bar for when an ADR is warranted -- doc/task-state conventions are already fully specified in docs/IMPLEMENTATION_GUIDE.md and CONTRIBUTING.md.",
+            "ADR-0002 (Primary technology stack) accepted 2026-08-01. No git tag created by this acceptance. FPA-P00-S03 remains in_progress and phase-0-s03/phase-0 remain untagged pending the remaining scaffold-integration and Phase 0 acceptance-gate work."
           ]
         }
       ]
@@ -99,7 +101,7 @@
       "stages": [
         {
           "id": "FPA-P01-S01",
-          "title": "Scaffold web, API and image-analysis applications",
+          "title": "Accept local development platform ADR",
           "status": "planned",
           "dependencies": [
             "FPA-P00-S03"
@@ -108,7 +110,7 @@
         },
         {
           "id": "FPA-P01-S02",
-          "title": "Add local infrastructure services",
+          "title": "Scaffold web, API and image-analysis applications",
           "status": "planned",
           "dependencies": [
             "FPA-P01-S01"
@@ -117,10 +119,19 @@
         },
         {
           "id": "FPA-P01-S03",
-          "title": "Add baseline observability",
+          "title": "Add local infrastructure services",
           "status": "planned",
           "dependencies": [
             "FPA-P01-S02"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P01-S04",
+          "title": "Add baseline observability",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P01-S03"
           ],
           "notes": []
         }
@@ -133,10 +144,10 @@
       "stages": [
         {
           "id": "FPA-P02-S01",
-          "title": "Accept authentication and invitation ADRs",
+          "title": "Accept identity, authentication and invitations ADR",
           "status": "planned",
           "dependencies": [
-            "FPA-P01-S03"
+            "FPA-P01-S04"
           ],
           "notes": []
         },
@@ -176,7 +187,7 @@
       "stages": [
         {
           "id": "FPA-P03-S01",
-          "title": "Accept tenancy and permission ADRs",
+          "title": "Accept family spaces and tenancy ADR",
           "status": "planned",
           "dependencies": [
             "FPA-P02-S04"
@@ -228,7 +239,7 @@
       "stages": [
         {
           "id": "FPA-P04-S01",
-          "title": "Accept person and relationship ADRs",
+          "title": "Accept people, accounts and relationships ADR",
           "status": "planned",
           "dependencies": [
             "FPA-P03-S05"
@@ -280,7 +291,7 @@
       "stages": [
         {
           "id": "FPA-P05-S01",
-          "title": "Accept upload and asset-model ADRs",
+          "title": "Accept media storage and upload pipeline ADR",
           "status": "planned",
           "dependencies": [
             "FPA-P04-S05"
@@ -350,7 +361,7 @@
       "stages": [
         {
           "id": "FPA-P06-S01",
-          "title": "Accept provenance and organisation ADRs",
+          "title": "Accept photo domain, provenance and organisation ADR",
           "status": "planned",
           "dependencies": [
             "FPA-P05-S07"
@@ -411,7 +422,7 @@
       "stages": [
         {
           "id": "FPA-P07-S01",
-          "title": "Accept event and guest-access ADRs",
+          "title": "Accept events and collaborative sharing ADR",
           "status": "planned",
           "dependencies": [
             "FPA-P06-S06"
@@ -463,7 +474,7 @@
       "stages": [
         {
           "id": "FPA-P08-S01",
-          "title": "Implement exact duplicate detection",
+          "title": "Accept duplicate-detection ADR",
           "status": "planned",
           "dependencies": [
             "FPA-P07-S05"
@@ -472,7 +483,7 @@
         },
         {
           "id": "FPA-P08-S02",
-          "title": "Implement perceptual similarity analysis",
+          "title": "Implement exact duplicate detection",
           "status": "planned",
           "dependencies": [
             "FPA-P08-S01"
@@ -481,10 +492,19 @@
         },
         {
           "id": "FPA-P08-S03",
-          "title": "Implement duplicate review and consolidation",
+          "title": "Implement perceptual similarity analysis",
           "status": "planned",
           "dependencies": [
             "FPA-P08-S02"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P08-S04",
+          "title": "Implement duplicate review and consolidation",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P08-S03"
           ],
           "notes": []
         }
@@ -500,13 +520,13 @@
           "title": "Build representative local benchmark",
           "status": "planned",
           "dependencies": [
-            "FPA-P08-S03"
+            "FPA-P08-S04"
           ],
           "notes": []
         },
         {
           "id": "FPA-P09-S02",
-          "title": "Accept provider, model, licensing and data-model ADRs",
+          "title": "Accept local face analysis foundation ADR",
           "status": "planned",
           "dependencies": [
             "FPA-P09-S01"
@@ -558,7 +578,7 @@
       "stages": [
         {
           "id": "FPA-P10-S01",
-          "title": "Accept threshold, clustering and consent ADRs",
+          "title": "Accept face clustering and human identity review ADR",
           "status": "planned",
           "dependencies": [
             "FPA-P09-S06"
@@ -628,7 +648,7 @@
       "stages": [
         {
           "id": "FPA-P11-S01",
-          "title": "Accept search-indexing ADR",
+          "title": "Accept search and discovery ADR",
           "status": "planned",
           "dependencies": [
             "FPA-P10-S07"
@@ -680,7 +700,7 @@
       "stages": [
         {
           "id": "FPA-P12-S01",
-          "title": "Accept memory-generation ADR",
+          "title": "Accept memories and family homepage ADR",
           "status": "planned",
           "dependencies": [
             "FPA-P11-S05"
@@ -732,7 +752,7 @@
       "stages": [
         {
           "id": "FPA-P13-S01",
-          "title": "Accept export and backup ADRs",
+          "title": "Accept export, portability, backup and recovery ADR",
           "status": "planned",
           "dependencies": [
             "FPA-P12-S05"
@@ -793,7 +813,7 @@
       "stages": [
         {
           "id": "FPA-P14-S01",
-          "title": "Produce threat model and privacy data map",
+          "title": "Accept security, privacy and accessibility ADR",
           "status": "planned",
           "dependencies": [
             "FPA-P13-S06"
@@ -802,7 +822,7 @@
         },
         {
           "id": "FPA-P14-S02",
-          "title": "Review biometric and child-data controls",
+          "title": "Produce threat model and privacy data map",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S01"
@@ -811,7 +831,7 @@
         },
         {
           "id": "FPA-P14-S03",
-          "title": "Perform application security hardening",
+          "title": "Review biometric and child-data controls",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S02"
@@ -820,7 +840,7 @@
         },
         {
           "id": "FPA-P14-S04",
-          "title": "Perform accessibility audit",
+          "title": "Perform application security hardening",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S03"
@@ -829,7 +849,7 @@
         },
         {
           "id": "FPA-P14-S05",
-          "title": "Conduct non-technical family usability test",
+          "title": "Perform accessibility audit",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S04"
@@ -838,10 +858,19 @@
         },
         {
           "id": "FPA-P14-S06",
-          "title": "Resolve production blockers",
+          "title": "Conduct non-technical family usability test",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S05"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S07",
+          "title": "Resolve production blockers",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S06"
           ],
           "notes": []
         }
@@ -854,10 +883,10 @@
       "stages": [
         {
           "id": "FPA-P15-S01",
-          "title": "Accept production architecture ADRs",
+          "title": "Accept production deployment and family pilot ADR",
           "status": "planned",
           "dependencies": [
-            "FPA-P14-S06"
+            "FPA-P14-S07"
           ],
           "notes": []
         },
@@ -933,7 +962,7 @@
         },
         {
           "id": "FPA-P16-S02",
-          "title": "Accept model, licence and vector-store ADRs",
+          "title": "Accept semantic image search ADR",
           "status": "planned",
           "dependencies": [
             "FPA-P16-S01"
@@ -987,7 +1016,7 @@
     }
   ],
   "adrs": {
-    "next_number": 2,
+    "next_number": 19,
     "status_values": [
       "proposed",
       "accepted",
@@ -999,317 +1028,128 @@
       {
         "id": "ADR-0001",
         "title": "Repository and service topology",
-        "status": "accepted"
+        "status": "accepted",
+        "roadmap_phase": "P00",
+        "required_by_stage": "FPA-P00-S02"
       },
       {
         "id": "ADR-0002",
         "title": "Primary technology stack",
-        "status": "planned"
+        "status": "accepted",
+        "roadmap_phase": "P00",
+        "required_by_stage": "FPA-P00-S03"
       },
       {
         "id": "ADR-0003",
-        "title": "Documentation ownership and task-state conventions",
-        "status": "planned"
+        "title": "Local development platform",
+        "status": "planned",
+        "roadmap_phase": "P01",
+        "required_by_stage": "FPA-P01-S01"
       },
       {
         "id": "ADR-0004",
-        "title": "Local container strategy",
-        "status": "planned"
+        "title": "Identity, authentication and invitations",
+        "status": "planned",
+        "roadmap_phase": "P02",
+        "required_by_stage": "FPA-P02-S01"
       },
       {
         "id": "ADR-0005",
-        "title": "Object-storage abstraction and local provider",
-        "status": "planned"
+        "title": "Family spaces and tenancy",
+        "status": "planned",
+        "roadmap_phase": "P03",
+        "required_by_stage": "FPA-P03-S01"
       },
       {
         "id": "ADR-0006",
-        "title": "Queue transport and background-job ownership",
-        "status": "planned"
+        "title": "People, accounts and relationships",
+        "status": "planned",
+        "roadmap_phase": "P04",
+        "required_by_stage": "FPA-P04-S01"
       },
       {
         "id": "ADR-0007",
-        "title": "Local observability baseline",
-        "status": "planned"
+        "title": "Media storage and upload pipeline",
+        "status": "planned",
+        "roadmap_phase": "P05",
+        "required_by_stage": "FPA-P05-S01"
       },
       {
         "id": "ADR-0008",
-        "title": "Authentication architecture",
-        "status": "planned"
+        "title": "Photo domain, provenance and organisation",
+        "status": "planned",
+        "roadmap_phase": "P06",
+        "required_by_stage": "FPA-P06-S01"
       },
       {
         "id": "ADR-0009",
-        "title": "Invitation model and account activation",
-        "status": "planned"
+        "title": "Events and collaborative sharing",
+        "status": "planned",
+        "roadmap_phase": "P07",
+        "required_by_stage": "FPA-P07-S01"
       },
       {
         "id": "ADR-0010",
-        "title": "Account recovery and optional MFA strategy",
-        "status": "planned"
+        "title": "Duplicate detection",
+        "status": "planned",
+        "roadmap_phase": "P08",
+        "required_by_stage": "FPA-P08-S01"
       },
       {
         "id": "ADR-0011",
-        "title": "Family-space tenancy model",
-        "status": "planned"
+        "title": "Local face analysis foundation",
+        "status": "planned",
+        "roadmap_phase": "P09",
+        "required_by_stage": "FPA-P09-S02"
       },
       {
         "id": "ADR-0012",
-        "title": "Membership roles and permission boundaries",
-        "status": "planned"
+        "title": "Face clustering and human identity review",
+        "status": "planned",
+        "roadmap_phase": "P10",
+        "required_by_stage": "FPA-P10-S01"
       },
       {
         "id": "ADR-0013",
-        "title": "Tenant context propagation",
-        "status": "planned"
+        "title": "Search and discovery",
+        "status": "planned",
+        "roadmap_phase": "P11",
+        "required_by_stage": "FPA-P11-S01"
       },
       {
         "id": "ADR-0014",
-        "title": "PostgreSQL row-level security",
-        "status": "planned"
+        "title": "Memories and family homepage",
+        "status": "planned",
+        "roadmap_phase": "P12",
+        "required_by_stage": "FPA-P12-S01"
       },
       {
         "id": "ADR-0015",
-        "title": "Family-space deletion and retention lifecycle",
-        "status": "planned"
+        "title": "Export, portability, backup and recovery",
+        "status": "planned",
+        "roadmap_phase": "P13",
+        "required_by_stage": "FPA-P13-S01"
       },
       {
         "id": "ADR-0016",
-        "title": "Account versus person separation",
-        "status": "planned"
+        "title": "Security, privacy and accessibility hardening",
+        "status": "planned",
+        "roadmap_phase": "P14",
+        "required_by_stage": "FPA-P14-S01"
       },
       {
         "id": "ADR-0017",
-        "title": "Relationship representation",
-        "status": "planned"
+        "title": "Production deployment and family pilot",
+        "status": "planned",
+        "roadmap_phase": "P15",
+        "required_by_stage": "FPA-P15-S01"
       },
       {
         "id": "ADR-0018",
-        "title": "Date precision and historical uncertainty",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0019",
-        "title": "Person merge, split and correction strategy",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0020",
-        "title": "Upload architecture",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0021",
-        "title": "Original, canonical and presentation asset model",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0022",
-        "title": "Supported formats and image conversion",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0023",
-        "title": "Media access and signed URL strategy",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0024",
-        "title": "Metadata extraction and preservation",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0025",
-        "title": "Storage naming, partitioning and lifecycle rules",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0026",
-        "title": "Photo ownership and provenance model",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0027",
-        "title": "Albums versus dynamic collections",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0028",
-        "title": "Historical metadata confidence",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0029",
-        "title": "Comment, story and correction ownership",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0030",
-        "title": "Photo deletion and restoration semantics",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0031",
-        "title": "Event domain model",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0032",
-        "title": "Temporary and guest contribution access",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0033",
-        "title": "Notification and digest strategy",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0034",
-        "title": "Duplicate definitions and thresholds",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0035",
-        "title": "Duplicate consolidation behaviour",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0036",
-        "title": "Face-recognition provider abstraction",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0037",
-        "title": "Initial local model and licensing",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0038",
-        "title": "Analysis data model and versioning",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0039",
-        "title": "Inference deployment, service identity and compute strategy",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0040",
-        "title": "Biometric-data threat model",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0041",
-        "title": "Similarity metrics and threshold calibration",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0042",
-        "title": "Clustering strategy",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0043",
-        "title": "Human confirmation and override semantics",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0044",
-        "title": "Recognition consent and exclusion",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0045",
-        "title": "Search indexing strategy",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0046",
-        "title": "Date and location query semantics",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0047",
-        "title": "Memory-generation rules",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0048",
-        "title": "Personalisation boundaries and privacy",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0049",
-        "title": "Export format",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0050",
-        "title": "Backup and restore architecture",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0051",
-        "title": "Retention and deletion guarantees",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0052",
-        "title": "Consent and lawful-processing model",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0053",
-        "title": "Child and guardian controls",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0054",
-        "title": "Security incident and breach response",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0055",
-        "title": "Accessibility acceptance standard",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0056",
-        "title": "Production hosting architecture",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0057",
-        "title": "Cost controls and storage lifecycle",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0058",
-        "title": "Deployment and rollback",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0059",
-        "title": "Pilot support model",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0060",
-        "title": "Semantic-image model and licensing",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0061",
-        "title": "Vector storage and indexing",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0062",
-        "title": "Hybrid ranking",
-        "status": "planned"
-      },
-      {
-        "id": "ADR-0063",
-        "title": "Semantic reprocessing strategy",
-        "status": "planned"
+        "title": "Semantic image search",
+        "status": "planned",
+        "roadmap_phase": "P16",
+        "required_by_stage": "FPA-P16-S02"
       }
     ]
   },
