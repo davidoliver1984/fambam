@@ -338,6 +338,16 @@ stages around partial decisions.
 - ADR-0003 covers container strategy, object storage, queue transport and
   observability baseline explicitly.
 
+ADR-0003 was accepted 2026-08-01: Docker Compose; LocalStack for local
+S3-compatible storage and SQS-compatible queue transport; Redis scoped to
+caching and ephemeral application state only, not queueing; Mailpit; and a
+Phase 1 OpenTelemetry baseline (instrumentation, Collector, HTTP/message
+trace-context propagation, structured logs, baseline traces and metrics,
+local Grafana `otel-lgtm`), with custom domain spans and business-level
+metrics deferred to the phases that implement real workflows. This stage's
+entire scope was accepting the ADR, so the ADR-acceptance commit is this
+stage's completion commit and received the `phase-1-s01` tag directly.
+
 ### Commit boundary
 
 ```text

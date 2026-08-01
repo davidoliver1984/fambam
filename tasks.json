@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P01",
-    "current_stage": "FPA-P01-S01",
+    "current_stage": "FPA-P01-S02",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-01"
   },
@@ -98,21 +98,23 @@
     {
       "id": "P01",
       "name": "Local Development Platform",
-      "status": "ready",
+      "status": "in_progress",
       "stages": [
         {
           "id": "FPA-P01-S01",
           "title": "Accept local development platform ADR",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P00-S03"
           ],
-          "notes": []
+          "notes": [
+            "ADR-0003 accepted 2026-08-01 (git tag phase-1-s01). Stage scope was solely ADR acceptance, so the ADR commit is the stage-completion commit."
+          ]
         },
         {
           "id": "FPA-P01-S02",
           "title": "Scaffold web, API and image-analysis applications",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P01-S01"
           ],
@@ -1043,7 +1045,7 @@
       {
         "id": "ADR-0003",
         "title": "Local development platform",
-        "status": "planned",
+        "status": "accepted",
         "roadmap_phase": "P01",
         "required_by_stage": "FPA-P01-S01"
       },
@@ -1200,6 +1202,14 @@
       "roadmap_stage": "FPA-P00-S03",
       "date": "2026-08-01",
       "description": "Phase 0 completed: all Product and Repository Foundation stages and the full phase acceptance gate passed."
+    },
+    {
+      "git_tag": "phase-1-s01",
+      "type": "stage_completion",
+      "adr": "ADR-0003",
+      "roadmap_stage": "FPA-P01-S01",
+      "date": "2026-08-01",
+      "description": "FPA-P01-S01 completed: ADR-0003 accepted (local development platform -- Docker Compose, LocalStack S3/SQS, Redis scoped to cache/state only, Phase 1 OpenTelemetry baseline). Stage scope was solely ADR acceptance, so the ADR commit is the stage-completion commit."
     }
   ]
 }
