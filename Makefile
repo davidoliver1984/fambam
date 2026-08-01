@@ -1,9 +1,26 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help foundation-check docs-check contracts-check format format-check lint typecheck test test-api test-web test-ai test-e2e security-check
+.PHONY: help up down restart status logs infrastructure-smoke foundation-check docs-check contracts-check compose-check format format-check lint typecheck test test-api test-web test-ai test-e2e security-check
 
 help: ## List supported repository commands
 	@awk 'BEGIN {FS = ":.*## "; printf "Family Photo Archive commands:\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+up: ## Build and start the local development platform
+	@docker compose up --build --detach --wait
+
+down: ## Stop the local platform without deleting persistent data
+	@docker compose down
+
+restart: down up ## Restart the local development platform
+
+status: ## Show local platform service status
+	@docker compose ps
+
+logs: ## Follow logs from all local platform services
+	@docker compose logs --follow
+
+infrastructure-smoke: ## Verify PostgreSQL, Redis, S3 and SQS locally
+	@scripts/smoke-infrastructure.sh
 
 foundation-check: ## Validate the Phase 0 repository foundation
 	@python3 scripts/check_foundation.py
@@ -14,6 +31,9 @@ docs-check: ## Validate JSON, Markdown formatting and local documentation links
 contracts-check: ## Validate the current contract directory structure
 	@test -d contracts/events && test -d contracts/http
 	@echo "Contract directory structure is valid (contracts are introduced in later stages)."
+
+compose-check: ## Validate the Docker Compose configuration
+	@docker compose config --quiet
 
 format: ## Format all application source files
 	@cd apps/web && npm run format
