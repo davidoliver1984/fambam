@@ -16,3 +16,6 @@ __pycache__/
 dist/
 build/
 coverage/
+
+# Personal ChatGPT drafting notes -- not part of the repository's engineering record
+docs/gpt_drafts/
