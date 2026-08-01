@@ -15,6 +15,7 @@ The documentation authorities are:
 | `PRODUCT_VISION.md` | What the product is, its philosophy and non-goals |
 | `PROJECT_ROADMAP.md` | What will be built and in what order |
 | `docs/IMPLEMENTATION_GUIDE.md` | How stages are implemented, verified and committed |
+| `docs/ENGINEERING_METHODOLOGY.md` | The engineering process, roles and lifecycle followed across all projects |
 | `tasks.json` | Which planned stage is current, and the git-tag delivery log |
 | `docs/adr/` | Why durable architecture decisions were made |
 | `docs/journal/` | What happened during individual engineering sessions |

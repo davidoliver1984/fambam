@@ -1,4 +1,4 @@
-# AI Engineering Methodology
+# Engineering Methodology
 
 > This document defines the engineering methodology used across all of my software projects.
 >
