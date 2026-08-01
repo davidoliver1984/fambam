@@ -5,7 +5,7 @@ set -eu
 bucket="${AWS_BUCKET:-fambam-media}"
 queue="image-analysis-requested"
 object="smoke/infrastructure.txt"
-payload="fambam-infrastructure-smoke"
+payload="fambam-infrastructure-smoke-$(date +%s)-$$"
 
 docker compose exec -T postgres pg_isready -U fambam -d fambam
 docker compose exec -T redis redis-cli ping
@@ -27,15 +27,36 @@ docker compose exec -T localstack awslocal sqs send-message \
     --queue-url "http://localhost:4566/000000000000/${queue}" \
     --message-body "${payload}" >/dev/null
 
-received="$(
-    docker compose exec -T localstack awslocal sqs receive-message \
-        --queue-url "http://localhost:4566/000000000000/${queue}" \
-        --wait-time-seconds 2 \
-        --query 'Messages[0].Body' \
-        --output text
-)"
+received_current_message=false
+attempt=0
 
-if [ "${received}" != "${payload}" ]; then
+while [ "${attempt}" -lt 10 ]; do
+    attempt=$((attempt + 1))
+    received="$(
+        docker compose exec -T localstack awslocal sqs receive-message \
+            --queue-url "http://localhost:4566/000000000000/${queue}" \
+            --wait-time-seconds 2 \
+            --message-attribute-names All \
+            --output json
+    )"
+    received_body="$(printf '%s' "${received}" | jq -r '.Messages[0].Body // empty')"
+    receipt_handle="$(printf '%s' "${received}" | jq -r '.Messages[0].ReceiptHandle // empty')"
+
+    if [ -z "${receipt_handle}" ]; then
+        continue
+    fi
+
+    docker compose exec -T localstack awslocal sqs delete-message \
+        --queue-url "http://localhost:4566/000000000000/${queue}" \
+        --receipt-handle "${receipt_handle}"
+
+    if [ "${received_body}" = "${payload}" ]; then
+        received_current_message=true
+        break
+    fi
+done
+
+if [ "${received_current_message}" != "true" ]; then
     echo "SQS smoke test returned unexpected content" >&2
     exit 1
 fi
