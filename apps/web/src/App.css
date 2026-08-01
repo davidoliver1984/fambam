@@ -1,0 +1,41 @@
+#root {
+  min-height: 100vh;
+}
+
+.welcome,
+.health {
+  box-sizing: border-box;
+  display: grid;
+  min-height: 100vh;
+  place-content: center;
+  padding: 2rem;
+}
+
+.welcome {
+  max-width: 48rem;
+}
+
+.welcome h1,
+.health h1 {
+  color: #30261f;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2.5rem, 8vw, 5rem);
+  line-height: 1;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.welcome p:last-child {
+  color: #5f5148;
+  font-size: 1.125rem;
+  line-height: 1.7;
+  max-width: 42rem;
+}
+
+.eyebrow {
+  color: #8d4b32;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}

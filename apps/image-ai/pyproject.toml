@@ -1,0 +1,34 @@
+[project]
+name = "fambam-image-ai"
+version = "0.1.0"
+description = "Stateless image-analysis service for Family Photo Archive"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.141.1",
+    "uvicorn[standard]>=0.52.1",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "mypy>=2.3.0",
+    "pytest>=9.1.1",
+    "ruff>=0.16.1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+files = ["app", "tests"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
