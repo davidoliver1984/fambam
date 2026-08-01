@@ -457,7 +457,24 @@ Scaffold application services
 
 ### Objective
 
-Provide PostgreSQL, Redis, S3-compatible storage and local mail.
+Provide a reproducible Docker Compose platform containing the applications,
+PostgreSQL, Redis, S3-compatible storage, SQS-compatible messaging and local
+mail.
+
+### Engineering rationale
+
+One Compose topology gives every contributor the same service names, dependency
+ordering and safe local defaults. Health-gated application startup separates
+infrastructure readiness from application faults. Named volumes preserve local
+database, cache and object-storage state across ordinary restarts, while a
+single smoke command proves both direct infrastructure access and Laravel's
+configured Redis, S3 and SQS integrations.
+
+### Prerequisites
+
+- FPA-P01-S02 complete.
+- Docker with Compose v2 available.
+- ADR-0001, ADR-0002 and ADR-0003 accepted.
 
 ### Expected changes
 
@@ -468,12 +485,70 @@ Provide PostgreSQL, Redis, S3-compatible storage and local mail.
 - Network definitions.
 - Make targets.
 
+### Commands
+
+```bash
+docker compose config --quiet
+make up
+make status
+make infrastructure-smoke
+make restart
+make infrastructure-smoke
+make format-check
+make lint
+make typecheck
+make test
+make foundation-check
+make contracts-check
+make security-check
+git diff --check
+```
+
 ### Verification
 
 - `make up` starts the platform.
 - Applications can reach required dependencies.
 - Object upload and retrieval smoke test passes.
 - Queue round-trip smoke test passes.
+
+The platform was implemented and verified locally on 2026-08-01. Compose builds
+and health-gates the React/Vite, Laravel and FastAPI containers, plus pinned
+PostgreSQL 17.6, Redis 7.4.5, LocalStack 4.5.0 and Mailpit 1.27.7 services. The
+Laravel container applies migrations before serving requests. LocalStack's
+ready hook idempotently creates the media bucket and the requested, completed
+and failed image-analysis queues.
+
+`make up`, `make status` and `make infrastructure-smoke` passed. The smoke test
+confirmed PostgreSQL readiness, Redis connectivity, direct S3 upload/download,
+an SQS send/receive round trip, API migrations, and Laravel access to Redis, S3
+and SQS. `make restart` followed by the same smoke test also passed, confirming
+that an ordinary restart retains the named volumes. All application health
+endpoints and the Mailpit and LocalStack health surfaces responded successfully.
+
+### Risks and edge cases
+
+- Common local development ports were already occupied by unrelated projects.
+  Fambam therefore defaults to a dedicated host-port range while retaining the
+  services' conventional internal ports; every host port remains overridable
+  through the root environment template.
+- Compose defaults are development-only and contain no production credentials.
+  Real family data must not be used in this environment or committed.
+- Application images run as non-root users. Infrastructure images are pinned to
+  exact versions to avoid silent local-environment drift.
+- Redis remains limited to caching and ephemeral state. SQS is the accepted
+  asynchronous transport.
+- OpenTelemetry and the local observability interface remain strictly scoped to
+  FPA-P01-S04 and are intentionally absent here.
+
+### Documentation updates
+
+- Documented the local commands, endpoints and environment override workflow in
+  the root README.
+- Added Dockerfiles, ignore files and environment templates for each service.
+- Recorded implementation and verification in
+  `docs/journal/2026-08-01-FPA-P01-S03.md`.
+- Advanced `tasks.json` to FPA-P01-S04 after review and the complete local
+  infrastructure verification gate passed.
 
 ### Commit boundary
 

@@ -14,9 +14,10 @@ priority over automated suggestions, and family data must remain portable.
 ## Current status
 
 Phase 0, Product and Repository Foundation, is complete. The repository is now
-in Phase 1, Local Development Platform. The three application services are
-scaffolded and verified; local infrastructure is the current stage. The
-canonical execution state is recorded in [`tasks.json`](tasks.json).
+in Phase 1, Local Development Platform. The three application services and
+their reproducible local infrastructure are implemented and verified; baseline
+observability is next. The canonical execution state is recorded in
+[`tasks.json`](tasks.json).
 
 ## Repository structure
 
@@ -41,7 +42,28 @@ and communicates through asynchronous, versioned messages.
 ## Developer commands
 
 Run `make help` from the repository root to list the command surface. The core
-checks are:
+local-platform commands are:
+
+```bash
+make up
+make status
+make infrastructure-smoke
+make logs
+make down
+```
+
+The default host endpoints are:
+
+| Service | URL |
+| --- | --- |
+| Web | `http://localhost:3010` |
+| API health | `http://localhost:8082/api/health` |
+| Image AI health | `http://localhost:8010/health` |
+| Mailpit | `http://localhost:8026` |
+| LocalStack | `http://localhost:4570` |
+
+Copy `.env.example` to `.env` only when local port or safe development-default
+overrides are needed. The core checks are:
 
 ```bash
 make foundation-check
