@@ -16,3 +16,6 @@ __pycache__/
 dist/
 build/
 coverage/
+
+# Local drafting notes -- not part of the repository's engineering record
+docs/local_drafts/
