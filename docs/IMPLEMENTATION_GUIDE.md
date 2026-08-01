@@ -181,7 +181,7 @@ The data model and security model will drift if the project is treated as a gene
 ### Commit boundary
 
 ```text
-docs: define family photo archive product and delivery plan
+Define family photo archive product and delivery plan
 ```
 
 ---
@@ -227,7 +227,7 @@ Laravel should remain the business authority. Image inference should be isolated
 ### Commit boundary
 
 ```text
-docs: accept repository and service topology
+Accept ADR-0001: Repository and service topology
 ```
 
 ---
@@ -259,7 +259,7 @@ Create the initial repository structure and developer command surface.
 ### Commit boundary
 
 ```text
-chore: scaffold repository foundation
+Scaffold repository foundation
 ```
 
 ---
@@ -289,7 +289,7 @@ Create independently testable application skeletons.
 ### Commit boundary
 
 ```text
-feat: scaffold application services
+Scaffold application services
 ```
 
 ## FPA-P01-S02 — Add local infrastructure services
@@ -317,7 +317,7 @@ Provide PostgreSQL, Redis, S3-compatible storage and local mail.
 ### Commit boundary
 
 ```text
-feat: add reproducible local infrastructure
+Add reproducible local infrastructure
 ```
 
 ## FPA-P01-S03 — Add baseline observability
@@ -342,7 +342,7 @@ Make requests, jobs and image-analysis failures diagnosable from the start.
 ### Commit boundary
 
 ```text
-feat: add local observability baseline
+Add local observability baseline
 ```
 
 ---
