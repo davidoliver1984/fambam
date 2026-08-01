@@ -282,12 +282,11 @@ and the complete verification set then passed locally on 2026-08-01.
   success.
 - The foundation validator uses only the Python standard library so it does not
   choose application dependencies ahead of ADR-0002.
-- Phase 0 cannot pass its complete acceptance gate until its required ADR-0002
-  decision is accepted. The methodology changed on 2026-08-01 to one planned
-  ADR per roadmap phase; the separately-planned documentation-conventions
-  ADR (formerly ADR-0003) was removed as not meeting CONTRIBUTING.md's own
-  bar for when an ADR is warranted — doc/task-state conventions are already
-  fully specified in this guide's "Document ownership" section and in
+- Phase 0's required architectural decisions are complete: ADR-0001 and
+  ADR-0002 are accepted. The separately-planned documentation-conventions ADR
+  (formerly ADR-0003) was removed as not meeting `CONTRIBUTING.md`'s own bar
+  for when an ADR is warranted; documentation and task-state conventions are
+  already fully specified in this guide's "Document ownership" section and in
   `CONTRIBUTING.md`.
 
 ### Documentation updates
@@ -296,8 +295,9 @@ and the complete verification set then passed locally on 2026-08-01.
 - Added reusable ADR and session-journal templates.
 - Recorded the implementation session in
   `docs/journal/2026-08-01-FPA-P00-S03.md`.
-- Kept `tasks.json` at `FPA-P00-S03` pending the remaining Phase 0 decisions and
-  final completion commit.
+- Advanced `tasks.json` to `FPA-P01-S01` after scaffold integration, final
+  documentation reconciliation and the complete Phase 0 verification gate
+  passed.
 
 ### Commit boundary
 

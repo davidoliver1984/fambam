@@ -4,10 +4,10 @@
     "name": "Family Photo Archive",
     "description": "A private, family-centred photo and memory platform for international relatives who want to share and preserve photographs without relying on mainstream social media.",
     "version": "0.1.0",
-    "status": "planned",
+    "status": "in_progress",
     "v1_release_phase": "P15",
-    "current_phase": "P00",
-    "current_stage": "FPA-P00-S03",
+    "current_phase": "P01",
+    "current_stage": "FPA-P01-S01",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-01"
   },
@@ -53,7 +53,7 @@
     {
       "id": "P00",
       "name": "Product and Repository Foundation",
-      "status": "ready",
+      "status": "completed",
       "stages": [
         {
           "id": "FPA-P00-S01",
@@ -78,7 +78,7 @@
         {
           "id": "FPA-P00-S03",
           "title": "Scaffold repository documentation and command interface",
-          "status": "in_progress",
+          "status": "completed",
           "dependencies": [
             "FPA-P00-S02"
           ],
@@ -89,7 +89,8 @@
             "Corrected two inconsistencies flagged by Codex on starting implementation: docs/IMPLEMENTATION_GUIDE.md's six example commit-boundary messages used Conventional Commit prefixes, contradicting CONTRIBUTING.md; and CONTRIBUTING.md called apps/image-ai an open naming question when ADR-0001's Decision section already accepted that path. Intermediate commit, no stage tag.",
             "Directory scaffold, README.md, ADR/journal templates, Makefile placeholders and CI workflow completed and verified locally on 2026-08-01. Intermediate work, no stage tag.",
             "Methodology changed 2026-08-01: one planned ADR per roadmap phase; the separate documentation-conventions ADR (formerly ADR-0003) was removed as not meeting CONTRIBUTING.md's own bar for when an ADR is warranted -- doc/task-state conventions are already fully specified in docs/IMPLEMENTATION_GUIDE.md and CONTRIBUTING.md.",
-            "ADR-0002 (Primary technology stack) accepted 2026-08-01. No git tag created by this acceptance. FPA-P00-S03 remains in_progress and phase-0-s03/phase-0 remain untagged pending the remaining scaffold-integration and Phase 0 acceptance-gate work."
+            "ADR-0002 (Primary technology stack) accepted 2026-08-01. No git tag was created by that acceptance alone.",
+            "Repository scaffold integrated, documentation reconciled and the Phase 0 verification gate passed on 2026-08-01. FPA-P00-S03 and Phase 0 completed on the same completion commit."
           ]
         }
       ]
@@ -97,12 +98,12 @@
     {
       "id": "P01",
       "name": "Local Development Platform",
-      "status": "planned",
+      "status": "ready",
       "stages": [
         {
           "id": "FPA-P01-S01",
           "title": "Accept local development platform ADR",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P00-S03"
           ],
@@ -1183,6 +1184,22 @@
       "roadmap_stage": "FPA-P00-S02",
       "date": "2026-07-31",
       "description": "FPA-P00-S02 completed: ADR-0001 accepted (repository and service topology). Stage scope was solely ADR acceptance, so the ADR commit is the stage-completion commit."
+    },
+    {
+      "git_tag": "phase-0-s03",
+      "type": "stage_completion",
+      "adr": "ADR-0002",
+      "roadmap_stage": "FPA-P00-S03",
+      "date": "2026-08-01",
+      "description": "FPA-P00-S03 completed: repository foundation scaffold, documentation, command interface and initial CI integrated and verified."
+    },
+    {
+      "git_tag": "phase-0",
+      "type": "phase_completion",
+      "adr": null,
+      "roadmap_stage": "FPA-P00-S03",
+      "date": "2026-08-01",
+      "description": "Phase 0 completed: all Product and Repository Foundation stages and the full phase acceptance gate passed."
     }
   ]
 }

@@ -16,14 +16,18 @@
 
 ## ADR methodology
 
-Each roadmap phase plans exactly one ADR: the architectural design document
-for that phase, accepted at that phase's leading "Accept ... ADR" stage
-before any implementation stage in the phase begins. Additional ADRs are
-created only when a significant architectural change is discovered during
-implementation of an already-accepted phase — they are not pre-planned.
-Phase 0 is a one-time exception (see Phase 0 below). The explicit mapping
-between each ADR, its owning roadmap phase and its gating implementation
-stage is recorded in `tasks.json`'s `adrs.planned` list
+Each roadmap phase with defined implementation scope has one planned phase
+architecture ADR by default. Additional ADRs may be created when a decision is
+independently significant, durable and clearer to review separately. Additional
+ADRs may be identified during planning or implementation; they are not required
+merely because a phase contains several technical subjects.
+
+This provides one primary architectural narrative per planned phase without
+forcing independently significant decisions into the same record or returning
+to a granular ADR for every technical subject. ADR numbering remains independent
+of roadmap phase numbering. Phase 0 is a one-time exception (see Phase 0 below).
+The explicit mapping between each planned ADR, its owning roadmap phase and its
+gating implementation stage is recorded in `tasks.json`'s `adrs.planned` list
 (`roadmap_phase` / `required_by_stage` fields).
 
 ## Product principles
@@ -62,8 +66,8 @@ Establish the repository, engineering conventions, documentation ownership and a
 - ADR-0001: Repository and service topology.
 - ADR-0002: Primary technology stack.
 
-Phase 0 is a one-time exception to the one-ADR-per-phase methodology (see
-"ADR methodology" below): ADR-0001 was already accepted narrowly, before
+Phase 0 is a one-time exception to the one-primary-ADR-per-phase methodology
+(see "ADR methodology" above): ADR-0001 was already accepted narrowly, before
 that methodology was adopted, so Phase 0 closes with two ADRs rather than
 one. A separate documentation-ownership ADR was considered and rejected —
 that convention doesn't meet the bar for when an ADR is warranted, and is
@@ -631,6 +635,10 @@ Extend the mature archive without compromising its original purpose.
 - End-to-end encrypted private collections.
 
 Every feature requires a separate scope review and should not be assumed part of V1.
+
+Phase 17 is intentionally unscoped and is therefore an exception to the default
+planned phase architecture ADR. It does not require a pre-planned ADR until an
+advanced archive feature is selected and given defined implementation scope.
 
 ---
 
