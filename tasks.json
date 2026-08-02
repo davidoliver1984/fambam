@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P02",
-    "current_stage": "FPA-P02-S02",
+    "current_stage": "FPA-P02-S03",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-02"
   },
@@ -170,16 +170,19 @@
         {
           "id": "FPA-P02-S02",
           "title": "Implement account authentication",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P02-S01"
           ],
-          "notes": []
+          "notes": [
+            "Headless Fortify and Sanctum SPA cookie authentication, account profile and enumeration-safe password recovery completed on 2026-08-02; open registration remains disabled pending the invitation lifecycle in FPA-P02-S03.",
+            "The full repository gate, rebuilt PostgreSQL stack and live CSRF/login/current-user/logout flow passed before review approval and stage completion."
+          ]
         },
         {
           "id": "FPA-P02-S03",
           "title": "Implement invitation lifecycle",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P02-S02"
           ],
@@ -1263,6 +1266,14 @@
       "roadmap_stage": "FPA-P02-S01",
       "date": "2026-08-02",
       "description": "FPA-P02-S01 completed: ADR-0004 accepted (identity, authentication and invitations -- headless Fortify with Sanctum SPA cookie sessions on a database session store, a shared global session/remember-me revocation operation, invitation-only account creation with the stock registration endpoint disabled, invitation acceptance treated as email verification, 15-character minimum password length with safeguarded HIBP screening, optional TOTP MFA, throttling instead of account lockout, no CAPTCHA or social login). Stage scope was solely ADR acceptance, so the ADR commit is the stage-completion commit."
+    },
+    {
+      "git_tag": "phase-2-s02",
+      "type": "stage_completion",
+      "adr": "ADR-0004",
+      "roadmap_stage": "FPA-P02-S02",
+      "date": "2026-08-02",
+      "description": "FPA-P02-S02 completed: headless Fortify and Sanctum SPA cookie authentication, database sessions, login/logout, current-user profile, email-verification foundation and enumeration-safe password recovery implemented and verified. Open registration remains disabled pending FPA-P02-S03."
     }
   ]
 }

@@ -717,7 +717,72 @@ Accept ADR-0004: Identity, authentication and invitations
 
 ## FPA-P02-S02 — Implement account authentication
 
-Implement registration acceptance, login, logout, current user, email verification and password reset.
+### Objective
+
+Implement ADR-0004's account authentication foundation: headless Fortify and
+Sanctum SPA cookie sessions, login, logout, current-user/profile access,
+email-verification primitives and password reset. Keep open registration
+disabled; invitation acceptance creates accounts in FPA-P02-S03.
+
+### Engineering rationale
+
+Authentication must exist before an invitation can establish a usable account,
+but account creation cannot safely be exposed before the invitation lifecycle
+exists. This stage therefore establishes the session and recovery boundary
+without creating a temporary open-registration path that the next stage would
+need to remove.
+
+### Prerequisites
+
+- FPA-P02-S01 complete and ADR-0004 accepted.
+
+### Expected changes
+
+- Install and configure headless Laravel Fortify and Sanctum stateful SPA
+  middleware.
+- Use database-backed, HTTP-only, SameSite session cookies with explicit
+  stateful-domain and credentialed-CORS configuration.
+- Add login, logout, current-user and basic display-name/timezone profile flows.
+- Add enumeration-safe password-reset request and reset flows with reset links
+  targeting the React application.
+- Retain Laravel's email-verification contract and routes for later verified
+  email workflows.
+- Add the Fortify TOTP schema required by ADR-0004, while leaving the feature
+  disabled until FPA-P02-S04.
+- Add React login, password-recovery and account-profile surfaces with correct
+  password-manager autocomplete behaviour.
+- Keep Fortify registration, password change, MFA and passkey surfaces disabled.
+
+### Verification
+
+- Feature tests prove successful and failed login, logout, authentication
+  enforcement, profile validation, enumeration-safe reset requests, password
+  reset and email verification.
+- Tests prove the stock registration route is absent and cannot create a user.
+- Web tests cover the login surface and password-manager-compatible fields.
+- CORS is credentialed only for configured origins and the Sanctum CSRF cookie
+  is issued.
+- SQLite and live PostgreSQL migrations succeed.
+- The repository format, lint, type, test, security, infrastructure and
+  observability gates pass.
+
+### Documentation updates
+
+- Update the README status and account-entry guidance.
+- Record the implementation and verification in
+  `docs/journal/2026-08-02-FPA-P02-S02.md`.
+- Mark FPA-P02-S02 in progress until review and completion approval.
+
+### Commit boundary
+
+```text
+Implement account authentication
+```
+
+FPA-P02-S02 completed on 2026-08-02 after the full verification gate and live
+PostgreSQL-backed CSRF, login, current-user and logout flow passed. Open
+registration remains absent; account creation stays reserved for the invitation
+lifecycle in FPA-P02-S03.
 
 ## FPA-P02-S03 — Implement invitation lifecycle
 

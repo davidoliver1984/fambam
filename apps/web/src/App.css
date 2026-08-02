@@ -3,7 +3,8 @@
 }
 
 .welcome,
-.health {
+.health,
+.auth {
   box-sizing: border-box;
   display: grid;
   min-height: 100vh;
@@ -16,13 +17,65 @@
 }
 
 .welcome h1,
-.health h1 {
+.health h1,
+.auth h1 {
   color: #30261f;
   font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(2.5rem, 8vw, 5rem);
   line-height: 1;
   margin: 0;
   text-wrap: balance;
+}
+
+.auth {
+  margin: 0 auto;
+  max-width: 34rem;
+  place-content: center stretch;
+  width: 100%;
+}
+
+.auth h1 {
+  font-size: clamp(2.25rem, 7vw, 4rem);
+}
+
+.auth form {
+  display: grid;
+  gap: 0.7rem;
+  margin: 1rem 0;
+}
+
+.auth input:not([type="checkbox"]) {
+  border: 1px solid #b8a89b;
+  border-radius: 0.4rem;
+  font: inherit;
+  padding: 0.8rem;
+}
+
+.auth button {
+  background: #7c3f2a;
+  border: 0;
+  border-radius: 0.4rem;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  margin-top: 0.5rem;
+  padding: 0.8rem 1rem;
+}
+
+.auth button.secondary {
+  background: #ede5df;
+  color: #30261f;
+}
+
+.check {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.form-message {
+  color: #68412f;
 }
 
 .welcome p:last-child {

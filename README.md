@@ -13,11 +13,10 @@ priority over automated suggestions, and family data must remain portable.
 
 ## Current status
 
-Phase 0, Product and Repository Foundation, is complete. The repository is now
-in Phase 1, Local Development Platform. The three application services and
-their reproducible local infrastructure are implemented and verified; baseline
-observability is next. The canonical execution state is recorded in
-[`tasks.json`](tasks.json).
+Phases 0 and 1 are complete. The repository is now in Phase 2, Identity,
+Authentication and Invitations. ADR-0004 and account authentication are
+complete; the invitation lifecycle is next in `FPA-P02-S03`. The canonical
+execution state is recorded in [`tasks.json`](tasks.json).
 
 ## Repository structure
 
@@ -62,6 +61,11 @@ The default host endpoints are:
 | Mailpit | `http://localhost:8026` |
 | LocalStack | `http://localhost:4570` |
 | Grafana | `http://localhost:3011` |
+
+The account UI is available at `http://localhost:3010/login`. It uses
+CSRF-protected, database-backed Laravel sessions; there is deliberately no open
+registration route. Invitation-based account creation is introduced in
+`FPA-P02-S03`.
 
 Copy `.env.example` to `.env` only when local port or safe development-default
 overrides are needed. The core checks are:
