@@ -666,7 +666,54 @@ Add local observability baseline
 
 ## FPA-P02-S01 — Accept identity, authentication and invitations ADR
 
-Define session architecture, invitation lifecycle, recovery and MFA direction before implementation (ADR-0004).
+### Objective
+
+Decide the authentication backend, session model, invitation lifecycle,
+password policy, MFA foundation and account-security posture for Phase 2 in
+one ADR (ADR-0004) before any Phase 2 implementation begins.
+
+### Engineering rationale
+
+Registration, session management, invitation issuance and acceptance, and
+account-security hardening are tightly coupled: the session store choice
+constrains how revocation works, the invitation-acceptance flow decides
+what "email verified" means, and the password policy depends on whether MFA
+is mandatory. Deciding them together, once, avoids sequencing
+FPA-P02-S02 through FPA-P02-S04 around partial or contradictory decisions.
+
+### Prerequisites
+
+- FPA-P01-S04 complete.
+
+### Expected changes
+
+- ADR-0004 accepted.
+
+### Verification
+
+- ADR-0004 covers the authentication backend, session and CSRF strategy,
+  invitation lifecycle and token safety, MFA foundation, account-security
+  hardening (rate limiting, lockout, password policy) and
+  email-verification/recovery scope explicitly.
+
+ADR-0004 was accepted 2026-08-02: headless Laravel Fortify with Sanctum SPA
+cookie-mode sessions on a database session store; a shared global
+session/remember-me revocation operation; invitation-only account creation
+with the stock Fortify registration endpoint disabled; invitation
+acceptance treated as email verification, with the invited email address
+authoritative and non-editable at acceptance; a 15-character minimum
+password length with safeguarded HIBP compromised-password screening
+(fail-open, no password material logged); optional TOTP MFA off by
+default; throttling rather than hard account lockout; and no CAPTCHA or
+social login. This stage's entire scope was accepting the ADR, so the
+ADR-acceptance commit is this stage's completion commit and receives the
+`phase-2-s01` tag directly.
+
+### Commit boundary
+
+```text
+Accept ADR-0004: Identity, authentication and invitations
+```
 
 ## FPA-P02-S02 — Implement account authentication
 
