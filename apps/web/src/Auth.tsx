@@ -5,15 +5,21 @@ import {
   useState,
 } from "react";
 
-import { api, csrf } from "./api";
+import {
+  logout,
+  login,
+  requestPasswordReset,
+  resetPassword,
+} from "./features/auth/api/authApi";
+import { useCurrentUserQuery } from "./features/account/hooks/useCurrentUserQuery";
+import { useUpdateProfileMutation } from "./features/account/hooks/useUpdateProfileMutation";
+import { InvitationManagement } from "./features/invitations/pages/InvitationManagement";
 
-type User = {
-  id: number;
-  name: string;
-  email: string;
-  timezone: string;
-  email_verified_at: string | null;
-};
+function formString(data: FormData, name: string): string {
+  const value = data.get(name);
+
+  return typeof value === "string" ? value : "";
+}
 
 function FormMessage({ message }: { message: string }) {
   return message === "" ? null : (
@@ -32,10 +38,9 @@ export function LoginPage() {
     setMessage("Signing in…");
 
     try {
-      await csrf();
-      await api.post("/login", {
-        email: data.get("email"),
-        password: data.get("password"),
+      await login({
+        email: formString(data, "email"),
+        password: formString(data, "password"),
         remember: data.get("remember") === "on",
       });
       window.location.assign("/account");
@@ -87,8 +92,7 @@ export function ForgotPasswordPage() {
   async function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    await csrf();
-    await api.post("/forgot-password", { email: data.get("email") });
+    await requestPasswordReset(formString(data, "email"));
     setMessage("If that address has an account, a reset link is on its way.");
   }
 
@@ -127,12 +131,11 @@ export function ResetPasswordPage() {
     setMessage("Updating password…");
 
     try {
-      await csrf();
-      await api.post("/reset-password", {
+      await resetPassword({
         token: query.get("token"),
         email: query.get("email"),
-        password: data.get("password"),
-        password_confirmation: data.get("password_confirmation"),
+        password: formString(data, "password"),
+        password_confirmation: formString(data, "password_confirmation"),
       });
       window.location.assign("/login");
     } catch {
@@ -174,35 +177,27 @@ export function ResetPasswordPage() {
 }
 
 export function AccountPage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [message, setMessage] = useState("Loading your account…");
+  const userQuery = useCurrentUserQuery();
+  const updateProfile = useUpdateProfileMutation();
+  const [message, setMessage] = useState("");
+  const user = userQuery.data;
 
   useEffect(() => {
-    api
-      .get<{ data: User }>("/api/user")
-      .then(({ data }) => {
-        setUser(data.data);
-        setMessage("");
-      })
-      .catch(() => {
-        window.location.assign("/login");
-      });
-  }, []);
+    if (userQuery.isError) window.location.assign("/login");
+  }, [userQuery.isError]);
 
   async function update(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const response = await api.patch<{ data: User }>("/api/user/profile", {
-      name: data.get("name"),
-      timezone: data.get("timezone"),
+    await updateProfile.mutateAsync({
+      name: formString(data, "name"),
+      timezone: formString(data, "timezone"),
     });
-    setUser(response.data.data);
     setMessage("Profile saved.");
   }
 
-  async function logout() {
-    await csrf();
-    await api.post("/logout");
+  async function signOut() {
+    await logout();
     window.location.assign("/login");
   }
 
@@ -211,8 +206,10 @@ export function AccountPage() {
       title="Your account"
       introduction={user?.email ?? "Private account details"}
     >
-      {user === null ? (
-        <FormMessage message={message} />
+      {user === undefined ? (
+        <FormMessage
+          message={userQuery.isPending ? "Loading your account…" : message}
+        />
       ) : (
         <form
           onSubmit={(event) => {
@@ -239,7 +236,7 @@ export function AccountPage() {
             className="secondary"
             type="button"
             onClick={() => {
-              void logout();
+              void signOut();
             }}
           >
             Sign out
@@ -247,6 +244,7 @@ export function AccountPage() {
           <FormMessage message={message} />
         </form>
       )}
+      {user?.can_invite === true && <InvitationManagement />}
     </AuthShell>
   );
 }

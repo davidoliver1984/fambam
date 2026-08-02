@@ -11,7 +11,10 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 
-/** @property Carbon|null $email_verified_at */
+/**
+ * @property Carbon|null $email_verified_at
+ * @property bool $can_invite
+ */
 #[Fillable(['name', 'email', 'password', 'timezone'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail
@@ -28,6 +31,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return [
             'email_verified_at' => 'datetime',
+            'can_invite' => 'boolean',
             'password' => 'hashed',
         ];
     }

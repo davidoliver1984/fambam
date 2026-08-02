@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P02",
-    "current_stage": "FPA-P02-S03",
+    "current_stage": "FPA-P02-S04",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-02"
   },
@@ -182,11 +182,14 @@
         {
           "id": "FPA-P02-S03",
           "title": "Implement invitation lifecycle",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P02-S02"
           ],
-          "notes": []
+          "notes": [
+            "First-account bootstrap, invitation issue/resend/revoke/expire/accept, one-time fragment-token exchange, short-lived claims, verified account creation and audit coverage completed on 2026-08-02.",
+            "The frontend uses typed feature API modules and TanStack Query for server-owned state; the full repository gate, live PostgreSQL/Mailpit flow and review approval passed before stage completion."
+          ]
         },
         {
           "id": "FPA-P02-S04",
@@ -195,7 +198,9 @@
           "dependencies": [
             "FPA-P02-S03"
           ],
-          "notes": []
+          "notes": [
+            "Ready to begin after completion of FPA-P02-S03."
+          ]
         }
       ]
     },
@@ -1274,6 +1279,14 @@
       "roadmap_stage": "FPA-P02-S02",
       "date": "2026-08-02",
       "description": "FPA-P02-S02 completed: headless Fortify and Sanctum SPA cookie authentication, database sessions, login/logout, current-user profile, email-verification foundation and enumeration-safe password recovery implemented and verified. Open registration remains disabled pending FPA-P02-S03."
+    },
+    {
+      "git_tag": "phase-2-s03",
+      "type": "stage_completion",
+      "adr": "ADR-0004",
+      "roadmap_stage": "FPA-P02-S03",
+      "date": "2026-08-02",
+      "description": "FPA-P02-S03 completed: first-account bootstrap, invitation issue/resend/revoke/expire/accept lifecycle, one-time fragment-token exchange, short-lived claims, verified account creation, audit coverage and feature-oriented TanStack Query frontend data access implemented and verified."
     }
   ]
 }

@@ -5,6 +5,7 @@ import {
   LoginPage,
   ResetPasswordPage,
 } from "./Auth";
+import { InvitationAcceptancePage } from "./features/invitations/pages/InvitationAcceptancePage";
 
 type AppProps = {
   path?: string;
@@ -24,6 +25,7 @@ export function App({ path = window.location.pathname }: AppProps) {
   if (path === "/forgot-password") return <ForgotPasswordPage />;
   if (path === "/reset-password") return <ResetPasswordPage />;
   if (path === "/account") return <AccountPage />;
+  if (path === "/accept-invitation") return <InvitationAcceptancePage />;
 
   return (
     <main className="welcome" aria-labelledby="page-title">

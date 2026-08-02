@@ -78,6 +78,47 @@
   color: #68412f;
 }
 
+.invitation-management {
+  border-top: 1px solid #d8cbc2;
+  margin-top: 2rem;
+  padding-top: 1rem;
+}
+
+.invitation-management h2 {
+  color: #30261f;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
+}
+
+.invitation-list {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  padding: 0;
+}
+
+.invitation-list li,
+.invitation-list li > span {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.invitation-list li {
+  align-items: center;
+  border-top: 1px solid #ede5df;
+  justify-content: space-between;
+  padding-top: 0.75rem;
+}
+
+.invitation-list li > span:first-child {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.invitation-actions button {
+  margin: 0;
+}
+
 .welcome p:last-child {
   color: #5f5148;
   font-size: 1.125rem;

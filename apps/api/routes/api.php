@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\CurrentUserController;
+use App\Http\Controllers\InvitationAcceptanceController;
+use App\Http\Controllers\InvitationController;
 use Aws\Sqs\SqsClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,9 +15,23 @@ Route::get('/health', static fn (): array => [
     'status' => 'ok',
 ]);
 
+Route::middleware('throttle:invitation-acceptance')->group(function (): void {
+    Route::post('/invitations/exchange', [InvitationAcceptanceController::class, 'exchange']);
+    Route::post('/invitations/accept', [InvitationAcceptanceController::class, 'accept']);
+});
+
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/user', [CurrentUserController::class, 'show']);
     Route::patch('/user/profile', [CurrentUserController::class, 'update']);
+
+    Route::middleware('can:manage-invitations')->group(function (): void {
+        Route::get('/invitations', [InvitationController::class, 'index']);
+        Route::post('/invitations', [InvitationController::class, 'store'])
+            ->middleware('throttle:invitation-issuance');
+        Route::post('/invitations/{invitation}/resend', [InvitationController::class, 'resend'])
+            ->middleware('throttle:invitation-issuance');
+        Route::post('/invitations/{invitation}/revoke', [InvitationController::class, 'revoke']);
+    });
 });
 
 if (app()->environment(['local', 'testing'])) {
