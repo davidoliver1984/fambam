@@ -786,7 +786,73 @@ lifecycle in FPA-P02-S03.
 
 ## FPA-P02-S03 — Implement invitation lifecycle
 
-Implement issue, resend, revoke, expire and accept flows with audit records.
+### Objective
+
+Implement ADR-0004's account-creation invitation lifecycle: first-account
+bootstrap, issue, resend, revoke, expire-on-touch, secure token exchange and
+transactional acceptance with an audit record for every transition.
+
+### Engineering rationale
+
+There is intentionally no open registration endpoint, so invitation acceptance
+is the sole HTTP account-creation boundary. Email links contain sensitive bearer
+material; the browser must remove it before rendering the password form, while
+the server must prevent replay, resend/revoke races and duplicate account
+creation.
+
+### Prerequisites
+
+- FPA-P02-S02 complete.
+
+### Expected changes
+
+- Add `can_invite` as the temporary Phase 2 invitation permission, defaulting to
+  false.
+- Add an interactive operator command that creates only the first verified,
+  invitation-capable account and never accepts a password as a command argument.
+- Add invitation, short-lived invitation-claim and generic audit-event records.
+- Store only SHA-256 token hashes; send at least 128 bits of random bearer
+  material through Mailpit/email.
+- Put the emailed token in the web URL fragment, not its query string, exchange
+  it once for a 15-minute opaque claim and immediately replace browser history
+  with a clean acceptance URL.
+- Make resend rotate the token on the same record and invalidate outstanding
+  claims; make revoke invalidate both token and claims.
+- Treat `expires_at` as acceptance authority, persisting and auditing `expired`
+  when an expired invitation is touched.
+- Lock invitation and claim rows during acceptance, creating the verified user,
+  consuming the claim and accepting the invitation in one transaction.
+- Take the account email exclusively from the invitation; prohibit an email
+  field on acceptance.
+- Add authenticated invitation management and public acceptance surfaces with
+  named rate limits.
+
+### Verification
+
+- Feature tests cover bootstrap restrictions, permission denial, token hashing,
+  lifecycle transitions, token/claim replay, expiry, authoritative email,
+  password length, account verification and audit records.
+- Frontend tests prove the acceptance form has no editable email, uses
+  password-manager-compatible new-password fields, exchanges a fragment token
+  once under Strict Mode and refreshes invitation lists through TanStack Query.
+- SQLite and live PostgreSQL migrations pass.
+- A live Mailpit message contains a fragment-based link and the complete
+  CSRF/exchange/accept/login flow succeeds against the rebuilt stack.
+- Repository quality, dependency, infrastructure and observability gates pass.
+
+### Documentation updates
+
+- Document first-account bootstrap and local invitation delivery in the README.
+- Record the implementation and verification in
+  `docs/journal/2026-08-02-FPA-P02-S03.md`.
+- FPA-P02-S03 completed on 2026-08-02 after review approval and the full
+  verification gate.
+
+### Commit boundary
+
+```text
+Implement invitation lifecycle
+```
 
 ## FPA-P02-S04 — Harden account security
 

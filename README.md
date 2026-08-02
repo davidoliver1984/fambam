@@ -14,9 +14,10 @@ priority over automated suggestions, and family data must remain portable.
 ## Current status
 
 Phases 0 and 1 are complete. The repository is now in Phase 2, Identity,
-Authentication and Invitations. ADR-0004 and account authentication are
-complete; the invitation lifecycle is next in `FPA-P02-S03`. The canonical
-execution state is recorded in [`tasks.json`](tasks.json).
+Authentication and Invitations. ADR-0004, account authentication and the
+invitation lifecycle are complete; account-security hardening is next in
+`FPA-P02-S04`. The canonical execution state is recorded in
+[`tasks.json`](tasks.json).
 
 ## Repository structure
 
@@ -64,8 +65,17 @@ The default host endpoints are:
 
 The account UI is available at `http://localhost:3010/login`. It uses
 CSRF-protected, database-backed Laravel sessions; there is deliberately no open
-registration route. Invitation-based account creation is introduced in
-`FPA-P02-S03`.
+registration route. Create the first local invitation-capable account with the
+interactive command below, then use the account page to invite relatives:
+
+```bash
+docker compose exec api php artisan fambam:bootstrap-user owner@example.test \
+  --name="Archive Owner" --timezone="Europe/London"
+```
+
+Invitation emails are captured by Mailpit locally. Their acceptance links keep
+the invitation token in the URL fragment, exchange it once for a short-lived
+claim and remove it from browser history before displaying the account form.
 
 Copy `.env.example` to `.env` only when local port or safe development-default
 overrides are needed. The core checks are:

@@ -246,6 +246,13 @@ Do not create a layer merely to rename a one-line framework call. Apply this
 pattern when it makes responsibility, reuse, testing or transaction boundaries
 clearer, and inspect the surrounding code before introducing a new abstraction.
 
+## React frontend data access
+
+- React pages and presentational components must not call the shared HTTP client
+  directly; feature endpoints belong in typed, feature-specific API modules.
+- Use TanStack Query for server-owned state rather than fetching it through raw
+  `useEffect` calls. Keep the shared API client limited to transport concerns.
+
 ## Architecture decisions
 
 An ADR is normally appropriate when a decision:
