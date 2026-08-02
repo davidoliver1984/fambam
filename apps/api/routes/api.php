@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CurrentUserController;
 use Aws\Sqs\SqsClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,6 +12,11 @@ Route::get('/health', static fn (): array => [
     'service' => 'api',
     'status' => 'ok',
 ]);
+
+Route::middleware('auth:sanctum')->group(function (): void {
+    Route::get('/user', [CurrentUserController::class, 'show']);
+    Route::patch('/user/profile', [CurrentUserController::class, 'update']);
+});
 
 if (app()->environment(['local', 'testing'])) {
     Route::post('/observability/synthetic-upload', static function (Request $request): JsonResponse {

@@ -22,4 +22,18 @@ describe("App", () => {
       screen.getByRole("heading", { name: "Web application healthy" }),
     ).toBeInTheDocument();
   });
+
+  it("renders password-manager-friendly login fields", () => {
+    render(<App path="/login" />);
+
+    expect(screen.getByLabelText("Email address")).toHaveAttribute(
+      "autocomplete",
+      "email",
+    );
+    expect(screen.getByLabelText("Password")).toHaveAttribute(
+      "autocomplete",
+      "current-password",
+    );
+    expect(screen.queryByText(/create an account/i)).not.toBeInTheDocument();
+  });
 });

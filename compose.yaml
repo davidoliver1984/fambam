@@ -35,6 +35,9 @@ services:
       APP_KEY: "${APP_KEY:-base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}"
       APP_DEBUG: "true"
       APP_URL: "http://localhost:${API_PORT:-8082}"
+      WEB_URL: "http://localhost:${WEB_PORT:-3010}"
+      CORS_ALLOWED_ORIGINS: "http://localhost:${WEB_PORT:-3010}"
+      SANCTUM_STATEFUL_DOMAINS: "localhost:${WEB_PORT:-3010}"
       LOG_CHANNEL: stderr
       OTEL_PHP_AUTOLOAD_ENABLED: "true"
       OTEL_SERVICE_NAME: fambam-api
@@ -54,6 +57,9 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       SESSION_DRIVER: database
+      SESSION_SECURE_COOKIE: "false"
+      SESSION_HTTP_ONLY: "true"
+      SESSION_SAME_SITE: lax
       QUEUE_CONNECTION: sqs
       SQS_PREFIX: "http://localstack:4566/000000000000"
       SQS_QUEUE: image-analysis-requested
