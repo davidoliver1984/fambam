@@ -6,6 +6,7 @@ import {
   ResetPasswordPage,
 } from "./Auth";
 import { InvitationAcceptancePage } from "./features/invitations/pages/InvitationAcceptancePage";
+import { TwoFactorChallengePage } from "./features/auth/pages/TwoFactorChallengePage";
 
 type AppProps = {
   path?: string;
@@ -26,6 +27,7 @@ export function App({ path = window.location.pathname }: AppProps) {
   if (path === "/reset-password") return <ResetPasswordPage />;
   if (path === "/account") return <AccountPage />;
   if (path === "/accept-invitation") return <InvitationAcceptancePage />;
+  if (path === "/two-factor-challenge") return <TwoFactorChallengePage />;
 
   return (
     <main className="welcome" aria-labelledby="page-title">
@@ -39,5 +41,3 @@ export function App({ path = window.location.pathname }: AppProps) {
     </main>
   );
 }
-
-export default App;

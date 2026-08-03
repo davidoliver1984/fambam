@@ -84,6 +84,37 @@
   padding-top: 1rem;
 }
 
+.account-security {
+  border-top: 1px solid #d8cbc2;
+  margin-top: 2rem;
+  padding-top: 1rem;
+}
+
+.account-security h2 {
+  color: #30261f;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
+}
+
+.account-security form,
+.account-security > div {
+  border-top: 1px solid #ede5df;
+  padding-top: 0.75rem;
+}
+
+.account-security img {
+  background: white;
+  height: auto;
+  max-width: 16rem;
+  padding: 0.75rem;
+  width: 100%;
+}
+
+.auth button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .invitation-management h2 {
   color: #30261f;
   font-family: Georgia, "Times New Roman", serif;

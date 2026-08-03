@@ -6,10 +6,10 @@
     "version": "0.1.0",
     "status": "in_progress",
     "v1_release_phase": "P15",
-    "current_phase": "P02",
-    "current_stage": "FPA-P02-S04",
+    "current_phase": "P03",
+    "current_stage": "FPA-P03-S01",
     "created_at": "2026-07-31",
-    "updated_at": "2026-08-02"
+    "updated_at": "2026-08-03"
   },
   "conventions": {
     "phase_id_format": "P##",
@@ -154,7 +154,7 @@
     {
       "id": "P02",
       "name": "Identity, Authentication and Invitations",
-      "status": "in_progress",
+      "status": "completed",
       "stages": [
         {
           "id": "FPA-P02-S01",
@@ -194,12 +194,13 @@
         {
           "id": "FPA-P02-S04",
           "title": "Harden account security",
-          "status": "planned",
+          "status": "completed",
           "dependencies": [
             "FPA-P02-S03"
           ],
           "notes": [
-            "Ready to begin after completion of FPA-P02-S03."
+            "Shared session and remember-token revocation, operator account revocation, password policy and safeguarded HIBP screening, reset throttling, optional TOTP and frontend account-security surfaces completed on 2026-08-03.",
+            "The complete repository gate, rebuilt live stack, PostgreSQL migration, infrastructure and observability smoke checks, browser verification and review approval passed before FPA-P02-S04 and Phase 2 completion."
           ]
         }
       ]
@@ -1287,6 +1288,22 @@
       "roadmap_stage": "FPA-P02-S03",
       "date": "2026-08-02",
       "description": "FPA-P02-S03 completed: first-account bootstrap, invitation issue/resend/revoke/expire/accept lifecycle, one-time fragment-token exchange, short-lived claims, verified account creation, audit coverage and feature-oriented TanStack Query frontend data access implemented and verified."
+    },
+    {
+      "git_tag": "phase-2-s04",
+      "type": "stage_completion",
+      "adr": "ADR-0004",
+      "roadmap_stage": "FPA-P02-S04",
+      "date": "2026-08-03",
+      "description": "FPA-P02-S04 completed: atomic global session and remember-token revocation, operator account revocation, shared password policy, safeguarded HIBP screening, reset throttling, optional TOTP MFA and accessible account-security surfaces implemented and verified."
+    },
+    {
+      "git_tag": "phase-2",
+      "type": "phase_completion",
+      "adr": null,
+      "roadmap_stage": "FPA-P02-S04",
+      "date": "2026-08-03",
+      "description": "Phase 2 completed: all Identity, Authentication and Invitations stages and the full phase acceptance gate passed."
     }
   ]
 }

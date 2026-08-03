@@ -26,7 +26,7 @@ class CurrentUserController extends Controller
         return response()->json(['data' => $this->payload($user->refresh())]);
     }
 
-    /** @return array{id: int, name: string, email: string, timezone: string, email_verified_at: ?string, can_invite: bool} */
+    /** @return array{id: int, name: string, email: string, timezone: string, email_verified_at: ?string, can_invite: bool, two_factor_enabled: bool} */
     private function payload(User $user): array
     {
         return [
@@ -36,6 +36,7 @@ class CurrentUserController extends Controller
             'timezone' => $user->timezone,
             'email_verified_at' => $user->email_verified_at?->toAtomString(),
             'can_invite' => $user->can_invite,
+            'two_factor_enabled' => $user->two_factor_confirmed_at !== null,
         ];
     }
 }

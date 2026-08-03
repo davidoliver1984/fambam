@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountSecurityController;
 use App\Http\Controllers\CurrentUserController;
 use App\Http\Controllers\InvitationAcceptanceController;
 use App\Http\Controllers\InvitationController;
@@ -23,6 +24,10 @@ Route::middleware('throttle:invitation-acceptance')->group(function (): void {
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/user', [CurrentUserController::class, 'show']);
     Route::patch('/user/profile', [CurrentUserController::class, 'update']);
+    Route::put('/user/password', [AccountSecurityController::class, 'updatePassword'])
+        ->middleware('throttle:6,1');
+    Route::post('/user/revoke-sessions', [AccountSecurityController::class, 'revokeSessions'])
+        ->middleware('throttle:6,1');
 
     Route::middleware('can:manage-invitations')->group(function (): void {
         Route::get('/invitations', [InvitationController::class, 'index']);

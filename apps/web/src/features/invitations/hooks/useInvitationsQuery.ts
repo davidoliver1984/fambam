@@ -6,7 +6,7 @@ import { invitationKeys } from "../api/invitationKeys";
 export function useInvitationsQuery() {
   return useQuery({
     queryKey: invitationKeys.list(),
-    queryFn: getInvitations,
+    queryFn: ({ signal }) => getInvitations(signal),
     staleTime: 30_000,
   });
 }

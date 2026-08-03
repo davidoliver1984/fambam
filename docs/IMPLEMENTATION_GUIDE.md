@@ -856,7 +856,64 @@ Implement invitation lifecycle
 
 ## FPA-P02-S04 — Harden account security
 
-Add rate limiting, session invalidation, password policy, security events and MFA-ready boundaries.
+### Objective
+
+Complete ADR-0004's account-security boundary with reusable global access
+revocation, operator account revocation, consistent password policy,
+safeguarded compromised-password screening, optional TOTP and accessible
+account-security controls.
+
+### Engineering rationale
+
+Deleting a database session does not invalidate a remember-me credential or
+prevent a revoked account from signing in again. Password reset and password
+change must therefore use one shared operation that removes every session,
+rotates the remember token and records the cause. Optional MFA strengthens an
+account without making first login inaccessible to less-technical relatives.
+
+### Expected changes
+
+- Add a shared access-revocation operation used by password reset, password
+  change, user-requested "sign out everywhere" and operator revocation.
+- Persist account revocation and reject future login with the same generic
+  credential response used for an incorrect password.
+- Apply a shared 15-to-255-character Unicode password rule to invitation
+  acceptance, bootstrap, reset and password change.
+- Use a 1.5-second padded HIBP range request that fails open without logging
+  the password, full hash or SHA-1 prefix.
+- Add a named email-and-IP password-reset limiter alongside the accepted login,
+  invitation and two-factor limiters; do not add hard account lockout or CAPTCHA.
+- Enable Fortify's optional, confirmed TOTP flow and audit security-sensitive
+  MFA transitions.
+- Add password change, sign-out-everywhere, authenticator setup and two-factor
+  challenge UI through typed feature API modules and TanStack Query hooks.
+- Apply the authoritative frontend standard, including strict TypeScript,
+  cancellation-aware reads, React Hook Form/Zod security forms, MSW API tests,
+  accessibility linting and a root error boundary.
+
+### Verification
+
+- Feature tests prove every revocation path deletes owned sessions, rotates the
+  remember token and prevents a revoked account from signing in.
+- Password tests cover minimum length, compromised rejection, padded range
+  requests and safe fail-open behavior without password-derived logs.
+- TOTP tests cover enable, confirmation, recovery-code login and audit events.
+- Frontend tests cover cross-field password validation, Laravel field-error
+  mapping, Strict Mode token exchange and root render-error recovery.
+- The complete repository gate, live PostgreSQL migrations and browser flows
+  pass before completion approval.
+
+### Documentation updates
+
+- Record the implementation and verification in
+  `docs/journal/2026-08-02-FPA-P02-S04.md`.
+- Keep FPA-P02-S04 and Phase 2 in progress until review and completion approval.
+
+### Commit boundary
+
+```text
+Harden account security
+```
 
 ### Phase verification
 

@@ -19,7 +19,7 @@ class AcceptInvitationRequest extends FormRequest
             'claim_token' => ['required', 'string', 'size:64'],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['prohibited'],
-            'password' => ['required', 'string', 'max:255', Password::min(15), 'confirmed'],
+            'password' => ['required', 'string', Password::default(), 'confirmed'],
             'timezone' => ['required', 'string', 'timezone:all'],
         ];
     }

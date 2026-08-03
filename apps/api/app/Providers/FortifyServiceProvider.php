@@ -5,10 +5,12 @@ namespace App\Providers;
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Http\Responses\EnumerationSafePasswordResetLinkResponse;
+use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -35,6 +37,21 @@ class FortifyServiceProvider extends ServiceProvider
     {
         Fortify::createUsersUsing(CreateNewUser::class);
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
+        Fortify::authenticateUsing(function (Request $request): ?User {
+            $user = User::query()
+                ->where('email', Str::lower((string) $request->input(Fortify::username())))
+                ->first();
+
+            if ($user === null || $user->revoked_at !== null || ! Hash::check((string) $request->input('password'), $user->password)) {
+                return null;
+            }
+
+            if (Hash::needsRehash($user->password)) {
+                $user->forceFill(['password' => Hash::make((string) $request->input('password'))])->save();
+            }
+
+            return $user;
+        });
 
         ResetPassword::createUrlUsing(static fn (CanResetPassword $user, string $token): string => sprintf(
             '%s/reset-password?token=%s&email=%s',
@@ -53,9 +70,16 @@ class FortifyServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($request->session()->get('login.id'));
         });
 
+        RateLimiter::for('password-reset', function (Request $request) {
+            $key = Str::transliterate(Str::lower((string) $request->input('email')).'|'.$request->ip());
+
+            return Limit::perMinute(5)->by($key);
+        });
+
         RateLimiter::for('invitation-acceptance', fn (Request $request) => Limit::perMinute(20)->by($request->ip()));
         RateLimiter::for('invitation-issuance', fn (Request $request) => Limit::perHour(10)->by(
             (string) ($request->user()->id ?: $request->ip()),
         ));
+
     }
 }

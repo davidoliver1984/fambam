@@ -16,6 +16,7 @@ The documentation authorities are:
 | `PROJECT_ROADMAP.md` | What will be built and in what order |
 | `docs/IMPLEMENTATION_GUIDE.md` | How stages are implemented, verified and committed |
 | `docs/ENGINEERING_METHODOLOGY.md` | The engineering process, roles and lifecycle followed across all projects |
+| `docs/FRONTEND_ENGINEERING_STANDARDS.md` | Durable frontend engineering conventions for `apps/web` — structure, data flow, testing, accessibility |
 | `tasks.json` | Which planned stage is current, and the git-tag delivery log |
 | `docs/adr/` | Why durable architecture decisions were made |
 | `docs/journal/` | What happened during individual engineering sessions |
@@ -92,8 +93,8 @@ ADR-0001's Decision section — not open.
 ## Local development principles
 
 - Prefer the repository's container platform and root Make commands over
-  host-installed Node.js, PHP or Python runtimes, once ADR-0004 (local container
-  strategy) is accepted.
+  host-installed Node.js, PHP or Python runtimes, per ADR-0003 (local
+  development platform).
 - Do not introduce hidden manual setup. Encode repeatable work in the Makefile,
   container configuration or a reviewed script.
 - Keep setup and provisioning commands idempotent where practical.
@@ -104,7 +105,7 @@ ADR-0001's Decision section — not open.
   data as local fixtures.
 - Treat any destructive reset command as requiring deliberate confirmation.
 
-Specific Compose service names and setup commands are established by ADR-0004 and
+Specific Compose service names and setup commands are established by ADR-0003 and
 `docs/IMPLEMENTATION_GUIDE.md`; do not invent a substitute here.
 
 ## Engineering workflow

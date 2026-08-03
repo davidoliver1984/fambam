@@ -6,7 +6,7 @@ import { accountKeys } from "../api/accountKeys";
 export function useCurrentUserQuery() {
   return useQuery({
     queryKey: accountKeys.current,
-    queryFn: getCurrentUser,
+    queryFn: ({ signal }) => getCurrentUser(signal),
     retry: false,
     staleTime: 30_000,
   });

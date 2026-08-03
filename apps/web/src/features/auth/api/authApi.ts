@@ -1,4 +1,4 @@
-import { apiClient, ensureCsrfCookie } from "../../../api/client";
+import { apiClient, ensureCsrfCookie } from "@/api/client";
 
 export type LoginInput = {
   email: string;
@@ -13,9 +13,15 @@ export type ResetPasswordInput = {
   password_confirmation: string;
 };
 
-export async function login(input: LoginInput): Promise<void> {
+export type LoginResult = {
+  two_factor: boolean;
+};
+
+export async function login(input: LoginInput): Promise<LoginResult> {
   await ensureCsrfCookie();
-  await apiClient.post("/login", input);
+  const response = await apiClient.post<LoginResult>("/login", input);
+
+  return response.data;
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
