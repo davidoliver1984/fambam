@@ -964,7 +964,72 @@ Fix Phase 2 review findings: MFA-challenge revocation, Argon2id migration, recov
 
 ## FPA-P03-S01 — Accept family spaces and tenancy ADR
 
-Resolve tenant boundary, roles, active context, propagation and database RLS (ADR-0005).
+### Objective
+
+Decide the family-space tenant boundary, the five-role membership model,
+family-space creation authority, invitation and rejoin semantics, the
+friendly-URL resolution chain, the defense-in-depth stack including
+PostgreSQL RLS, asynchronous tenant-context propagation, audit coverage,
+and the deletion lifecycle, in one ADR (ADR-0005) before any Phase 3
+implementation begins.
+
+### Engineering rationale
+
+Every later Phase 3 stage — memberships, route resolution, RLS, audit and
+deletion — depends on the same tenant model and the same resolution
+sequence. Deciding the trust boundary and its required guarantees once,
+before any table or policy is implemented, avoids each stage guessing at
+decisions the others depend on.
+
+### Prerequisites
+
+- FPA-P02-S04 complete.
+
+### Expected changes
+
+- ADR-0005 accepted.
+
+### Verification
+
+- ADR-0005 covers the tenant model, roles, creation authority, invitation
+  and rejoin semantics, friendly-URL resolution, defense-in-depth layering,
+  PostgreSQL RLS treatment, async propagation, audit coverage and the
+  deletion lifecycle explicitly.
+
+ADR-0005 was accepted 2026-08-03: `family_spaces` and
+`family_space_memberships` as the tenant model, with ULID identifiers and a
+mutable presentation slug; all five roadmap-named roles (Owner,
+Administrator, Member, Contributor, Guest) with a Phase 3 baseline
+membership-administration meaning; family-space creation as a narrow,
+platform-level capability (`users.can_create_family_spaces`) never implied
+by any membership role and never auto-granted at bootstrap; one invitation
+domain and acceptance flow covering both new-account and existing-account
+joins, with an atomic, race-safe rejoin operation for previously removed
+members; friendly-URL resolution where unknown and inaccessible tenants are
+structurally indistinguishable and both return 404; ownership requiring at
+least one active Owner per space, enforced at both the application layer
+and a database constraint trigger; and PostgreSQL RLS treated as three
+distinct policy classes — the `family_spaces` tenant registry, the
+`family_space_memberships` access-control table, and ordinary tenant-owned
+content tables — rather than one generic policy applied uniformly, since
+the registry and membership tables must remain resolvable before tenant
+context exists while ordinary content tables require it. The ADR records
+durable trust boundaries and required guarantees, not a frozen PostgreSQL
+implementation; the exact policy composition, migration order and
+session-context mechanics are Phase 3 implementation decisions, verified
+against the ADR's stated guarantees rather than fixed by it. This stage's
+entire scope was accepting the ADR, so the ADR-acceptance commit is this
+stage's completion commit and receives the `phase-3-s01` tag directly.
+
+### Documentation updates
+
+- Advanced `tasks.json` to `FPA-P03-S02` after FPA-P03-S01 completed.
+
+### Commit boundary
+
+```text
+Accept ADR-0005: Family spaces and tenancy
+```
 
 ## FPA-P03-S02 — Implement family spaces and memberships
 
@@ -976,7 +1041,12 @@ Every tenant route resolves a public family identifier and fails closed.
 
 ## FPA-P03-S04 — Add PostgreSQL row-level security
 
-Apply non-bypass runtime roles, FORCE RLS where appropriate and integration tests.
+Apply non-bypass runtime roles, FORCE RLS where appropriate and integration
+tests. Per ADR-0005 §9, the chosen policy design for the `family_spaces`
+tenant registry and the `family_space_memberships` access-control table
+must be checked for recursive or circular policy evaluation directly
+against PostgreSQL's actual behaviour before acceptance — not assumed
+correct from documentation.
 
 ## FPA-P03-S05 — Add tenancy audit and deletion foundations
 

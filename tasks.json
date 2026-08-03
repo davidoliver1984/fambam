@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P03",
-    "current_stage": "FPA-P03-S01",
+    "current_stage": "FPA-P03-S02",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-03"
   },
@@ -209,21 +209,25 @@
     {
       "id": "P03",
       "name": "Family Spaces and Tenancy",
-      "status": "planned",
+      "status": "in_progress",
       "stages": [
         {
           "id": "FPA-P03-S01",
           "title": "Accept family spaces and tenancy ADR",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P02-S04"
           ],
-          "notes": []
+          "notes": [
+            "ADR-0005 accepted 2026-08-03 (git tag phase-3-s01). Stage scope was solely ADR acceptance, so the ADR commit is the stage-completion commit.",
+            "Tenant model: family_spaces + family_space_memberships (ULID identifiers, mutable presentation slug); all five roadmap-named roles with a Phase 3 baseline meaning; family-space creation as a narrow platform-level capability (users.can_create_family_spaces) never implied by any membership role and never auto-granted at bootstrap; one invitation domain covering new-account and existing-account joins with atomic, race-safe rejoin for previously removed members; friendly-URL resolution where unknown and inaccessible tenants are structurally indistinguishable (both 404); at least one active Owner per space enforced at both the application and database-trigger layers; PostgreSQL RLS treated as three distinct policy classes (tenant registry, access-control table, ordinary tenant-owned content tables) rather than one generic policy, to avoid a circular dependency between tenant resolution and tenant-scoped access control.",
+            "The ADR intentionally records trust boundaries and required guarantees rather than a frozen PostgreSQL implementation; exact policy composition and session-context mechanics are left to Phase 3 implementation, verified against the ADR's stated guarantees."
+          ]
         },
         {
           "id": "FPA-P03-S02",
           "title": "Implement family spaces and memberships",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P03-S01"
           ],
@@ -1082,7 +1086,7 @@
       {
         "id": "ADR-0005",
         "title": "Family spaces and tenancy",
-        "status": "planned",
+        "status": "accepted",
         "roadmap_phase": "P03",
         "required_by_stage": "FPA-P03-S01"
       },
@@ -1305,6 +1309,14 @@
       "roadmap_stage": "FPA-P02-S04",
       "date": "2026-08-03",
       "description": "Phase 2 completed: all Identity, Authentication and Invitations stages and the full phase acceptance gate passed, including an independent security review and its corrections."
+    },
+    {
+      "git_tag": "phase-3-s01",
+      "type": "stage_completion",
+      "adr": "ADR-0005",
+      "roadmap_stage": "FPA-P03-S01",
+      "date": "2026-08-03",
+      "description": "FPA-P03-S01 completed: ADR-0005 accepted (family spaces and tenancy -- family_spaces/family_space_memberships tenant model with ULID identifiers and a mutable presentation slug; all five roadmap-named roles with a Phase 3 baseline meaning; family-space creation as a narrow platform-level capability never implied by any membership role or auto-granted at bootstrap; one invitation domain with atomic rejoin for removed members; friendly-URL resolution where unknown and inaccessible tenants are structurally indistinguishable and both return 404; at least one active Owner per space enforced at both the application and database-trigger layers; PostgreSQL RLS treated as three distinct policy classes -- tenant registry, access-control table, ordinary tenant-owned content tables -- to avoid a circular dependency between tenant resolution and tenant-scoped access control, with the exact policy implementation deliberately left to Phase 3 implementation rather than frozen in the ADR). Stage scope was solely ADR acceptance, so the ADR commit is the stage-completion commit."
     }
   ]
 }
