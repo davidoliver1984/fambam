@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\PreventRecoveryCodeDisclosure;
 use App\Http\Middleware\RequestContext;
 use App\Http\Middleware\ThrottlePasswordResetRequests;
 use Illuminate\Foundation\Application;
@@ -17,7 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
         $middleware->api(prepend: [RequestContext::class]);
-        $middleware->web(append: [ThrottlePasswordResetRequests::class]);
+        $middleware->web(append: [
+            PreventRecoveryCodeDisclosure::class,
+            ThrottlePasswordResetRequests::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

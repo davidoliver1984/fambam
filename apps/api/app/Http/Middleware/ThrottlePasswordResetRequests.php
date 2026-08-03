@@ -18,6 +18,10 @@ class ThrottlePasswordResetRequests
             return $this->throttle->handle($request, $next, 'password-reset');
         }
 
+        if ($request->isMethod('POST') && $request->is('reset-password')) {
+            return $this->throttle->handle($request, $next, 'password-reset-submission');
+        }
+
         return $next($request);
     }
 }
