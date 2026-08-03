@@ -9,6 +9,10 @@ export type TwoFactorChallengeInput =
   | { code: string; recovery_code?: never }
   | { code?: never; recovery_code: string };
 
+export type RecoveryCodesResponse = {
+  recovery_codes: string[];
+};
+
 export async function confirmPassword(password: string): Promise<void> {
   await ensureCsrfCookie();
   await apiClient.post("/user/confirm-password", { password });
@@ -30,15 +34,13 @@ export async function getTwoFactorQrCode(
   return response.data;
 }
 
-export async function getRecoveryCodes(
-  signal?: AbortSignal,
-): Promise<string[]> {
-  const response = await apiClient.get<string[]>(
+export async function regenerateRecoveryCodes(): Promise<string[]> {
+  await ensureCsrfCookie();
+  const response = await apiClient.post<RecoveryCodesResponse>(
     "/user/two-factor-recovery-codes",
-    { signal },
   );
 
-  return response.data;
+  return response.data.recovery_codes;
 }
 
 export async function confirmTwoFactor(code: string): Promise<void> {

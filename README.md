@@ -13,10 +13,9 @@ priority over automated suggestions, and family data must remain portable.
 
 ## Current status
 
-Phases 0, 1 and 2 are complete. Identity, authentication, invitations and
-account-security hardening now satisfy the Phase 2 acceptance gate. The next
-planned work is Phase 3, Family Spaces and Tenancy, beginning with
-`FPA-P03-S01`. The canonical execution state is recorded in
+Phases 0 and 1 are complete. Phase 2 account-security hardening is implemented
+in `FPA-P02-S04` and remains under independent review before the Phase 2
+acceptance gate can complete. The canonical execution state is recorded in
 [`tasks.json`](tasks.json).
 
 ## Repository structure

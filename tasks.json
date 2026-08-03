@@ -199,8 +199,9 @@
             "FPA-P02-S03"
           ],
           "notes": [
-            "Shared session and remember-token revocation, operator account revocation, password policy and safeguarded HIBP screening, reset throttling, optional TOTP and frontend account-security surfaces completed on 2026-08-03.",
-            "The complete repository gate, rebuilt live stack, PostgreSQL migration, infrastructure and observability smoke checks, browser verification and review approval passed before FPA-P02-S04 and Phase 2 completion."
+            "Shared session and remember-token revocation, operator account revocation, password policy and safeguarded HIBP screening, reset throttling, optional TOTP and frontend account-security surfaces were committed locally on 2026-08-03 before the delayed independent review completed; the premature local completion tags were removed and the stage returned to in-progress pending correction.",
+            "An independent review found two blocking issues (a revoked account could complete an already-pending two-factor challenge; bcrypt silently truncated passwords beyond 72 bytes) and several important findings (repeatable plaintext recovery-code disclosure, unattributed operator revocation, a login timing side-channel distinguishing unknown/revoked accounts, an insecure local secure-cookie example default). Codex corrected every finding; a focused independent re-review verified each fix directly against the code, the full test suite and a live reproduction of the original revoked-mid-challenge exploit, confirming it is now rejected.",
+            "FPA-P02-S04 and the Phase 2 acceptance gate passed and were completed on the same commit on 2026-08-03."
           ]
         }
       ]
@@ -213,7 +214,7 @@
         {
           "id": "FPA-P03-S01",
           "title": "Accept family spaces and tenancy ADR",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P02-S04"
           ],
@@ -1295,7 +1296,7 @@
       "adr": "ADR-0004",
       "roadmap_stage": "FPA-P02-S04",
       "date": "2026-08-03",
-      "description": "FPA-P02-S04 completed: atomic global session and remember-token revocation, operator account revocation, shared password policy, safeguarded HIBP screening, reset throttling, optional TOTP MFA and accessible account-security surfaces implemented and verified."
+      "description": "FPA-P02-S04 completed: shared global session/remember-token revocation, operator account revocation, consistent 15-to-255-character Argon2id-backed password policy with safeguarded HIBP screening, password-reset and account-security rate limiting, optional confirmed TOTP with one-time recovery-code disclosure, and typed feature-oriented frontend account-security/MFA surfaces implemented and verified. An independent review found and Codex corrected two blocking issues (a revoked account could complete an already-pending two-factor challenge and obtain a session; bcrypt silently truncated passwords beyond 72 bytes) and several important findings (repeatable plaintext recovery-code disclosure, unattributed operator revocation, a login timing side-channel, an insecure local secure-cookie example default); a focused re-review independently verified every fix, including a live reproduction confirming the revoked-mid-challenge exploit is now rejected."
     },
     {
       "git_tag": "phase-2",
@@ -1303,7 +1304,7 @@
       "adr": null,
       "roadmap_stage": "FPA-P02-S04",
       "date": "2026-08-03",
-      "description": "Phase 2 completed: all Identity, Authentication and Invitations stages and the full phase acceptance gate passed."
+      "description": "Phase 2 completed: all Identity, Authentication and Invitations stages and the full phase acceptance gate passed, including an independent security review and its corrections."
     }
   ]
 }

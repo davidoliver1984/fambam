@@ -1,8 +1,12 @@
+import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
-import { toLaravelFieldErrors } from "@/api/errors";
+import { toAppError, toLaravelFieldErrors } from "@/api/errors";
+import { server } from "@/test/msw/server";
 
-import { updatePassword } from "./accountSecurityApi";
+import { revokeSessions, updatePassword } from "./accountSecurityApi";
+
+const apiBaseUrl = "http://localhost:8082";
 
 describe("accountSecurityApi", () => {
   it("preserves Laravel field errors from a rejected password change", async () => {
@@ -20,4 +24,35 @@ describe("accountSecurityApi", () => {
       });
     }
   });
+
+  it("revokes sessions through the account-security endpoint", async () => {
+    let requests = 0;
+    server.use(
+      http.post(`${apiBaseUrl}/api/user/revoke-sessions`, () => {
+        requests += 1;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    await expect(revokeSessions()).resolves.toBeUndefined();
+    expect(requests).toBe(1);
+  });
+
+  it.each([401, 403, 429])(
+    "preserves a %i revoke-sessions response",
+    async (status) => {
+      server.use(
+        http.post(`${apiBaseUrl}/api/user/revoke-sessions`, () =>
+          HttpResponse.json({ message: "Request rejected." }, { status }),
+        ),
+      );
+
+      try {
+        await revokeSessions();
+        throw new Error("Expected revocation to fail");
+      } catch (error) {
+        expect(toAppError(error).status).toBe(status);
+      }
+    },
+  );
 });

@@ -12,10 +12,7 @@ import {
   useConfirmTwoFactorMutation,
   useDisableTwoFactorMutation,
 } from "@/features/auth/hooks/useTwoFactorMutations";
-import {
-  useRecoveryCodesQuery,
-  useTwoFactorQrCodeQuery,
-} from "@/features/auth/hooks/useTwoFactorQueries";
+import { useTwoFactorQrCodeQuery } from "@/features/auth/hooks/useTwoFactorQueries";
 import {
   currentPasswordSchema,
   type CurrentPasswordFields,
@@ -130,21 +127,26 @@ function PasswordChangeForm() {
 }
 
 function TwoFactorPanel({ enabled }: { enabled: boolean }) {
-  const [settingUp, setSettingUp] = useState(false);
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
 
   if (enabled) return <DisableTwoFactorForm />;
-  if (settingUp) return <TwoFactorSetup />;
+  if (recoveryCodes !== null)
+    return <TwoFactorSetup recoveryCodes={recoveryCodes} />;
 
   return (
     <BeginTwoFactorForm
-      onStarted={() => {
-        setSettingUp(true);
+      onStarted={(codes) => {
+        setRecoveryCodes(codes);
       }}
     />
   );
 }
 
-function BeginTwoFactorForm({ onStarted }: { onStarted: () => void }) {
+function BeginTwoFactorForm({
+  onStarted,
+}: {
+  onStarted: (recoveryCodes: string[]) => void;
+}) {
   const mutation = useBeginTwoFactorSetupMutation();
   const {
     register,
@@ -157,8 +159,8 @@ function BeginTwoFactorForm({ onStarted }: { onStarted: () => void }) {
 
   const submit = handleSubmit(async ({ current_password }) => {
     try {
-      await mutation.mutateAsync(current_password);
-      onStarted();
+      const recoveryCodes = await mutation.mutateAsync(current_password);
+      onStarted(recoveryCodes);
     } catch (error) {
       const fields = toLaravelFieldErrors(error);
       const message = fields.password ?? fields.current_password;
@@ -195,9 +197,8 @@ function BeginTwoFactorForm({ onStarted }: { onStarted: () => void }) {
   );
 }
 
-function TwoFactorSetup() {
+function TwoFactorSetup({ recoveryCodes }: { recoveryCodes: string[] }) {
   const qrCode = useTwoFactorQrCodeQuery(true);
-  const recoveryCodes = useRecoveryCodesQuery(true);
   const confirmation = useConfirmTwoFactorMutation();
   const {
     register,
@@ -219,32 +220,28 @@ function TwoFactorSetup() {
   return (
     <div aria-labelledby="mfa-setup-title">
       <h3 id="mfa-setup-title">Finish authenticator setup</h3>
-      {(qrCode.isPending || recoveryCodes.isPending) && (
-        <p role="status">Preparing secure setup…</p>
-      )}
-      {(qrCode.isError || recoveryCodes.isError) && (
-        <p role="alert">Setup details could not be loaded.</p>
-      )}
+      {qrCode.isPending && <p role="status">Preparing secure setup…</p>}
+      {qrCode.isError && <p role="alert">Setup details could not be loaded.</p>}
       {qrCode.data?.svg && (
         <img
           src={`data:image/svg+xml,${encodeURIComponent(qrCode.data.svg)}`}
           alt="Authenticator setup QR code"
         />
       )}
-      {recoveryCodes.data && recoveryCodes.data.length > 0 ? (
+      {recoveryCodes.length > 0 ? (
         <>
           <p>Store these one-time recovery codes somewhere private:</p>
           <ul>
-            {recoveryCodes.data.map((code) => (
+            {recoveryCodes.map((code) => (
               <li key={code}>
                 <code>{code}</code>
               </li>
             ))}
           </ul>
         </>
-      ) : recoveryCodes.isSuccess ? (
+      ) : (
         <p>No recovery codes are available.</p>
-      ) : null}
+      )}
       <form onSubmit={(event) => void submit(event)}>
         <label htmlFor="mfa-confirmation-code">
           Six-digit authenticator code

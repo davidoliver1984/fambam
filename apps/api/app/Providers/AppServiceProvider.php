@@ -4,7 +4,9 @@ namespace App\Providers;
 
 use App\Listeners\SecurityEventSubscriber;
 use App\Models\User;
+use App\Services\AuthenticateUser;
 use App\Services\PwnedPasswordVerifier;
+use Illuminate\Contracts\Hashing\Hasher;
 use Illuminate\Contracts\Validation\UncompromisedVerifier;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Event;
@@ -20,7 +22,22 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(
+            AuthenticateUser::class,
+            fn ($app): AuthenticateUser => new AuthenticateUser(
+                $app->make(Hasher::class),
+                (string) config('account-security.dummy_password_hash'),
+            ),
+        );
+
+        $this->app->extend(
+            UncompromisedVerifier::class,
+            fn ($verifier, $app): PwnedPasswordVerifier => new PwnedPasswordVerifier(
+                $app->make(Factory::class),
+                $app->make(LoggerInterface::class),
+                (float) config('account-security.compromised_password_check.timeout_seconds'),
+            ),
+        );
     }
 
     /**
@@ -28,16 +45,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $this->app->make(UncompromisedVerifier::class);
-        $this->app->singleton(
-            UncompromisedVerifier::class,
-            fn ($app): PwnedPasswordVerifier => new PwnedPasswordVerifier(
-                $app->make(Factory::class),
-                $app->make(LoggerInterface::class),
-                (float) config('account-security.compromised_password_check.timeout_seconds'),
-            ),
-        );
-
         Password::defaults(function (): Password {
             $rule = Password::min(15)->max(255);
 

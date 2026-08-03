@@ -5,16 +5,18 @@ namespace App\Providers;
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Http\Responses\EnumerationSafePasswordResetLinkResponse;
+use App\Http\Responses\OneTimeRecoveryCodesGeneratedResponse;
 use App\Models\User;
+use App\Services\AuthenticateUser;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Laravel\Fortify\Contracts\FailedPasswordResetLinkRequestResponse;
+use Laravel\Fortify\Contracts\RecoveryCodesGeneratedResponse;
 use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
@@ -28,6 +30,10 @@ class FortifyServiceProvider extends ServiceProvider
             FailedPasswordResetLinkRequestResponse::class,
             EnumerationSafePasswordResetLinkResponse::class,
         );
+        $this->app->singleton(
+            RecoveryCodesGeneratedResponse::class,
+            OneTimeRecoveryCodesGeneratedResponse::class,
+        );
     }
 
     /**
@@ -37,21 +43,10 @@ class FortifyServiceProvider extends ServiceProvider
     {
         Fortify::createUsersUsing(CreateNewUser::class);
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
-        Fortify::authenticateUsing(function (Request $request): ?User {
-            $user = User::query()
-                ->where('email', Str::lower((string) $request->input(Fortify::username())))
-                ->first();
-
-            if ($user === null || $user->revoked_at !== null || ! Hash::check((string) $request->input('password'), $user->password)) {
-                return null;
-            }
-
-            if (Hash::needsRehash($user->password)) {
-                $user->forceFill(['password' => Hash::make((string) $request->input('password'))])->save();
-            }
-
-            return $user;
-        });
+        Fortify::authenticateUsing(fn (Request $request): ?User => app(AuthenticateUser::class)->attempt(
+            (string) $request->input(Fortify::username()),
+            (string) $request->input('password'),
+        ));
 
         ResetPassword::createUrlUsing(static fn (CanResetPassword $user, string $token): string => sprintf(
             '%s/reset-password?token=%s&email=%s',
@@ -67,7 +62,11 @@ class FortifyServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('two-factor', function (Request $request) {
-            return Limit::perMinute(5)->by($request->session()->get('login.id'));
+            $loginId = $request->session()->get('login.id');
+
+            return Limit::perMinute(5)->by(
+                $loginId === null ? 'ip:'.$request->ip() : 'user:'.$loginId,
+            );
         });
 
         RateLimiter::for('password-reset', function (Request $request) {
@@ -75,6 +74,16 @@ class FortifyServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)->by($key);
         });
+
+        RateLimiter::for('password-reset-submission', function (Request $request) {
+            $key = Str::transliterate(Str::lower((string) $request->input('email')).'|'.$request->ip());
+
+            return Limit::perMinute(10)->by($key);
+        });
+
+        RateLimiter::for('account-security', fn (Request $request) => Limit::perMinute(6)->by(
+            $request->user() === null ? 'ip:'.$request->ip() : 'user:'.$request->user()->id,
+        ));
 
         RateLimiter::for('invitation-acceptance', fn (Request $request) => Limit::perMinute(20)->by($request->ip()));
         RateLimiter::for('invitation-issuance', fn (Request $request) => Limit::perHour(10)->by(

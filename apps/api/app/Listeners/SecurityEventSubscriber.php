@@ -5,6 +5,8 @@ namespace App\Listeners;
 use App\Models\User;
 use App\Services\AuditRecorder;
 use Illuminate\Events\Dispatcher;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Laravel\Fortify\Contracts\FailedTwoFactorLoginResponse;
 use Laravel\Fortify\Events\TwoFactorAuthenticationChallenged;
 use Laravel\Fortify\Events\TwoFactorAuthenticationConfirmed;
 use Laravel\Fortify\Events\TwoFactorAuthenticationDisabled;
@@ -22,6 +24,25 @@ class SecurityEventSubscriber
     {
         /** @var User $user */
         $user = $event->user;
+
+        if ($event instanceof ValidTwoFactorAuthenticationCodeProvided) {
+            $currentUser = User::query()->find($user->getKey());
+
+            if ($currentUser === null || $currentUser->revoked_at !== null) {
+                $request = request();
+
+                if ($request->hasSession()) {
+                    $request->session()->forget(['login.id', 'login.remember']);
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+                }
+
+                $response = app(FailedTwoFactorLoginResponse::class)->toResponse($request);
+
+                throw new HttpResponseException($response);
+            }
+        }
+
         $action = match ($event::class) {
             TwoFactorAuthenticationEnabled::class => 'authentication.mfa_enabled',
             TwoFactorAuthenticationConfirmed::class => 'authentication.mfa_confirmed',

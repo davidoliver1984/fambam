@@ -12,14 +12,16 @@ class RevokeUserAccess
 {
     public function __construct(private readonly AuditRecorder $audit) {}
 
+    /** @param array<string, mixed> $auditMetadata */
     public function handle(
         User $user,
         string $cause,
         ?User $actor = null,
         ?Request $request = null,
         bool $revokeAccount = false,
+        array $auditMetadata = [],
     ): void {
-        DB::transaction(function () use ($user, $cause, $actor, $request, $revokeAccount): void {
+        DB::transaction(function () use ($user, $cause, $actor, $request, $revokeAccount, $auditMetadata): void {
             DB::table((string) config('session.table', 'sessions'))
                 ->where('user_id', $user->id)
                 ->delete();
@@ -32,9 +34,13 @@ class RevokeUserAccess
 
             $user->forceFill($attributes)->save();
 
-            $this->audit->record('account.access_revoked', $user, $actor, $request, [
-                'cause' => $cause,
-            ]);
+            $this->audit->record(
+                'account.access_revoked',
+                $user,
+                $actor,
+                $request,
+                ['cause' => $cause] + $auditMetadata,
+            );
         });
 
         if ($request?->hasSession() === true) {

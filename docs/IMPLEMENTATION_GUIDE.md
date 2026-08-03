@@ -903,16 +903,52 @@ account without making first login inaccessible to less-technical relatives.
 - The complete repository gate, live PostgreSQL migrations and browser flows
   pass before completion approval.
 
+An independent review of the first implementation found two blocking gaps and
+several important-before-closure findings: a revoked account could still
+complete an already-pending two-factor challenge and obtain a session, because
+neither the shared revocation service nor Fortify's own challenge-completion
+path re-checked `revoked_at` after the first factor; bcrypt silently truncates
+input at 72 bytes, undermining the advertised 15-to-255-character policy;
+recovery codes were repeatedly retrievable in plaintext rather than shown once;
+operator revocation recorded no actor; login exposed a timing distinction
+between an unknown/revoked account and a wrong password on a live account; and
+the local `.env.example` hardcoded `SESSION_SECURE_COOKIE=false`, capable of
+overriding the new production-safe default if copied verbatim. The repository
+had also been committed and locally tagged `phase-2-s04`/`phase-2` before that
+review completed; the tags were removed and the stage returned to in-progress
+pending correction.
+
+The corrected implementation subscribes to Fortify's
+`ValidTwoFactorAuthenticationCodeProvided` event -- fired before the challenge
+controller logs the user in -- to re-verify `revoked_at` and force a generic
+failure response if the account was revoked between the first factor and the
+completed challenge; moves the default hashing driver to Argon2id (with
+bcrypt verification and transparent rehash-on-login preserved for existing
+hashes); restricts recovery-code disclosure to the one-time generation
+response and 404s the previously repeatable read; requires and records an
+operator reference on every console revocation; removes the short-circuit
+that skipped password hashing for unknown or revoked accounts so login always
+pays the same hashing cost; and removes the insecure local cookie default. A
+focused independent re-review verified every fix directly against the code,
+the full test suite (PHPUnit and Vitest), and a live reproduction of the
+original revoked-mid-challenge exploit against the rebuilt stack, confirming
+it is now rejected. The complete repository gate, live PostgreSQL migrations
+and rebuilt local stack passed again after the corrections. FPA-P02-S04 and
+Phase 2 completed on the same completion commit, following that review's
+approval.
+
 ### Documentation updates
 
-- Record the implementation and verification in
+- Recorded the implementation, the independent review findings, the
+  corrections and the re-review outcome in
   `docs/journal/2026-08-02-FPA-P02-S04.md`.
-- Keep FPA-P02-S04 and Phase 2 in progress until review and completion approval.
+- Advanced `tasks.json` to `FPA-P03-S01` after FPA-P02-S04 and the Phase 2
+  acceptance gate passed.
 
 ### Commit boundary
 
 ```text
-Harden account security
+Fix Phase 2 review findings: MFA-challenge revocation, Argon2id migration, recovery-code disclosure, audit attribution, login timing, secure-cookie default, test coverage
 ```
 
 ### Phase verification

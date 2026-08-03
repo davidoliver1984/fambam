@@ -11,6 +11,7 @@ class RevokeUser extends Command
 {
     protected $signature = 'fambam:revoke-user
                             {email : Email address of the account to revoke}
+                            {--operator= : Stable operator reference recorded in the security audit}
                             {--force : Revoke without an interactive confirmation}';
 
     protected $description = 'Revoke an account and invalidate all sessions and remembered sign-ins';
@@ -18,6 +19,14 @@ class RevokeUser extends Command
     public function handle(RevokeUserAccess $revokeAccess): int
     {
         $email = Str::lower(trim((string) $this->argument('email')));
+        $operator = trim((string) $this->option('operator'));
+
+        if ($operator === '') {
+            $this->components->error('An operator reference is required for audit attribution.');
+
+            return self::FAILURE;
+        }
+
         $user = User::query()->where('email', $email)->first();
 
         if ($user === null) {
@@ -38,7 +47,15 @@ class RevokeUser extends Command
             return self::SUCCESS;
         }
 
-        $revokeAccess->handle($user, 'operator_revoked', revokeAccount: true);
+        $revokeAccess->handle(
+            $user,
+            'operator_revoked',
+            revokeAccount: true,
+            auditMetadata: [
+                'actor_type' => 'console_operator',
+                'operator_reference' => $operator,
+            ],
+        );
         $this->components->info('The account was revoked and all access was invalidated.');
 
         return self::SUCCESS;

@@ -697,9 +697,11 @@ const [invitationToken] = useState(() =>
 );
 useEffect(() => { window.history.replaceState(null, "", "/accept-invitation"); }, []);
 ```
-Hash-fragment token, one-shot exchange via `useInvitationClaimQuery`,
-history stripped before the form renders, verified under React StrictMode
-by its own test.
+Hash-fragment token, one-shot consuming exchange via
+`useInvitationClaimMutation`, history stripped before the form renders and a
+guarded mutation-cache state preventing React Strict Mode replay from issuing a
+second exchange. This is a mutation because exchanging the bearer token consumes
+server state; its exactly-once behavior is covered by its own test.
 
 ### Rule: no component re-derives auth state independently
 

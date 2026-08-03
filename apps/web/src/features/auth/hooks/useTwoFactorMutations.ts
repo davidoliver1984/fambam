@@ -8,6 +8,7 @@ import {
   confirmTwoFactor,
   disableTwoFactor,
   enableTwoFactor,
+  regenerateRecoveryCodes,
   type TwoFactorChallengeInput,
 } from "../api/twoFactorApi";
 import { twoFactorKeys } from "../api/twoFactorKeys";
@@ -19,6 +20,7 @@ export function useBeginTwoFactorSetupMutation() {
     mutationFn: async (password: string) => {
       await confirmPassword(password);
       await enableTwoFactor();
+      return regenerateRecoveryCodes();
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: twoFactorKeys.setup() });

@@ -25,9 +25,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/user', [CurrentUserController::class, 'show']);
     Route::patch('/user/profile', [CurrentUserController::class, 'update']);
     Route::put('/user/password', [AccountSecurityController::class, 'updatePassword'])
-        ->middleware('throttle:6,1');
+        ->middleware('throttle:account-security');
     Route::post('/user/revoke-sessions', [AccountSecurityController::class, 'revokeSessions'])
-        ->middleware('throttle:6,1');
+        ->middleware('throttle:account-security');
 
     Route::middleware('can:manage-invitations')->group(function (): void {
         Route::get('/invitations', [InvitationController::class, 'index']);
