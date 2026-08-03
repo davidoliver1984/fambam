@@ -13,10 +13,10 @@ priority over automated suggestions, and family data must remain portable.
 
 ## Current status
 
-Phases 0 and 1 are complete. The repository is now in Phase 2, Identity,
-Authentication and Invitations. ADR-0004, account authentication and the
-invitation lifecycle are complete; account-security hardening is next in
-`FPA-P02-S04`. The canonical execution state is recorded in
+Phases 0, 1 and 2 are complete. Identity, authentication, invitations and
+account-security hardening now satisfy the Phase 2 acceptance gate. The next
+planned work is Phase 3, Family Spaces and Tenancy, beginning with
+`FPA-P03-S01`. The canonical execution state is recorded in
 [`tasks.json`](tasks.json).
 
 ## Repository structure

@@ -1,7 +1,15 @@
-import { type SyntheticEvent, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+
+import { toLaravelFieldErrors } from "@/api/errors";
 
 import { useAcceptInvitationMutation } from "../hooks/useInvitationMutations";
 import type { AcceptanceClaim } from "../types/invitation";
+import {
+  invitationAcceptanceSchema,
+  type InvitationAcceptanceFields,
+} from "../validation/invitationAcceptanceSchema";
 
 export function InvitationAcceptanceForm({
   claim,
@@ -10,43 +18,37 @@ export function InvitationAcceptanceForm({
 }) {
   const [message, setMessage] = useState("");
   const acceptInvitation = useAcceptInvitationMutation();
-
-  async function accept(event: SyntheticEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const name = data.get("name");
-    const password = data.get("password");
-    const passwordConfirmation = data.get("password_confirmation");
-    const timezone = data.get("timezone");
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors },
+  } = useForm<InvitationAcceptanceFields>({
+    resolver: zodResolver(invitationAcceptanceSchema),
+    defaultValues: {
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    },
+  });
+  const accept = handleSubmit(async (values) => {
     setMessage("Creating your account…");
-
-    if (
-      typeof name !== "string" ||
-      typeof password !== "string" ||
-      typeof passwordConfirmation !== "string" ||
-      typeof timezone !== "string"
-    ) {
-      setMessage(
-        "Your account could not be created. Check the form and try again.",
-      );
-      return;
-    }
 
     try {
       await acceptInvitation.mutateAsync({
         claim_token: claim.claim_token,
-        name,
-        password,
-        password_confirmation: passwordConfirmation,
-        timezone,
+        ...values,
       });
       window.location.assign("/login");
-    } catch {
+    } catch (error) {
+      const fields = toLaravelFieldErrors(error);
+      for (const field of ["name", "timezone", "password"] as const) {
+        if (fields[field] !== undefined)
+          setError(field, { message: fields[field] });
+      }
       setMessage(
         "Your account could not be created. Check the form and try again.",
       );
     }
-  }
+  });
 
   return (
     <main className="auth" aria-labelledby="page-title">
@@ -55,41 +57,63 @@ export function InvitationAcceptanceForm({
       <p>
         Invited email: <strong>{claim.email}</strong>
       </p>
-      <form
-        onSubmit={(event) => {
-          void accept(event);
-        }}
-      >
+      <form onSubmit={(event) => void accept(event)}>
         <label htmlFor="name">Display name</label>
-        <input id="name" name="name" autoComplete="name" required />
+        <input
+          id="name"
+          autoComplete="name"
+          aria-describedby={errors.name ? "name-error" : undefined}
+          {...register("name")}
+        />
+        {errors.name && (
+          <p id="name-error" role="alert">
+            {errors.name.message}
+          </p>
+        )}
         <label htmlFor="timezone">Timezone</label>
         <input
           id="timezone"
-          name="timezone"
-          defaultValue={
-            Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
-          }
-          required
+          aria-describedby={errors.timezone ? "timezone-error" : undefined}
+          {...register("timezone")}
         />
+        {errors.timezone && (
+          <p id="timezone-error" role="alert">
+            {errors.timezone.message}
+          </p>
+        )}
         <label htmlFor="password">Password</label>
         <input
           id="password"
-          name="password"
           type="password"
           autoComplete="new-password"
-          minLength={15}
-          required
+          aria-describedby={errors.password ? "password-error" : undefined}
+          {...register("password")}
         />
+        {errors.password && (
+          <p id="password-error" role="alert">
+            {errors.password.message}
+          </p>
+        )}
         <label htmlFor="password-confirmation">Confirm password</label>
         <input
           id="password-confirmation"
-          name="password_confirmation"
           type="password"
           autoComplete="new-password"
-          minLength={15}
-          required
+          aria-describedby={
+            errors.password_confirmation
+              ? "password-confirmation-error"
+              : undefined
+          }
+          {...register("password_confirmation")}
         />
-        <button type="submit">Create private account</button>
+        {errors.password_confirmation && (
+          <p id="password-confirmation-error" role="alert">
+            {errors.password_confirmation.message}
+          </p>
+        )}
+        <button type="submit" disabled={acceptInvitation.isPending}>
+          Create private account
+        </button>
         {message !== "" && <p role="status">{message}</p>}
       </form>
     </main>

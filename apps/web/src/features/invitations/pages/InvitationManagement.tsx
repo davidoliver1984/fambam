@@ -78,7 +78,10 @@ export function InvitationManagement() {
       {invitationsQuery.isError && (
         <p role="alert">Invitations could not be loaded.</p>
       )}
-      {invitationsQuery.isSuccess && (
+      {invitationsQuery.isSuccess && invitationsQuery.data.length === 0 && (
+        <p>No invitations have been sent yet.</p>
+      )}
+      {invitationsQuery.isSuccess && invitationsQuery.data.length > 0 && (
         <ul className="invitation-list">
           {invitationsQuery.data.map((invitation) => (
             <li key={invitation.id}>

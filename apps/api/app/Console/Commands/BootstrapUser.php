@@ -43,7 +43,7 @@ class BootstrapUser extends Command
             'email' => ['required', 'email:rfc', 'max:255'],
             'name' => ['required', 'string', 'max:255'],
             'timezone' => ['required', 'string', 'timezone:all'],
-            'password' => ['required', 'string', 'max:255', Password::min(15), 'confirmed'],
+            'password' => ['required', 'string', Password::default(), 'confirmed'],
         ]);
 
         if ($validator->fails()) {

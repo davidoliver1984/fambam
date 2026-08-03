@@ -5,6 +5,7 @@ export type User = {
   timezone: string;
   email_verified_at: string | null;
   can_invite: boolean;
+  two_factor_enabled: boolean;
 };
 
 export type UpdateProfileInput = Pick<User, "name" | "timezone">;

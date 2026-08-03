@@ -1,6 +1,12 @@
 import "@testing-library/jest-dom/vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  type RenderResult,
+} from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { App } from "./App";
@@ -8,9 +14,22 @@ import { InvitationAcceptanceForm } from "./features/invitations/components/Invi
 
 afterEach(cleanup);
 
+function renderWithQuery(children: ReactNode): RenderResult {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>,
+  );
+}
+
 describe("App", () => {
   it("renders the family archive foundation", () => {
-    render(<App path="/" />);
+    renderWithQuery(<App path="/" />);
 
     expect(
       screen.getByRole("heading", {
@@ -20,7 +39,7 @@ describe("App", () => {
   });
 
   it("exposes a health view", () => {
-    render(<App path="/health" />);
+    renderWithQuery(<App path="/health" />);
 
     expect(
       screen.getByRole("heading", { name: "Web application healthy" }),
@@ -28,7 +47,7 @@ describe("App", () => {
   });
 
   it("renders password-manager-friendly login fields", () => {
-    render(<App path="/login" />);
+    renderWithQuery(<App path="/login" />);
 
     expect(screen.getByLabelText("Email address")).toHaveAttribute(
       "autocomplete",
@@ -42,20 +61,14 @@ describe("App", () => {
   });
 
   it("keeps the invited email authoritative on the acceptance form", () => {
-    const queryClient = new QueryClient({
-      defaultOptions: { mutations: { retry: false } },
-    });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <InvitationAcceptanceForm
-          claim={{
-            claim_token: "claim-token",
-            email: "relative@example.test",
-            expires_at: "2026-08-02T12:00:00Z",
-          }}
-        />
-      </QueryClientProvider>,
+    renderWithQuery(
+      <InvitationAcceptanceForm
+        claim={{
+          claim_token: "claim-token",
+          email: "relative@example.test",
+          expires_at: "2026-08-02T12:00:00Z",
+        }}
+      />,
     );
 
     expect(screen.getByText("relative@example.test")).toBeInTheDocument();

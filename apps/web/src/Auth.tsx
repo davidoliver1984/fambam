@@ -4,16 +4,28 @@ import {
   useEffect,
   useState,
 } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 
+import { toLaravelFieldErrors } from "@/api/errors";
+import { AccountSecurityPanel } from "@/features/account/components/AccountSecurityPanel";
+import { useCurrentUserQuery } from "@/features/account/hooks/useCurrentUserQuery";
+import { useUpdateProfileMutation } from "@/features/account/hooks/useUpdateProfileMutation";
 import {
-  logout,
-  login,
-  requestPasswordReset,
-  resetPassword,
-} from "./features/auth/api/authApi";
-import { useCurrentUserQuery } from "./features/account/hooks/useCurrentUserQuery";
-import { useUpdateProfileMutation } from "./features/account/hooks/useUpdateProfileMutation";
-import { InvitationManagement } from "./features/invitations/pages/InvitationManagement";
+  useLoginMutation,
+  useLogoutMutation,
+  useRequestPasswordResetMutation,
+  useResetPasswordMutation,
+} from "@/features/auth/hooks/useAuthMutations";
+import {
+  confirmedPasswordSchema,
+  type ConfirmedPasswordFields,
+} from "@/features/auth/validation/passwordSchemas";
+import {
+  loginSchema,
+  type LoginFields,
+} from "@/features/auth/validation/loginSchema";
+import { InvitationManagement } from "@/features/invitations/pages/InvitationManagement";
 
 function formString(data: FormData, name: string): string {
   const value = data.get(name);
@@ -31,54 +43,75 @@ function FormMessage({ message }: { message: string }) {
 
 export function LoginPage() {
   const [message, setMessage] = useState("");
-
-  async function submit(event: SyntheticEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
+  const login = useLoginMutation();
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors },
+  } = useForm<LoginFields>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { remember: false },
+  });
+  const submit = handleSubmit(async (values) => {
     setMessage("Signing in…");
 
     try {
-      await login({
-        email: formString(data, "email"),
-        password: formString(data, "password"),
-        remember: data.get("remember") === "on",
-      });
-      window.location.assign("/account");
-    } catch {
+      const result = await login.mutateAsync(values);
+      window.location.assign(
+        result.two_factor ? "/two-factor-challenge" : "/account",
+      );
+    } catch (error) {
+      const fields = toLaravelFieldErrors(error);
+      for (const field of ["email", "password"] as const) {
+        if (fields[field] !== undefined)
+          setError(field, { message: fields[field] });
+      }
       setMessage("We could not sign you in. Check your details and try again.");
     }
-  }
+  });
 
   return (
     <AuthShell
       title="Welcome back"
       introduction="Sign in to your private family archive."
     >
-      <form
-        onSubmit={(event) => {
-          void submit(event);
-        }}
-      >
+      <form onSubmit={(event) => void submit(event)}>
         <label htmlFor="email">Email address</label>
         <input
           id="email"
-          name="email"
           type="email"
           autoComplete="email"
-          required
+          aria-describedby={errors.email ? "login-email-error" : undefined}
+          {...register("email")}
         />
+        {errors.email && (
+          <p id="login-email-error" role="alert">
+            {errors.email.message}
+          </p>
+        )}
         <label htmlFor="password">Password</label>
         <input
           id="password"
-          name="password"
           type="password"
           autoComplete="current-password"
-          required
+          aria-describedby={
+            errors.password ? "login-password-error" : undefined
+          }
+          {...register("password")}
         />
+        {errors.password && (
+          <p id="login-password-error" role="alert">
+            {errors.password.message}
+          </p>
+        )}
         <label className="check" htmlFor="remember">
-          <input id="remember" name="remember" type="checkbox" /> Remember me
+          <input id="remember" type="checkbox" {...register("remember")} />
+          Remember me
         </label>
-        <button type="submit">Sign in</button>
+        <button type="submit" disabled={login.isPending}>
+          Sign in
+        </button>
         <FormMessage message={message} />
       </form>
       <a href="/forgot-password">Forgotten your password?</a>
@@ -88,12 +121,19 @@ export function LoginPage() {
 
 export function ForgotPasswordPage() {
   const [message, setMessage] = useState("");
+  const requestReset = useRequestPasswordResetMutation();
 
   async function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    await requestPasswordReset(formString(data, "email"));
-    setMessage("If that address has an account, a reset link is on its way.");
+    try {
+      await requestReset.mutateAsync(formString(data, "email"));
+      setMessage("If that address has an account, a reset link is on its way.");
+    } catch {
+      setMessage(
+        "The reset request could not be sent. Please try again later.",
+      );
+    }
   }
 
   return (
@@ -114,7 +154,9 @@ export function ForgotPasswordPage() {
           autoComplete="email"
           required
         />
-        <button type="submit">Send reset link</button>
+        <button type="submit" disabled={requestReset.isPending}>
+          Send reset link
+        </button>
         <FormMessage message={message} />
       </form>
     </AuthShell>
@@ -124,52 +166,72 @@ export function ForgotPasswordPage() {
 export function ResetPasswordPage() {
   const [message, setMessage] = useState("");
   const query = new URLSearchParams(window.location.search);
-
-  async function submit(event: SyntheticEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    setMessage("Updating password…");
-
+  const resetPassword = useResetPasswordMutation();
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors },
+  } = useForm<ConfirmedPasswordFields>({
+    resolver: zodResolver(confirmedPasswordSchema),
+  });
+  const submit = handleSubmit(async (values) => {
     try {
-      await resetPassword({
+      await resetPassword.mutateAsync({
         token: query.get("token"),
         email: query.get("email"),
-        password: formString(data, "password"),
-        password_confirmation: formString(data, "password_confirmation"),
+        ...values,
       });
       window.location.assign("/login");
-    } catch {
+    } catch (error) {
+      const fields = toLaravelFieldErrors(error);
+      if (fields.password !== undefined)
+        setError("password", { message: fields.password });
       setMessage("That reset link or password could not be accepted.");
     }
-  }
+  });
 
   return (
     <AuthShell
       title="Choose a new password"
       introduction="Use a long, memorable passphrase or your password manager."
     >
-      <form
-        onSubmit={(event) => {
-          void submit(event);
-        }}
-      >
+      <form onSubmit={(event) => void submit(event)}>
         <label htmlFor="password">New password</label>
         <input
           id="password"
-          name="password"
           type="password"
           autoComplete="new-password"
-          required
+          aria-describedby={
+            errors.password ? "reset-password-error" : undefined
+          }
+          {...register("password")}
         />
+        {errors.password && (
+          <p id="reset-password-error" role="alert">
+            {errors.password.message}
+          </p>
+        )}
         <label htmlFor="password-confirmation">Confirm new password</label>
         <input
           id="password-confirmation"
-          name="password_confirmation"
           type="password"
           autoComplete="new-password"
-          required
+          aria-describedby={
+            errors.password_confirmation
+              ? "reset-password-confirmation-error"
+              : undefined
+          }
+          {...register("password_confirmation")}
         />
-        <button type="submit">Save new password</button>
+        {errors.password_confirmation && (
+          <p id="reset-password-confirmation-error" role="alert">
+            {errors.password_confirmation.message}
+          </p>
+        )}
+        <button type="submit" disabled={resetPassword.isPending}>
+          Save new password
+        </button>
         <FormMessage message={message} />
       </form>
     </AuthShell>
@@ -179,6 +241,7 @@ export function ResetPasswordPage() {
 export function AccountPage() {
   const userQuery = useCurrentUserQuery();
   const updateProfile = useUpdateProfileMutation();
+  const logout = useLogoutMutation();
   const [message, setMessage] = useState("");
   const user = userQuery.data;
 
@@ -189,16 +252,24 @@ export function AccountPage() {
   async function update(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    await updateProfile.mutateAsync({
-      name: formString(data, "name"),
-      timezone: formString(data, "timezone"),
-    });
-    setMessage("Profile saved.");
+    try {
+      await updateProfile.mutateAsync({
+        name: formString(data, "name"),
+        timezone: formString(data, "timezone"),
+      });
+      setMessage("Profile saved.");
+    } catch {
+      setMessage("Your profile could not be saved.");
+    }
   }
 
   async function signOut() {
-    await logout();
-    window.location.assign("/login");
+    try {
+      await logout.mutateAsync();
+      window.location.assign("/login");
+    } catch {
+      setMessage("You could not be signed out. Please try again.");
+    }
   }
 
   return (
@@ -208,7 +279,11 @@ export function AccountPage() {
     >
       {user === undefined ? (
         <FormMessage
-          message={userQuery.isPending ? "Loading your account…" : message}
+          message={
+            userQuery.isPending
+              ? "Loading your account…"
+              : "Returning you to sign in…"
+          }
         />
       ) : (
         <form
@@ -245,6 +320,9 @@ export function AccountPage() {
         </form>
       )}
       {user?.can_invite === true && <InvitationManagement />}
+      {user !== undefined && (
+        <AccountSecurityPanel twoFactorEnabled={user.two_factor_enabled} />
+      )}
     </AuthShell>
   );
 }

@@ -1,6 +1,5 @@
-import type { AxiosResponse } from "axios";
-
-import { apiClient, ensureCsrfCookie } from "../../../api/client";
+import { apiClient, ensureCsrfCookie } from "@/api/client";
+import { type ApiEnvelope, unwrap } from "@/api/envelope";
 import type {
   AcceptInvitationInput,
   AcceptanceClaim,
@@ -9,17 +8,13 @@ import type {
   InvitationTransition,
 } from "../types/invitation";
 
-type ApiEnvelope<T> = {
-  data: T;
-};
-
-function unwrap<T>(response: AxiosResponse<ApiEnvelope<T>>): T {
-  return response.data.data;
-}
-
-export async function getInvitations(): Promise<Invitation[]> {
+export async function getInvitations(
+  signal?: AbortSignal,
+): Promise<Invitation[]> {
   return unwrap(
-    await apiClient.get<ApiEnvelope<Invitation[]>>("/api/invitations"),
+    await apiClient.get<ApiEnvelope<Invitation[]>>("/api/invitations", {
+      signal,
+    }),
   );
 }
 
