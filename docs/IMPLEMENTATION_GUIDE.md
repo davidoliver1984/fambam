@@ -1154,12 +1154,64 @@ Add PostgreSQL row-level security
 
 Audit membership changes and define asynchronous deletion states.
 
+### Concrete implementation
+
+- Every new audit row records an explicit nullable `family_space_id`, nullable
+  `actor_user_id`, non-null `correlation_id` and non-null W3C `traceparent`.
+  Historical audit rows are backfilled with their recoverable Family Space and
+  stable legacy correlation identity. The runtime role may insert audit rows in
+  the active tenant context but has neither audit read privilege nor a read
+  policy; update and delete privileges and policies are also absent.
+- `TenantOperationContext` is the single serializable asynchronous envelope:
+  `family_space_id`, `actor_user_id`, `correlation_id` and `traceparent`. The
+  scheduler creates a producer span, the deletion job restores the W3C parent
+  into a consumer span, and the same context reaches database settings, logs
+  and the completion audit record.
+- Family Space deletion is Owner-only. Requesting it persists the configured
+  grace deadline as an absolute timestamp (14 days by default); cancellation is
+  possible only while the state is `deletion_requested`. Owners and
+  Administrators can see the pending-deletion details; other roles cannot.
+- The scheduler discovers only due deletion identifiers through a bounded
+  PostgreSQL function and publishes unique teardown jobs to the separate
+  `fambam-jobs` queue. Teardown is idempotent, resumes safely from `deleting`,
+  exits after cancellation or completion, and sets `family_spaces.status` to
+  `deleted` before soft-removing any active membership, including the final
+  Owner, in the same transaction.
+- `FamilyStorageKey` establishes the required `families/{family_space_id}/...`
+  partition and rejects empty, traversal and NUL-bearing paths. No Phase 5
+  media operation is introduced early. Likewise, the existing synthetic
+  image-analysis message now carries the complete context field shape, but no
+  speculative production image message is added.
+- Compose includes idempotent LocalStack provisioning, a dedicated Laravel job
+  queue, a queue worker and a scheduler. Application jobs no longer share the
+  image-analysis request queue.
+
 ### Phase verification
 
 - Cross-tenant feature and database tests pass.
 - A family cannot be left without an owner.
 - Background jobs carry explicit tenant context.
 - Storage keys include safe family partitioning.
+
+FPA-P03-S05 and Phase 3 completed on 2026-08-04 after the persistent migration,
+rebuilt-stack smoke checks and full repository gate passed. The accepted
+follow-up review added direct PostgreSQL proof for concurrent membership
+reactivation, multi-space cross-tenant mutation rejection, and insert-only audit
+access, plus frontend regressions for protected routing, cache separation when
+switching Family Spaces, and graceful membership loss.
+
+### Documentation updates
+
+- Recorded implementation, migration and verification in
+  `docs/journal/2026-08-04-FPA-P03-S05.md`.
+- Completed Phase 3 in `tasks.json` and advanced the current stage to
+  FPA-P04-S01.
+
+### Commit boundary
+
+```text
+Add tenancy audit and deletion foundations
+```
 
 ---
 

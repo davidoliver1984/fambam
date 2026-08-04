@@ -29,6 +29,18 @@ class RequestContext
             ->startSpan();
         $scope = $span->activate();
         $spanContext = Span::getCurrent()->getContext();
+        $traceparent = $spanContext->isValid()
+            ? sprintf(
+                '00-%s-%s-%02x',
+                $spanContext->getTraceId(),
+                $spanContext->getSpanId(),
+                $spanContext->getTraceFlags(),
+            )
+            : null;
+
+        $request->attributes->set('request_id', $requestId);
+        $request->attributes->set('correlation_id', $correlationId);
+        $request->attributes->set('traceparent', $traceparent);
 
         Log::withContext([
             'service' => 'fambam-api',

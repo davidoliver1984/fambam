@@ -8,6 +8,7 @@ use App\Enums\MembershipState;
 use App\Models\FamilySpace;
 use App\Models\User;
 use App\Services\AuditRecorder;
+use App\Tenancy\DatabaseTenantContext;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -26,7 +27,7 @@ class BootstrapUser extends Command
 
     protected $description = 'Create the first verified account, Family Space and Owner membership';
 
-    public function handle(AuditRecorder $audit): int
+    public function handle(AuditRecorder $audit, DatabaseTenantContext $databaseTenantContext): int
     {
         if (User::query()->exists()) {
             $this->components->error('The bootstrap command only works before the first account exists.');
@@ -73,6 +74,7 @@ class BootstrapUser extends Command
             $password,
             $familyName,
             $familySlug,
+            $databaseTenantContext,
         ): void {
             $user = new User;
             $user->forceFill([
@@ -84,7 +86,14 @@ class BootstrapUser extends Command
                 'can_create_family_spaces' => false,
             ])->save();
 
+            $familySpaceId = (string) Str::ulid();
+            $databaseTenantContext->establishUser($user);
+            $databaseTenantContext->establishFamilySpace(
+                $familySpaceId,
+                authoritativeOperation: 'family_space_creation',
+            );
             $familySpace = FamilySpace::query()->create([
+                'id' => $familySpaceId,
                 'name' => $familyName,
                 'slug' => $familySlug,
                 'status' => FamilySpaceStatus::Active,
