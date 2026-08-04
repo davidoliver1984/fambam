@@ -11,18 +11,20 @@ import type {
   InvitationTransition,
 } from "../types/invitation";
 
-export function useIssueInvitationMutation() {
+export function useIssueInvitationMutation(familySpaceId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: issueInvitation,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: invitationKeys.list() });
+      await queryClient.invalidateQueries({
+        queryKey: invitationKeys.list(familySpaceId),
+      });
     },
   });
 }
 
-export function useTransitionInvitationMutation() {
+export function useTransitionInvitationMutation(familySpaceId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -34,7 +36,9 @@ export function useTransitionInvitationMutation() {
       action: InvitationTransition;
     }) => transitionInvitation(invitationId, action),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: invitationKeys.list() });
+      await queryClient.invalidateQueries({
+        queryKey: invitationKeys.list(familySpaceId),
+      });
     },
   });
 }

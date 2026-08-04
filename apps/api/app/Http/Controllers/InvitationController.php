@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\FamilySpaceRole;
 use App\Http\Requests\IssueInvitationRequest;
+use App\Models\FamilySpace;
 use App\Models\Invitation;
 use App\Models\User;
 use App\Services\InvitationManager;
@@ -13,9 +15,17 @@ class InvitationController extends Controller
 {
     public function __construct(private readonly InvitationManager $invitations) {}
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $invitations = Invitation::query()->latest()->get()->map($this->payload(...));
+        /** @var User $actor */
+        $actor = $request->user();
+        $familySpace = FamilySpace::query()->findOrFail((string) $request->query('family_space_id'));
+        $this->invitations->ensureCanManageInvitations($actor, $familySpace);
+        $invitations = Invitation::query()
+            ->where('family_space_id', $familySpace->id)
+            ->latest()
+            ->get()
+            ->map($this->payload(...));
 
         return response()->json(['data' => $invitations]);
     }
@@ -24,7 +34,14 @@ class InvitationController extends Controller
     {
         /** @var User $actor */
         $actor = $request->user();
-        $invitation = $this->invitations->issue($actor, $request->validated('email'), $request);
+        $familySpace = FamilySpace::query()->findOrFail($request->validated('family_space_id'));
+        $invitation = $this->invitations->issue(
+            $actor,
+            $familySpace,
+            $request->validated('email'),
+            FamilySpaceRole::from($request->validated('role')),
+            $request,
+        );
 
         return response()->json(['data' => $this->payload($invitation)], 201);
     }
@@ -47,12 +64,14 @@ class InvitationController extends Controller
         return response()->json(['data' => $this->payload($invitation)]);
     }
 
-    /** @return array{id: int, email: string, status: string, expires_at: string, accepted_at: ?string, revoked_at: ?string, acceptable: bool} */
+    /** @return array{id: int, family_space_id: string, email: string, role: string, status: string, expires_at: string, accepted_at: ?string, revoked_at: ?string, acceptable: bool} */
     private function payload(Invitation $invitation): array
     {
         return [
             'id' => $invitation->id,
+            'family_space_id' => $invitation->family_space_id,
             'email' => $invitation->email,
+            'role' => $invitation->role->value,
             'status' => $invitation->status->value,
             'expires_at' => $invitation->expires_at->toAtomString(),
             'accepted_at' => $invitation->accepted_at?->toAtomString(),

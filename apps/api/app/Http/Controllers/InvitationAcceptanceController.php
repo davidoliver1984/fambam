@@ -22,9 +22,9 @@ class InvitationAcceptanceController extends Controller
     {
         $validated = $request->validated();
         $user = $this->invitations->accept($validated['claim_token'], [
-            'name' => $validated['name'],
-            'password' => $validated['password'],
-            'timezone' => $validated['timezone'],
+            'name' => $validated['name'] ?? null,
+            'password' => $validated['password'] ?? null,
+            'timezone' => $validated['timezone'] ?? null,
         ], $request);
 
         return response()->json([

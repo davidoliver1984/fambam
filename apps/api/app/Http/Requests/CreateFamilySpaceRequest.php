@@ -2,11 +2,10 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\FamilySpaceRole;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class IssueInvitationRequest extends FormRequest
+class CreateFamilySpaceRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -17,11 +16,13 @@ class IssueInvitationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email:rfc', 'max:255'],
-            'family_space_id' => ['required', 'string', 'size:26', Rule::exists('family_spaces', 'id')],
-            'role' => [
+            'name' => ['required', 'string', 'max:255'],
+            'slug' => [
                 'required',
-                Rule::enum(FamilySpaceRole::class)->except([FamilySpaceRole::Owner]),
+                'string',
+                'max:100',
+                'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
+                Rule::unique('family_spaces', 'slug'),
             ],
         ];
     }

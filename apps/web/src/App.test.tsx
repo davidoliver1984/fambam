@@ -66,6 +66,9 @@ describe("App", () => {
         claim={{
           claim_token: "claim-token",
           email: "relative@example.test",
+          family_space_name: "Oliver Family",
+          role: "member",
+          existing_account: false,
           expires_at: "2026-08-02T12:00:00Z",
         }}
       />,

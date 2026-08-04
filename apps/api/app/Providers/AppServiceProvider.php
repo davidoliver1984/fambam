@@ -3,14 +3,12 @@
 namespace App\Providers;
 
 use App\Listeners\SecurityEventSubscriber;
-use App\Models\User;
 use App\Services\AuthenticateUser;
 use App\Services\PwnedPasswordVerifier;
 use Illuminate\Contracts\Hashing\Hasher;
 use Illuminate\Contracts\Validation\UncompromisedVerifier;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Psr\Log\LoggerInterface;
@@ -53,7 +51,6 @@ class AppServiceProvider extends ServiceProvider
                 : $rule;
         });
 
-        Gate::define('manage-invitations', static fn (User $user): bool => $user->can_invite === true);
         Event::subscribe(SecurityEventSubscriber::class);
     }
 }
