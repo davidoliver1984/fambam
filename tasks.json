@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P03",
-    "current_stage": "FPA-P03-S04",
+    "current_stage": "FPA-P03-S05",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-04"
   },
@@ -253,16 +253,20 @@
         {
           "id": "FPA-P03-S04",
           "title": "Add PostgreSQL row-level security",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P03-S03"
           ],
-          "notes": []
+          "notes": [
+            "A separately provisioned NOSUPERUSER/NOBYPASSRLS runtime role, transaction-local user and Family Space context, and forced RLS policies for the tenant registry and membership access-control table were implemented.",
+            "The ordinary tenant-table USING/WITH CHECK pattern was documented and verified without introducing speculative production schema; PostgreSQL 17.6 integration tests directly proved non-recursive registry resolution, fail-closed reads and writes, atomic authoritative flows and context cleanup.",
+            "The complete repository gate, approved persistent migration and rebuilt-stack role, policy, data-preservation, HTTP, infrastructure and observability checks passed before stage completion on 2026-08-04 (git tag phase-3-s04)."
+          ]
         },
         {
           "id": "FPA-P03-S05",
           "title": "Add tenancy audit and deletion foundations",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P03-S04"
           ],
@@ -1341,6 +1345,14 @@
       "roadmap_stage": "FPA-P03-S03",
       "date": "2026-08-04",
       "description": "FPA-P03-S03 completed: active-membership slug resolution, request-scoped tenant context, role policies, explicit tenant query scoping, nested Family Space routes and protected URL-derived React routing implemented and verified. Unknown and inaccessible Family Spaces return the same 404, out-of-role members receive 403 only after resolution, cross-tenant nested identifiers fail closed and tenant context is cleared after dispatch."
+    },
+    {
+      "git_tag": "phase-3-s04",
+      "type": "stage_completion",
+      "adr": "ADR-0005",
+      "roadmap_stage": "FPA-P03-S04",
+      "date": "2026-08-04",
+      "description": "FPA-P03-S04 completed: a separately provisioned non-superuser, non-BYPASSRLS runtime role, transaction-local actor and tenant context, forced PostgreSQL RLS policies for the tenant registry and membership access-control table, and the reusable fail-closed ordinary tenant-table policy pattern were implemented and verified. PostgreSQL 17.6 tests directly proved non-recursive registry resolution, cross-tenant read/write isolation, atomic authoritative flows and context cleanup; the approved persistent migration and rebuilt-stack verification preserved existing tenant data and passed all smoke gates."
     }
   ]
 }

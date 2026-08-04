@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help up down restart status logs infrastructure-smoke observability-smoke foundation-check docs-check contracts-check compose-check format format-check lint typecheck test test-api test-web test-ai test-e2e security-check
+.PHONY: help up down restart status logs infrastructure-smoke observability-smoke foundation-check docs-check contracts-check compose-check format format-check lint typecheck test test-api test-api-postgres-rls test-web test-ai test-e2e security-check
 
 help: ## List supported repository commands
 	@awk 'BEGIN {FS = ":.*## "; printf "Family Photo Archive commands:\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -62,6 +62,9 @@ test: test-web test-api test-ai ## Run all application tests
 
 test-api: ## Run Laravel API tests
 	@cd apps/api && composer test
+
+test-api-postgres-rls: ## Run PostgreSQL row-level-security integration tests
+	@scripts/test-postgres-rls.sh
 
 test-web: ## Run React web tests
 	@cd apps/web && npm test

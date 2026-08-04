@@ -11,6 +11,7 @@ use App\Models\Invitation;
 use App\Models\InvitationClaim;
 use App\Models\User;
 use App\Notifications\InvitationIssued;
+use App\Tenancy\DatabaseTenantContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -26,6 +27,7 @@ class InvitationManager
     public function __construct(
         private readonly AuditRecorder $audit,
         private readonly MembershipInvitationAcceptor $membershipAcceptor,
+        private readonly DatabaseTenantContext $databaseTenantContext,
     ) {}
 
     public function issue(
@@ -186,6 +188,8 @@ class InvitationManager
                 return null;
             }
 
+            $this->databaseTenantContext->establishFamilySpace($invitation->family_space_id);
+
             if ($invitation->expires_at->isPast()) {
                 $this->expire($invitation, $request);
 
@@ -241,6 +245,11 @@ class InvitationManager
                 return null;
             }
 
+            $this->databaseTenantContext->establishFamilySpace(
+                $invitation->family_space_id,
+                authoritativeOperation: 'invitation_acceptance',
+            );
+
             if ($invitation->status !== InvitationStatus::Pending) {
                 return null;
             }
@@ -274,6 +283,8 @@ class InvitationManager
             } elseif ($request->user('sanctum')?->isNot($user) !== false) {
                 return null;
             }
+
+            $this->databaseTenantContext->establishUser($user);
 
             $membershipResult = $this->membershipAcceptor->accept($invitation, $user);
 

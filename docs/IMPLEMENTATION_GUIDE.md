@@ -1094,6 +1094,62 @@ must be checked for recursive or circular policy evaluation directly
 against PostgreSQL's actual behaviour before acceptance — not assumed
 correct from documentation.
 
+### Concrete policy design
+
+- PostgreSQL is provisioned with a migration owner and a separate application
+  runtime role. The runtime role is explicitly `NOSUPERUSER` and
+  `NOBYPASSRLS`; only the migration command receives owner credentials.
+- Every database-backed HTTP request runs in a transaction. Authentication
+  establishes transaction-local `app.current_user_id`; successful Family
+  Space resolution then establishes `app.current_family_space_id`. The local
+  settings are explicitly cleared and PostgreSQL also discards them on commit
+  or rollback, preventing pooled-connection leakage.
+- `family_spaces` uses a registry policy: before tenant context exists, an
+  authenticated user can see only spaces for which their own active membership
+  is visible. Creation uses the new space's independently authoritative ULID;
+  ordinary mutation requires matching tenant context; runtime hard deletion is
+  not granted.
+- `family_space_memberships` permits pre-context self-visibility. Tenant-wide
+  visibility and writes require matching tenant context, and writes additionally
+  require the resolved membership-management capability or the bounded Family
+  Space creation/invitation-acceptance operation.
+- No ordinary tenant-owned content table exists at this stage. The standard
+  Class C pattern is nevertheless fixed and tested directly: enable and force
+  RLS, use `family_space_id = app_current_family_space_id()` for both `USING`
+  and `WITH CHECK`, and provide no context-free policy. This makes missing
+  context, cross-tenant insertion and tenant reassignment fail closed. Future
+  ordinary tenant tables must apply this complete pattern in their migration.
+
+The registry policy's membership lookup terminates at the membership table's
+self-or-context policy; that policy does not query the registry. The disposable
+PostgreSQL 17.6 integration suite executes this resolution path directly and
+would fail on PostgreSQL's recursive-policy error if the design became circular.
+The same suite proves runtime-role attributes, forced RLS, pre-context
+visibility, membership administration, Class C reads and writes, atomic
+creation and invitation acceptance, and context cleanup after commit and
+rollback. Run it with `make test-api-postgres-rls`.
+
+FPA-P03-S04 completed on 2026-08-04 after the disposable PostgreSQL 17.6
+integration suite, complete repository gate, approved persistent migration and
+rebuilt-stack verification passed. The live API runs as the separately
+provisioned non-superuser, non-`BYPASSRLS` role; both special tenant tables
+force RLS; missing context fails closed; valid self and tenant context exposes
+only authorised rows; and transaction-local settings clear after commit and
+rollback. Existing Family Space, membership, Owner and invitation associations
+were preserved.
+
+### Documentation updates
+
+- Recorded implementation, policy design and verification in
+  `docs/journal/2026-08-04-FPA-P03-S04.md`.
+- Advanced `tasks.json` to FPA-P03-S05 after completion approval.
+
+### Commit boundary
+
+```text
+Add PostgreSQL row-level security
+```
+
 ## FPA-P03-S05 — Add tenancy audit and deletion foundations
 
 Audit membership changes and define asynchronous deletion states.

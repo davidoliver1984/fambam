@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\DatabaseRequestContext;
 use App\Http\Middleware\PreventRecoveryCodeDisclosure;
 use App\Http\Middleware\RequestContext;
 use App\Http\Middleware\ResolveFamilySpace;
@@ -18,8 +19,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias(['family-space' => ResolveFamilySpace::class]);
+        $middleware->alias([
+            'database-context' => DatabaseRequestContext::class,
+            'family-space' => ResolveFamilySpace::class,
+        ]);
         $middleware->prependToPriorityList(SubstituteBindings::class, ResolveFamilySpace::class);
+        $middleware->prependToPriorityList(ResolveFamilySpace::class, DatabaseRequestContext::class);
         $middleware->redirectGuestsTo(null);
         $middleware->statefulApi();
         $middleware->api(prepend: [RequestContext::class]);

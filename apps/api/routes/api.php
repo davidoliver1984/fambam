@@ -18,12 +18,12 @@ Route::get('/health', static fn (): array => [
     'status' => 'ok',
 ]);
 
-Route::middleware('throttle:invitation-acceptance')->group(function (): void {
+Route::middleware(['throttle:invitation-acceptance', 'database-context'])->group(function (): void {
     Route::post('/invitations/exchange', [InvitationAcceptanceController::class, 'exchange']);
     Route::post('/invitations/accept', [InvitationAcceptanceController::class, 'accept']);
 });
 
-Route::middleware('auth:sanctum')->group(function (): void {
+Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void {
     Route::get('/user', [CurrentUserController::class, 'show']);
     Route::patch('/user/profile', [CurrentUserController::class, 'update']);
     Route::put('/user/password', [AccountSecurityController::class, 'updatePassword'])
