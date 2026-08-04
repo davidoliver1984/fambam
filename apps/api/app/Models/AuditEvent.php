@@ -6,7 +6,18 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['actor_user_id', 'action', 'subject_type', 'subject_id', 'ip_address', 'user_agent', 'metadata'])]
+#[Fillable([
+    'family_space_id',
+    'actor_user_id',
+    'correlation_id',
+    'traceparent',
+    'action',
+    'subject_type',
+    'subject_id',
+    'ip_address',
+    'user_agent',
+    'metadata',
+])]
 class AuditEvent extends Model
 {
     public const UPDATED_AT = null;

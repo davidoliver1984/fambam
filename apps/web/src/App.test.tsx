@@ -6,9 +6,12 @@ import {
   screen,
   type RenderResult,
 } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
+
+import { server } from "@/test/msw/server";
 
 import { App } from "./App";
 import { InvitationAcceptanceForm } from "./features/invitations/components/InvitationAcceptanceForm";
@@ -85,5 +88,19 @@ describe("App", () => {
       "autocomplete",
       "new-password",
     );
+  });
+
+  it("redirects an unauthenticated Family Space route to sign in", async () => {
+    server.use(
+      http.get("http://localhost:8082/api/user", () =>
+        HttpResponse.json({ message: "Unauthenticated." }, { status: 401 }),
+      ),
+    );
+
+    renderWithQuery(<App />, "/families/private-family");
+
+    expect(
+      await screen.findByRole("heading", { name: "Welcome back" }),
+    ).toBeInTheDocument();
   });
 });

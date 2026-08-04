@@ -6,8 +6,8 @@
     "version": "0.1.0",
     "status": "in_progress",
     "v1_release_phase": "P15",
-    "current_phase": "P03",
-    "current_stage": "FPA-P03-S05",
+    "current_phase": "P04",
+    "current_stage": "FPA-P04-S01",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-04"
   },
@@ -209,7 +209,7 @@
     {
       "id": "P03",
       "name": "Family Spaces and Tenancy",
-      "status": "in_progress",
+      "status": "completed",
       "stages": [
         {
           "id": "FPA-P03-S01",
@@ -266,11 +266,15 @@
         {
           "id": "FPA-P03-S05",
           "title": "Add tenancy audit and deletion foundations",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P03-S04"
           ],
-          "notes": []
+          "notes": [
+            "Tenant-aware audit records, the complete asynchronous context envelope, isolated Laravel job queue, safe Family Space storage partitioning and the Owner-controlled deletion lifecycle were implemented and migrated persistently.",
+            "The accepted review follow-up added direct PostgreSQL concurrency, multi-space cross-tenant and insert-only audit-boundary proof, plus frontend protected-route, cache-isolation and membership-loss regressions.",
+            "The complete repository gate, PostgreSQL 17.6 integration suite and rebuilt-stack infrastructure and observability smokes passed before FPA-P03-S05 and Phase 3 completion on 2026-08-04 (git tags phase-3-s05 and phase-3)."
+          ]
         }
       ]
     },
@@ -282,7 +286,7 @@
         {
           "id": "FPA-P04-S01",
           "title": "Accept people, accounts and relationships ADR",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P03-S05"
           ],
@@ -1353,6 +1357,22 @@
       "roadmap_stage": "FPA-P03-S04",
       "date": "2026-08-04",
       "description": "FPA-P03-S04 completed: a separately provisioned non-superuser, non-BYPASSRLS runtime role, transaction-local actor and tenant context, forced PostgreSQL RLS policies for the tenant registry and membership access-control table, and the reusable fail-closed ordinary tenant-table policy pattern were implemented and verified. PostgreSQL 17.6 tests directly proved non-recursive registry resolution, cross-tenant read/write isolation, atomic authoritative flows and context cleanup; the approved persistent migration and rebuilt-stack verification preserved existing tenant data and passed all smoke gates."
+    },
+    {
+      "git_tag": "phase-3-s05",
+      "type": "stage_completion",
+      "adr": "ADR-0005",
+      "roadmap_stage": "FPA-P03-S05",
+      "date": "2026-08-04",
+      "description": "FPA-P03-S05 completed: tenant-aware audit records, explicit asynchronous tenant/actor/correlation/trace propagation, safe Family Space storage partitioning, an isolated Laravel job queue and the Owner-controlled deletion lifecycle were implemented and verified. The accepted follow-up review added direct PostgreSQL concurrency, multi-space cross-tenant and insert-only audit-boundary proof plus frontend route, cache-isolation and membership-loss regressions."
+    },
+    {
+      "git_tag": "phase-3",
+      "type": "phase_completion",
+      "adr": null,
+      "roadmap_stage": "FPA-P03-S05",
+      "date": "2026-08-04",
+      "description": "Phase 3 completed: all Family Spaces and Tenancy stages passed the full repository, PostgreSQL 17.6, persistent migration, rebuilt-stack and independent review acceptance gates."
     }
   ]
 }

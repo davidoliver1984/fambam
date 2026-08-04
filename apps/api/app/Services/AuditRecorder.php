@@ -3,9 +3,14 @@
 namespace App\Services;
 
 use App\Models\AuditEvent;
+use App\Models\FamilySpace;
+use App\Models\FamilySpaceMembership;
+use App\Models\Invitation;
 use App\Models\User;
+use App\Tenancy\TenantOperationContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class AuditRecorder
 {
@@ -16,9 +21,26 @@ class AuditRecorder
         ?User $actor = null,
         ?Request $request = null,
         array $metadata = [],
-    ): AuditEvent {
-        return AuditEvent::query()->create([
+        ?TenantOperationContext $operationContext = null,
+    ): void {
+        if ($operationContext !== null) {
+            $familySpaceId = $operationContext->familySpaceId;
+            $correlationId = $operationContext->correlationId;
+            $traceparent = $operationContext->traceparent;
+        } else {
+            $familySpaceId = $this->familySpaceId($subject, $metadata);
+            $correlationId = (string) ($request?->attributes->get('correlation_id')
+                ?? $request?->header('X-Correlation-ID')
+                ?? Str::uuid());
+            $traceparent = (string) ($request?->attributes->get('traceparent')
+                ?? TenantOperationContext::newTraceparent());
+        }
+
+        $event = new AuditEvent([
+            'family_space_id' => $familySpaceId,
             'actor_user_id' => $actor?->id,
+            'correlation_id' => $correlationId,
+            'traceparent' => $traceparent,
             'action' => $action,
             'subject_type' => $subject->getMorphClass(),
             'subject_id' => (string) $subject->getKey(),
@@ -26,5 +48,24 @@ class AuditRecorder
             'user_agent' => $request?->userAgent(),
             'metadata' => $metadata === [] ? null : $metadata,
         ]);
+        $event->created_at = now();
+
+        AuditEvent::query()->insert($event->getAttributes());
+    }
+
+    /** @param array<string, mixed> $metadata */
+    private function familySpaceId(Model $subject, array $metadata): ?string
+    {
+        if ($subject instanceof FamilySpace) {
+            return $subject->id;
+        }
+
+        if ($subject instanceof FamilySpaceMembership || $subject instanceof Invitation) {
+            return $subject->family_space_id;
+        }
+
+        $familySpaceId = $metadata['family_space_id'] ?? null;
+
+        return is_string($familySpaceId) ? $familySpaceId : null;
     }
 }

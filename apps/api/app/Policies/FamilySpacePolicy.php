@@ -27,6 +27,23 @@ class FamilySpacePolicy
             && $this->tenantContext->membership()->role->canManageMembers();
     }
 
+    public function requestDeletion(User $user, FamilySpace $familySpace): bool
+    {
+        return $this->matchesContext($user, $familySpace)
+            && $this->tenantContext->membership()->role->value === 'owner';
+    }
+
+    public function cancelDeletion(User $user, FamilySpace $familySpace): bool
+    {
+        return $this->requestDeletion($user, $familySpace);
+    }
+
+    public function viewDeletionStatus(User $user, FamilySpace $familySpace): bool
+    {
+        return $this->matchesContext($user, $familySpace)
+            && $this->tenantContext->membership()->role->canManageMembers();
+    }
+
     private function matchesContext(User $user, FamilySpace $familySpace): bool
     {
         if (! $this->tenantContext->isEstablished()) {

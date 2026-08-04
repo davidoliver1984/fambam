@@ -67,7 +67,8 @@ services:
       SESSION_SAME_SITE: lax
       QUEUE_CONNECTION: sqs
       SQS_PREFIX: "http://localstack:4566/000000000000"
-      SQS_QUEUE: image-analysis-requested
+      SQS_QUEUE: fambam-jobs
+      IMAGE_ANALYSIS_QUEUE: image-analysis-requested
       SQS_ENDPOINT: "http://localstack:4566"
       FILESYSTEM_DISK: s3
       AWS_ACCESS_KEY_ID: test
@@ -86,8 +87,8 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
-      localstack:
-        condition: service_healthy
+      localstack-provision:
+        condition: service_completed_successfully
       mailpit:
         condition: service_healthy
       otel-collector:
@@ -98,6 +99,86 @@ services:
       timeout: 3s
       retries: 12
       start_period: 10s
+    networks:
+      - fambam
+
+  queue-worker:
+    image: fambam-api
+    command: php artisan queue:work sqs --sleep=3 --tries=3 --timeout=120
+    environment:
+      APP_NAME: "Family Photo Archive"
+      APP_ENV: local
+      APP_KEY: "${APP_KEY:-base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}"
+      LOG_CHANNEL: stderr
+      OTEL_PHP_AUTOLOAD_ENABLED: "true"
+      OTEL_SERVICE_NAME: fambam-queue-worker
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_PROPAGATORS: tracecontext,baggage
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: "${POSTGRES_DB:-fambam}"
+      DB_USERNAME: "${DB_RUNTIME_USERNAME:-fambam_app}"
+      DB_PASSWORD: "${DB_RUNTIME_PASSWORD:-fambam_app}"
+      DB_RUNTIME_USERNAME: "${DB_RUNTIME_USERNAME:-fambam_app}"
+      CACHE_STORE: redis
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      QUEUE_CONNECTION: sqs
+      SQS_PREFIX: "http://localstack:4566/000000000000"
+      SQS_QUEUE: fambam-jobs
+      SQS_ENDPOINT: "http://localstack:4566"
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-eu-west-2}"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - fambam
+
+  scheduler:
+    image: fambam-api
+    command: php artisan schedule:work
+    environment:
+      APP_NAME: "Family Photo Archive"
+      APP_ENV: local
+      APP_KEY: "${APP_KEY:-base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}"
+      LOG_CHANNEL: stderr
+      OTEL_PHP_AUTOLOAD_ENABLED: "true"
+      OTEL_SERVICE_NAME: fambam-scheduler
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_PROPAGATORS: tracecontext,baggage
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: "${POSTGRES_DB:-fambam}"
+      DB_USERNAME: "${DB_RUNTIME_USERNAME:-fambam_app}"
+      DB_PASSWORD: "${DB_RUNTIME_PASSWORD:-fambam_app}"
+      DB_RUNTIME_USERNAME: "${DB_RUNTIME_USERNAME:-fambam_app}"
+      CACHE_STORE: redis
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      QUEUE_CONNECTION: sqs
+      SQS_PREFIX: "http://localstack:4566/000000000000"
+      SQS_QUEUE: fambam-jobs
+      SQS_ENDPOINT: "http://localstack:4566"
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-eu-west-2}"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - fambam
 
@@ -141,8 +222,8 @@ services:
       SQS_PREFIX: http://localstack:4566/000000000000
       SQS_QUEUE: image-analysis-requested
     depends_on:
-      localstack:
-        condition: service_healthy
+      localstack-provision:
+        condition: service_completed_successfully
       otel-collector:
         condition: service_healthy
     healthcheck:
@@ -230,6 +311,23 @@ services:
       timeout: 3s
       retries: 20
       start_period: 10s
+    networks:
+      - fambam
+
+  localstack-provision:
+    image: localstack/localstack:4.5.0
+    entrypoint: ["/bin/sh"]
+    command: ["/opt/fambam/10-bootstrap.sh"]
+    environment:
+      AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-eu-west-2}"
+      AWS_BUCKET: "${AWS_BUCKET:-fambam-media}"
+      LOCALSTACK_ENDPOINT: http://localstack:4566
+    volumes:
+      - ./infrastructure/docker/localstack/init/10-bootstrap.sh:/opt/fambam/10-bootstrap.sh:ro
+    depends_on:
+      localstack:
+        condition: service_healthy
+    restart: "no"
     networks:
       - fambam
 

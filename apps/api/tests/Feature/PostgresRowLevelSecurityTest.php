@@ -4,14 +4,19 @@ namespace Tests\Feature;
 
 use App\Enums\FamilySpaceRole;
 use App\Enums\MembershipState;
+use App\Jobs\DeleteFamilySpace;
+use App\Models\Invitation;
 use App\Models\User;
+use App\Services\FamilySpaceDeletionManager;
 use App\Services\FamilySpaceManager;
 use App\Services\InvitationManager;
+use App\Services\MembershipInvitationAcceptor;
 use App\Tenancy\DatabaseTenantContext;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -77,14 +82,44 @@ SQL);
         $tables = DB::select(<<<'SQL'
 SELECT relname, relrowsecurity, relforcerowsecurity
 FROM pg_class
-WHERE relname IN ('family_spaces', 'family_space_memberships', 'rls_test_records')
+WHERE relname IN ('audit_events', 'family_spaces', 'family_space_memberships', 'rls_test_records')
 ORDER BY relname
 SQL);
 
-        $this->assertCount(3, $tables);
+        $this->assertCount(4, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
+        }
+    }
+
+    public function test_audit_runtime_access_is_insert_only_with_no_read_or_mutation_policies(): void
+    {
+        $privileges = DB::selectOne(<<<'SQL'
+SELECT
+    has_table_privilege(current_user, 'audit_events', 'INSERT') AS can_insert,
+    has_table_privilege(current_user, 'audit_events', 'SELECT') AS can_select,
+    has_table_privilege(current_user, 'audit_events', 'UPDATE') AS can_update,
+    has_table_privilege(current_user, 'audit_events', 'DELETE') AS can_delete
+SQL);
+
+        $this->assertTrue($privileges->can_insert);
+        $this->assertFalse($privileges->can_select);
+        $this->assertFalse($privileges->can_update);
+        $this->assertFalse($privileges->can_delete);
+
+        $unexpectedPolicies = $this->admin->table('pg_policies')
+            ->where('schemaname', 'public')
+            ->where('tablename', 'audit_events')
+            ->whereIn('cmd', ['SELECT', 'UPDATE', 'DELETE'])
+            ->count();
+        $this->assertSame(0, $unexpectedPolicies);
+
+        try {
+            DB::table('audit_events')->count();
+            $this->fail('The runtime role unexpectedly read audit rows.');
+        } catch (QueryException $exception) {
+            $this->assertSame('42501', $exception->errorInfo[0]);
         }
     }
 
@@ -197,6 +232,52 @@ SQL);
         $this->assertNotSame($ownerId, $otherOwnerId);
     }
 
+    public function test_one_tenant_context_cannot_mutate_another_tenant_for_a_multi_space_user(): void
+    {
+        [$ownerId, $firstFamily] = $this->createOwnedFamily('first-managed-family');
+        [, $secondFamily] = $this->createOwnedFamily('second-managed-family');
+        $secondMembership = $this->addMembership($secondFamily, $ownerId, FamilySpaceRole::Administrator);
+
+        DB::beginTransaction();
+        $context = app(DatabaseTenantContext::class);
+        $context->establishUser($ownerId);
+        $context->establishFamilySpace($firstFamily, canManageMemberships: true);
+        $this->assertSame(0, DB::table('family_spaces')
+            ->where('id', $secondFamily)
+            ->update(['name' => 'Cross-tenant registry write']));
+        $this->assertSame(0, DB::table('family_space_memberships')
+            ->where('id', $secondMembership)
+            ->update(['role' => FamilySpaceRole::Guest->value]));
+        DB::rollBack();
+
+        $this->assertRlsRejects(function () use ($firstFamily, $ownerId, $secondFamily): void {
+            $context = app(DatabaseTenantContext::class);
+            $context->establishUser($ownerId);
+            $context->establishFamilySpace($firstFamily, canManageMemberships: true);
+            DB::table('audit_events')->insert([
+                'family_space_id' => $secondFamily,
+                'actor_user_id' => $ownerId,
+                'action' => 'cross_tenant.rejected',
+                'subject_type' => 'test',
+                'subject_id' => $secondFamily,
+                'correlation_id' => (string) Str::uuid(),
+                'traceparent' => sprintf('00-%s-%s-01', bin2hex(random_bytes(16)), bin2hex(random_bytes(8))),
+                'metadata' => '{}',
+                'created_at' => now(),
+            ]);
+        });
+
+        $this->assertSame('Second Managed Family', $this->admin->table('family_spaces')
+            ->where('id', $secondFamily)
+            ->value('name'));
+        $this->assertSame(FamilySpaceRole::Administrator->value, $this->admin->table('family_space_memberships')
+            ->where('id', $secondMembership)
+            ->value('role'));
+        $this->assertSame(0, $this->admin->table('audit_events')
+            ->where('action', 'cross_tenant.rejected')
+            ->count());
+    }
+
     public function test_transaction_local_context_does_not_leak_after_commit_or_rollback(): void
     {
         [$userId, $familySpace] = $this->createOwnedFamily('context-family');
@@ -290,6 +371,143 @@ SQL);
                 ->where('user_id', $invitee->id)
                 ->count());
         }
+    }
+
+    public function test_membership_reactivation_is_race_safe_under_concurrent_acceptance(): void
+    {
+        if (! function_exists('pcntl_fork') || ! function_exists('stream_socket_pair')) {
+            $this->markTestSkipped('The PostgreSQL concurrency test requires pcntl and stream sockets.');
+        }
+
+        [$ownerId, $familySpaceId] = $this->createOwnedFamily('concurrent-acceptance-family');
+        $inviteeId = $this->createUser('concurrent-invitee@example.test');
+        $membershipId = $this->addMembership($familySpaceId, $inviteeId, FamilySpaceRole::Guest);
+        $this->admin->table('family_space_memberships')->where('id', $membershipId)->update([
+            'state' => MembershipState::Removed->value,
+            'removed_at' => now(),
+        ]);
+
+        $invitationIds = [];
+        foreach ([FamilySpaceRole::Member, FamilySpaceRole::Contributor] as $index => $role) {
+            $invitationIds[] = (int) $this->admin->table('invitations')->insertGetId([
+                'family_space_id' => $familySpaceId,
+                'email' => "concurrent-{$index}@example.test",
+                'role' => $role->value,
+                'invited_by' => $ownerId,
+                'status' => 'pending',
+                'expires_at' => now()->addDay(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        DB::disconnect();
+        DB::disconnect('pgsql_admin');
+
+        $children = [];
+        foreach ($invitationIds as $invitationId) {
+            $sockets = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+            $this->assertNotFalse($sockets);
+            $pid = pcntl_fork();
+            $this->assertNotSame(-1, $pid);
+
+            if ($pid === 0) {
+                fclose($sockets[0]);
+                fread($sockets[1], 1);
+                DB::purge();
+                DB::purge('pgsql_admin');
+
+                try {
+                    $outcome = DB::transaction(function () use ($familySpaceId, $invitationId, $inviteeId): string {
+                        $context = app(DatabaseTenantContext::class);
+                        $context->establishUser($inviteeId);
+                        $context->establishFamilySpace(
+                            $familySpaceId,
+                            authoritativeOperation: 'invitation_acceptance',
+                        );
+                        $result = app(MembershipInvitationAcceptor::class)->accept(
+                            Invitation::query()->findOrFail($invitationId),
+                            User::query()->findOrFail($inviteeId),
+                        );
+
+                        return $result === null ? 'rejected' : 'reactivated';
+                    });
+                } catch (\Throwable $exception) {
+                    $outcome = 'error:'.get_class($exception).':'.$exception->getMessage();
+                }
+
+                fwrite($sockets[1], $outcome);
+                fclose($sockets[1]);
+                exit(0);
+            }
+
+            fclose($sockets[1]);
+            $children[] = ['pid' => $pid, 'socket' => $sockets[0]];
+        }
+
+        foreach ($children as $child) {
+            fwrite($child['socket'], '1');
+        }
+
+        $outcomes = [];
+        foreach ($children as $child) {
+            $outcomes[] = stream_get_contents($child['socket']);
+            fclose($child['socket']);
+            pcntl_waitpid($child['pid'], $status);
+            $this->assertTrue(pcntl_wifexited($status));
+            $this->assertSame(0, pcntl_wexitstatus($status));
+        }
+
+        DB::purge();
+        DB::purge('pgsql_admin');
+        $this->admin = DB::connection('pgsql_admin');
+
+        $this->assertEqualsCanonicalizing(['reactivated', 'rejected'], $outcomes);
+        $memberships = $this->admin->table('family_space_memberships')
+            ->where('family_space_id', $familySpaceId)
+            ->where('user_id', $inviteeId)
+            ->get();
+        $this->assertCount(1, $memberships);
+        $this->assertSame(MembershipState::Active->value, $memberships->sole()->state);
+    }
+
+    public function test_due_deletion_dispatch_and_teardown_preserve_context_under_rls(): void
+    {
+        [$ownerId, $familySpaceId] = $this->createOwnedFamily('due-deletion-family');
+        $this->admin->table('family_spaces')->where('id', $familySpaceId)->update([
+            'status' => 'deletion_requested',
+            'deletion_requested_at' => now()->subDays(15),
+            'deletion_requested_by' => $ownerId,
+            'scheduled_deletion_at' => now()->subMinute(),
+        ]);
+        Queue::fake();
+
+        $this->artisan('fambam:dispatch-due-family-space-deletions')->assertSuccessful();
+
+        $job = null;
+        Queue::assertPushed(DeleteFamilySpace::class, function (DeleteFamilySpace $queued) use (&$job, $familySpaceId, $ownerId): bool {
+            $job = $queued;
+
+            return $queued->context['family_space_id'] === $familySpaceId
+                && $queued->context['actor_user_id'] === $ownerId
+                && preg_match('/^[0-9a-f-]{36}$/', $queued->context['correlation_id']) === 1
+                && preg_match('/^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/', $queued->context['traceparent']) === 1;
+        });
+        $this->assertInstanceOf(DeleteFamilySpace::class, $job);
+        $job->handle(app(FamilySpaceDeletionManager::class));
+
+        $this->assertSame('deleted', $this->admin->table('family_spaces')->where('id', $familySpaceId)->value('status'));
+        $this->assertSame(0, $this->admin->table('family_space_memberships')
+            ->where('family_space_id', $familySpaceId)
+            ->where('state', 'active')
+            ->count());
+        $audit = $this->admin->table('audit_events')->where('action', 'family_space.deleted')->sole();
+        $this->assertSame($familySpaceId, $audit->family_space_id);
+        $this->assertSame($job->context['correlation_id'], $audit->correlation_id);
+        $this->assertSame($job->context['traceparent'], $audit->traceparent);
+
+        $job->handle(app(FamilySpaceDeletionManager::class));
+        $this->assertSame(1, $this->admin->table('audit_events')->where('action', 'family_space.deleted')->count());
     }
 
     /** @return array{int, string, string} */

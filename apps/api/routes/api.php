@@ -35,6 +35,8 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
 
     Route::prefix('/families/{familySpace}')->middleware('family-space')->group(function (): void {
         Route::get('/', [FamilySpaceController::class, 'show']);
+        Route::post('/deletion', [FamilySpaceController::class, 'requestDeletion']);
+        Route::delete('/deletion', [FamilySpaceController::class, 'cancelDeletion']);
         Route::get('/memberships', [FamilySpaceMembershipController::class, 'index']);
         Route::patch('/memberships/{membership}', [FamilySpaceMembershipController::class, 'update']);
         Route::delete('/memberships/{membership}', [FamilySpaceMembershipController::class, 'destroy']);
@@ -77,7 +79,7 @@ if (app()->environment(['local', 'testing'])) {
                     'secret' => config('queue.connections.sqs.secret'),
                 ],
             ]);
-            $queueUrl = config('queue.connections.sqs.prefix').'/'.config('queue.connections.sqs.queue');
+            $queueUrl = config('queue.connections.sqs.prefix').'/'.config('image-analysis.queue');
             $messageAttributes = [];
 
             foreach ($carrier as $name => $value) {
@@ -88,7 +90,10 @@ if (app()->environment(['local', 'testing'])) {
                 'QueueUrl' => $queueUrl,
                 'MessageBody' => json_encode([
                     'type' => 'SyntheticUploadRequested',
+                    'family_space_id' => null,
+                    'actor_user_id' => null,
                     'correlation_id' => $request->header('X-Correlation-ID'),
+                    'traceparent' => $carrier['traceparent'],
                 ], JSON_THROW_ON_ERROR),
                 'MessageAttributes' => $messageAttributes,
             ]);
