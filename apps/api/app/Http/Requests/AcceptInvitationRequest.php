@@ -17,10 +17,10 @@ class AcceptInvitationRequest extends FormRequest
     {
         return [
             'claim_token' => ['required', 'string', 'size:64'],
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['nullable', 'string', 'max:255'],
             'email' => ['prohibited'],
-            'password' => ['required', 'string', Password::default(), 'confirmed'],
-            'timezone' => ['required', 'string', 'timezone:all'],
+            'password' => ['nullable', 'string', Password::default(), 'confirmed'],
+            'timezone' => ['nullable', 'string', 'timezone:all'],
         ];
     }
 }

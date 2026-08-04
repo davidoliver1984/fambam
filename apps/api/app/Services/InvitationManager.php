@@ -2,11 +2,18 @@
 
 namespace App\Services;
 
+use App\Enums\FamilySpaceRole;
 use App\Enums\InvitationStatus;
+use App\Enums\MembershipState;
+use App\Models\FamilySpace;
+use App\Models\FamilySpaceMembership;
 use App\Models\Invitation;
 use App\Models\InvitationClaim;
 use App\Models\User;
 use App\Notifications\InvitationIssued;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -16,45 +23,77 @@ use Illuminate\Validation\ValidationException;
 
 class InvitationManager
 {
-    public function __construct(private readonly AuditRecorder $audit) {}
+    public function __construct(
+        private readonly AuditRecorder $audit,
+        private readonly MembershipInvitationAcceptor $membershipAcceptor,
+    ) {}
 
-    public function issue(User $actor, string $email, Request $request): Invitation
-    {
+    public function issue(
+        User $actor,
+        FamilySpace $familySpace,
+        string $email,
+        FamilySpaceRole $role,
+        Request $request,
+    ): Invitation {
         $email = Str::lower(trim($email));
         $rawToken = $this->newToken();
 
-        $invitation = DB::transaction(function () use ($actor, $email, $rawToken, $request): Invitation {
-            if (User::query()->where('email', $email)->exists()) {
-                $this->fail('An account already exists for that email address.');
-            }
+        try {
+            $invitation = DB::transaction(function () use (
+                $actor,
+                $familySpace,
+                $email,
+                $role,
+                $rawToken,
+                $request,
+            ): Invitation {
+                $this->ensureCanManageInvitations($actor, $familySpace);
+                $existingUserId = User::query()->where('email', $email)->value('id');
 
-            $existing = Invitation::query()
-                ->where('email', $email)
-                ->where('status', InvitationStatus::Pending->value)
-                ->lockForUpdate()
-                ->latest('id')
-                ->first();
+                if ($existingUserId !== null && FamilySpaceMembership::query()
+                    ->where('family_space_id', $familySpace->id)
+                    ->where('user_id', $existingUserId)
+                    ->where('state', MembershipState::Active->value)
+                    ->exists()) {
+                    $this->fail('That account is already an active member of this Family Space.');
+                }
 
-            if ($existing !== null && $existing->expires_at->isFuture()) {
-                $this->fail('A pending invitation already exists for that email address.');
-            }
+                $existing = Invitation::query()
+                    ->where('family_space_id', $familySpace->id)
+                    ->where('email', $email)
+                    ->where('status', InvitationStatus::Pending->value)
+                    ->lockForUpdate()
+                    ->latest('id')
+                    ->first();
 
-            if ($existing !== null) {
-                $this->expire($existing, $request, $actor);
-            }
+                if ($existing !== null && $existing->expires_at->isFuture()) {
+                    $this->fail('A pending invitation already exists for that email address.');
+                }
 
-            $invitation = Invitation::query()->create([
-                'email' => $email,
-                'token_hash' => $this->hashToken($rawToken),
-                'invited_by' => $actor->id,
-                'status' => InvitationStatus::Pending,
-                'expires_at' => now()->addDays((int) config('invitations.lifetime_days')),
-            ]);
+                if ($existing !== null) {
+                    $this->expire($existing, $request, $actor);
+                }
 
-            $this->audit->record('invitation.issued', $invitation, $actor, $request);
+                $invitation = Invitation::query()->create([
+                    'family_space_id' => $familySpace->id,
+                    'email' => $email,
+                    'role' => $role,
+                    'token_hash' => $this->hashToken($rawToken),
+                    'invited_by' => $actor->id,
+                    'status' => InvitationStatus::Pending,
+                    'expires_at' => now()->addDays((int) config('invitations.lifetime_days')),
+                ]);
 
-            return $invitation;
-        });
+                $this->audit->record('invitation.issued', $invitation, $actor, $request, [
+                    'family_space_id' => $familySpace->id,
+                    'role' => $role->value,
+                ]);
+
+                return $invitation;
+            });
+        } catch (UniqueConstraintViolationException) {
+            $this->fail('A pending invitation already exists for that email address.');
+        }
 
         $this->send($invitation, $rawToken);
 
@@ -63,6 +102,7 @@ class InvitationManager
 
     public function resend(Invitation $invitation, User $actor, Request $request): Invitation
     {
+        $this->ensureCanManageInvitations($actor, $invitation->familySpace);
         $rawToken = $this->newToken();
 
         $result = DB::transaction(function () use ($invitation, $actor, $request, $rawToken): ?Invitation {
@@ -99,6 +139,7 @@ class InvitationManager
 
     public function revoke(Invitation $invitation, User $actor, Request $request): Invitation
     {
+        $this->ensureCanManageInvitations($actor, $invitation->familySpace);
         $result = DB::transaction(function () use ($invitation, $actor, $request): ?Invitation {
             $locked = Invitation::query()->lockForUpdate()->findOrFail($invitation->id);
 
@@ -130,7 +171,7 @@ class InvitationManager
         return $result;
     }
 
-    /** @return array{claim_token: string, email: string, expires_at: string} */
+    /** @return array{claim_token: string, email: string, family_space_name: string, role: string, existing_account: bool, expires_at: string} */
     public function exchange(string $rawToken, Request $request): array
     {
         $claimToken = $this->newToken();
@@ -160,6 +201,9 @@ class InvitationManager
             return [
                 'claim_token' => $claimToken,
                 'email' => $invitation->email,
+                'family_space_name' => $invitation->familySpace->name,
+                'role' => $invitation->role->value,
+                'existing_account' => User::query()->where('email', $invitation->email)->exists(),
                 'expires_at' => $claim->expires_at->toAtomString(),
             ];
         });
@@ -171,7 +215,7 @@ class InvitationManager
         return $result;
     }
 
-    /** @param array{name: string, password: string, timezone: string} $attributes */
+    /** @param array{name?: ?string, password?: ?string, timezone?: ?string} $attributes */
     public function accept(string $claimToken, array $attributes, Request $request): User
     {
         $result = DB::transaction(function () use ($claimToken, $attributes, $request): ?User {
@@ -208,19 +252,34 @@ class InvitationManager
                 return null;
             }
 
-            if (User::query()->where('email', $invitation->email)->exists()) {
+            $user = User::query()->where('email', $invitation->email)->first();
+            $createdUser = $user === null;
+
+            if ($user === null) {
+                if (! is_string($attributes['name'] ?? null)
+                    || ! is_string($attributes['password'] ?? null)
+                    || ! is_string($attributes['timezone'] ?? null)) {
+                    return null;
+                }
+
+                $user = new User;
+                $user->forceFill([
+                    'name' => $attributes['name'],
+                    'email' => $invitation->email,
+                    'password' => Hash::make($attributes['password']),
+                    'timezone' => $attributes['timezone'],
+                    'email_verified_at' => now(),
+                    'can_create_family_spaces' => false,
+                ])->save();
+            } elseif ($request->user('sanctum')?->isNot($user) !== false) {
                 return null;
             }
 
-            $user = new User;
-            $user->forceFill([
-                'name' => $attributes['name'],
-                'email' => $invitation->email,
-                'password' => Hash::make($attributes['password']),
-                'timezone' => $attributes['timezone'],
-                'email_verified_at' => now(),
-                'can_invite' => false,
-            ])->save();
+            $membershipResult = $this->membershipAcceptor->accept($invitation, $user);
+
+            if ($membershipResult === null) {
+                return null;
+            }
 
             $claim->update(['used_at' => now()]);
             $invitation->update([
@@ -230,8 +289,23 @@ class InvitationManager
             ]);
             $invitation->claims()->whereKeyNot($claim->id)->delete();
             $this->audit->record('invitation.accepted', $invitation, $user, $request, [
-                'created_user_id' => $user->id,
+                'family_space_id' => $invitation->family_space_id,
+                'user_id' => $user->id,
+                'created_user' => $createdUser,
             ]);
+            $this->audit->record(
+                $membershipResult['reactivated']
+                    ? 'family_space.member_reactivated'
+                    : 'family_space.member_joined',
+                $membershipResult['membership'],
+                $user,
+                $request,
+                [
+                    'family_space_id' => $invitation->family_space_id,
+                    'role' => $invitation->role->value,
+                    'invitation_id' => $invitation->id,
+                ],
+            );
 
             return $user;
         });
@@ -263,6 +337,27 @@ class InvitationManager
 
         Notification::route('mail', $invitation->email)
             ->notify(new InvitationIssued($url));
+    }
+
+    public function ensureCanManageInvitations(User $actor, FamilySpace $familySpace): void
+    {
+        $membership = FamilySpaceMembership::query()
+            ->where('family_space_id', $familySpace->id)
+            ->where('user_id', $actor->id)
+            ->where('state', MembershipState::Active->value)
+            ->first(['role']);
+
+        if ($membership === null) {
+            throw (new ModelNotFoundException)->setModel(FamilySpace::class, [$familySpace->id]);
+        }
+
+        if (! in_array(
+            $membership->role,
+            [FamilySpaceRole::Owner, FamilySpaceRole::Administrator],
+            true,
+        )) {
+            throw new AuthorizationException;
+        }
     }
 
     private function newToken(): string

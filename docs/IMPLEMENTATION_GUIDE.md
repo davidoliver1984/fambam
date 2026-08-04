@@ -1035,6 +1035,27 @@ Accept ADR-0005: Family spaces and tenancy
 
 Create family spaces, ownership rules and membership lifecycle.
 
+FPA-P03-S02 completed on 2026-08-04 after the full repository gate and live
+PostgreSQL migration verification passed. The implementation added ULID-backed
+Family Spaces and memberships, capability-gated creation, application and
+deferred database last-Owner safeguards, family-scoped invitations and atomic
+reactivation of removed memberships. The approved persistent migration created
+the fallback Family Archive, backfilled Owner/Member assignments and historical
+invitations, expired pending Phase 2 invitations, removed their claims and
+retired `can_invite`.
+
+### Documentation updates
+
+- Recorded implementation and verification in
+  `docs/journal/2026-08-04-FPA-P03-S02.md`.
+- Advanced `tasks.json` to FPA-P03-S03 after completion approval.
+
+### Commit boundary
+
+```text
+Implement family spaces and memberships
+```
+
 ## FPA-P03-S03 — Implement route context, policies and explicit scoping
 
 Every tenant route resolves a public family identifier and fails closed.

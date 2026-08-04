@@ -16,6 +16,52 @@ export function InvitationAcceptanceForm({
 }: {
   claim: AcceptanceClaim;
 }) {
+  if (claim.existing_account) {
+    return <ExistingAccountInvitationAcceptance claim={claim} />;
+  }
+
+  return <NewAccountInvitationAcceptance claim={claim} />;
+}
+
+function ExistingAccountInvitationAcceptance({
+  claim,
+}: {
+  claim: AcceptanceClaim;
+}) {
+  const [message, setMessage] = useState("");
+  const acceptInvitation = useAcceptInvitationMutation();
+
+  async function accept() {
+    try {
+      await acceptInvitation.mutateAsync({ claim_token: claim.claim_token });
+      window.location.assign("/account");
+    } catch {
+      setMessage(
+        "Sign in with the invited account, then open the invitation link again.",
+      );
+    }
+  }
+
+  return (
+    <main className="auth" aria-labelledby="page-title">
+      <p className="eyebrow">Family Photo Archive</p>
+      <h1 id="page-title">Join {claim.family_space_name}</h1>
+      <p>
+        Continue as <strong>{claim.email}</strong> with the {claim.role} role.
+      </p>
+      <button
+        type="button"
+        disabled={acceptInvitation.isPending}
+        onClick={() => void accept()}
+      >
+        Join Family Space
+      </button>
+      {message !== "" && <p role="alert">{message}</p>}
+    </main>
+  );
+}
+
+function NewAccountInvitationAcceptance({ claim }: { claim: AcceptanceClaim }) {
   const [message, setMessage] = useState("");
   const acceptInvitation = useAcceptInvitationMutation();
   const {
@@ -54,6 +100,9 @@ export function InvitationAcceptanceForm({
     <main className="auth" aria-labelledby="page-title">
       <p className="eyebrow">Family Photo Archive</p>
       <h1 id="page-title">Join your family archive</h1>
+      <p>
+        Family Space: <strong>{claim.family_space_name}</strong> ({claim.role})
+      </p>
       <p>
         Invited email: <strong>{claim.email}</strong>
       </p>

@@ -5,25 +5,30 @@ import type {
   AcceptanceClaim,
   AcceptedAccount,
   Invitation,
+  IssueInvitationInput,
   InvitationTransition,
 } from "../types/invitation";
 
 export async function getInvitations(
+  familySpaceId: string,
   signal?: AbortSignal,
 ): Promise<Invitation[]> {
   return unwrap(
     await apiClient.get<ApiEnvelope<Invitation[]>>("/api/invitations", {
+      params: { family_space_id: familySpaceId },
       signal,
     }),
   );
 }
 
-export async function issueInvitation(email: string): Promise<Invitation> {
+export async function issueInvitation(
+  input: IssueInvitationInput,
+): Promise<Invitation> {
   await ensureCsrfCookie();
 
   return unwrap(
     await apiClient.post<ApiEnvelope<Invitation>>("/api/invitations", {
-      email,
+      ...input,
     }),
   );
 }

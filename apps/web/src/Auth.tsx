@@ -25,7 +25,7 @@ import {
   loginSchema,
   type LoginFields,
 } from "@/features/auth/validation/loginSchema";
-import { InvitationManagement } from "@/features/invitations/pages/InvitationManagement";
+import { FamilySpaceManagement } from "@/features/family-spaces/components/FamilySpaceManagement";
 
 function formString(data: FormData, name: string): string {
   const value = data.get(name);
@@ -319,7 +319,9 @@ export function AccountPage() {
           <FormMessage message={message} />
         </form>
       )}
-      {user?.can_invite === true && <InvitationManagement />}
+      {user !== undefined && (
+        <FamilySpaceManagement canCreate={user.can_create_family_spaces} />
+      )}
       {user !== undefined && (
         <AccountSecurityPanel twoFactorEnabled={user.two_factor_enabled} />
       )}

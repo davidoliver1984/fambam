@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountSecurityController;
 use App\Http\Controllers\CurrentUserController;
+use App\Http\Controllers\FamilySpaceController;
 use App\Http\Controllers\InvitationAcceptanceController;
 use App\Http\Controllers\InvitationController;
 use Aws\Sqs\SqsClient;
@@ -28,15 +29,15 @@ Route::middleware('auth:sanctum')->group(function (): void {
         ->middleware('throttle:account-security');
     Route::post('/user/revoke-sessions', [AccountSecurityController::class, 'revokeSessions'])
         ->middleware('throttle:account-security');
+    Route::get('/family-spaces', [FamilySpaceController::class, 'index']);
+    Route::post('/family-spaces', [FamilySpaceController::class, 'store']);
 
-    Route::middleware('can:manage-invitations')->group(function (): void {
-        Route::get('/invitations', [InvitationController::class, 'index']);
-        Route::post('/invitations', [InvitationController::class, 'store'])
-            ->middleware('throttle:invitation-issuance');
-        Route::post('/invitations/{invitation}/resend', [InvitationController::class, 'resend'])
-            ->middleware('throttle:invitation-issuance');
-        Route::post('/invitations/{invitation}/revoke', [InvitationController::class, 'revoke']);
-    });
+    Route::get('/invitations', [InvitationController::class, 'index']);
+    Route::post('/invitations', [InvitationController::class, 'store'])
+        ->middleware('throttle:invitation-issuance');
+    Route::post('/invitations/{invitation}/resend', [InvitationController::class, 'resend'])
+        ->middleware('throttle:invitation-issuance');
+    Route::post('/invitations/{invitation}/revoke', [InvitationController::class, 'revoke']);
 });
 
 if (app()->environment(['local', 'testing'])) {

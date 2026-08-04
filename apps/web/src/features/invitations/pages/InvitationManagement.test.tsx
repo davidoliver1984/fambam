@@ -22,7 +22,9 @@ vi.mock("../api/invitationApi", () => ({
 
 const invitation: Invitation = {
   id: 7,
+  family_space_id: "01K1ZZZZZZZZZZZZZZZZZZZZZZ",
   email: "relative@example.test",
+  role: "member",
   status: "pending",
   expires_at: "2026-08-09T12:00:00Z",
   accepted_at: null,
@@ -40,7 +42,7 @@ function renderManagement() {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <InvitationManagement />
+      <InvitationManagement familySpaceId="01K1ZZZZZZZZZZZZZZZZZZZZZZ" />
     </QueryClientProvider>,
   );
 }
@@ -80,9 +82,11 @@ describe("InvitationManagement", () => {
     await user.click(screen.getByRole("button", { name: "Send invitation" }));
 
     await waitFor(() => {
-      expect(vi.mocked(issueInvitation).mock.calls[0]?.[0]).toBe(
-        "another@example.test",
-      );
+      expect(vi.mocked(issueInvitation).mock.calls[0]?.[0]).toEqual({
+        family_space_id: "01K1ZZZZZZZZZZZZZZZZZZZZZZ",
+        email: "another@example.test",
+        role: "member",
+      });
       expect(getInvitations).toHaveBeenCalledTimes(2);
     });
     expect(screen.getByRole("status")).toHaveTextContent("Invitation sent.");

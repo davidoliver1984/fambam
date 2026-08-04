@@ -4,7 +4,7 @@ export type User = {
   email: string;
   timezone: string;
   email_verified_at: string | null;
-  can_invite: boolean;
+  can_create_family_spaces: boolean;
   two_factor_enabled: boolean;
 };
 

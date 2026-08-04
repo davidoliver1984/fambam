@@ -13,6 +13,12 @@ function isAcceptanceClaim(value: unknown): value is AcceptanceClaim {
     typeof value.claim_token === "string" &&
     "email" in value &&
     typeof value.email === "string" &&
+    "family_space_name" in value &&
+    typeof value.family_space_name === "string" &&
+    "role" in value &&
+    typeof value.role === "string" &&
+    "existing_account" in value &&
+    typeof value.existing_account === "boolean" &&
     "expires_at" in value &&
     typeof value.expires_at === "string"
   );
