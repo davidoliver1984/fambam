@@ -42,7 +42,7 @@ function renderManagement() {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <InvitationManagement familySpaceId="01K1ZZZZZZZZZZZZZZZZZZZZZZ" />
+      <InvitationManagement familySlug="oliver-family" />
     </QueryClientProvider>,
   );
 }
@@ -68,6 +68,10 @@ describe("InvitationManagement", () => {
       await screen.findByText("relative@example.test"),
     ).toBeInTheDocument();
     expect(getInvitations).toHaveBeenCalledTimes(1);
+    expect(getInvitations).toHaveBeenCalledWith(
+      "oliver-family",
+      expect.any(AbortSignal),
+    );
   });
 
   it("invalidates the invitation list after issuing an invitation", async () => {
@@ -82,8 +86,10 @@ describe("InvitationManagement", () => {
     await user.click(screen.getByRole("button", { name: "Send invitation" }));
 
     await waitFor(() => {
-      expect(vi.mocked(issueInvitation).mock.calls[0]?.[0]).toEqual({
-        family_space_id: "01K1ZZZZZZZZZZZZZZZZZZZZZZ",
+      expect(vi.mocked(issueInvitation).mock.calls[0]?.[0]).toBe(
+        "oliver-family",
+      );
+      expect(vi.mocked(issueInvitation).mock.calls[0]?.[1]).toEqual({
         email: "another@example.test",
         role: "member",
       });

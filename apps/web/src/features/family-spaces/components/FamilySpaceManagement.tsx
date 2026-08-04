@@ -1,6 +1,5 @@
 import { type SyntheticEvent, useState } from "react";
-
-import { InvitationManagement } from "@/features/invitations/pages/InvitationManagement";
+import { Link } from "react-router";
 
 import { useCreateFamilySpaceMutation } from "../hooks/useCreateFamilySpaceMutation";
 import { useFamilySpacesQuery } from "../hooks/useFamilySpacesQuery";
@@ -62,10 +61,7 @@ export function FamilySpaceManagement({ canCreate }: { canCreate: boolean }) {
         >
           <h3 id={`family-${familySpace.id}`}>{familySpace.name}</h3>
           <p>Your role: {familySpace.role}</p>
-          {(familySpace.role === "owner" ||
-            familySpace.role === "administrator") && (
-            <InvitationManagement familySpaceId={familySpace.id} />
-          )}
+          <Link to={`/families/${familySpace.slug}`}>Open Family Space</Link>
         </section>
       ))}
     </section>

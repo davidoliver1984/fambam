@@ -16,14 +16,10 @@ function isInvitationRole(
   );
 }
 
-export function InvitationManagement({
-  familySpaceId,
-}: {
-  familySpaceId: string;
-}) {
-  const invitationsQuery = useInvitationsQuery(familySpaceId);
-  const issueInvitation = useIssueInvitationMutation(familySpaceId);
-  const transitionInvitation = useTransitionInvitationMutation(familySpaceId);
+export function InvitationManagement({ familySlug }: { familySlug: string }) {
+  const invitationsQuery = useInvitationsQuery(familySlug);
+  const issueInvitation = useIssueInvitationMutation(familySlug);
+  const transitionInvitation = useTransitionInvitationMutation(familySlug);
   const [message, setMessage] = useState("");
 
   async function issue(event: SyntheticEvent<HTMLFormElement>) {
@@ -40,7 +36,6 @@ export function InvitationManagement({
 
     try {
       await issueInvitation.mutateAsync({
-        family_space_id: familySpaceId,
         email,
         role,
       });
@@ -71,27 +66,27 @@ export function InvitationManagement({
   return (
     <section
       className="invitation-management"
-      aria-labelledby={`invitations-title-${familySpaceId}`}
+      aria-labelledby={`invitations-title-${familySlug}`}
     >
-      <h4 id={`invitations-title-${familySpaceId}`}>Invitations</h4>
+      <h2 id={`invitations-title-${familySlug}`}>Invitations</h2>
       <form
         onSubmit={(event) => {
           void issue(event);
         }}
       >
-        <label htmlFor={`invite-email-${familySpaceId}`}>
+        <label htmlFor={`invite-email-${familySlug}`}>
           Relative&apos;s email address
         </label>
         <input
-          id={`invite-email-${familySpaceId}`}
+          id={`invite-email-${familySlug}`}
           name="invite_email"
           type="email"
           autoComplete="email"
           required
         />
-        <label htmlFor={`invite-role-${familySpaceId}`}>Role</label>
+        <label htmlFor={`invite-role-${familySlug}`}>Role</label>
         <select
-          id={`invite-role-${familySpaceId}`}
+          id={`invite-role-${familySlug}`}
           name="invite_role"
           defaultValue="member"
         >

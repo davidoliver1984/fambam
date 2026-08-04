@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\FamilySpaceRole;
 use App\Enums\MembershipState;
+use Carbon\CarbonImmutable;
 use Database\Factories\FamilySpaceMembershipFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property FamilySpaceRole $role
  * @property MembershipState $state
+ * @property CarbonImmutable|null $removed_at
  */
 #[Fillable([
     'family_space_id',

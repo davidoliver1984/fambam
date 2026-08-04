@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P03",
-    "current_stage": "FPA-P03-S03",
+    "current_stage": "FPA-P03-S04",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-04"
   },
@@ -240,16 +240,20 @@
         {
           "id": "FPA-P03-S03",
           "title": "Implement route context, policies and explicit scoping",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P03-S02"
           ],
-          "notes": []
+          "notes": [
+            "Active-membership slug resolution, request-scoped TenantContext binding, role policies and explicit Family Space query scoping were implemented with identical unknown/inaccessible 404 behaviour.",
+            "React Router now provides the protected URL-derived Family Space route; tenant-aware TanStack Query keys and nested invitation endpoints keep frontend server state aligned with the active slug.",
+            "The complete repository gate and rebuilt-stack HTTP checks passed before review approval and stage completion on 2026-08-04 (git tag phase-3-s03)."
+          ]
         },
         {
           "id": "FPA-P03-S04",
           "title": "Add PostgreSQL row-level security",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P03-S03"
           ],
@@ -1329,6 +1333,14 @@
       "roadmap_stage": "FPA-P03-S02",
       "date": "2026-08-04",
       "description": "FPA-P03-S02 completed: Family Space and membership foundations, capability-gated creation, Owner safeguards at application and deferred PostgreSQL constraint layers, family-scoped invitations and atomic existing-account membership reactivation implemented and verified. The approved persistent migration backfilled the fallback Family Archive and memberships, associated historical invitations, expired pending Phase 2 invitations, removed their claims and retired can_invite."
+    },
+    {
+      "git_tag": "phase-3-s03",
+      "type": "stage_completion",
+      "adr": "ADR-0005",
+      "roadmap_stage": "FPA-P03-S03",
+      "date": "2026-08-04",
+      "description": "FPA-P03-S03 completed: active-membership slug resolution, request-scoped tenant context, role policies, explicit tenant query scoping, nested Family Space routes and protected URL-derived React routing implemented and verified. Unknown and inaccessible Family Spaces return the same 404, out-of-role members receive 403 only after resolution, cross-tenant nested identifiers fail closed and tenant context is cleared after dispatch."
     }
   ]
 }

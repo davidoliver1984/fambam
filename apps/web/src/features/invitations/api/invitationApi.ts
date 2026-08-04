@@ -10,30 +10,33 @@ import type {
 } from "../types/invitation";
 
 export async function getInvitations(
-  familySpaceId: string,
+  familySlug: string,
   signal?: AbortSignal,
 ): Promise<Invitation[]> {
   return unwrap(
-    await apiClient.get<ApiEnvelope<Invitation[]>>("/api/invitations", {
-      params: { family_space_id: familySpaceId },
-      signal,
-    }),
+    await apiClient.get<ApiEnvelope<Invitation[]>>(
+      `/api/families/${encodeURIComponent(familySlug)}/invitations`,
+      { signal },
+    ),
   );
 }
 
 export async function issueInvitation(
+  familySlug: string,
   input: IssueInvitationInput,
 ): Promise<Invitation> {
   await ensureCsrfCookie();
 
   return unwrap(
-    await apiClient.post<ApiEnvelope<Invitation>>("/api/invitations", {
-      ...input,
-    }),
+    await apiClient.post<ApiEnvelope<Invitation>>(
+      `/api/families/${encodeURIComponent(familySlug)}/invitations`,
+      input,
+    ),
   );
 }
 
 export async function transitionInvitation(
+  familySlug: string,
   invitationId: number,
   action: InvitationTransition,
 ): Promise<Invitation> {
@@ -41,7 +44,7 @@ export async function transitionInvitation(
 
   return unwrap(
     await apiClient.post<ApiEnvelope<Invitation>>(
-      `/api/invitations/${String(invitationId)}/${action}`,
+      `/api/families/${encodeURIComponent(familySlug)}/invitations/${String(invitationId)}/${action}`,
     ),
   );
 }

@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Listeners\SecurityEventSubscriber;
 use App\Services\AuthenticateUser;
 use App\Services\PwnedPasswordVerifier;
+use App\Tenancy\TenantContext;
 use Illuminate\Contracts\Hashing\Hasher;
 use Illuminate\Contracts\Validation\UncompromisedVerifier;
 use Illuminate\Http\Client\Factory;
@@ -20,6 +21,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->scoped(TenantContext::class);
+
         $this->app->singleton(
             AuthenticateUser::class,
             fn ($app): AuthenticateUser => new AuthenticateUser(

@@ -31,7 +31,6 @@ export type AcceptInvitationInput =
   NewAccountInvitationInput | { claim_token: string };
 
 export type IssueInvitationInput = {
-  family_space_id: string;
   email: string;
   role: Invitation["role"];
 };

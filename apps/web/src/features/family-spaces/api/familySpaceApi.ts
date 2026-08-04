@@ -22,3 +22,15 @@ export async function createFamilySpace(
     await apiClient.post<ApiEnvelope<FamilySpace>>("/api/family-spaces", input),
   );
 }
+
+export async function getFamilySpace(
+  familySlug: string,
+  signal?: AbortSignal,
+): Promise<FamilySpace> {
+  return unwrap(
+    await apiClient.get<ApiEnvelope<FamilySpace>>(
+      `/api/families/${encodeURIComponent(familySlug)}`,
+      { signal },
+    ),
+  );
+}

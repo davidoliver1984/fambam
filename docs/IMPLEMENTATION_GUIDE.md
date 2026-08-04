@@ -1060,6 +1060,31 @@ Implement family spaces and memberships
 
 Every tenant route resolves a public family identifier and fails closed.
 
+FPA-P03-S03 completed on 2026-08-04 after the full repository gate and
+rebuilt-stack HTTP checks passed. Active-membership slug resolution now runs
+before implicit model binding, establishes and clears a request-scoped
+`TenantContext`, and returns the same 404 for unknown, inaccessible and removed
+Family Spaces. Role policies distinguish post-resolution 403 responses, while
+explicit query classes constrain Family Spaces, memberships and invitations at
+their call sites. Nested resources cannot be resolved across Family Spaces.
+
+The frontend introduced the audit-clean direct `react-router` package for the
+first protected tenant route. `/families/:familySlug` is authoritative for the
+active Family Space; typed API modules and TanStack Query keys carry that slug
+through Family Space and invitation reads and mutations.
+
+### Documentation updates
+
+- Recorded implementation, verification and deliberately deferred navigation
+  debt in `docs/journal/2026-08-04-FPA-P03-S03.md`.
+- Advanced `tasks.json` to FPA-P03-S04 after completion approval.
+
+### Commit boundary
+
+```text
+Implement route context, policies and explicit scoping
+```
+
 ## FPA-P03-S04 — Add PostgreSQL row-level security
 
 Apply non-bypass runtime roles, FORCE RLS where appropriate and integration

@@ -2,33 +2,38 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\MembershipState;
 use App\Http\Requests\CreateFamilySpaceRequest;
 use App\Models\FamilySpace;
 use App\Models\User;
+use App\Queries\FamilySpaceQuery;
 use App\Services\FamilySpaceManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class FamilySpaceController extends Controller
 {
-    public function __construct(private readonly FamilySpaceManager $familySpaces) {}
+    public function __construct(
+        private readonly FamilySpaceManager $familySpaces,
+        private readonly FamilySpaceQuery $familySpaceQuery,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
-        $familySpaces = FamilySpace::query()
-            ->select('family_spaces.*')
-            ->join('family_space_memberships', 'family_space_memberships.family_space_id', '=', 'family_spaces.id')
-            ->where('family_space_memberships.user_id', $user->id)
-            ->where('family_space_memberships.state', MembershipState::Active->value)
-            ->with(['memberships' => fn ($query) => $query->where('user_id', $user->id)])
-            ->orderBy('family_spaces.name')
-            ->get()
+        $familySpaces = $this->familySpaceQuery
+            ->listAccessibleTo($user)
             ->map(fn (FamilySpace $familySpace): array => $this->payload($familySpace));
 
         return response()->json(['data' => $familySpaces]);
+    }
+
+    public function show(FamilySpace $familySpace): JsonResponse
+    {
+        Gate::authorize('view', $familySpace);
+
+        return response()->json(['data' => $this->payload($familySpace)]);
     }
 
     public function store(CreateFamilySpaceRequest $request): JsonResponse
