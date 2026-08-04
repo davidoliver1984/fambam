@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\User;
 use App\Queries\FamilySpaceMembershipQuery;
 use App\Queries\FamilySpaceQuery;
+use App\Tenancy\DatabaseTenantContext;
 use App\Tenancy\TenantContext;
 use Closure;
 use Illuminate\Database\Eloquent\Collection;
@@ -16,6 +17,7 @@ class ResolveFamilySpace
     public function __construct(
         private readonly FamilySpaceQuery $familySpaces,
         private readonly FamilySpaceMembershipQuery $memberships,
+        private readonly DatabaseTenantContext $databaseTenantContext,
         private readonly TenantContext $tenantContext,
     ) {}
 
@@ -29,6 +31,10 @@ class ResolveFamilySpace
         $membership = $this->memberships->activeForUser($familySpace, $user);
 
         $familySpace->setRelation('memberships', new Collection([$membership]));
+        $this->databaseTenantContext->establishFamilySpace(
+            $familySpace,
+            $membership->role->canManageMembers(),
+        );
         $this->tenantContext->establish($familySpace, $membership, $user);
         $request->route()?->setParameter('familySpace', $familySpace);
 

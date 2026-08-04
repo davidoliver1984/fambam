@@ -8,14 +8,19 @@ use App\Enums\MembershipState;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\User;
+use App\Tenancy\DatabaseTenantContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class FamilySpaceManager
 {
-    public function __construct(private readonly AuditRecorder $audit) {}
+    public function __construct(
+        private readonly AuditRecorder $audit,
+        private readonly DatabaseTenantContext $databaseTenantContext,
+    ) {}
 
     public function create(User $actor, string $name, string $slug, Request $request): FamilySpace
     {
@@ -24,7 +29,14 @@ class FamilySpaceManager
         }
 
         return DB::transaction(function () use ($actor, $name, $slug, $request): FamilySpace {
+            $familySpaceId = (string) Str::ulid();
+            $this->databaseTenantContext->establishUser($actor);
+            $this->databaseTenantContext->establishFamilySpace(
+                $familySpaceId,
+                authoritativeOperation: 'family_space_creation',
+            );
             $familySpace = FamilySpace::query()->create([
+                'id' => $familySpaceId,
                 'name' => $name,
                 'slug' => $slug,
                 'status' => FamilySpaceStatus::Active,

@@ -24,9 +24,7 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
-    command: >-
-      sh -c "php artisan migrate --force &&
-      php artisan serve --host=0.0.0.0 --port=8080"
+    command: php artisan serve --host=0.0.0.0 --port=8080
     ports:
       - "${API_PORT:-8082}:8080"
     environment:
@@ -56,8 +54,9 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_DATABASE: "${POSTGRES_DB:-fambam}"
-      DB_USERNAME: "${POSTGRES_USER:-fambam}"
-      DB_PASSWORD: "${POSTGRES_PASSWORD:-fambam}"
+      DB_USERNAME: "${DB_RUNTIME_USERNAME:-fambam_app}"
+      DB_PASSWORD: "${DB_RUNTIME_PASSWORD:-fambam_app}"
+      DB_RUNTIME_USERNAME: "${DB_RUNTIME_USERNAME:-fambam_app}"
       CACHE_STORE: redis
       REDIS_CLIENT: phpredis
       REDIS_HOST: redis
@@ -83,8 +82,8 @@ services:
       MAIL_FROM_ADDRESS: archive@fambam.test
       MAIL_FROM_NAME: "Family Photo Archive"
     depends_on:
-      postgres:
-        condition: service_healthy
+      api-migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
       localstack:
@@ -99,6 +98,29 @@ services:
       timeout: 3s
       retries: 12
       start_period: 10s
+    networks:
+      - fambam
+
+  api-migrate:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    command: php artisan migrate --force
+    environment:
+      APP_NAME: "Family Photo Archive"
+      APP_ENV: local
+      APP_KEY: "${APP_KEY:-base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}"
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: "${POSTGRES_DB:-fambam}"
+      DB_USERNAME: "${POSTGRES_USER:-fambam}"
+      DB_PASSWORD: "${POSTGRES_PASSWORD:-fambam}"
+      DB_RUNTIME_USERNAME: "${DB_RUNTIME_USERNAME:-fambam_app}"
+    depends_on:
+      postgres-provision:
+        condition: service_completed_successfully
+    restart: "no"
     networks:
       - fambam
 
@@ -152,6 +174,26 @@ services:
       interval: 5s
       timeout: 3s
       retries: 12
+    networks:
+      - fambam
+
+  postgres-provision:
+    image: postgres:17.6-alpine
+    command: ["/opt/fambam/provision-runtime-role.sh"]
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: "${POSTGRES_DB:-fambam}"
+      PGUSER: "${POSTGRES_USER:-fambam}"
+      PGPASSWORD: "${POSTGRES_PASSWORD:-fambam}"
+      DB_RUNTIME_USERNAME: "${DB_RUNTIME_USERNAME:-fambam_app}"
+      DB_RUNTIME_PASSWORD: "${DB_RUNTIME_PASSWORD:-fambam_app}"
+    volumes:
+      - ./infrastructure/docker/postgres/provision-runtime-role.sh:/opt/fambam/provision-runtime-role.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
     networks:
       - fambam
 
