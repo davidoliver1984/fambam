@@ -57,15 +57,14 @@ class InvitationLifecycleTest extends TestCase
         $familySpace = FamilySpace::factory()->create();
 
         $this->actingAs($ordinaryUser)
-            ->postJson('/api/invitations', [
-                'family_space_id' => $familySpace->id,
+            ->postJson("/api/families/{$familySpace->slug}/invitations", [
                 'email' => 'relative@example.test',
                 'role' => FamilySpaceRole::Member->value,
             ])
             ->assertNotFound();
 
         $this->actingAs($ordinaryUser)
-            ->getJson('/api/invitations?family_space_id='.$familySpace->id)
+            ->getJson("/api/families/{$familySpace->slug}/invitations")
             ->assertNotFound();
 
         FamilySpaceMembership::factory()->create([
@@ -74,8 +73,7 @@ class InvitationLifecycleTest extends TestCase
             'role' => FamilySpaceRole::Member,
         ]);
         $this->actingAs($ordinaryUser)
-            ->postJson('/api/invitations', [
-                'family_space_id' => $familySpace->id,
+            ->postJson("/api/families/{$familySpace->slug}/invitations", [
                 'email' => 'relative@example.test',
                 'role' => FamilySpaceRole::Member->value,
             ])
@@ -84,7 +82,9 @@ class InvitationLifecycleTest extends TestCase
 
     public function test_guest_cannot_issue_an_invitation(): void
     {
-        $this->postJson('/api/invitations', ['email' => 'relative@example.test'])
+        $familySpace = FamilySpace::factory()->create();
+
+        $this->postJson("/api/families/{$familySpace->slug}/invitations", ['email' => 'relative@example.test'])
             ->assertUnauthorized();
     }
 
@@ -249,7 +249,7 @@ class InvitationLifecycleTest extends TestCase
 
         Notification::fake();
         $this->actingAs($owner)
-            ->postJson("/api/invitations/{$invitation->id}/resend")
+            ->postJson("/api/families/{$invitation->familySpace->slug}/invitations/{$invitation->id}/resend")
             ->assertOk();
         Notification::assertSentOnDemand(
             InvitationIssued::class,
@@ -276,7 +276,7 @@ class InvitationLifecycleTest extends TestCase
             ->json('data.claim_token');
 
         $this->actingAs($owner)
-            ->postJson("/api/invitations/{$invitation->id}/revoke")
+            ->postJson("/api/families/{$invitation->familySpace->slug}/invitations/{$invitation->id}/revoke")
             ->assertOk()
             ->assertJsonPath('data.status', 'revoked');
 
@@ -321,8 +321,7 @@ class InvitationLifecycleTest extends TestCase
         ]);
 
         $this->actingAs($owner)
-            ->postJson('/api/invitations', [
-                'family_space_id' => $familySpace->id,
+            ->postJson("/api/families/{$familySpace->slug}/invitations", [
                 'email' => 'member@example.test',
                 'role' => FamilySpaceRole::Member->value,
             ])
@@ -330,8 +329,7 @@ class InvitationLifecycleTest extends TestCase
 
         $this->issueInvitation($owner, 'relative@example.test');
         $this->actingAs($owner)
-            ->postJson('/api/invitations', [
-                'family_space_id' => $familySpace->id,
+            ->postJson("/api/families/{$familySpace->slug}/invitations", [
                 'email' => 'relative@example.test',
                 'role' => FamilySpaceRole::Member->value,
             ])
@@ -347,8 +345,7 @@ class InvitationLifecycleTest extends TestCase
 
         $this->actingAs($owner)
             ->withHeader('User-Agent', 'Fambam invitation test')
-            ->postJson('/api/invitations', [
-                'family_space_id' => $familySpace->id,
+            ->postJson("/api/families/{$familySpace->slug}/invitations", [
                 'email' => $email,
                 'role' => FamilySpaceRole::Member->value,
             ])

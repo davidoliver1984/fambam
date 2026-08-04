@@ -6,7 +6,7 @@ use App\Enums\FamilySpaceRole;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class IssueInvitationRequest extends FormRequest
+class ChangeMembershipRoleRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -17,11 +17,7 @@ class IssueInvitationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email:rfc', 'max:255'],
-            'role' => [
-                'required',
-                Rule::enum(FamilySpaceRole::class)->except([FamilySpaceRole::Owner]),
-            ],
+            'role' => ['required', Rule::enum(FamilySpaceRole::class)],
         ];
     }
 }

@@ -7,6 +7,7 @@ import {
   type RenderResult,
 } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { App } from "./App";
@@ -14,7 +15,7 @@ import { InvitationAcceptanceForm } from "./features/invitations/components/Invi
 
 afterEach(cleanup);
 
-function renderWithQuery(children: ReactNode): RenderResult {
+function renderWithQuery(children: ReactNode, path = "/"): RenderResult {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -23,13 +24,15 @@ function renderWithQuery(children: ReactNode): RenderResult {
   });
 
   return render(
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[path]}>{children}</MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
 describe("App", () => {
   it("renders the family archive foundation", () => {
-    renderWithQuery(<App path="/" />);
+    renderWithQuery(<App />);
 
     expect(
       screen.getByRole("heading", {
@@ -39,7 +42,7 @@ describe("App", () => {
   });
 
   it("exposes a health view", () => {
-    renderWithQuery(<App path="/health" />);
+    renderWithQuery(<App />, "/health");
 
     expect(
       screen.getByRole("heading", { name: "Web application healthy" }),
@@ -47,7 +50,7 @@ describe("App", () => {
   });
 
   it("renders password-manager-friendly login fields", () => {
-    renderWithQuery(<App path="/login" />);
+    renderWithQuery(<App />, "/login");
 
     expect(screen.getByLabelText("Email address")).toHaveAttribute(
       "autocomplete",

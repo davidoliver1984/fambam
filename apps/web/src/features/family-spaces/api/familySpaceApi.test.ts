@@ -4,7 +4,11 @@ import { describe, expect, it } from "vitest";
 import { toAppError } from "@/api/errors";
 import { server } from "@/test/msw/server";
 
-import { createFamilySpace, getFamilySpaces } from "./familySpaceApi";
+import {
+  createFamilySpace,
+  getFamilySpace,
+  getFamilySpaces,
+} from "./familySpaceApi";
 
 const apiBaseUrl = "http://localhost:8082";
 
@@ -38,9 +42,23 @@ describe("familySpaceApi", () => {
           { status: 201 },
         );
       }),
+      http.get(`${apiBaseUrl}/api/families/oliver-family`, () =>
+        HttpResponse.json({
+          data: {
+            id: "01K1ZZZZZZZZZZZZZZZZZZZZZZ",
+            slug: "oliver-family",
+            name: "Oliver Family",
+            status: "active",
+            role: "owner",
+          },
+        }),
+      ),
     );
 
     await expect(getFamilySpaces()).resolves.toHaveLength(1);
+    await expect(getFamilySpace("oliver-family")).resolves.toMatchObject({
+      slug: "oliver-family",
+    });
     await expect(
       createFamilySpace({ name: "New Family", slug: "new-family" }),
     ).resolves.toMatchObject({ slug: "new-family", role: "owner" });

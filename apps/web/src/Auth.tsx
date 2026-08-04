@@ -1,11 +1,7 @@
-import {
-  type ReactNode,
-  type SyntheticEvent,
-  useEffect,
-  useState,
-} from "react";
+import { type ReactNode, type SyntheticEvent, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { Link, useNavigate } from "react-router";
 
 import { toLaravelFieldErrors } from "@/api/errors";
 import { AccountSecurityPanel } from "@/features/account/components/AccountSecurityPanel";
@@ -42,6 +38,7 @@ function FormMessage({ message }: { message: string }) {
 }
 
 export function LoginPage() {
+  const navigate = useNavigate();
   const [message, setMessage] = useState("");
   const login = useLoginMutation();
   const {
@@ -58,9 +55,7 @@ export function LoginPage() {
 
     try {
       const result = await login.mutateAsync(values);
-      window.location.assign(
-        result.two_factor ? "/two-factor-challenge" : "/account",
-      );
+      void navigate(result.two_factor ? "/two-factor-challenge" : "/account");
     } catch (error) {
       const fields = toLaravelFieldErrors(error);
       for (const field of ["email", "password"] as const) {
@@ -114,7 +109,7 @@ export function LoginPage() {
         </button>
         <FormMessage message={message} />
       </form>
-      <a href="/forgot-password">Forgotten your password?</a>
+      <Link to="/forgot-password">Forgotten your password?</Link>
     </AuthShell>
   );
 }
@@ -164,6 +159,7 @@ export function ForgotPasswordPage() {
 }
 
 export function ResetPasswordPage() {
+  const navigate = useNavigate();
   const [message, setMessage] = useState("");
   const query = new URLSearchParams(window.location.search);
   const resetPassword = useResetPasswordMutation();
@@ -182,7 +178,7 @@ export function ResetPasswordPage() {
         email: query.get("email"),
         ...values,
       });
-      window.location.assign("/login");
+      void navigate("/login");
     } catch (error) {
       const fields = toLaravelFieldErrors(error);
       if (fields.password !== undefined)
@@ -239,15 +235,12 @@ export function ResetPasswordPage() {
 }
 
 export function AccountPage() {
+  const navigate = useNavigate();
   const userQuery = useCurrentUserQuery();
   const updateProfile = useUpdateProfileMutation();
   const logout = useLogoutMutation();
   const [message, setMessage] = useState("");
   const user = userQuery.data;
-
-  useEffect(() => {
-    if (userQuery.isError) window.location.assign("/login");
-  }, [userQuery.isError]);
 
   async function update(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -266,7 +259,7 @@ export function AccountPage() {
   async function signOut() {
     try {
       await logout.mutateAsync();
-      window.location.assign("/login");
+      void navigate("/login");
     } catch {
       setMessage("You could not be signed out. Please try again.");
     }

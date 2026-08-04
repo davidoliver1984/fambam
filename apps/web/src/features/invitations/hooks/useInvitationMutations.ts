@@ -8,23 +8,25 @@ import {
 import { invitationKeys } from "../api/invitationKeys";
 import type {
   AcceptInvitationInput,
+  IssueInvitationInput,
   InvitationTransition,
 } from "../types/invitation";
 
-export function useIssueInvitationMutation(familySpaceId: string) {
+export function useIssueInvitationMutation(familySlug: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: issueInvitation,
+    mutationFn: (input: IssueInvitationInput) =>
+      issueInvitation(familySlug, input),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
-        queryKey: invitationKeys.list(familySpaceId),
+        queryKey: invitationKeys.list(familySlug),
       });
     },
   });
 }
 
-export function useTransitionInvitationMutation(familySpaceId: string) {
+export function useTransitionInvitationMutation(familySlug: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -34,10 +36,10 @@ export function useTransitionInvitationMutation(familySpaceId: string) {
     }: {
       invitationId: number;
       action: InvitationTransition;
-    }) => transitionInvitation(invitationId, action),
+    }) => transitionInvitation(familySlug, invitationId, action),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
-        queryKey: invitationKeys.list(familySpaceId),
+        queryKey: invitationKeys.list(familySlug),
       });
     },
   });

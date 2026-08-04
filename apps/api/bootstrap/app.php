@@ -2,11 +2,13 @@
 
 use App\Http\Middleware\PreventRecoveryCodeDisclosure;
 use App\Http\Middleware\RequestContext;
+use App\Http\Middleware\ResolveFamilySpace;
 use App\Http\Middleware\ThrottlePasswordResetRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -16,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->alias(['family-space' => ResolveFamilySpace::class]);
+        $middleware->prependToPriorityList(SubstituteBindings::class, ResolveFamilySpace::class);
+        $middleware->redirectGuestsTo(null);
         $middleware->statefulApi();
         $middleware->api(prepend: [RequestContext::class]);
         $middleware->web(append: [

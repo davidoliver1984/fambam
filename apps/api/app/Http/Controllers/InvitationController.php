@@ -7,34 +7,34 @@ use App\Http\Requests\IssueInvitationRequest;
 use App\Models\FamilySpace;
 use App\Models\Invitation;
 use App\Models\User;
+use App\Queries\InvitationQuery;
 use App\Services\InvitationManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class InvitationController extends Controller
 {
-    public function __construct(private readonly InvitationManager $invitations) {}
+    public function __construct(
+        private readonly InvitationManager $invitations,
+        private readonly InvitationQuery $invitationQuery,
+    ) {}
 
-    public function index(Request $request): JsonResponse
+    public function index(FamilySpace $familySpace): JsonResponse
     {
-        /** @var User $actor */
-        $actor = $request->user();
-        $familySpace = FamilySpace::query()->findOrFail((string) $request->query('family_space_id'));
-        $this->invitations->ensureCanManageInvitations($actor, $familySpace);
-        $invitations = Invitation::query()
-            ->where('family_space_id', $familySpace->id)
-            ->latest()
-            ->get()
+        Gate::authorize('manageInvitations', $familySpace);
+        $invitations = $this->invitationQuery
+            ->listForFamilySpace($familySpace)
             ->map($this->payload(...));
 
         return response()->json(['data' => $invitations]);
     }
 
-    public function store(IssueInvitationRequest $request): JsonResponse
+    public function store(FamilySpace $familySpace, IssueInvitationRequest $request): JsonResponse
     {
+        Gate::authorize('manageInvitations', $familySpace);
         /** @var User $actor */
         $actor = $request->user();
-        $familySpace = FamilySpace::query()->findOrFail($request->validated('family_space_id'));
         $invitation = $this->invitations->issue(
             $actor,
             $familySpace,
@@ -46,19 +46,23 @@ class InvitationController extends Controller
         return response()->json(['data' => $this->payload($invitation)], 201);
     }
 
-    public function resend(Invitation $invitation, Request $request): JsonResponse
+    public function resend(FamilySpace $familySpace, int $invitation, Request $request): JsonResponse
     {
+        Gate::authorize('manageInvitations', $familySpace);
         /** @var User $actor */
         $actor = $request->user();
+        $invitation = $this->invitationQuery->findForFamilySpace($familySpace, $invitation);
         $invitation = $this->invitations->resend($invitation, $actor, $request);
 
         return response()->json(['data' => $this->payload($invitation)]);
     }
 
-    public function revoke(Invitation $invitation, Request $request): JsonResponse
+    public function revoke(FamilySpace $familySpace, int $invitation, Request $request): JsonResponse
     {
+        Gate::authorize('manageInvitations', $familySpace);
         /** @var User $actor */
         $actor = $request->user();
+        $invitation = $this->invitationQuery->findForFamilySpace($familySpace, $invitation);
         $invitation = $this->invitations->revoke($invitation, $actor, $request);
 
         return response()->json(['data' => $this->payload($invitation)]);

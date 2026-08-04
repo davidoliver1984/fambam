@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router";
 
 import { createFamilySpace, getFamilySpaces } from "../api/familySpaceApi";
 import { FamilySpaceManagement } from "./FamilySpaceManagement";
@@ -10,11 +11,6 @@ import { FamilySpaceManagement } from "./FamilySpaceManagement";
 vi.mock("../api/familySpaceApi", () => ({
   createFamilySpace: vi.fn(),
   getFamilySpaces: vi.fn(),
-}));
-vi.mock("@/features/invitations/pages/InvitationManagement", () => ({
-  InvitationManagement: ({ familySpaceId }: { familySpaceId: string }) => (
-    <p>Invitations for {familySpaceId}</p>
-  ),
 }));
 
 const familySpace = {
@@ -32,7 +28,9 @@ function renderManagement(canCreate: boolean) {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <FamilySpaceManagement canCreate={canCreate} />
+      <MemoryRouter>
+        <FamilySpaceManagement canCreate={canCreate} />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -55,8 +53,8 @@ describe("FamilySpaceManagement", () => {
       screen.queryByRole("button", { name: "Create Family Space" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText(`Invitations for ${familySpace.id}`),
-    ).toBeInTheDocument();
+      screen.getByRole("link", { name: "Open Family Space" }),
+    ).toHaveAttribute("href", "/families/oliver-family");
   });
 
   it("creates through the feature mutation", async () => {
