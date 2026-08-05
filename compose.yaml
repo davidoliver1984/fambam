@@ -28,7 +28,7 @@ services:
     ports:
       - "${API_PORT:-8082}:8080"
     environment:
-      APP_NAME: "Family Photo Archive"
+      APP_NAME: "fambam"
       APP_ENV: local
       APP_KEY: "${APP_KEY:-base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}"
       APP_DEBUG: "true"
@@ -81,7 +81,7 @@ services:
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
       MAIL_FROM_ADDRESS: archive@fambam.test
-      MAIL_FROM_NAME: "Family Photo Archive"
+      MAIL_FROM_NAME: "fambam"
     depends_on:
       api-migrate:
         condition: service_completed_successfully
@@ -106,7 +106,7 @@ services:
     image: fambam-api
     command: php artisan queue:work sqs --sleep=3 --tries=3 --timeout=120
     environment:
-      APP_NAME: "Family Photo Archive"
+      APP_NAME: "fambam"
       APP_ENV: local
       APP_KEY: "${APP_KEY:-base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}"
       LOG_CHANNEL: stderr
@@ -146,7 +146,7 @@ services:
     image: fambam-api
     command: php artisan schedule:work
     environment:
-      APP_NAME: "Family Photo Archive"
+      APP_NAME: "fambam"
       APP_ENV: local
       APP_KEY: "${APP_KEY:-base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}"
       LOG_CHANNEL: stderr
@@ -188,7 +188,7 @@ services:
       dockerfile: Dockerfile
     command: php artisan migrate --force
     environment:
-      APP_NAME: "Family Photo Archive"
+      APP_NAME: "fambam"
       APP_ENV: local
       APP_KEY: "${APP_KEY:-base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}"
       DB_CONNECTION: pgsql

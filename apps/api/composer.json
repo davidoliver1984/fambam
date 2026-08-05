@@ -2,7 +2,7 @@
     "$schema": "https://getcomposer.org/schema.json",
     "name": "fambam/api",
     "type": "project",
-    "description": "Family Photo Archive business API",
+    "description": "fambam business API",
     "keywords": ["family-archive", "laravel"],
     "license": "MIT",
     "require": {

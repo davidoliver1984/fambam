@@ -18,7 +18,7 @@ export class AppErrorBoundary extends Component<Props, State> {
     if (this.state.failed) {
       return (
         <main className="auth" aria-labelledby="error-title">
-          <p className="eyebrow">Family Photo Archive</p>
+          <p className="eyebrow">fambam</p>
           <h1 id="error-title">Something went wrong</h1>
           <p>Please reload the page and try again.</p>
         </main>
