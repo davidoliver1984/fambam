@@ -1219,23 +1219,126 @@ Add tenancy audit and deletion foundations
 
 ## FPA-P04-S01 — Accept people, accounts and relationships ADR
 
-Resolve account/person separation, relationship representation and uncertain dates (ADR-0006).
+### Objective
+
+Decide the Person identity model, User-to-Person linking, the relationship
+model, Family Circles, a Phase 4 privacy/role baseline, an uncertain-date
+semantic contract, and the merge/tombstone model, in one ADR (ADR-0006)
+before any Phase 4 implementation begins.
+
+### Engineering rationale
+
+Person identity, account linking, relationships, circles, privacy defaults
+and merge behaviour are tightly coupled: the User/Person separation
+constrains how linking and self-claiming work, the proposed-versus-
+authoritative distinction shapes both Person-detail and relationship
+authority identically, and the merge model must already account for every
+Phase-4-owned reference before FPA-P04-S02 through FPA-P04-S05 are
+implemented. Deciding them together, once, avoids sequencing those stages
+around partial or contradictory decisions -- the same reasoning ADR-0004
+and ADR-0005 applied to their own phases.
+
+### Prerequisites
+
+- FPA-P03-S05 complete.
+
+### Expected changes
+
+- ADR-0006 accepted.
+
+### Verification
+
+- ADR-0006 covers Family-Space-local Person identity, the Person
+  identity/lifecycle model, the uncertain-date semantic contract, the
+  proposed-versus-authoritative distinction applied uniformly to Person
+  details and relationships, User-to-Person cardinality and link
+  authority, the relationship model and its proposal/approval validation,
+  Family Circles, the Phase 4 privacy/role visibility baseline, tenancy
+  inheritance under ADR-0005, the merge/tombstone/reversal model, route
+  identity, the authorization baseline, audit coverage, and the
+  access-loss/deletion lifecycle explicitly.
+
+ADR-0006 was accepted 2026-08-05: Person identity is Family-Space-local,
+with no cross-tenant identity bridge and no automatic or manual
+cross-family matching -- the same real person represented in two Family
+Spaces is two independent Person records; an immutable ULID Person
+identity with mutable names, uncertain birth/death information via a
+shared uncertain-date concept (exact, month-and-year, year-only, decade,
+approximate, unknown), an independent deceased-state fact composed with
+that concept rather than absorbed into it, and bounded biography/notes
+treated as shared archival content under the same whole-record visibility
+as the rest of the Person record; a single proposed-versus-authoritative
+distinction applied uniformly to Person details and to relationships,
+where Members may contribute or propose and Owner/Administrator confirm,
+replace, remove or resolve as authoritative, with proposed relationships
+excluded from the authoritative relationship graph until approved and
+approval re-validating against current state rather than blindly
+promoting the original proposal; one-to-one User-to-Person linking per
+Family Space, with Member and reachable-Contributor self-claim proposals
+requiring Owner/Administrator approval and Guest excluded from
+self-claiming; one canonical relationship edge per concept with derived
+inverse wording from a centrally-defined, additive V1 vocabulary, never a
+permission signal; Family Circles as a real, flat, People-only,
+presentation-only construct explicitly barred from ever being consulted
+by authorization, policy or RLS; a Phase 4 visibility baseline giving
+Owner/Administrator/Member default Person-directory access and giving
+Contributor/Guest none, named explicitly as a placeholder for Phase
+5/6/7's resource-grant model; full Class C tenant-owned-table inheritance
+from ADR-0005 for Person, link, relationship, circle and
+circle-membership data, with no RLS SQL frozen in the ADR; Person merge
+via a redirect/tombstone record with atomic reconciliation of
+Phase-4-owned references, structured merge provenance distinct from
+ordinary AuditEvents, and reversal bounded to what Phase 4 itself can
+unambiguously restore; ULID-only Person detail routes with no Person
+slug; the full Owner/Administrator/Member/Contributor/Guest authorization
+table across Person, relationship, link, circle, duplicate and merge
+actions; explicit AuditEvent coverage for Person, relationship-proposal/
+approval/rejection/dispute, link, circle, duplicate and merge actions;
+and retention of the User-to-Person link through account revocation,
+membership removal and deceased-status change, with only an explicit,
+audited Owner/Administrator unlink or correction changing it, and full
+Phase 4 participation in ADR-0005's Family Space deletion lifecycle. This
+stage's entire scope was accepting the ADR, so the ADR-acceptance commit
+is this stage's completion commit and receives the `phase-4-s01` tag
+directly.
+
+### Documentation updates
+
+- Advanced `tasks.json` to `FPA-P04-S02` after FPA-P04-S01 completed.
+
+### Commit boundary
+
+```text
+Accept ADR-0006: People, accounts and relationships
+```
 
 ## FPA-P04-S02 — Implement person records
 
-Support living, deceased and account-less people with controlled editing.
+Support living, deceased and account-less People with an immutable ULID
+identity, mutable presentation data, the shared uncertain-date concept for
+birth/death information, and the Member-proposed / Owner-Administrator-
+confirmed distinction for identity details, per ADR-0006 §§1-4, §10 and
+§13.
 
 ## FPA-P04-S03 — Link accounts to people
 
-Prevent accidental or duplicate links and audit changes.
+Implement one-to-one User-to-Person linking per Family Space, Member and
+reachable-Contributor self-claim proposals, and Owner/Administrator
+approval, correction and removal, per ADR-0006 §§5-6 and §16.
 
 ## FPA-P04-S04 — Implement relationships and family circles
 
-Relationships are descriptive; circles are organisational; neither grants permission.
+Implement the canonical relationship edge with derived inverse wording,
+the Member-proposed / Owner-Administrator-confirmed relationship model
+with proposal- and approval-time validation, and People-only,
+presentation-only Family Circles, per ADR-0006 §§7-9.
 
 ## FPA-P04-S05 — Implement person merge and correction workflow
 
-Merges must be reversible or safely recoverable and preserve references.
+Implement Person merge via a redirect/tombstone record, atomic
+reconciliation of Phase 4-owned relationships, circles and links,
+structured merge provenance, and realistically bounded reversal, per
+ADR-0006 §12.
 
 ### Phase verification
 
