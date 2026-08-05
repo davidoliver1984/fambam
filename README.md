@@ -1,6 +1,6 @@
-# Family Photo Archive
+# famabam - a private photo family platform
 
-Family Photo Archive is a private, invite-only digital family home for sharing
+fambam is a private, invite-only digital family home for sharing
 photographs, recording their stories and preserving family history. It is
 family-centred rather than user-centred: family spaces provide the ownership,
 collaboration and security boundary for photos, people, relationships, events
