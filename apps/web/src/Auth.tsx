@@ -333,7 +333,7 @@ function AuthShell({
 }) {
   return (
     <main className="auth" aria-labelledby="page-title">
-      <p className="eyebrow">Family Photo Archive</p>
+      <p className="eyebrow">fambam</p>
       <h1 id="page-title">{title}</h1>
       <p>{introduction}</p>
       {children}

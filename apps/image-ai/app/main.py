@@ -19,7 +19,7 @@ request_counter = metrics.get_meter("fambam-image-ai").create_counter(
 )
 
 app = FastAPI(
-    title="Family Photo Archive Image Analysis",
+    title="fambam Image Analysis",
     version="0.1.0",
 )
 FastAPIInstrumentor.instrument_app(app)

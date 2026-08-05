@@ -1,6 +1,6 @@
-# Family Photo Archive — Implementation Guide
+# fambam — Implementation Guide
 
-> **Purpose:** This is the durable build guide for the Family Photo Archive.
+> **Purpose:** This is the durable build guide for the fambam.
 >
 > `PROJECT_ROADMAP.md` defines what is built and in what order.
 > This document defines how each stage should be implemented, verified and committed.
@@ -182,7 +182,7 @@ The data model and security model will drift if the project is treated as a gene
 ### Commit boundary
 
 ```text
-Define family photo archive product and delivery plan
+Define fambam product and delivery plan
 ```
 
 ---

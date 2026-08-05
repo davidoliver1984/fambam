@@ -24,7 +24,7 @@ export function InvitationAcceptancePage() {
 
   return (
     <main className="auth" aria-labelledby="page-title">
-      <p className="eyebrow">Family Photo Archive</p>
+      <p className="eyebrow">fambam</p>
       <h1 id="page-title">Your invitation</h1>
       <p role="status">{message}</p>
     </main>

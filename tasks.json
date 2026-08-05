@@ -1,7 +1,7 @@
 {
   "project": {
-    "id": "family-photo-archive",
-    "name": "Family Photo Archive",
+    "id": "fambam",
+    "name": "fambam",
     "description": "A private, family-centred photo and memory platform for international relatives who want to share and preserve photographs without relying on mainstream social media.",
     "version": "0.1.0",
     "status": "in_progress",

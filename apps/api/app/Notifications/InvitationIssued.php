@@ -21,9 +21,9 @@ class InvitationIssued extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Your Family Photo Archive invitation')
+            ->subject('Your fambam invitation')
             ->greeting('You have been invited')
-            ->line('A family member has invited you to create a private Family Photo Archive account.')
+            ->line('A family member has invited you to create a private fambam account.')
             ->action('Accept invitation', $this->acceptUrl)
             ->line('This invitation expires in '.config('invitations.lifetime_days').' days.')
             ->line('If you were not expecting this invitation, you can ignore this email.');

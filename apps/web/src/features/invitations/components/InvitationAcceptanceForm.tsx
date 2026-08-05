@@ -44,7 +44,7 @@ function ExistingAccountInvitationAcceptance({
 
   return (
     <main className="auth" aria-labelledby="page-title">
-      <p className="eyebrow">Family Photo Archive</p>
+      <p className="eyebrow">fambam</p>
       <h1 id="page-title">Join {claim.family_space_name}</h1>
       <p>
         Continue as <strong>{claim.email}</strong> with the {claim.role} role.
@@ -98,7 +98,7 @@ function NewAccountInvitationAcceptance({ claim }: { claim: AcceptanceClaim }) {
 
   return (
     <main className="auth" aria-labelledby="page-title">
-      <p className="eyebrow">Family Photo Archive</p>
+      <p className="eyebrow">fambam</p>
       <h1 id="page-title">Join your family archive</h1>
       <p>
         Family Space: <strong>{claim.family_space_name}</strong> ({claim.role})

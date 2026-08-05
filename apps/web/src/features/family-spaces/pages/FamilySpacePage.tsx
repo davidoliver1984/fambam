@@ -35,7 +35,7 @@ export function FamilySpacePage() {
 
   return (
     <main className="auth" aria-labelledby="family-space-title">
-      <p className="eyebrow">Family Photo Archive</p>
+      <p className="eyebrow">fambam</p>
       <h1 id="family-space-title">{familySpace.name}</h1>
       <p>Your role: {familySpace.role}</p>
       {canManageInvitations ? (

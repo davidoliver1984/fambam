@@ -34,7 +34,7 @@ export function TwoFactorChallengePage() {
 
   return (
     <main className="auth" aria-labelledby="page-title">
-      <p className="eyebrow">Family Photo Archive</p>
+      <p className="eyebrow">fambam</p>
       <h1 id="page-title">Authenticator check</h1>
       <p>
         Enter the code from your authenticator app, or use one recovery code.

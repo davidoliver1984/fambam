@@ -1,4 +1,4 @@
-# Family Photo Archive — Project Roadmap
+# fambam — Project Roadmap
 
 > **Purpose:** Define what will be built, in what order, and where architectural decisions are required.
 >

@@ -1,1 +1,1 @@
-"""Family Photo Archive image-analysis service."""
+"""fambam image-analysis service."""

@@ -15,7 +15,7 @@ import { FamilySpacePage } from "./features/family-spaces/pages/FamilySpacePage"
 function WelcomePage() {
   return (
     <main className="welcome" aria-labelledby="page-title">
-      <p className="eyebrow">Family Photo Archive</p>
+      <p className="eyebrow">fambam</p>
       <h1 id="page-title">A private home for family memories.</h1>
       <p>
         The web application foundation is ready. Private family sharing, people,

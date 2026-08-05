@@ -1,7 +1,7 @@
 [project]
 name = "fambam-image-ai"
 version = "0.1.0"
-description = "Stateless image-analysis service for Family Photo Archive"
+description = "Stateless image-analysis service for fambam"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

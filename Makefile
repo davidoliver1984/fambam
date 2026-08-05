@@ -3,7 +3,7 @@
 .PHONY: help up down restart status logs infrastructure-smoke observability-smoke foundation-check docs-check contracts-check compose-check format format-check lint typecheck test test-api test-api-postgres-rls test-web test-ai test-e2e security-check
 
 help: ## List supported repository commands
-	@awk 'BEGIN {FS = ":.*## "; printf "Family Photo Archive commands:\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*## "; printf "fambam commands:\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 up: ## Build and start the local development platform
 	@docker compose up --build --detach --wait

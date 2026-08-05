@@ -3,7 +3,7 @@
 ## Purpose and audience
 
 This guide is for human contributors and AI-assisted engineering sessions working
-within the Family Photo Archive's established architecture, engineering workflow
+within the fambam's established architecture, engineering workflow
 and documentation system. It explains how to make a bounded, reviewable change
 without silently changing the platform's design or duplicating its existing
 documentation.

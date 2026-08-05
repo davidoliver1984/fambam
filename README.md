@@ -1,4 +1,4 @@
-# famabam - a private photo family platform
+# fambam — a private family photo platform
 
 fambam is a private, invite-only digital family home for sharing
 photographs, recording their stories and preserving family history. It is
