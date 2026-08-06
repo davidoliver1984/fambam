@@ -6,6 +6,7 @@ use App\Http\Controllers\FamilySpaceController;
 use App\Http\Controllers\FamilySpaceMembershipController;
 use App\Http\Controllers\InvitationAcceptanceController;
 use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\PersonController;
 use Aws\Sqs\SqsClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -46,6 +47,14 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::post('/invitations/{invitation}/resend', [InvitationController::class, 'resend'])
             ->middleware('throttle:invitation-issuance');
         Route::post('/invitations/{invitation}/revoke', [InvitationController::class, 'revoke']);
+        Route::get('/people', [PersonController::class, 'index']);
+        Route::post('/people', [PersonController::class, 'store']);
+        Route::get('/people/{person}', [PersonController::class, 'show']);
+        Route::patch('/people/{person}', [PersonController::class, 'update']);
+        Route::get('/people/{person}/proposals', [PersonController::class, 'proposals']);
+        Route::post('/people/{person}/proposals', [PersonController::class, 'propose']);
+        Route::post('/people/{person}/proposals/{proposal}/approve', [PersonController::class, 'approveProposal']);
+        Route::post('/people/{person}/proposals/{proposal}/reject', [PersonController::class, 'rejectProposal']);
     });
 });
 

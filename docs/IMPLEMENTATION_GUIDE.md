@@ -1320,6 +1320,41 @@ birth/death information, and the Member-proposed / Owner-Administrator-
 confirmed distinction for identity details, per ADR-0006 §§1-4, §10 and
 §13.
 
+The concrete uncertain-date representation stores a nullable normalized date
+anchor beside an explicit `exact`, `month`, `year`, `decade`, `approximate` or
+`unknown` precision. API payloads expose the precision and the matching
+human-entered value; `unknown` has no value. `is_deceased` remains an
+independent fact, so a deceased Person may correctly have unknown death
+information.
+
+`people` and the narrowly-scoped `person_detail_proposals` table are ordinary
+ADR-0005 Class C tenant-owned tables with forced, fail-closed PostgreSQL RLS.
+Owner and Administrator writes are authoritative. Member-created People are
+provisional and later changes are stored as bounded proposals which an Owner
+or Administrator may discover, approve or reject; approval locks and
+re-validates the current Person before applying the proposed details. Person
+creation, authoritative identity/deceased changes and proposal transitions
+produce tenant-aware AuditEvents. Owner, Administrator and Member have
+whole-record directory access; Contributor and Guest do not.
+
+The React surface uses the immutable Person ULID beneath the Family Space slug,
+tenant-aware TanStack Query keys and typed feature-local API functions. It
+provides directory loading/empty/error states, record creation, direct
+authoritative editing, Member proposals and Owner/Administrator proposal
+review without calling the shared transport from pages or components.
+
+### Documentation updates
+
+- Recorded the normalized-date-plus-precision representation and bounded
+  proposal mechanics selected for S02.
+- Advanced `tasks.json` to `FPA-P04-S03` after S02 verification completed.
+
+### Commit boundary
+
+```text
+Implement Family Space Person records
+```
+
 ## FPA-P04-S03 — Link accounts to people
 
 Implement one-to-one User-to-Person linking per Family Space, Member and

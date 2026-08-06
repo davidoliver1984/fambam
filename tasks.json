@@ -7,9 +7,9 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P04",
-    "current_stage": "FPA-P04-S02",
+    "current_stage": "FPA-P04-S03",
     "created_at": "2026-07-31",
-    "updated_at": "2026-08-05"
+    "updated_at": "2026-08-06"
   },
   "conventions": {
     "phase_id_format": "P##",
@@ -297,16 +297,18 @@
         {
           "id": "FPA-P04-S02",
           "title": "Implement person records",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P04-S01"
           ],
-          "notes": []
+          "notes": [
+            "Family-Space-local ULID Person records, normalized uncertain dates, independent deceased state, bounded biography, provisional Member contributions, Owner/Administrator authoritative writes and proposal review, whole-record role visibility, tenant-aware audits, Class C forced RLS and a feature-oriented TanStack Query frontend were implemented and verified on 2026-08-06."
+          ]
         },
         {
           "id": "FPA-P04-S03",
           "title": "Link accounts to people",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P04-S02"
           ],
@@ -1383,6 +1385,14 @@
       "roadmap_stage": "FPA-P04-S01",
       "date": "2026-08-05",
       "description": "FPA-P04-S01 completed: ADR-0006 accepted (people, accounts and relationships -- Family-Space-local Person identity with no cross-tenant matching; immutable ULID Person identity with mutable names, a shared uncertain-date concept, and an independently-composed deceased state; a proposed-versus-authoritative distinction applied uniformly to Person details and relationships, with proposed relationships excluded from the authoritative graph until Owner/Administrator approval and approval re-validating against current state; one-to-one User-to-Person linking per Family Space with Member/Contributor self-claim proposals; one canonical relationship edge per concept with derived inverse wording; People-only, presentation-only Family Circles barred from ever affecting authorization; a Phase 4 visibility baseline giving Owner/Administrator/Member default Person access and none to Contributor/Guest; full Class C tenancy inheritance from ADR-0005; Person merge via redirect/tombstone with structured provenance and realistically bounded reversal; and ULID-only Person routes). Stage scope was solely ADR acceptance, so the ADR-acceptance commit is the stage-completion commit."
+    },
+    {
+      "git_tag": "phase-4-s02",
+      "type": "stage_completion",
+      "adr": "ADR-0006",
+      "roadmap_stage": "FPA-P04-S02",
+      "date": "2026-08-06",
+      "description": "FPA-P04-S02 completed: Family-Space-local ULID Person records, normalized uncertain dates, independent deceased state, bounded shared biography, provisional Member creation, Owner/Administrator authoritative writes and bounded detail-proposal review, whole-record role visibility, tenant-aware audit events, forced Class C RLS and a feature-oriented TanStack Query frontend were implemented, persistently migrated and verified."
     }
   ]
 }

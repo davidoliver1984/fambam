@@ -51,6 +51,20 @@
   padding: 0.8rem;
 }
 
+.auth select,
+.auth textarea {
+  border: 1px solid #b8a89b;
+  border-radius: 0.4rem;
+  font: inherit;
+  padding: 0.8rem;
+}
+
+.auth fieldset {
+  border: 1px solid #d8cbc2;
+  display: grid;
+  gap: 0.7rem;
+}
+
 .auth button {
   background: #7c3f2a;
   border: 0;
@@ -163,4 +177,56 @@
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+.people {
+  max-width: 46rem;
+  padding-bottom: 4rem;
+  padding-top: 4rem;
+}
+
+.people h2 {
+  color: #30261f;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
+}
+
+.people-list {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  padding: 0;
+}
+
+.people-list li {
+  align-items: center;
+  border-top: 1px solid #ede5df;
+  display: flex;
+  justify-content: space-between;
+  padding-top: 0.75rem;
+}
+
+.proposal-list {
+  list-style: none;
+  padding: 0;
+}
+
+.proposal-list li {
+  border-top: 1px solid #ede5df;
+  padding: 0.75rem 0;
+}
+
+.proposal-list dl div {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) 2fr;
+}
+
+.proposal-list dt {
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.proposal-actions {
+  display: flex;
+  gap: 0.5rem;
 }

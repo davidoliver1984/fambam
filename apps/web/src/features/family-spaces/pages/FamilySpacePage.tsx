@@ -11,6 +11,10 @@ export function FamilySpacePage() {
   const familySpace = familySpaceQuery.data;
   const canManageInvitations =
     familySpace?.role === "owner" || familySpace?.role === "administrator";
+  const canAccessPeople =
+    familySpace?.role === "owner" ||
+    familySpace?.role === "administrator" ||
+    familySpace?.role === "member";
   const notFound =
     familySpaceQuery.isError &&
     toAppError(familySpaceQuery.error).status === 404;
@@ -38,6 +42,13 @@ export function FamilySpacePage() {
       <p className="eyebrow">fambam</p>
       <h1 id="family-space-title">{familySpace.name}</h1>
       <p>Your role: {familySpace.role}</p>
+      {canAccessPeople && (
+        <p>
+          <Link to={`/families/${encodeURIComponent(familySpace.slug)}/people`}>
+            Open people directory
+          </Link>
+        </p>
+      )}
       {canManageInvitations ? (
         <InvitationManagement familySlug={familySpace.slug} />
       ) : (
