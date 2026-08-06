@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router";
 
 import { PersonForm } from "../components/PersonForm";
+import { FamilyCirclesPanel } from "../components/FamilyCirclesPanel";
 import { useCreatePersonMutation } from "../hooks/usePersonMutations";
 import { usePeopleQuery } from "../hooks/usePeopleQuery";
 
@@ -53,6 +54,7 @@ export function PeoplePage() {
           onSubmit={(input) => createPerson.mutateAsync(input)}
         />
       </section>
+      <FamilyCirclesPanel familySlug={familySlug} people={peopleQuery.data} />
       <Link to={`/families/${encodeURIComponent(familySlug)}`}>
         Back to Family Space
       </Link>

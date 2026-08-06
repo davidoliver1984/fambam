@@ -41,6 +41,8 @@ const person: Person = {
     can_resolve_proposals: false,
     can_propose_account_link: true,
     can_manage_account_link: false,
+    can_propose_relationships: true,
+    can_manage_relationships: false,
   },
 };
 
@@ -96,6 +98,8 @@ describe("PersonAccountLinkPanel", () => {
         can_update_authoritatively: true,
         can_resolve_proposals: true,
         can_manage_account_link: true,
+        can_propose_relationships: true,
+        can_manage_relationships: true,
       },
     };
     vi.mocked(getAccountLinkClaims).mockResolvedValue([

@@ -12,6 +12,8 @@ export type PersonPermissions = {
   can_resolve_proposals: boolean;
   can_propose_account_link: boolean;
   can_manage_account_link: boolean;
+  can_propose_relationships: boolean;
+  can_manage_relationships: boolean;
 };
 
 export type PersonAccountLink = {
@@ -78,3 +80,58 @@ export type PersonProposal = {
 };
 
 export type PersonProposalResolution = "approve" | "reject";
+
+export type RelationshipType =
+  | "parent_of"
+  | "partner_of"
+  | "sibling_of"
+  | "guardian_of"
+  | "step_parent_of"
+  | "grandparent_of"
+  | "close_family_friend_of";
+
+export type PersonRelationship = {
+  id: string;
+  subject_person_id: string;
+  related_person_id: string;
+  type: RelationshipType;
+  status: "confirmed" | "disputed";
+  label: string;
+  other_person: { id: string; preferred_name: string };
+  context: string | null;
+};
+
+export type RelationshipInput = {
+  related_person_id: string;
+  type: RelationshipType;
+  context?: string | null;
+};
+
+export type RelationshipProposal = {
+  id: string;
+  action: "create" | "replace" | "remove" | "dispute";
+  relationship_id: string | null;
+  subject_person_id: string;
+  related_person_id: string;
+  type: RelationshipType | null;
+  context: string | null;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+};
+
+export type RelationshipProposalInput = {
+  action: RelationshipProposal["action"];
+  relationship_id?: string;
+  related_person_id?: string;
+  type?: RelationshipType;
+  context?: string | null;
+};
+
+export type FamilyCircle = {
+  id: string;
+  name: string;
+  description: string | null;
+  people: Array<{ id: string; preferred_name: string }>;
+};
+
+export type FamilyCircleInput = { name: string; description?: string | null };

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\FamilySpaceRole;
 use App\Enums\FamilySpaceStatus;
 use App\Enums\MembershipState;
+use App\Models\FamilyCircle;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\Person;
@@ -120,6 +121,9 @@ class FamilySpaceDeletionManager
             }
 
             $familySpace->update(['status' => FamilySpaceStatus::Deleted]);
+            FamilyCircle::query()
+                ->where('family_space_id', $familySpace->id)
+                ->delete();
             Person::withTrashed()
                 ->where('family_space_id', $familySpace->id)
                 ->forceDelete();

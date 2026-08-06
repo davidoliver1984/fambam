@@ -52,6 +52,16 @@ class PersonPolicy
         return $this->update($user, $person);
     }
 
+    public function proposeRelationship(User $user, Person $person): bool
+    {
+        return $this->view($user, $person);
+    }
+
+    public function manageRelationship(User $user, Person $person): bool
+    {
+        return $this->update($user, $person);
+    }
+
     private function hasDirectoryAccess(User $user): bool
     {
         if (! $this->tenantContext->isEstablished()
