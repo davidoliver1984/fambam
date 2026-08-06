@@ -163,6 +163,8 @@ class PersonController extends Controller
                 'can_resolve_proposals' => Gate::allows('resolveProposal', $person),
                 'can_propose_account_link' => Gate::allows('proposeAccountLink', $person),
                 'can_manage_account_link' => Gate::allows('manageAccountLink', $person),
+                'can_propose_relationships' => Gate::allows('proposeRelationship', $person),
+                'can_manage_relationships' => Gate::allows('manageRelationship', $person),
             ],
         ];
     }

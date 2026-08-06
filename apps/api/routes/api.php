@@ -2,12 +2,14 @@
 
 use App\Http\Controllers\AccountSecurityController;
 use App\Http\Controllers\CurrentUserController;
+use App\Http\Controllers\FamilyCircleController;
 use App\Http\Controllers\FamilySpaceController;
 use App\Http\Controllers\FamilySpaceMembershipController;
 use App\Http\Controllers\InvitationAcceptanceController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\PersonAccountLinkController;
 use App\Http\Controllers\PersonController;
+use App\Http\Controllers\RelationshipController;
 use Aws\Sqs\SqsClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -62,6 +64,21 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::post('/people/{person}/account-link-claims/{claim}/reject', [PersonAccountLinkController::class, 'rejectClaim']);
         Route::put('/people/{person}/account-link', [PersonAccountLinkController::class, 'assign']);
         Route::delete('/people/{person}/account-link', [PersonAccountLinkController::class, 'unlink']);
+        Route::get('/people/{person}/relationships', [RelationshipController::class, 'index']);
+        Route::post('/people/{person}/relationships', [RelationshipController::class, 'store']);
+        Route::get('/people/{person}/relationship-proposals', [RelationshipController::class, 'proposals']);
+        Route::post('/people/{person}/relationship-proposals', [RelationshipController::class, 'propose']);
+        Route::post('/people/{person}/relationship-proposals/{proposal}/approve', [RelationshipController::class, 'approve']);
+        Route::post('/people/{person}/relationship-proposals/{proposal}/reject', [RelationshipController::class, 'reject']);
+        Route::patch('/relationships/{relationship}', [RelationshipController::class, 'update']);
+        Route::delete('/relationships/{relationship}', [RelationshipController::class, 'destroy']);
+        Route::post('/relationships/{relationship}/dispute', [RelationshipController::class, 'dispute']);
+        Route::get('/circles', [FamilyCircleController::class, 'index']);
+        Route::post('/circles', [FamilyCircleController::class, 'store']);
+        Route::patch('/circles/{circle}', [FamilyCircleController::class, 'update']);
+        Route::delete('/circles/{circle}', [FamilyCircleController::class, 'destroy']);
+        Route::post('/circles/{circle}/people', [FamilyCircleController::class, 'addPerson']);
+        Route::delete('/circles/{circle}/people/{person}', [FamilyCircleController::class, 'removePerson']);
     });
 });
 

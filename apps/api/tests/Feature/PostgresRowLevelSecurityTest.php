@@ -35,7 +35,8 @@ class PostgresRowLevelSecurityTest extends TestCase
 
         $this->admin = DB::connection('pgsql_admin');
         $this->admin->unprepared(<<<'SQL'
-TRUNCATE TABLE person_account_claims, person_account_links, person_detail_proposals, people,
+TRUNCATE TABLE family_circle_people, family_circles, relationship_proposals, person_relationships,
+    person_account_claims, person_account_links, person_detail_proposals, people,
     invitation_claims, invitations, audit_events, family_space_memberships,
     family_spaces, sessions, password_reset_tokens, users RESTART IDENTITY CASCADE;
 DROP TABLE IF EXISTS rls_test_records;
@@ -85,12 +86,14 @@ SELECT relname, relrowsecurity, relforcerowsecurity
 FROM pg_class
 WHERE relname IN (
     'audit_events', 'family_spaces', 'family_space_memberships',
-    'people', 'person_detail_proposals', 'person_account_links', 'person_account_claims', 'rls_test_records'
+    'people', 'person_detail_proposals', 'person_account_links', 'person_account_claims',
+    'person_relationships', 'relationship_proposals', 'family_circles', 'family_circle_people',
+    'rls_test_records'
 )
 ORDER BY relname
 SQL);
 
-        $this->assertCount(8, $tables);
+        $this->assertCount(12, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
@@ -336,6 +339,99 @@ SQL);
                 'proposed_by' => $ownerId,
                 'created_at' => now(),
                 'updated_at' => now(),
+            ]);
+        });
+    }
+
+    public function test_relationship_and_circle_tables_use_the_standard_class_c_tenant_boundary(): void
+    {
+        [$ownerId, $firstFamily] = $this->createOwnedFamily('first-relationship-rls');
+        [, $secondFamily] = $this->createOwnedFamily('second-relationship-rls');
+        $firstPerson = $this->createPerson($firstFamily, 'First Person');
+        $relatedPerson = $this->createPerson($firstFamily, 'Related Person');
+        $secondPerson = $this->createPerson($secondFamily, 'Second Person');
+        $now = now();
+
+        foreach (['person_relationships', 'relationship_proposals', 'family_circles', 'family_circle_people'] as $table) {
+            $this->assertSame(0, DB::table($table)->count());
+        }
+
+        DB::beginTransaction();
+        app(DatabaseTenantContext::class)->establishUser($ownerId);
+        app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+        $relationshipId = (string) Str::ulid();
+        $circleId = (string) Str::ulid();
+        DB::table('person_relationships')->insert([
+            'id' => $relationshipId,
+            'family_space_id' => $firstFamily,
+            'subject_person_id' => $firstPerson,
+            'related_person_id' => $relatedPerson,
+            'type' => 'parent_of',
+            'status' => 'confirmed',
+            'created_by' => $ownerId,
+            'updated_by' => $ownerId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        DB::table('relationship_proposals')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $firstFamily,
+            'relationship_id' => $relationshipId,
+            'subject_person_id' => $firstPerson,
+            'related_person_id' => $relatedPerson,
+            'action' => 'dispute',
+            'type' => 'parent_of',
+            'status' => 'pending',
+            'proposed_by' => $ownerId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        DB::table('family_circles')->insert([
+            'id' => $circleId,
+            'family_space_id' => $firstFamily,
+            'name' => 'Visible Circle',
+            'created_by' => $ownerId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        DB::table('family_circle_people')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $firstFamily,
+            'family_circle_id' => $circleId,
+            'person_id' => $firstPerson,
+            'added_by' => $ownerId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        foreach (['person_relationships', 'relationship_proposals', 'family_circles', 'family_circle_people'] as $table) {
+            $this->assertSame(1, DB::table($table)->count());
+        }
+        DB::rollBack();
+
+        $this->assertRlsRejects(function () use ($firstFamily, $secondFamily, $secondPerson, $ownerId, $now): void {
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('person_relationships')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $secondFamily,
+                'subject_person_id' => $secondPerson,
+                'related_person_id' => $secondPerson,
+                'type' => 'sibling_of',
+                'status' => 'confirmed',
+                'created_by' => $ownerId,
+                'updated_by' => $ownerId,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        });
+        $this->assertRlsRejects(function () use ($firstFamily, $secondFamily, $ownerId, $now): void {
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('family_circles')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $secondFamily,
+                'name' => 'Cross-tenant Circle',
+                'created_by' => $ownerId,
+                'created_at' => $now,
+                'updated_at' => $now,
             ]);
         });
     }

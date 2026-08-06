@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\AuditEvent;
+use App\Models\FamilyCircle;
+use App\Models\FamilyCirclePerson;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\Invitation;
@@ -10,6 +12,8 @@ use App\Models\Person;
 use App\Models\PersonAccountClaim;
 use App\Models\PersonAccountLink;
 use App\Models\PersonDetailProposal;
+use App\Models\PersonRelationship;
+use App\Models\RelationshipProposal;
 use App\Models\User;
 use App\Tenancy\TenantOperationContext;
 use Illuminate\Database\Eloquent\Model;
@@ -69,7 +73,11 @@ class AuditRecorder
             || $subject instanceof Person
             || $subject instanceof PersonAccountClaim
             || $subject instanceof PersonAccountLink
-            || $subject instanceof PersonDetailProposal) {
+            || $subject instanceof PersonDetailProposal
+            || $subject instanceof PersonRelationship
+            || $subject instanceof RelationshipProposal
+            || $subject instanceof FamilyCircle
+            || $subject instanceof FamilyCirclePerson) {
             return $subject->family_space_id;
         }
 

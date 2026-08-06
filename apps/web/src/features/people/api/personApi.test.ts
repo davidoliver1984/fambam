@@ -33,6 +33,8 @@ const person: Person = {
     can_resolve_proposals: true,
     can_propose_account_link: true,
     can_manage_account_link: true,
+    can_propose_relationships: true,
+    can_manage_relationships: true,
   },
 };
 const input: PersonDetailsInput = {

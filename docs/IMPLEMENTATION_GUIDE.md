@@ -1406,6 +1406,45 @@ the Member-proposed / Owner-Administrator-confirmed relationship model
 with proposal- and approval-time validation, and People-only,
 presentation-only Family Circles, per ADR-0006 §§7-9.
 
+Relationships are stored as one tenant-owned canonical edge. Directed types
+retain their subject/related direction and derive inverse labels at read time;
+symmetric types normalize the two Person ULIDs before persistence and never
+create a mirrored row. The fixed additive vocabulary is centralized in one
+enum. Direct writes lock both People in deterministic order and reject
+self-relationships, duplicates, direct inverse parent cycles and defined
+same-pair contradictions.
+
+Owner and Administrator may create, replace, dispute and remove authoritative
+edges. Member uses a separate pending proposal record for create, replace,
+dispute and remove actions. Proposed records are excluded from authoritative
+relationship reads, and approval locks and revalidates against current People
+and relationship state before applying the action. Proposal, resolution,
+dispute and direct-authoritative actions have distinct AuditEvents.
+
+Family Circles are flat, Family-Space-owned records with a People-only join
+table. Owner, Administrator and Member may manage them. Circle membership is
+used only for presentation; no authorization policy, tenant resolution or RLS
+decision consults Circle data. Relationship, proposal, Circle and Circle-Person
+tables use ADR-0005's forced, fail-closed Class C RLS pattern.
+
+The frontend keeps the new endpoints in typed People-feature API modules and
+uses tenant-aware TanStack Query hooks for all server state. Person pages show
+perspective-correct relationship wording and role-appropriate authoritative or
+proposal controls; the People page exposes the minimal Circle presentation
+workflow.
+
+### Documentation updates
+
+- Recorded the canonical-edge, review, validation and flat-Circle
+  implementation boundaries.
+- Advanced `tasks.json` to `FPA-P04-S05` after S04 verification completed.
+
+### Commit boundary
+
+```text
+Implement relationships and Family Circles
+```
+
 ## FPA-P04-S05 — Implement person merge and correction workflow
 
 Implement Person merge via a redirect/tombstone record, atomic

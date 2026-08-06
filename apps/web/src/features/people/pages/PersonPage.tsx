@@ -5,15 +5,18 @@ import { toAppError } from "@/api/errors";
 import { PersonForm } from "../components/PersonForm";
 import { PersonAccountLinkPanel } from "../components/PersonAccountLinkPanel";
 import { PersonProposals } from "../components/PersonProposals";
+import { PersonRelationshipsPanel } from "../components/PersonRelationshipsPanel";
 import {
   useProposePersonDetailsMutation,
   useUpdatePersonMutation,
 } from "../hooks/usePersonMutations";
 import { usePersonQuery } from "../hooks/usePersonQuery";
+import { usePeopleQuery } from "../hooks/usePeopleQuery";
 
 export function PersonPage() {
   const { familySlug = "", personId = "" } = useParams();
   const personQuery = usePersonQuery(familySlug, personId);
+  const peopleQuery = usePeopleQuery(familySlug);
   const updatePerson = useUpdatePersonMutation(familySlug, personId);
   const proposeDetails = useProposePersonDetailsMutation(familySlug, personId);
   const notFound =
@@ -61,6 +64,20 @@ export function PersonPage() {
       {person.biography && <p>{person.biography}</p>}
 
       <PersonAccountLinkPanel familySlug={familySlug} person={person} />
+
+      {peopleQuery.isPending && (
+        <p role="status">Loading the People directory…</p>
+      )}
+      {peopleQuery.isError && (
+        <p role="alert">
+          The People directory could not be loaded for relationship editing.
+        </p>
+      )}
+      <PersonRelationshipsPanel
+        familySlug={familySlug}
+        person={person}
+        people={peopleQuery.data ?? []}
+      />
 
       {person.permissions.can_resolve_proposals && (
         <section aria-labelledby="proposals-title">

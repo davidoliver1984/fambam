@@ -6,12 +6,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router";
 
 import { createPerson, getPeople } from "../api/personApi";
+import { getFamilyCircles } from "../api/circleApi";
 import type { Person } from "../types/person";
 import { PeoplePage } from "./PeoplePage";
 
 vi.mock("../api/personApi", () => ({
   createPerson: vi.fn(),
   getPeople: vi.fn(),
+}));
+
+vi.mock("../api/circleApi", () => ({
+  addPersonToCircle: vi.fn(),
+  createFamilyCircle: vi.fn(),
+  deleteFamilyCircle: vi.fn(),
+  getFamilyCircles: vi.fn(),
+  removePersonFromCircle: vi.fn(),
+  updateFamilyCircle: vi.fn(),
 }));
 
 const person: Person = {
@@ -32,6 +42,8 @@ const person: Person = {
     can_resolve_proposals: false,
     can_propose_account_link: true,
     can_manage_account_link: false,
+    can_propose_relationships: true,
+    can_manage_relationships: false,
   },
 };
 
@@ -53,12 +65,14 @@ function renderPage() {
 beforeEach(() => {
   vi.mocked(getPeople).mockResolvedValue([person]);
   vi.mocked(createPerson).mockResolvedValue(person);
+  vi.mocked(getFamilyCircles).mockResolvedValue([]);
 });
 
 afterEach(() => {
   cleanup();
   vi.mocked(getPeople).mockReset();
   vi.mocked(createPerson).mockReset();
+  vi.mocked(getFamilyCircles).mockReset();
 });
 
 describe("PeoplePage", () => {

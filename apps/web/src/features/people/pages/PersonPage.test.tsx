@@ -6,19 +6,36 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router";
 
 import {
+  getPeople,
   getPerson,
   getPersonProposals,
   resolvePersonProposal,
 } from "../api/personApi";
+import {
+  getRelationshipProposals,
+  getRelationships,
+} from "../api/relationshipApi";
 import type { Person } from "../types/person";
 import { PersonPage } from "./PersonPage";
 
 vi.mock("../api/personApi", () => ({
+  getPeople: vi.fn(),
   getPerson: vi.fn(),
   getPersonProposals: vi.fn(),
   proposePersonDetails: vi.fn(),
   resolvePersonProposal: vi.fn(),
   updatePerson: vi.fn(),
+}));
+
+vi.mock("../api/relationshipApi", () => ({
+  createRelationship: vi.fn(),
+  disputeRelationship: vi.fn(),
+  getRelationshipProposals: vi.fn(),
+  getRelationships: vi.fn(),
+  proposeRelationship: vi.fn(),
+  removeRelationship: vi.fn(),
+  replaceRelationship: vi.fn(),
+  resolveRelationshipProposal: vi.fn(),
 }));
 
 vi.mock("../components/PersonAccountLinkPanel", () => ({
@@ -43,6 +60,8 @@ const person: Person = {
     can_resolve_proposals: false,
     can_propose_account_link: true,
     can_manage_account_link: false,
+    can_propose_relationships: true,
+    can_manage_relationships: false,
   },
 };
 
@@ -67,12 +86,18 @@ function renderPage() {
 }
 
 beforeEach(() => {
+  vi.mocked(getPeople).mockResolvedValue([person]);
+  vi.mocked(getRelationships).mockResolvedValue([]);
+  vi.mocked(getRelationshipProposals).mockResolvedValue([]);
   vi.mocked(getPersonProposals).mockResolvedValue([]);
 });
 
 afterEach(() => {
   cleanup();
   vi.mocked(getPerson).mockReset();
+  vi.mocked(getPeople).mockReset();
+  vi.mocked(getRelationships).mockReset();
+  vi.mocked(getRelationshipProposals).mockReset();
   vi.mocked(getPersonProposals).mockReset();
   vi.mocked(resolvePersonProposal).mockReset();
 });
@@ -104,6 +129,8 @@ describe("PersonPage", () => {
         can_resolve_proposals: true,
         can_propose_account_link: true,
         can_manage_account_link: true,
+        can_propose_relationships: true,
+        can_manage_relationships: true,
       },
     });
     renderPage();
@@ -125,6 +152,8 @@ describe("PersonPage", () => {
         can_resolve_proposals: true,
         can_propose_account_link: true,
         can_manage_account_link: true,
+        can_propose_relationships: true,
+        can_manage_relationships: true,
       },
     });
     vi.mocked(getPersonProposals)
