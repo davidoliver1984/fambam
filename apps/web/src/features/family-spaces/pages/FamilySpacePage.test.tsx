@@ -156,4 +156,28 @@ describe("FamilySpacePage", () => {
       await screen.findByRole("heading", { name: "Family Space not found" }),
     ).toBeInTheDocument();
   });
+
+  it("only links roles with Phase 4 directory access to People", async () => {
+    server.use(
+      http.get(`${apiBaseUrl}/api/families/oliver-family`, () =>
+        HttpResponse.json({
+          data: {
+            id: "01K1ZZZZZZZZZZZZZZZZZZZZZZ",
+            slug: "oliver-family",
+            name: "Oliver Family",
+            status: "active",
+            role: "contributor",
+          },
+        }),
+      ),
+    );
+
+    renderPage("/families/oliver-family");
+    expect(
+      await screen.findByRole("heading", { name: "Oliver Family" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Open people directory" }),
+    ).not.toBeInTheDocument();
+  });
 });

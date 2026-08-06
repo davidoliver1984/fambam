@@ -35,7 +35,7 @@ class PostgresRowLevelSecurityTest extends TestCase
 
         $this->admin = DB::connection('pgsql_admin');
         $this->admin->unprepared(<<<'SQL'
-TRUNCATE TABLE invitation_claims, invitations, audit_events, family_space_memberships,
+TRUNCATE TABLE person_detail_proposals, people, invitation_claims, invitations, audit_events, family_space_memberships,
     family_spaces, sessions, password_reset_tokens, users RESTART IDENTITY CASCADE;
 DROP TABLE IF EXISTS rls_test_records;
 CREATE TABLE rls_test_records (
@@ -82,11 +82,14 @@ SQL);
         $tables = DB::select(<<<'SQL'
 SELECT relname, relrowsecurity, relforcerowsecurity
 FROM pg_class
-WHERE relname IN ('audit_events', 'family_spaces', 'family_space_memberships', 'rls_test_records')
+WHERE relname IN (
+    'audit_events', 'family_spaces', 'family_space_memberships',
+    'people', 'person_detail_proposals', 'rls_test_records'
+)
 ORDER BY relname
 SQL);
 
-        $this->assertCount(4, $tables);
+        $this->assertCount(6, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
@@ -198,6 +201,93 @@ SQL);
             DB::table('rls_test_records')
                 ->where('family_space_id', $firstFamily)
                 ->update(['family_space_id' => $secondFamily]);
+        });
+    }
+
+    public function test_people_and_detail_proposals_use_the_standard_class_c_tenant_boundary(): void
+    {
+        [$ownerId, $firstFamily] = $this->createOwnedFamily('first-people-rls');
+        [, $secondFamily] = $this->createOwnedFamily('second-people-rls');
+        $firstPerson = (string) Str::ulid();
+        $secondPerson = (string) Str::ulid();
+        $now = now();
+        $this->admin->table('people')->insert([
+            [
+                'id' => $firstPerson,
+                'family_space_id' => $firstFamily,
+                'preferred_name' => 'First Person',
+                'identity_status' => 'confirmed',
+                'birth_date_precision' => 'unknown',
+                'is_deceased' => false,
+                'death_date_precision' => 'unknown',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'id' => $secondPerson,
+                'family_space_id' => $secondFamily,
+                'preferred_name' => 'Second Person',
+                'identity_status' => 'confirmed',
+                'birth_date_precision' => 'unknown',
+                'is_deceased' => false,
+                'death_date_precision' => 'unknown',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+        ]);
+
+        $this->assertSame([], DB::table('people')->pluck('preferred_name')->all());
+
+        DB::beginTransaction();
+        $context = app(DatabaseTenantContext::class);
+        $context->establishUser($ownerId);
+        $context->establishFamilySpace($firstFamily);
+        $this->assertSame(['First Person'], DB::table('people')->pluck('preferred_name')->all());
+        DB::table('person_detail_proposals')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $firstFamily,
+            'person_id' => $firstPerson,
+            'changes' => '{}',
+            'status' => 'pending',
+            'proposed_by' => $ownerId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        $this->assertSame(1, DB::table('person_detail_proposals')->count());
+        DB::rollBack();
+
+        $this->assertRlsRejects(function () use ($firstFamily, $secondFamily): void {
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('people')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $secondFamily,
+                'preferred_name' => 'Cross-tenant Person',
+                'identity_status' => 'confirmed',
+                'birth_date_precision' => 'unknown',
+                'is_deceased' => false,
+                'death_date_precision' => 'unknown',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        $this->assertRlsRejects(function () use ($firstFamily, $secondFamily, $firstPerson): void {
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('people')->where('id', $firstPerson)->update(['family_space_id' => $secondFamily]);
+        });
+
+        $this->assertRlsRejects(function () use ($firstFamily, $secondFamily, $secondPerson, $ownerId): void {
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('person_detail_proposals')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $secondFamily,
+                'person_id' => $secondPerson,
+                'changes' => '{}',
+                'status' => 'pending',
+                'proposed_by' => $ownerId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         });
     }
 

@@ -6,6 +6,8 @@ use App\Models\AuditEvent;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\Invitation;
+use App\Models\Person;
+use App\Models\PersonDetailProposal;
 use App\Models\User;
 use App\Tenancy\TenantOperationContext;
 use Illuminate\Database\Eloquent\Model;
@@ -60,7 +62,10 @@ class AuditRecorder
             return $subject->id;
         }
 
-        if ($subject instanceof FamilySpaceMembership || $subject instanceof Invitation) {
+        if ($subject instanceof FamilySpaceMembership
+            || $subject instanceof Invitation
+            || $subject instanceof Person
+            || $subject instanceof PersonDetailProposal) {
             return $subject->family_space_id;
         }
 

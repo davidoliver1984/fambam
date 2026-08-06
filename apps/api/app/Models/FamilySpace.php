@@ -47,6 +47,12 @@ class FamilySpace extends Model
         return $this->hasMany(Invitation::class);
     }
 
+    /** @return HasMany<Person, $this> */
+    public function persons(): HasMany
+    {
+        return $this->hasMany(Person::class);
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {

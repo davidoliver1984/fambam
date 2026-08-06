@@ -7,6 +7,7 @@ use App\Enums\FamilySpaceStatus;
 use App\Enums\MembershipState;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
+use App\Models\Person;
 use App\Models\User;
 use App\Tenancy\DatabaseTenantContext;
 use App\Tenancy\TenantOperationContext;
@@ -119,6 +120,9 @@ class FamilySpaceDeletionManager
             }
 
             $familySpace->update(['status' => FamilySpaceStatus::Deleted]);
+            Person::withTrashed()
+                ->where('family_space_id', $familySpace->id)
+                ->forceDelete();
             FamilySpaceMembership::query()
                 ->where('family_space_id', $familySpace->id)
                 ->where('state', MembershipState::Active->value)

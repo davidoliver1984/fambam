@@ -11,6 +11,8 @@ import { InvitationAcceptancePage } from "./features/invitations/pages/Invitatio
 import { TwoFactorChallengePage } from "./features/auth/pages/TwoFactorChallengePage";
 import { RequireAuth } from "./features/auth/components/RequireAuth";
 import { FamilySpacePage } from "./features/family-spaces/pages/FamilySpacePage";
+import { PeoplePage } from "./features/people/pages/PeoplePage";
+import { PersonPage } from "./features/people/pages/PersonPage";
 
 function WelcomePage() {
   return (
@@ -51,6 +53,11 @@ export function App() {
       <Route element={<RequireAuth />}>
         <Route path="/account" element={<AccountPage />} />
         <Route path="/families/:familySlug" element={<FamilySpacePage />} />
+        <Route path="/families/:familySlug/people" element={<PeoplePage />} />
+        <Route
+          path="/families/:familySlug/people/:personId"
+          element={<PersonPage />}
+        />
       </Route>
       <Route path="*" element={<WelcomePage />} />
     </Routes>
