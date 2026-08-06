@@ -12,7 +12,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class PersonQuery
 {
-    public function __construct(private readonly TenantContext $tenantContext) {}
+    public function __construct(
+        private readonly TenantContext $tenantContext,
+        private readonly PersonMergeQuery $merges,
+    ) {}
 
     /** @return Builder<Person> */
     public function forCurrentFamilySpace(): Builder
@@ -33,8 +36,22 @@ class PersonQuery
 
     public function findForCurrentFamilySpace(string $personId): Person
     {
-        return $this->forCurrentFamilySpace()->find($personId)
+        $person = Person::withTrashed()
+            ->with('accountLink.user:id,name')
+            ->where('family_space_id', $this->tenantContext->familySpace()->id)
+            ->find($personId)
             ?? throw new NotFoundHttpException;
+        if ($person->deleted_at === null) {
+            return $person;
+        }
+
+        $merge = $this->merges->redirectFor($person->id)
+            ?? throw new NotFoundHttpException;
+        $survivor = $this->forCurrentFamilySpace()->find($merge->survivor_person_id)
+            ?? throw new NotFoundHttpException;
+        $survivor->setAttribute('redirected_from_person_id', $person->id);
+
+        return $survivor;
     }
 
     public function findProposal(Person $person, string $proposalId): PersonDetailProposal

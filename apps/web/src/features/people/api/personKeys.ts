@@ -18,6 +18,10 @@ export const personKeys = {
     [...personKeys.detail(familySlug, personId), "relationships"] as const,
   relationshipProposals: (familySlug: string, personId: string) =>
     [...personKeys.relationships(familySlug, personId), "proposals"] as const,
+  merges: (familySlug: string, personId: string) =>
+    [...personKeys.detail(familySlug, personId), "merges"] as const,
+  mergeProposals: (familySlug: string, personId: string) =>
+    [...personKeys.merges(familySlug, personId), "proposals"] as const,
   circles: (familySlug: string) =>
     [...personKeys.all, "circles", familySlug] as const,
 };

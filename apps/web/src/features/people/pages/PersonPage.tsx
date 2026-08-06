@@ -4,6 +4,7 @@ import { toAppError } from "@/api/errors";
 
 import { PersonForm } from "../components/PersonForm";
 import { PersonAccountLinkPanel } from "../components/PersonAccountLinkPanel";
+import { PersonMergePanel } from "../components/PersonMergePanel";
 import { PersonProposals } from "../components/PersonProposals";
 import { PersonRelationshipsPanel } from "../components/PersonRelationshipsPanel";
 import {
@@ -62,6 +63,12 @@ export function PersonPage() {
           : "Living or not marked as deceased"}
       </p>
       {person.biography && <p>{person.biography}</p>}
+      {person.redirected_from_person_id && (
+        <p role="status">
+          This is the surviving Person record. You were redirected from a merged
+          duplicate.
+        </p>
+      )}
 
       <PersonAccountLinkPanel familySlug={familySlug} person={person} />
 
@@ -74,6 +81,12 @@ export function PersonPage() {
         </p>
       )}
       <PersonRelationshipsPanel
+        familySlug={familySlug}
+        person={person}
+        people={peopleQuery.data ?? []}
+      />
+
+      <PersonMergePanel
         familySlug={familySlug}
         person={person}
         people={peopleQuery.data ?? []}

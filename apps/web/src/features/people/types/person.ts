@@ -14,6 +14,8 @@ export type PersonPermissions = {
   can_manage_account_link: boolean;
   can_propose_relationships: boolean;
   can_manage_relationships: boolean;
+  can_propose_merge: boolean;
+  can_manage_merge: boolean;
 };
 
 export type PersonAccountLink = {
@@ -54,6 +56,7 @@ export type Person = {
   death_date: UncertainDate;
   biography: string | null;
   account_link: PersonAccountLink | null;
+  redirected_from_person_id: string | null;
   created_at: string;
   updated_at: string;
   permissions: PersonPermissions;
@@ -135,3 +138,38 @@ export type FamilyCircle = {
 };
 
 export type FamilyCircleInput = { name: string; description?: string | null };
+
+export type PersonMergeStatus =
+  "active" | "reversed" | "manual_correction_required";
+
+export type PersonMerge = {
+  id: string;
+  survivor: { id: string; preferred_name: string | null };
+  absorbed: { id: string; preferred_name: string | null };
+  status: PersonMergeStatus;
+  merged_at: string;
+  reversed_at: string | null;
+};
+
+export type PersonMergeProposal = {
+  id: string;
+  survivor: { id: string; preferred_name: string | null };
+  absorbed: { id: string; preferred_name: string | null };
+  context: string | null;
+  status: "pending" | "approved" | "rejected";
+  person_merge_id: string | null;
+  created_at: string;
+};
+
+export type AccountLinkResolution =
+  "keep_survivor" | "keep_absorbed" | "remove_both";
+
+export type PersonMergeInput = {
+  survivor_person_id: string;
+  account_link_resolution?: AccountLinkResolution;
+};
+
+export type PersonMergeProposalInput = {
+  survivor_person_id: string;
+  context?: string | null;
+};
