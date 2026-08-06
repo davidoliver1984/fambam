@@ -8,6 +8,7 @@ use App\Http\Requests\StorePersonRequest;
 use App\Http\Requests\UpdatePersonRequest;
 use App\Models\FamilySpace;
 use App\Models\Person;
+use App\Models\PersonAccountLink;
 use App\Models\PersonDetailProposal;
 use App\Models\User;
 use App\People\UncertainDate;
@@ -133,6 +134,11 @@ class PersonController extends Controller
     /** @return array<string, mixed> */
     private function payload(Person $person): array
     {
+        /** @var User $viewer */
+        $viewer = request()->user();
+        $person->loadMissing('accountLink.user:id,name');
+        $accountLink = $person->accountLink;
+
         return [
             'id' => $person->id,
             'preferred_name' => $person->preferred_name,
@@ -148,12 +154,28 @@ class PersonController extends Controller
                 $person->death_date?->format('Y-m-d'),
             )->toPayload(),
             'biography' => $person->biography,
+            'account_link' => $accountLink === null ? null : $this->accountLinkPayload($accountLink, $viewer),
             'created_at' => $person->created_at?->toAtomString(),
             'updated_at' => $person->updated_at?->toAtomString(),
             'permissions' => [
                 'can_update_authoritatively' => Gate::allows('update', $person),
                 'can_propose_changes' => Gate::allows('propose', $person),
                 'can_resolve_proposals' => Gate::allows('resolveProposal', $person),
+                'can_propose_account_link' => Gate::allows('proposeAccountLink', $person),
+                'can_manage_account_link' => Gate::allows('manageAccountLink', $person),
+            ],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function accountLinkPayload(PersonAccountLink $link, User $viewer): array
+    {
+        return [
+            'id' => $link->id,
+            'account' => [
+                'id' => $link->user_id,
+                'name' => $link->user->name,
+                'is_current_user' => $link->user_id === $viewer->id,
             ],
         ];
     }

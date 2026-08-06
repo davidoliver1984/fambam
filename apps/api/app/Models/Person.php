@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -70,6 +71,18 @@ class Person extends Model
     public function detailProposals(): HasMany
     {
         return $this->hasMany(PersonDetailProposal::class);
+    }
+
+    /** @return HasMany<PersonAccountClaim, $this> */
+    public function accountClaims(): HasMany
+    {
+        return $this->hasMany(PersonAccountClaim::class);
+    }
+
+    /** @return HasOne<PersonAccountLink, $this> */
+    public function accountLink(): HasOne
+    {
+        return $this->hasOne(PersonAccountLink::class);
     }
 
     /** @return array<string, string> */

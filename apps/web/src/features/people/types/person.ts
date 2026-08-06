@@ -10,6 +10,36 @@ export type PersonPermissions = {
   can_update_authoritatively: boolean;
   can_propose_changes: boolean;
   can_resolve_proposals: boolean;
+  can_propose_account_link: boolean;
+  can_manage_account_link: boolean;
+};
+
+export type PersonAccountLink = {
+  id: string;
+  person_id?: string;
+  account: {
+    id: number;
+    name: string;
+    is_current_user: boolean;
+  };
+  created_at?: string;
+};
+
+export type PersonAccountClaim = {
+  id: string;
+  person_id: string;
+  account: { id: number; name: string };
+  status: "pending" | "approved" | "rejected";
+  resolved_at: string | null;
+  created_at: string;
+};
+
+export type FamilyMembership = {
+  id: string;
+  user: { id: number; name: string; email: string };
+  role: "owner" | "administrator" | "member" | "contributor" | "guest";
+  state: "active" | "removed";
+  removed_at: string | null;
 };
 
 export type Person = {
@@ -21,6 +51,7 @@ export type Person = {
   is_deceased: boolean;
   death_date: UncertainDate;
   biography: string | null;
+  account_link: PersonAccountLink | null;
   created_at: string;
   updated_at: string;
   permissions: PersonPermissions;

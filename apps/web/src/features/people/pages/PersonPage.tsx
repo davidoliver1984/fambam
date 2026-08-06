@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router";
 import { toAppError } from "@/api/errors";
 
 import { PersonForm } from "../components/PersonForm";
+import { PersonAccountLinkPanel } from "../components/PersonAccountLinkPanel";
 import { PersonProposals } from "../components/PersonProposals";
 import {
   useProposePersonDetailsMutation,
@@ -58,6 +59,8 @@ export function PersonPage() {
           : "Living or not marked as deceased"}
       </p>
       {person.biography && <p>{person.biography}</p>}
+
+      <PersonAccountLinkPanel familySlug={familySlug} person={person} />
 
       {person.permissions.can_resolve_proposals && (
         <section aria-labelledby="proposals-title">

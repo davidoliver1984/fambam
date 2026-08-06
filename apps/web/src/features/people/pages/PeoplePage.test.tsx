@@ -23,12 +23,15 @@ const person: Person = {
   is_deceased: false,
   death_date: { precision: "unknown", value: null },
   biography: null,
+  account_link: null,
   created_at: "2026-08-06T10:00:00Z",
   updated_at: "2026-08-06T10:00:00Z",
   permissions: {
     can_update_authoritatively: false,
     can_propose_changes: true,
     can_resolve_proposals: false,
+    can_propose_account_link: true,
+    can_manage_account_link: false,
   },
 };
 

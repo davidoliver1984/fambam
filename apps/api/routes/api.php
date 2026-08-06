@@ -6,6 +6,7 @@ use App\Http\Controllers\FamilySpaceController;
 use App\Http\Controllers\FamilySpaceMembershipController;
 use App\Http\Controllers\InvitationAcceptanceController;
 use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\PersonAccountLinkController;
 use App\Http\Controllers\PersonController;
 use Aws\Sqs\SqsClient;
 use Illuminate\Http\JsonResponse;
@@ -55,6 +56,12 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::post('/people/{person}/proposals', [PersonController::class, 'propose']);
         Route::post('/people/{person}/proposals/{proposal}/approve', [PersonController::class, 'approveProposal']);
         Route::post('/people/{person}/proposals/{proposal}/reject', [PersonController::class, 'rejectProposal']);
+        Route::get('/people/{person}/account-link-claims', [PersonAccountLinkController::class, 'claims']);
+        Route::post('/people/{person}/account-link-claims', [PersonAccountLinkController::class, 'proposeClaim']);
+        Route::post('/people/{person}/account-link-claims/{claim}/approve', [PersonAccountLinkController::class, 'approveClaim']);
+        Route::post('/people/{person}/account-link-claims/{claim}/reject', [PersonAccountLinkController::class, 'rejectClaim']);
+        Route::put('/people/{person}/account-link', [PersonAccountLinkController::class, 'assign']);
+        Route::delete('/people/{person}/account-link', [PersonAccountLinkController::class, 'unlink']);
     });
 });
 
