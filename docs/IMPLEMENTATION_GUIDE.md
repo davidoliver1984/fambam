@@ -1452,12 +1452,53 @@ reconciliation of Phase 4-owned relationships, circles and links,
 structured merge provenance, and realistically bounded reversal, per
 ADR-0006 §12.
 
+FPA-P04-S05 completed on 2026-08-06. An absorbed Person is soft-deleted but
+retains its immutable ULID; detail requests for that ULID resolve to the
+surviving Person and expose the redirect source, while directory listings omit
+the tombstone. Merge execution locks both People, captures an authoritative
+before/after ledger and atomically reconciles Phase-4-owned relationships,
+relationship proposals, Circle memberships and account links. Exact duplicate
+edges and memberships collapse deliberately, self-edges are removed, and
+incompatible relationship or dual-account-link cases fail unless the Owner or
+Administrator supplies an explicit safe resolution.
+
+Members may submit bounded duplicate proposals; Owners and Administrators may
+approve, reject, merge directly and request reversal. Automatic reversal is
+allowed only while the current Phase 4 state still matches the recorded
+post-merge state and the original account links remain restorable. Otherwise
+the merge is marked `manual_correction_required`, the refusal is audited and no
+partial restoration occurs. Structured merge provenance remains separate from
+ordinary AuditEvents, which record proposal, merge, reversal and manual
+correction outcomes.
+
+The merge ledger and proposal tables use ADR-0005's forced Class C RLS pattern.
+Every later domain that introduces a Person reference must explicitly integrate
+that reference into merge reconciliation and reversal-safety evaluation.
+The frontend uses a typed People-feature API module, tenant-aware TanStack Query
+hooks and role-appropriate proposal, merge, review and reversal controls.
+
+### Documentation updates
+
+- Recorded the tombstone, reconciliation, provenance and bounded-reversal
+  implementation boundaries.
+- Advanced `tasks.json` to Phase 5's ADR-acceptance stage after the complete
+  Phase 4 verification gate passed.
+
+### Commit boundary
+
+```text
+Implement Person merge and correction workflow
+```
+
 ### Phase verification
 
 - Deceased people receive full archive pages.
 - Relative labels can be presented from the current person's perspective.
 - Cyclic or contradictory relationships are detected where practical.
 - Person deletion does not erase historical provenance silently.
+
+Phase 4 completed on 2026-08-06 after its full repository, PostgreSQL 17.6,
+persistent-migration and rebuilt-stack acceptance gate passed.
 
 ---
 

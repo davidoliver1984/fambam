@@ -35,7 +35,8 @@ class PostgresRowLevelSecurityTest extends TestCase
 
         $this->admin = DB::connection('pgsql_admin');
         $this->admin->unprepared(<<<'SQL'
-TRUNCATE TABLE family_circle_people, family_circles, relationship_proposals, person_relationships,
+TRUNCATE TABLE person_merge_proposals, person_merges,
+    family_circle_people, family_circles, relationship_proposals, person_relationships,
     person_account_claims, person_account_links, person_detail_proposals, people,
     invitation_claims, invitations, audit_events, family_space_memberships,
     family_spaces, sessions, password_reset_tokens, users RESTART IDENTITY CASCADE;
@@ -88,12 +89,13 @@ WHERE relname IN (
     'audit_events', 'family_spaces', 'family_space_memberships',
     'people', 'person_detail_proposals', 'person_account_links', 'person_account_claims',
     'person_relationships', 'relationship_proposals', 'family_circles', 'family_circle_people',
+    'person_merges', 'person_merge_proposals',
     'rls_test_records'
 )
 ORDER BY relname
 SQL);
 
-        $this->assertCount(12, $tables);
+        $this->assertCount(14, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
@@ -434,6 +436,118 @@ SQL);
                 'updated_at' => $now,
             ]);
         });
+    }
+
+    public function test_merge_ledger_and_proposals_are_tenant_isolated_and_enforce_active_uniqueness(): void
+    {
+        [$ownerId, $firstFamily] = $this->createOwnedFamily('first-merge-rls');
+        [, $secondFamily] = $this->createOwnedFamily('second-merge-rls');
+        $survivor = $this->createPerson($firstFamily, 'Survivor');
+        $absorbed = $this->createPerson($firstFamily, 'Absorbed');
+        $foreignSurvivor = $this->createPerson($secondFamily, 'Foreign survivor');
+        $foreignAbsorbed = $this->createPerson($secondFamily, 'Foreign absorbed');
+        $mergeId = (string) Str::ulid();
+        $now = now();
+
+        $this->assertSame(0, DB::table('person_merges')->count());
+        $this->assertSame(0, DB::table('person_merge_proposals')->count());
+
+        DB::beginTransaction();
+        app(DatabaseTenantContext::class)->establishUser($ownerId);
+        app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+        DB::table('person_merges')->insert([
+            'id' => $mergeId,
+            'family_space_id' => $firstFamily,
+            'survivor_person_id' => $survivor,
+            'absorbed_person_id' => $absorbed,
+            'status' => 'active',
+            'provenance' => '{}',
+            'merged_by' => $ownerId,
+            'merged_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        DB::table('person_merge_proposals')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $firstFamily,
+            'survivor_person_id' => $survivor,
+            'absorbed_person_id' => $absorbed,
+            'status' => 'pending',
+            'proposed_by' => $ownerId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        $this->assertSame(1, DB::table('person_merges')->count());
+        $this->assertSame(1, DB::table('person_merge_proposals')->count());
+        DB::rollBack();
+
+        $this->assertRlsRejects(function () use (
+            $firstFamily,
+            $secondFamily,
+            $foreignSurvivor,
+            $foreignAbsorbed,
+            $ownerId,
+            $now,
+        ): void {
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('person_merges')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $secondFamily,
+                'survivor_person_id' => $foreignSurvivor,
+                'absorbed_person_id' => $foreignAbsorbed,
+                'status' => 'active',
+                'provenance' => '{}',
+                'merged_by' => $ownerId,
+                'merged_at' => $now,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        });
+        $this->assertRlsRejects(function () use (
+            $firstFamily,
+            $secondFamily,
+            $foreignSurvivor,
+            $foreignAbsorbed,
+            $ownerId,
+            $now,
+        ): void {
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('person_merge_proposals')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $secondFamily,
+                'survivor_person_id' => $foreignSurvivor,
+                'absorbed_person_id' => $foreignAbsorbed,
+                'status' => 'pending',
+                'proposed_by' => $ownerId,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        });
+
+        $this->admin->table('person_merges')->insert([
+            'id' => $mergeId,
+            'family_space_id' => $firstFamily,
+            'survivor_person_id' => $survivor,
+            'absorbed_person_id' => $absorbed,
+            'status' => 'active',
+            'provenance' => '{}',
+            'merged_by' => $ownerId,
+            'merged_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        $this->assertUniqueConstraintRejects(fn () => $this->admin->table('person_merges')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $firstFamily,
+            'survivor_person_id' => $survivor,
+            'absorbed_person_id' => $absorbed,
+            'status' => 'manual_correction_required',
+            'provenance' => '{}',
+            'merged_by' => $ownerId,
+            'merged_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]));
     }
 
     public function test_account_links_and_pending_claims_enforce_one_to_one_cardinality(): void

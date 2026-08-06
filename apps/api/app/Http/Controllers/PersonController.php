@@ -141,6 +141,7 @@ class PersonController extends Controller
 
         return [
             'id' => $person->id,
+            'redirected_from_person_id' => $person->getAttribute('redirected_from_person_id'),
             'preferred_name' => $person->preferred_name,
             'alternate_names' => $person->alternate_names ?? [],
             'identity_status' => $person->identity_status->value,
@@ -165,6 +166,8 @@ class PersonController extends Controller
                 'can_manage_account_link' => Gate::allows('manageAccountLink', $person),
                 'can_propose_relationships' => Gate::allows('proposeRelationship', $person),
                 'can_manage_relationships' => Gate::allows('manageRelationship', $person),
+                'can_propose_merge' => Gate::allows('proposeMerge', $person),
+                'can_manage_merge' => Gate::allows('manageMerge', $person),
             ],
         ];
     }

@@ -12,6 +12,8 @@ use App\Models\Person;
 use App\Models\PersonAccountClaim;
 use App\Models\PersonAccountLink;
 use App\Models\PersonDetailProposal;
+use App\Models\PersonMerge;
+use App\Models\PersonMergeProposal;
 use App\Models\PersonRelationship;
 use App\Models\RelationshipProposal;
 use App\Models\User;
@@ -74,6 +76,8 @@ class AuditRecorder
             || $subject instanceof PersonAccountClaim
             || $subject instanceof PersonAccountLink
             || $subject instanceof PersonDetailProposal
+            || $subject instanceof PersonMerge
+            || $subject instanceof PersonMergeProposal
             || $subject instanceof PersonRelationship
             || $subject instanceof RelationshipProposal
             || $subject instanceof FamilyCircle

@@ -6,8 +6,8 @@
     "version": "0.1.0",
     "status": "in_progress",
     "v1_release_phase": "P15",
-    "current_phase": "P04",
-    "current_stage": "FPA-P04-S05",
+    "current_phase": "P05",
+    "current_stage": "FPA-P05-S01",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-06"
   },
@@ -281,7 +281,7 @@
     {
       "id": "P04",
       "name": "People, Accounts and Relationships",
-      "status": "in_progress",
+      "status": "completed",
       "stages": [
         {
           "id": "FPA-P04-S01",
@@ -330,23 +330,25 @@
         {
           "id": "FPA-P04-S05",
           "title": "Implement person merge and correction workflow",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P04-S04"
           ],
-          "notes": []
+          "notes": [
+            "Person duplicate proposals, Owner/Administrator merge, immutable-ULID tombstone redirects, atomic reconciliation of Phase-4-owned relationships, proposals, Circles and account links, structured before/after provenance, bounded exact-state reversal, manual-correction refusal, distinct audits, forced Class C RLS and typed TanStack Query frontend controls were implemented, persistently migrated and verified on 2026-08-06."
+          ]
         }
       ]
     },
     {
       "id": "P05",
       "name": "Media Storage and Upload Pipeline",
-      "status": "planned",
+      "status": "in_progress",
       "stages": [
         {
           "id": "FPA-P05-S01",
           "title": "Accept media storage and upload pipeline ADR",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P04-S05"
           ],
@@ -1405,6 +1407,30 @@
       "roadmap_stage": "FPA-P04-S03",
       "date": "2026-08-06",
       "description": "FPA-P04-S03 completed: database-enforced one-to-one account links, bounded Member self-claims with the future reachable-Contributor permission ceiling preserved without a guessed-ULID bypass, Owner/Administrator approval, correction and removal, access-loss retention, complete audit coverage, forced Class C RLS and typed TanStack Query Person-page controls were implemented, persistently migrated and verified."
+    },
+    {
+      "git_tag": "phase-4-s04",
+      "type": "stage_completion",
+      "adr": "ADR-0006",
+      "roadmap_stage": "FPA-P04-S04",
+      "date": "2026-08-06",
+      "description": "FPA-P04-S04 completed: canonical relationships with current-state validation, Member proposals, Owner/Administrator authoritative resolution, flat presentation-only Family Circles, distinct audits, forced Class C RLS and typed TanStack Query frontend flows were implemented, persistently migrated and verified."
+    },
+    {
+      "git_tag": "phase-4-s05",
+      "type": "stage_completion",
+      "adr": "ADR-0006",
+      "roadmap_stage": "FPA-P04-S05",
+      "date": "2026-08-06",
+      "description": "FPA-P04-S05 completed: duplicate proposals, immutable-ULID tombstone redirects, atomic Phase-4 reference reconciliation, structured merge provenance, bounded exact-state reversal with manual-correction refusal, complete audits, forced Class C RLS and typed TanStack Query frontend controls were implemented, persistently migrated and verified."
+    },
+    {
+      "git_tag": "phase-4",
+      "type": "phase_completion",
+      "adr": null,
+      "roadmap_stage": "FPA-P04-S05",
+      "date": "2026-08-06",
+      "description": "Phase 4 completed: all People, Accounts and Relationships stages passed the full repository, PostgreSQL 17.6, persistent migration and rebuilt-stack acceptance gates."
     }
   ]
 }

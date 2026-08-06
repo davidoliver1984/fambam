@@ -52,6 +52,7 @@ const person: Person = {
   death_date: { precision: "unknown", value: null },
   biography: "Family historian",
   account_link: null,
+  redirected_from_person_id: null,
   created_at: "2026-08-06T10:00:00Z",
   updated_at: "2026-08-06T10:00:00Z",
   permissions: {
@@ -62,6 +63,8 @@ const person: Person = {
     can_manage_account_link: false,
     can_propose_relationships: true,
     can_manage_relationships: false,
+    can_propose_merge: true,
+    can_manage_merge: false,
   },
 };
 
@@ -131,6 +134,8 @@ describe("PersonPage", () => {
         can_manage_account_link: true,
         can_propose_relationships: true,
         can_manage_relationships: true,
+        can_propose_merge: true,
+        can_manage_merge: true,
       },
     });
     renderPage();
@@ -154,6 +159,8 @@ describe("PersonPage", () => {
         can_manage_account_link: true,
         can_propose_relationships: true,
         can_manage_relationships: true,
+        can_propose_merge: true,
+        can_manage_merge: true,
       },
     });
     vi.mocked(getPersonProposals)

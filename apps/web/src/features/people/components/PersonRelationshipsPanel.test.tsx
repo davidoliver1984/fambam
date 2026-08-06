@@ -34,6 +34,7 @@ const person: Person = {
   death_date: { precision: "unknown", value: null },
   biography: null,
   account_link: null,
+  redirected_from_person_id: null,
   created_at: "",
   updated_at: "",
   permissions: {
@@ -44,6 +45,8 @@ const person: Person = {
     can_manage_account_link: false,
     can_propose_relationships: true,
     can_manage_relationships: false,
+    can_propose_merge: true,
+    can_manage_merge: false,
   },
 };
 const other: Person = {
