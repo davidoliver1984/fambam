@@ -18,6 +18,7 @@ class PersonQuery
     public function forCurrentFamilySpace(): Builder
     {
         return Person::query()
+            ->with('accountLink.user:id,name')
             ->where('family_space_id', $this->tenantContext->familySpace()->id);
     }
 

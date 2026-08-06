@@ -31,6 +31,12 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(FamilySpaceMembership::class);
     }
 
+    /** @return HasMany<PersonAccountLink, $this> */
+    public function personAccountLinks(): HasMany
+    {
+        return $this->hasMany(PersonAccountLink::class);
+    }
+
     /**
      * Get the attributes that should be cast.
      *

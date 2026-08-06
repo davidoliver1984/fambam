@@ -53,6 +53,12 @@ class FamilySpace extends Model
         return $this->hasMany(Person::class);
     }
 
+    /** @return HasMany<PersonAccountLink, $this> */
+    public function personAccountLinks(): HasMany
+    {
+        return $this->hasMany(PersonAccountLink::class);
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {

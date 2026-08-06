@@ -35,7 +35,8 @@ class PostgresRowLevelSecurityTest extends TestCase
 
         $this->admin = DB::connection('pgsql_admin');
         $this->admin->unprepared(<<<'SQL'
-TRUNCATE TABLE person_detail_proposals, people, invitation_claims, invitations, audit_events, family_space_memberships,
+TRUNCATE TABLE person_account_claims, person_account_links, person_detail_proposals, people,
+    invitation_claims, invitations, audit_events, family_space_memberships,
     family_spaces, sessions, password_reset_tokens, users RESTART IDENTITY CASCADE;
 DROP TABLE IF EXISTS rls_test_records;
 CREATE TABLE rls_test_records (
@@ -84,12 +85,12 @@ SELECT relname, relrowsecurity, relforcerowsecurity
 FROM pg_class
 WHERE relname IN (
     'audit_events', 'family_spaces', 'family_space_memberships',
-    'people', 'person_detail_proposals', 'rls_test_records'
+    'people', 'person_detail_proposals', 'person_account_links', 'person_account_claims', 'rls_test_records'
 )
 ORDER BY relname
 SQL);
 
-        $this->assertCount(6, $tables);
+        $this->assertCount(8, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
@@ -204,7 +205,7 @@ SQL);
         });
     }
 
-    public function test_people_and_detail_proposals_use_the_standard_class_c_tenant_boundary(): void
+    public function test_people_proposals_and_account_links_use_the_standard_class_c_tenant_boundary(): void
     {
         [$ownerId, $firstFamily] = $this->createOwnedFamily('first-people-rls');
         [, $secondFamily] = $this->createOwnedFamily('second-people-rls');
@@ -254,6 +255,27 @@ SQL);
             'updated_at' => $now,
         ]);
         $this->assertSame(1, DB::table('person_detail_proposals')->count());
+        DB::table('person_account_links')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $firstFamily,
+            'person_id' => $firstPerson,
+            'user_id' => $ownerId,
+            'created_by' => $ownerId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        DB::table('person_account_claims')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $firstFamily,
+            'person_id' => $firstPerson,
+            'user_id' => $ownerId,
+            'status' => 'rejected',
+            'proposed_by' => $ownerId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        $this->assertSame(1, DB::table('person_account_links')->count());
+        $this->assertSame(1, DB::table('person_account_claims')->count());
         DB::rollBack();
 
         $this->assertRlsRejects(function () use ($firstFamily, $secondFamily): void {
@@ -289,6 +311,102 @@ SQL);
                 'updated_at' => now(),
             ]);
         });
+
+        $this->assertRlsRejects(function () use ($firstFamily, $secondFamily, $secondPerson, $ownerId): void {
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('person_account_links')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $secondFamily,
+                'person_id' => $secondPerson,
+                'user_id' => $ownerId,
+                'created_by' => $ownerId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        $this->assertRlsRejects(function () use ($firstFamily, $secondFamily, $secondPerson, $ownerId): void {
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('person_account_claims')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $secondFamily,
+                'person_id' => $secondPerson,
+                'user_id' => $ownerId,
+                'status' => 'pending',
+                'proposed_by' => $ownerId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+    }
+
+    public function test_account_links_and_pending_claims_enforce_one_to_one_cardinality(): void
+    {
+        [$ownerId, $familySpace] = $this->createOwnedFamily('link-cardinality');
+        $secondUserId = $this->createUser('second-link-user@example.test');
+        $this->addMembership($familySpace, $secondUserId, FamilySpaceRole::Member);
+        $firstPerson = $this->createPerson($familySpace, 'First linked Person');
+        $secondPerson = $this->createPerson($familySpace, 'Second linked Person');
+        $now = now();
+
+        $this->admin->table('person_account_links')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $familySpace,
+            'person_id' => $firstPerson,
+            'user_id' => $ownerId,
+            'created_by' => $ownerId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        $this->assertUniqueConstraintRejects(fn () => $this->admin->table('person_account_links')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $familySpace,
+            'person_id' => $firstPerson,
+            'user_id' => $secondUserId,
+            'created_by' => $ownerId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]));
+        $this->assertUniqueConstraintRejects(fn () => $this->admin->table('person_account_links')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $familySpace,
+            'person_id' => $secondPerson,
+            'user_id' => $ownerId,
+            'created_by' => $ownerId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]));
+
+        $this->admin->table('person_account_claims')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $familySpace,
+            'person_id' => $firstPerson,
+            'user_id' => $ownerId,
+            'status' => 'pending',
+            'proposed_by' => $ownerId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        $this->assertUniqueConstraintRejects(fn () => $this->admin->table('person_account_claims')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $familySpace,
+            'person_id' => $firstPerson,
+            'user_id' => $secondUserId,
+            'status' => 'pending',
+            'proposed_by' => $secondUserId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]));
+        $this->assertUniqueConstraintRejects(fn () => $this->admin->table('person_account_claims')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $familySpace,
+            'person_id' => $secondPerson,
+            'user_id' => $ownerId,
+            'status' => 'pending',
+            'proposed_by' => $ownerId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]));
     }
 
     public function test_membership_writes_require_an_authorized_tenant_context(): void
@@ -659,6 +777,24 @@ SQL);
         return $membershipId;
     }
 
+    private function createPerson(string $familySpaceId, string $name): string
+    {
+        $personId = (string) Str::ulid();
+        $this->admin->table('people')->insert([
+            'id' => $personId,
+            'family_space_id' => $familySpaceId,
+            'preferred_name' => $name,
+            'identity_status' => 'confirmed',
+            'birth_date_precision' => 'unknown',
+            'is_deceased' => false,
+            'death_date_precision' => 'unknown',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return $personId;
+    }
+
     /** @return array{string, int} */
     private function createInvitationClaim(string $familySpaceId, User $invitee): array
     {
@@ -699,6 +835,17 @@ SQL);
             $this->assertSame('42501', $exception->errorInfo[0]);
         } finally {
             DB::rollBack();
+        }
+    }
+
+    /** @param callable(): mixed $operation */
+    private function assertUniqueConstraintRejects(callable $operation): void
+    {
+        try {
+            $operation();
+            $this->fail('PostgreSQL unexpectedly accepted a duplicate one-to-one association.');
+        } catch (QueryException $exception) {
+            $this->assertSame('23505', $exception->errorInfo[0]);
         }
     }
 

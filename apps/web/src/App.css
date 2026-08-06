@@ -230,3 +230,20 @@
   display: flex;
   gap: 0.5rem;
 }
+
+.account-link-actions {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.account-link-claim {
+  align-items: center;
+  border-top: 1px solid #ede5df;
+  display: flex;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+}
+
+.account-link-claim button {
+  margin: 0;
+}

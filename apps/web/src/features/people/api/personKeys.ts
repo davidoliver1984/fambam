@@ -7,4 +7,11 @@ export const personKeys = {
     [...personKeys.details(), familySlug, personId] as const,
   proposals: (familySlug: string, personId: string) =>
     [...personKeys.detail(familySlug, personId), "proposals"] as const,
+  accountClaims: (familySlug: string, personId: string) =>
+    [
+      ...personKeys.detail(familySlug, personId),
+      "account-link-claims",
+    ] as const,
+  memberships: (familySlug: string) =>
+    [...personKeys.all, "memberships", familySlug] as const,
 };

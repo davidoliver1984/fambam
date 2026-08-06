@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P04",
-    "current_stage": "FPA-P04-S03",
+    "current_stage": "FPA-P04-S04",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-06"
   },
@@ -308,16 +308,18 @@
         {
           "id": "FPA-P04-S03",
           "title": "Link accounts to people",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P04-S02"
           ],
-          "notes": []
+          "notes": [
+            "One-to-one Family-Space account links, bounded Member self-claims with the future reachable-Contributor ceiling preserved without treating a guessed ULID as reachability, Owner/Administrator approval/correction/removal, access-loss retention, tenant-aware audits, forced Class C RLS and a typed TanStack Query Person-page flow were implemented and verified on 2026-08-06."
+          ]
         },
         {
           "id": "FPA-P04-S04",
           "title": "Implement relationships and family circles",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P04-S03"
           ],
@@ -1393,6 +1395,14 @@
       "roadmap_stage": "FPA-P04-S02",
       "date": "2026-08-06",
       "description": "FPA-P04-S02 completed: Family-Space-local ULID Person records, normalized uncertain dates, independent deceased state, bounded shared biography, provisional Member creation, Owner/Administrator authoritative writes and bounded detail-proposal review, whole-record role visibility, tenant-aware audit events, forced Class C RLS and a feature-oriented TanStack Query frontend were implemented, persistently migrated and verified."
+    },
+    {
+      "git_tag": "phase-4-s03",
+      "type": "stage_completion",
+      "adr": "ADR-0006",
+      "roadmap_stage": "FPA-P04-S03",
+      "date": "2026-08-06",
+      "description": "FPA-P04-S03 completed: database-enforced one-to-one account links, bounded Member self-claims with the future reachable-Contributor permission ceiling preserved without a guessed-ULID bypass, Owner/Administrator approval, correction and removal, access-loss retention, complete audit coverage, forced Class C RLS and typed TanStack Query Person-page controls were implemented, persistently migrated and verified."
     }
   ]
 }

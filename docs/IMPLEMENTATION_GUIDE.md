@@ -1361,6 +1361,44 @@ Implement one-to-one User-to-Person linking per Family Space, Member and
 reachable-Contributor self-claim proposals, and Owner/Administrator
 approval, correction and removal, per ADR-0006 §§5-6 and §16.
 
+The authoritative association is stored separately from its review history.
+`person_account_links` enforces one linked account per Person and one linked
+Person per account within each Family Space with database uniqueness
+constraints. `person_account_claims` records pending, approved and rejected
+self-claims; partial uniqueness prevents one account or Person from
+participating in several simultaneous pending claims. Both are ordinary
+ADR-0005 Class C tables with explicit Family Space ownership and forced,
+fail-closed RLS.
+
+Member may submit a self-claim from a visible Person page. Contributor retains
+the ADR's future permission ceiling where a later resource grant legitimately
+exposes a claim flow, but a known or guessed Person ULID is not reachability and
+S03 does not create a Contributor directory or speculative resource-grant
+flow. Contributor and Guest therefore have no current S03 claim route. Owner
+and Administrator can discover,
+approve or reject pending claims and can directly establish, correct or remove
+links using an active tenant-scoped membership. Approval rechecks active
+membership and both cardinality constraints transactionally. Direct assignment
+rejects superseded pending claims rather than leaving unresolvable work behind.
+
+Established links are archival identity metadata: membership removal and
+account revocation do not change them. Only an explicit audited
+Owner/Administrator correction or unlink does. The frontend adds typed
+feature-local link APIs, tenant-aware TanStack Query keys and role-dependent
+self-claim, review and account-selection controls to the existing Person page.
+
+### Documentation updates
+
+- Recorded the separate authoritative-link and self-claim representation and
+  its database cardinality guarantees.
+- Advanced `tasks.json` to `FPA-P04-S04` after S03 verification completed.
+
+### Commit boundary
+
+```text
+Link Family Space accounts to People
+```
+
 ## FPA-P04-S04 — Implement relationships and family circles
 
 Implement the canonical relationship edge with derived inverse wording,
