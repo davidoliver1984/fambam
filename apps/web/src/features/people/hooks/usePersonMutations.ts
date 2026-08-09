@@ -60,12 +60,22 @@ export function useResolvePersonProposalMutation(
       resolution: PersonProposalResolution;
     }) => resolvePersonProposal(familySlug, personId, proposalId, resolution),
     onSuccess: async (_proposal, variables) => {
-      await queryClient.invalidateQueries({
-        queryKey:
-          variables.resolution === "approve"
-            ? personKeys.detail(familySlug, personId)
-            : personKeys.proposals(familySlug, personId),
-      });
+      const invalidations = [
+        queryClient.invalidateQueries({
+          queryKey: personKeys.proposals(familySlug, personId),
+        }),
+      ];
+      if (variables.resolution === "approve") {
+        invalidations.push(
+          queryClient.invalidateQueries({
+            queryKey: personKeys.detail(familySlug, personId),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: personKeys.list(familySlug),
+          }),
+        );
+      }
+      await Promise.all(invalidations);
     },
   });
 }

@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property RelationshipProposalAction $action
  * @property RelationshipType|null $type
  * @property RelationshipProposalStatus $status
+ * @property array<string, mixed>|null $relationship_snapshot
  * @property CarbonImmutable|null $resolved_at
  */
 #[Fillable([
@@ -25,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'related_person_id',
     'type',
     'context',
+    'relationship_snapshot',
     'status',
     'proposed_by',
     'resolved_by',
@@ -51,6 +53,7 @@ class RelationshipProposal extends Model
             'action' => RelationshipProposalAction::class,
             'type' => RelationshipType::class,
             'status' => RelationshipProposalStatus::class,
+            'relationship_snapshot' => 'array',
             'resolved_at' => 'immutable_datetime',
         ];
     }

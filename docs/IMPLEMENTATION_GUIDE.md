@@ -1411,7 +1411,7 @@ retain their subject/related direction and derive inverse labels at read time;
 symmetric types normalize the two Person ULIDs before persistence and never
 create a mirrored row. The fixed additive vocabulary is centralized in one
 enum. Direct writes lock both People in deterministic order and reject
-self-relationships, duplicates, direct inverse parent cycles and defined
+self-relationships, duplicates, direct inverse directed-type cycles and defined
 same-pair contradictions.
 
 Owner and Administrator may create, replace, dispute and remove authoritative

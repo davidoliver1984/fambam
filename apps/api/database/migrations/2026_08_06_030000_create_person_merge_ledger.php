@@ -50,19 +50,23 @@ return new class extends Migration
             $table->index(['family_space_id', 'status', 'created_at']);
         });
 
+        DB::statement(<<<'SQL'
+CREATE UNIQUE INDEX person_merges_active_absorbed_unique
+ON person_merges (family_space_id, absorbed_person_id)
+WHERE status IN ('active', 'manual_correction_required')
+SQL);
+
+        DB::statement(<<<'SQL'
+CREATE UNIQUE INDEX person_merge_proposals_pending_pair_unique
+ON person_merge_proposals (family_space_id, survivor_person_id, absorbed_person_id)
+WHERE status = 'pending'
+SQL);
+
         if (DB::getDriverName() !== 'pgsql') {
             return;
         }
 
         DB::unprepared(<<<'SQL'
-CREATE UNIQUE INDEX person_merges_active_absorbed_unique
-ON person_merges (family_space_id, absorbed_person_id)
-WHERE status IN ('active', 'manual_correction_required');
-
-CREATE UNIQUE INDEX person_merge_proposals_pending_pair_unique
-ON person_merge_proposals (family_space_id, survivor_person_id, absorbed_person_id)
-WHERE status = 'pending';
-
 ALTER TABLE person_merges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE person_merges FORCE ROW LEVEL SECURITY;
 CREATE POLICY person_merges_tenant_isolation ON person_merges

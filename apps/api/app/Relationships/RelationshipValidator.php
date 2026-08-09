@@ -36,19 +36,26 @@ class RelationshipValidator
             $this->fail('This relationship already exists.');
         }
 
-        if ($type === RelationshipType::ParentOf
+        $directed = [
+            RelationshipType::ParentOf->value,
+            RelationshipType::GuardianOf->value,
+            RelationshipType::StepParentOf->value,
+            RelationshipType::GrandparentOf->value,
+        ];
+        if (in_array($type->value, $directed, true)
             && (clone $base)
-                ->where('type', RelationshipType::ParentOf->value)
+                ->where('type', $type->value)
                 ->where('subject_person_id', $relatedId)
                 ->where('related_person_id', $subjectId)
                 ->exists()) {
-            $this->fail('A direct inverse parent cycle is not valid.');
+            $this->fail('A direct inverse relationship cycle is not valid.');
         }
 
         $exclusive = [
             RelationshipType::ParentOf->value,
             RelationshipType::PartnerOf->value,
             RelationshipType::SiblingOf->value,
+            RelationshipType::GuardianOf->value,
             RelationshipType::StepParentOf->value,
             RelationshipType::GrandparentOf->value,
         ];

@@ -135,6 +135,35 @@ class PersonAccountLinkTest extends TestCase
         $this->assertDatabaseHas('audit_events', ['action' => 'person.account_link_removed']);
     }
 
+    public function test_the_same_account_can_link_to_one_person_in_each_family_space(): void
+    {
+        [$firstFamily, $firstOwner] = $this->familyWithOwner('first-account-family');
+        [$account, $firstMembership] = $this->addMember($firstFamily, FamilySpaceRole::Member);
+        [$secondFamily, $secondOwner] = $this->familyWithOwner('second-account-family');
+        $secondMembership = FamilySpaceMembership::factory()->create([
+            'family_space_id' => $secondFamily->id,
+            'user_id' => $account->id,
+            'role' => FamilySpaceRole::Member,
+        ]);
+        $firstPerson = Person::factory()->create(['family_space_id' => $firstFamily->id]);
+        $secondPerson = Person::factory()->create(['family_space_id' => $secondFamily->id]);
+
+        $this->assign($firstOwner, 'first-account-family', $firstPerson, $firstMembership)->assertOk();
+        $this->assign($secondOwner, 'second-account-family', $secondPerson, $secondMembership)->assertOk();
+
+        $this->assertDatabaseCount('person_account_links', 2);
+        $this->assertDatabaseHas('person_account_links', [
+            'family_space_id' => $firstFamily->id,
+            'person_id' => $firstPerson->id,
+            'user_id' => $account->id,
+        ]);
+        $this->assertDatabaseHas('person_account_links', [
+            'family_space_id' => $secondFamily->id,
+            'person_id' => $secondPerson->id,
+            'user_id' => $account->id,
+        ]);
+    }
+
     public function test_claim_approval_rechecks_membership_and_cross_tenant_identifiers_fail_closed(): void
     {
         [$firstFamily, $firstOwner] = $this->familyWithOwner('first-link-family');

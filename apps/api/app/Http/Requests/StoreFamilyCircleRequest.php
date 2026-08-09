@@ -2,15 +2,17 @@
 
 namespace App\Http\Requests;
 
+use App\Models\FamilyCircle;
 use App\Models\FamilySpace;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class StoreFamilyCircleRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        return $this->user() !== null && Gate::allows('create', FamilyCircle::class);
     }
 
     /** @return array<string, list<string>> */

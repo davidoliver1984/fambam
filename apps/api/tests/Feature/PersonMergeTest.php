@@ -10,9 +10,11 @@ use App\Models\FamilySpaceMembership;
 use App\Models\Person;
 use App\Models\PersonAccountLink;
 use App\Models\PersonMerge;
+use App\Models\PersonMergeProposal;
 use App\Models\PersonRelationship;
 use App\Models\RelationshipProposal;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -281,6 +283,51 @@ class PersonMergeTest extends TestCase
                 'survivor_person_id' => $foreign->id,
             ])->assertNotFound();
         $this->assertNotSoftDeleted('people', ['id' => $absorbed->id]);
+    }
+
+    public function test_database_rejects_a_second_active_merge_for_an_absorbed_person_on_sqlite(): void
+    {
+        [$family, $owner] = $this->familyWithRole(FamilySpaceRole::Owner, 'merge-unique');
+        $survivor = $this->person($family, 'Survivor');
+        $absorbed = $this->person($family, 'Absorbed');
+        PersonMerge::query()->create([
+            'family_space_id' => $family->id,
+            'survivor_person_id' => $survivor->id,
+            'absorbed_person_id' => $absorbed->id,
+            'status' => 'active',
+            'provenance' => [],
+            'merged_by' => $owner->id,
+            'merged_at' => now(),
+        ]);
+
+        $this->expectException(QueryException::class);
+        PersonMerge::query()->create([
+            'family_space_id' => $family->id,
+            'survivor_person_id' => $survivor->id,
+            'absorbed_person_id' => $absorbed->id,
+            'status' => 'manual_correction_required',
+            'provenance' => [],
+            'merged_by' => $owner->id,
+            'merged_at' => now(),
+        ]);
+    }
+
+    public function test_database_rejects_a_duplicate_pending_merge_proposal_on_sqlite(): void
+    {
+        [$family, $owner] = $this->familyWithRole(FamilySpaceRole::Owner, 'proposal-unique');
+        $survivor = $this->person($family, 'Survivor');
+        $absorbed = $this->person($family, 'Absorbed');
+        $attributes = [
+            'family_space_id' => $family->id,
+            'survivor_person_id' => $survivor->id,
+            'absorbed_person_id' => $absorbed->id,
+            'status' => 'pending',
+            'proposed_by' => $owner->id,
+        ];
+        PersonMergeProposal::query()->create($attributes);
+
+        $this->expectException(QueryException::class);
+        PersonMergeProposal::query()->create($attributes);
     }
 
     private function person(FamilySpace $family, string $name): Person

@@ -74,8 +74,23 @@ export function PersonForm({
       setMessage(successMessage);
     } catch (error) {
       const fields = toLaravelFieldErrors(error);
-      if (fields.preferred_name !== undefined) {
-        setError("preferred_name", { message: fields.preferred_name });
+      const fieldMap: Partial<Record<string, keyof PersonFormFields>> = {
+        preferred_name: "preferred_name",
+        alternate_names: "alternate_names",
+        "birth_date.precision": "birth_precision",
+        "birth_date.value": "birth_value",
+        is_deceased: "is_deceased",
+        "death_date.precision": "death_precision",
+        "death_date.value": "death_value",
+        biography: "biography",
+      };
+      for (const [backendField, message] of Object.entries(fields)) {
+        const formField = backendField.startsWith("alternate_names.")
+          ? "alternate_names"
+          : fieldMap[backendField];
+        if (formField !== undefined) {
+          setError(formField, { message });
+        }
       }
       setMessage(
         "The Person record could not be saved. Check the form and try again.",
@@ -103,8 +118,16 @@ export function PersonForm({
       <input
         id="alternate-names"
         placeholder="Comma-separated"
+        aria-describedby={
+          errors.alternate_names ? "alternate-names-error" : undefined
+        }
         {...register("alternate_names")}
       />
+      {errors.alternate_names && (
+        <p id="alternate-names-error" role="alert">
+          {errors.alternate_names.message}
+        </p>
+      )}
 
       <fieldset>
         <legend>Birth information</legend>
@@ -116,9 +139,16 @@ export function PersonForm({
         <input
           id="birth-value"
           placeholder="YYYY-MM-DD, YYYY-MM, YYYY or 1980s"
+          aria-describedby={
+            errors.birth_value ? "birth-value-error" : undefined
+          }
           {...register("birth_value")}
         />
-        {errors.birth_value && <p role="alert">{errors.birth_value.message}</p>}
+        {errors.birth_value && (
+          <p id="birth-value-error" role="alert">
+            {errors.birth_value.message}
+          </p>
+        )}
       </fieldset>
 
       <label className="check">
@@ -138,9 +168,16 @@ export function PersonForm({
         <input
           id="death-value"
           placeholder="YYYY-MM-DD, YYYY-MM, YYYY or 1980s"
+          aria-describedby={
+            errors.death_value ? "death-value-error" : undefined
+          }
           {...register("death_value")}
         />
-        {errors.death_value && <p role="alert">{errors.death_value.message}</p>}
+        {errors.death_value && (
+          <p id="death-value-error" role="alert">
+            {errors.death_value.message}
+          </p>
+        )}
       </fieldset>
 
       <label htmlFor="biography">Biography and notes</label>
