@@ -68,6 +68,33 @@ class RelationshipAndCircleTest extends TestCase
             'related_person_id' => $b->id,
             'type' => 'partner_of',
         ])->assertUnprocessable();
+
+        foreach (['guardian_of', 'step_parent_of', 'grandparent_of'] as $type) {
+            $subject = Person::factory()->create(['family_space_id' => $family->id]);
+            $related = Person::factory()->create(['family_space_id' => $family->id]);
+            $this->actingAs($owner)
+                ->postJson("/api/families/validation/people/{$subject->id}/relationships", [
+                    'related_person_id' => $related->id,
+                    'type' => $type,
+                ])->assertCreated();
+            $this->actingAs($owner)
+                ->postJson("/api/families/validation/people/{$related->id}/relationships", [
+                    'related_person_id' => $subject->id,
+                    'type' => $type,
+                ])->assertUnprocessable()->assertJsonValidationErrors('relationship');
+        }
+
+        $guardian = Person::factory()->create(['family_space_id' => $family->id]);
+        $ward = Person::factory()->create(['family_space_id' => $family->id]);
+        $guardianUrl = "/api/families/validation/people/{$guardian->id}/relationships";
+        $this->actingAs($owner)->postJson($guardianUrl, [
+            'related_person_id' => $ward->id,
+            'type' => 'guardian_of',
+        ])->assertCreated();
+        $this->actingAs($owner)->postJson($guardianUrl, [
+            'related_person_id' => $ward->id,
+            'type' => 'sibling_of',
+        ])->assertUnprocessable()->assertJsonValidationErrors('relationship');
     }
 
     public function test_member_proposal_is_not_authoritative_and_approval_revalidates_current_state(): void
@@ -175,6 +202,48 @@ class RelationshipAndCircleTest extends TestCase
         $this->assertDatabaseHas('audit_events', ['action' => 'person.relationship_removed']);
     }
 
+    public function test_approval_refuses_to_overwrite_an_authoritatively_changed_relationship(): void
+    {
+        [$family, $owner] = $this->familyWithRole(FamilySpaceRole::Owner, 'stale-relationship');
+        $member = $this->addRole($family, FamilySpaceRole::Member);
+        $a = Person::factory()->create(['family_space_id' => $family->id]);
+        $b = Person::factory()->create(['family_space_id' => $family->id]);
+        $c = Person::factory()->create(['family_space_id' => $family->id]);
+        $relationshipId = $this->actingAs($owner)
+            ->postJson("/api/families/stale-relationship/people/{$a->id}/relationships", [
+                'related_person_id' => $b->id,
+                'type' => 'parent_of',
+            ])->assertCreated()->json('data.id');
+        $proposalId = $this->actingAs($member)
+            ->postJson("/api/families/stale-relationship/people/{$a->id}/relationship-proposals", [
+                'action' => 'replace',
+                'relationship_id' => $relationshipId,
+                'related_person_id' => $c->id,
+                'type' => 'guardian_of',
+            ])->assertCreated()->json('data.id');
+
+        $this->actingAs($owner)
+            ->patchJson("/api/families/stale-relationship/relationships/{$relationshipId}", [
+                'subject_person_id' => $a->id,
+                'related_person_id' => $b->id,
+                'type' => 'partner_of',
+                'context' => 'Owner correction after proposal',
+            ])->assertOk();
+        $this->actingAs($owner)
+            ->postJson("/api/families/stale-relationship/people/{$a->id}/relationship-proposals/{$proposalId}/approve")
+            ->assertUnprocessable()->assertJsonValidationErrors('relationship');
+
+        $this->assertDatabaseHas('person_relationships', [
+            'id' => $relationshipId,
+            'type' => 'partner_of',
+            'related_person_id' => $b->id,
+        ]);
+        $this->assertDatabaseHas('relationship_proposals', [
+            'id' => $proposalId,
+            'status' => 'pending',
+        ]);
+    }
+
     public function test_family_circles_are_flat_people_only_groups_managed_by_members(): void
     {
         [$family] = $this->familyWithRole(FamilySpaceRole::Owner, 'circles');
@@ -202,7 +271,14 @@ class RelationshipAndCircleTest extends TestCase
         $this->assertDatabaseHas('audit_events', ['action' => 'person.family_circle_person_removed']);
 
         foreach ([FamilySpaceRole::Contributor, FamilySpaceRole::Guest] as $role) {
-            $this->actingAs($this->addRole($family, $role))->getJson('/api/families/circles/circles')->assertForbidden();
+            $limited = $this->addRole($family, $role);
+            $this->actingAs($limited)->getJson('/api/families/circles/circles')->assertForbidden();
+            $this->actingAs($limited)->postJson('/api/families/circles/circles', [
+                'name' => 'Close Family Friends',
+            ])->assertForbidden();
+            $this->actingAs($limited)->postJson('/api/families/circles/circles', [
+                'name' => 'Unknown Circle',
+            ])->assertForbidden();
         }
 
         $this->actingAs($member)->deleteJson("/api/families/circles/circles/{$circleId}")->assertNoContent();

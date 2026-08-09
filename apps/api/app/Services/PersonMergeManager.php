@@ -268,6 +268,21 @@ class PersonMergeManager
             ->orderBy('id')
             ->lockForUpdate()
             ->get();
+        $thirdPartyIds = $relationships
+            ->flatMap(fn (PersonRelationship $relationship): array => [
+                $relationship->subject_person_id,
+                $relationship->related_person_id,
+            ])
+            ->reject(fn (string $personId): bool => in_array($personId, [$absorbed->id, $survivor->id], true))
+            ->unique()
+            ->sort()
+            ->values();
+        $thirdParties = Person::query()
+            ->whereIn('id', $thirdPartyIds)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get()
+            ->keyBy('id');
         $idMap = [];
 
         foreach ($relationships as $relationship) {
@@ -307,10 +322,13 @@ class PersonMergeManager
             }
             $subject = $ids['subject_person_id'] === $survivor->id
                 ? $survivor
-                : Person::query()->lockForUpdate()->findOrFail($ids['subject_person_id']);
+                : $thirdParties->get($ids['subject_person_id']);
             $related = $ids['related_person_id'] === $survivor->id
                 ? $survivor
-                : Person::query()->lockForUpdate()->findOrFail($ids['related_person_id']);
+                : $thirdParties->get($ids['related_person_id']);
+            if (! $subject instanceof Person || ! $related instanceof Person) {
+                $this->fail('Every related Person must remain available during the merge.');
+            }
             $ids = $this->relationshipValidator->validate(
                 $subject,
                 $related,

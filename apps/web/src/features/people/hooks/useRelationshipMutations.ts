@@ -16,10 +16,17 @@ import type {
 
 function useInvalidateRelationships(familySlug: string, personId: string) {
   const queryClient = useQueryClient();
-  return async () => {
-    await queryClient.invalidateQueries({
-      queryKey: personKeys.relationships(familySlug, personId),
-    });
+  return async (...additionalPersonIds: string[]) => {
+    const personIds = [
+      ...new Set([personId, ...additionalPersonIds].filter((id) => id !== "")),
+    ];
+    await Promise.all(
+      personIds.map((id) =>
+        queryClient.invalidateQueries({
+          queryKey: personKeys.relationships(familySlug, id),
+        }),
+      ),
+    );
   };
 }
 
@@ -31,7 +38,11 @@ export function useCreateRelationshipMutation(
   return useMutation({
     mutationFn: (input: RelationshipInput) =>
       createRelationship(familySlug, personId, input),
-    onSuccess: invalidate,
+    onSuccess: async (relationship) =>
+      invalidate(
+        relationship.subject_person_id,
+        relationship.related_person_id,
+      ),
   });
 }
 
@@ -56,14 +67,23 @@ export function useReplaceRelationshipMutation(
 ) {
   const invalidate = useInvalidateRelationships(familySlug, personId);
   return useMutation({
-    mutationFn: ({
-      relationshipId,
-      input,
-    }: {
+    mutationFn: (variables: {
       relationshipId: string;
       input: RelationshipInput;
-    }) => replaceRelationship(familySlug, relationshipId, personId, input),
-    onSuccess: invalidate,
+      previousRelatedPersonId: string;
+    }) =>
+      replaceRelationship(
+        familySlug,
+        variables.relationshipId,
+        personId,
+        variables.input,
+      ),
+    onSuccess: async (relationship, variables) =>
+      invalidate(
+        variables.previousRelatedPersonId,
+        relationship.subject_person_id,
+        relationship.related_person_id,
+      ),
   });
 }
 
@@ -73,17 +93,18 @@ export function useRelationshipActionMutation(
 ) {
   const invalidate = useInvalidateRelationships(familySlug, personId);
   return useMutation({
-    mutationFn: ({
-      relationshipId,
-      action,
-    }: {
+    mutationFn: (variables: {
       relationshipId: string;
       action: "remove" | "dispute";
+      relatedPersonId: string;
     }) =>
-      action === "remove"
-        ? removeRelationship(familySlug, relationshipId)
-        : disputeRelationship(familySlug, relationshipId).then(() => undefined),
-    onSuccess: invalidate,
+      variables.action === "remove"
+        ? removeRelationship(familySlug, variables.relationshipId)
+        : disputeRelationship(familySlug, variables.relationshipId).then(
+            () => undefined,
+          ),
+    onSuccess: async (_result, variables) =>
+      invalidate(variables.relatedPersonId),
   });
 }
 
@@ -92,6 +113,7 @@ export function useResolveRelationshipProposalMutation(
   personId: string,
 ) {
   const queryClient = useQueryClient();
+  const invalidate = useInvalidateRelationships(familySlug, personId);
   return useMutation({
     mutationFn: ({
       proposalId,
@@ -101,11 +123,9 @@ export function useResolveRelationshipProposalMutation(
       resolution: "approve" | "reject";
     }) =>
       resolveRelationshipProposal(familySlug, personId, proposalId, resolution),
-    onSuccess: async () => {
+    onSuccess: async (proposal) => {
       await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: personKeys.relationships(familySlug, personId),
-        }),
+        invalidate(proposal.subject_person_id, proposal.related_person_id),
         queryClient.invalidateQueries({
           queryKey: personKeys.relationshipProposals(familySlug, personId),
         }),

@@ -143,6 +143,9 @@ class RelationshipManager
                 ...$ids,
                 'type' => $type,
                 'context' => $this->cleanContext($input['context'] ?? null),
+                'relationship_snapshot' => $relationship !== null
+                    ? $this->relationshipState($relationship)
+                    : null,
                 'status' => RelationshipProposalStatus::Pending,
                 'proposed_by' => $actor->id,
             ]);
@@ -210,6 +213,10 @@ class RelationshipManager
         if ($relationship === null) {
             $this->fail('The relationship changed before this proposal could be approved.');
         }
+        if ($proposal->relationship_snapshot === null
+            || $proposal->relationship_snapshot !== $this->relationshipState($relationship)) {
+            $this->fail('The relationship changed before this proposal could be approved.');
+        }
 
         if ($proposal->action === RelationshipProposalAction::Replace) {
             if ($proposal->subject_person_id === null
@@ -256,6 +263,18 @@ class RelationshipManager
         }
 
         return [$subject, $related];
+    }
+
+    /** @return array<string, mixed> */
+    private function relationshipState(PersonRelationship $relationship): array
+    {
+        return [
+            'subject_person_id' => $relationship->subject_person_id,
+            'related_person_id' => $relationship->related_person_id,
+            'type' => $relationship->type->value,
+            'status' => $relationship->status->value,
+            'context' => $relationship->context,
+        ];
     }
 
     private function cleanContext(mixed $context): ?string

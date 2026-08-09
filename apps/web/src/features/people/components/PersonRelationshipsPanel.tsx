@@ -89,7 +89,14 @@ export function PersonRelationshipsPanel({
     setMessage(null);
     try {
       if (person.permissions.can_manage_relationships) {
-        await action.mutateAsync({ relationshipId, action: requestedAction });
+        const relationship = relationships.data?.find(
+          (candidate) => candidate.id === relationshipId,
+        );
+        await action.mutateAsync({
+          relationshipId,
+          action: requestedAction,
+          relatedPersonId: relationship?.other_person.id ?? "",
+        });
         setMessage(
           requestedAction === "remove"
             ? "Relationship removed."
@@ -117,7 +124,14 @@ export function PersonRelationshipsPanel({
     };
     try {
       if (person.permissions.can_manage_relationships) {
-        await replace.mutateAsync({ relationshipId: replacementId, input });
+        const relationship = relationships.data?.find(
+          (candidate) => candidate.id === replacementId,
+        );
+        await replace.mutateAsync({
+          relationshipId: replacementId,
+          input,
+          previousRelatedPersonId: relationship?.other_person.id ?? "",
+        });
       } else {
         await propose.mutateAsync({
           action: "replace",

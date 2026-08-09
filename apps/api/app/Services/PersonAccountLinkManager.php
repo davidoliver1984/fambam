@@ -79,6 +79,7 @@ class PersonAccountLinkManager
                     'resolved_at' => CarbonImmutable::now(),
                 ]);
                 $this->rejectConflictingClaims(
+                    $lockedPerson->family_space_id,
                     $lockedClaim->person_id,
                     $lockedClaim->user_id,
                     $lockedClaim->id,
@@ -140,7 +141,11 @@ class PersonAccountLinkManager
                 }
 
                 $byPerson = PersonAccountLink::query()->where('person_id', $lockedPerson->id)->lockForUpdate()->first();
-                $byUser = PersonAccountLink::query()->where('user_id', $lockedMembership->user_id)->lockForUpdate()->first();
+                $byUser = PersonAccountLink::query()
+                    ->where('family_space_id', $lockedPerson->family_space_id)
+                    ->where('user_id', $lockedMembership->user_id)
+                    ->lockForUpdate()
+                    ->first();
                 if ($byPerson?->id === $byUser?->id && $byPerson !== null) {
                     return $byPerson;
                 }
@@ -159,6 +164,7 @@ class PersonAccountLinkManager
                     'created_by' => $actor->id,
                 ]);
                 $this->rejectConflictingClaims(
+                    $lockedPerson->family_space_id,
                     $lockedPerson->id,
                     $lockedMembership->user_id,
                     null,
@@ -211,7 +217,10 @@ class PersonAccountLinkManager
         if (PersonAccountLink::query()->where('person_id', $person->id)->exists()) {
             $this->fail('This Person is already linked to an account.');
         }
-        if (PersonAccountLink::query()->where('user_id', $userId)->exists()) {
+        if (PersonAccountLink::query()
+            ->where('family_space_id', $person->family_space_id)
+            ->where('user_id', $userId)
+            ->exists()) {
             $this->fail('This account is already linked to a Person in this Family Space.');
         }
     }
@@ -224,6 +233,7 @@ class PersonAccountLinkManager
     }
 
     private function rejectConflictingClaims(
+        string $familySpaceId,
         string $personId,
         int $userId,
         ?string $excludedClaimId,
@@ -231,6 +241,7 @@ class PersonAccountLinkManager
         Request $request,
     ): void {
         $conflicts = PersonAccountClaim::query()
+            ->where('family_space_id', $familySpaceId)
             ->where('status', PersonAccountClaimStatus::Pending->value)
             ->when($excludedClaimId !== null, fn ($query) => $query->whereKeyNot($excludedClaimId))
             ->where(function ($query) use ($personId, $userId): void {

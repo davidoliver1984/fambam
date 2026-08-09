@@ -548,6 +548,23 @@ SQL);
             'created_at' => $now,
             'updated_at' => $now,
         ]));
+        $proposal = [
+            'family_space_id' => $firstFamily,
+            'survivor_person_id' => $survivor,
+            'absorbed_person_id' => $absorbed,
+            'status' => 'pending',
+            'proposed_by' => $ownerId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+        $this->admin->table('person_merge_proposals')->insert([
+            'id' => (string) Str::ulid(),
+            ...$proposal,
+        ]);
+        $this->assertUniqueConstraintRejects(fn () => $this->admin->table('person_merge_proposals')->insert([
+            'id' => (string) Str::ulid(),
+            ...$proposal,
+        ]));
     }
 
     public function test_account_links_and_pending_claims_enforce_one_to_one_cardinality(): void
