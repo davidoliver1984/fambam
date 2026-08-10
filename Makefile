@@ -25,7 +25,7 @@ infrastructure-smoke: ## Verify PostgreSQL, Redis, S3 and SQS locally
 media-validation-smoke: ## Verify required image decoders and malware scanning locally
 	@scripts/smoke-media-validation.sh
 
-media-processing-smoke: ## Verify real metadata extraction and canonical generation locally
+media-processing-smoke: ## Verify real metadata, canonical and variant processing locally
 	@docker compose run --rm --no-deps \
 		--volume "$(CURDIR)/apps/api:/app" \
 		--env RUN_MEDIA_PROCESSING_INTEGRATION=true \

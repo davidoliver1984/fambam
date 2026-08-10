@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P05",
-    "current_stage": "FPA-P05-S05",
+    "current_stage": "FPA-P05-S06",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-10"
   },
@@ -392,16 +392,18 @@
         {
           "id": "FPA-P05-S05",
           "title": "Generate presentation variants",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P05-S04"
           ],
-          "notes": []
+          "notes": [
+            "Implemented a fixed centrally-defined V1 thumbnail/card/display vocabulary; metadata-stripped sRGB WebP generation from the canonical; versioned MediaVariant identity and tenant storage keys; unique canonical-integrity-bound jobs; write-once and database idempotency; processing-to-ready/degraded transitions; safe regeneration of disposable variants; persistent migration; real deterministic ImageMagick coverage; and PostgreSQL Class C verification. Secure delivery remains FPA-P05-S06."
+          ]
         },
         {
           "id": "FPA-P05-S06",
           "title": "Secure media delivery",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P05-S05"
           ],
@@ -1471,6 +1473,14 @@
       "roadmap_stage": "FPA-P05-S04",
       "date": "2026-08-10",
       "description": "FPA-P05-S04 completed: source-integrity-bound tenant jobs, private normalized metadata and lossless raw EXIF/ICC extraction, GPS withholding, deterministic auto-oriented sRGB metadata-stripped JPEG/PNG canonical generation, immutable canonical finalisation and the preserved-to-processing transition were implemented, persistently migrated and verified across HEIC, HEIF, TIFF, transparency, PostgreSQL RLS and real LocalStack storage."
+    },
+    {
+      "git_tag": "phase-5-s05",
+      "type": "stage_completion",
+      "adr": "ADR-0007",
+      "roadmap_stage": "FPA-P05-S05",
+      "date": "2026-08-10",
+      "description": "FPA-P05-S05 completed: the fixed thumbnail, card and display variant set; metadata-stripped sRGB WebP generation with transparency preservation; versioned MediaVariant identity; unique tenant-aware jobs; canonical-integrity verification; write-once and database idempotency; ready/degraded transitions; disposable regeneration; persistent migration; real ImageMagick processing; LocalStack storage; observability; and PostgreSQL Class C isolation were implemented and verified."
     }
   ]
 }
