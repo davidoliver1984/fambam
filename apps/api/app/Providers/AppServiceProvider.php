@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Listeners\SecurityEventSubscriber;
+use App\Media\MediaObjectStorage;
+use App\Media\S3MediaObjectStorage;
 use App\Services\AuthenticateUser;
 use App\Services\PwnedPasswordVerifier;
 use App\Tenancy\DatabaseTenantContext;
@@ -24,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->scoped(TenantContext::class);
         $this->app->scoped(DatabaseTenantContext::class);
+        $this->app->bind(MediaObjectStorage::class, S3MediaObjectStorage::class);
 
         $this->app->singleton(
             AuthenticateUser::class,

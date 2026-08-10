@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P05",
-    "current_stage": "FPA-P05-S02",
+    "current_stage": "FPA-P05-S03",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-10"
   },
@@ -359,16 +359,18 @@
         {
           "id": "FPA-P05-S02",
           "title": "Implement upload initiation and completion",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P05-S01"
           ],
-          "notes": []
+          "notes": [
+            "Implemented MediaUpload persistence and Class C tenant RLS; Owner, Administrator and Member initiation; Contributor/Guest Phase 5 deferral; per-tenant/uploader idempotency with request-fingerprint conflict rejection; extension-independent staging keys; a browser-reachable, key-scoped 15-minute PUT authority with signed If-None-Match write-once enforcement; independently inspected and conditionally idempotent initiated-to-uploaded completion; retained tenant/correlation/trace context; upload-initiation auditing; configurable 100 MiB completion ceiling; LocalStack CORS; and a typed feature-local TanStack Query upload flow. Validation, scanning, detected-format archival finalisation and processing remain FPA-P05-S03 or later."
+          ]
         },
         {
           "id": "FPA-P05-S03",
           "title": "Validate and preserve originals",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P05-S02"
           ],
@@ -1441,6 +1443,14 @@
       "roadmap_stage": "FPA-P05-S01",
       "date": "2026-08-10",
       "description": "FPA-P05-S01 completed: ADR-0007 accepted. Phase 5 owns MediaUpload and MediaVariant infrastructure independently of Phase 6 Photo records; direct upload uses tenant-scoped extension-independent staging, server-detected final keys and a verified write-once-equivalent boundary; preserved originals remain byte-for-byte immutable with SHA-256 integrity and complete metadata; Laravel owns deterministic validation, required configurable malware scanning, canonical generation and fixed variants across JPEG, PNG, HEIC/HEIF, WebP and TIFF; ordinary presentation withholds privacy-sensitive metadata while authorised original downloads return the untouched file; Contributor upload remains a Phase 6/7 resource-scoped placeholder; and ADR-0005 tenant deletion is the sole preserved-media deletion exception. Stage scope was solely ADR acceptance, so this ADR-acceptance commit is the stage-completion commit."
+    },
+    {
+      "git_tag": "phase-5-s02",
+      "type": "stage_completion",
+      "adr": "ADR-0007",
+      "roadmap_stage": "FPA-P05-S02",
+      "date": "2026-08-10",
+      "description": "FPA-P05-S02 completed: tenant-isolated MediaUpload persistence, role-bounded and idempotent initiation, extension-independent staging keys, signed conditional direct-upload authority, independently inspected and duplicate-safe completion, tenant/correlation/trace context, audit coverage, LocalStack browser integration and a typed feature-local TanStack Query upload flow were implemented, persistently migrated and verified. Validation, malware scanning and archival finalisation remain FPA-P05-S03."
     }
   ]
 }

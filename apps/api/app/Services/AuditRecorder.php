@@ -8,6 +8,7 @@ use App\Models\FamilyCirclePerson;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\Invitation;
+use App\Models\MediaUpload;
 use App\Models\Person;
 use App\Models\PersonAccountClaim;
 use App\Models\PersonAccountLink;
@@ -72,6 +73,7 @@ class AuditRecorder
 
         if ($subject instanceof FamilySpaceMembership
             || $subject instanceof Invitation
+            || $subject instanceof MediaUpload
             || $subject instanceof Person
             || $subject instanceof PersonAccountClaim
             || $subject instanceof PersonAccountLink

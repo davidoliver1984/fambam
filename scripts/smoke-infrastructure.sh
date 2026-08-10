@@ -78,4 +78,17 @@ docker compose run --rm --no-deps api-migrate php artisan migrate:status >/dev/n
 
 docker compose exec -T api php artisan tinker --execute='cache()->put("infrastructure-smoke", "ok", 60); throw_unless(cache()->get("infrastructure-smoke") === "ok", RuntimeException::class, "Redis cache smoke failed"); $disk = Illuminate\Support\Facades\Storage::disk("s3"); $disk->put("smoke/api.txt", "ok"); throw_unless($disk->get("smoke/api.txt") === "ok", RuntimeException::class, "S3 application smoke failed"); $disk->delete("smoke/api.txt"); $context = App\Tenancy\TenantOperationContext::forBackground("01AAAAAAAAAAAAAAAAAAAAAAAA", (int) (App\Models\User::query()->min("id") ?? 0)); App\Jobs\DeleteFamilySpace::dispatch($context->toArray());'
 
+(
+    cd apps/api
+    RUN_MEDIA_STORAGE_INTEGRATION=true \
+    AWS_ACCESS_KEY_ID=test \
+    AWS_SECRET_ACCESS_KEY=test \
+    AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-eu-west-2}" \
+    AWS_BUCKET="${bucket}" \
+    AWS_ENDPOINT="http://localhost:${LOCALSTACK_PORT:-4570}" \
+    AWS_PUBLIC_ENDPOINT="http://localhost:${LOCALSTACK_PORT:-4570}" \
+    AWS_USE_PATH_STYLE_ENDPOINT=true \
+        php artisan test --filter=test_reusing_real_upload_authority_cannot_replace_staged_bytes
+)
+
 echo "Infrastructure smoke checks passed."

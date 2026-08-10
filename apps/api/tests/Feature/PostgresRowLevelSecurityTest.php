@@ -35,7 +35,7 @@ class PostgresRowLevelSecurityTest extends TestCase
 
         $this->admin = DB::connection('pgsql_admin');
         $this->admin->unprepared(<<<'SQL'
-TRUNCATE TABLE person_merge_proposals, person_merges,
+TRUNCATE TABLE media_uploads, person_merge_proposals, person_merges,
     family_circle_people, family_circles, relationship_proposals, person_relationships,
     person_account_claims, person_account_links, person_detail_proposals, people,
     invitation_claims, invitations, audit_events, family_space_memberships,
@@ -89,13 +89,13 @@ WHERE relname IN (
     'audit_events', 'family_spaces', 'family_space_memberships',
     'people', 'person_detail_proposals', 'person_account_links', 'person_account_claims',
     'person_relationships', 'relationship_proposals', 'family_circles', 'family_circle_people',
-    'person_merges', 'person_merge_proposals',
+    'person_merges', 'person_merge_proposals', 'media_uploads',
     'rls_test_records'
 )
 ORDER BY relname
 SQL);
 
-        $this->assertCount(14, $tables);
+        $this->assertCount(15, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
@@ -207,6 +207,61 @@ SQL);
             DB::table('rls_test_records')
                 ->where('family_space_id', $firstFamily)
                 ->update(['family_space_id' => $secondFamily]);
+        });
+    }
+
+    public function test_media_uploads_use_the_standard_class_c_tenant_boundary(): void
+    {
+        [$firstOwner, $firstFamily] = $this->createOwnedFamily('first-media-rls');
+        [$secondOwner, $secondFamily] = $this->createOwnedFamily('second-media-rls');
+        $now = now();
+
+        foreach ([[$firstOwner, $firstFamily], [$secondOwner, $secondFamily]] as [$ownerId, $familyId]) {
+            $uploadId = (string) Str::ulid();
+            $this->admin->table('media_uploads')->insert([
+                'id' => $uploadId,
+                'family_space_id' => $familyId,
+                'user_id' => $ownerId,
+                'state' => 'initiated',
+                'staging_object_key' => "families/{$familyId}/media-staging/{$uploadId}/original",
+                'client_filename' => 'family.jpg',
+                'upload_method' => 'single',
+                'idempotency_key' => "rls-{$uploadId}",
+                'request_fingerprint' => hash('sha256', $uploadId),
+                'correlation_id' => (string) Str::uuid(),
+                'traceparent' => '00-'.str_repeat('1', 32).'-'.str_repeat('2', 16).'-01',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
+        $this->assertSame([], DB::table('media_uploads')->pluck('family_space_id')->all());
+
+        DB::beginTransaction();
+        app(DatabaseTenantContext::class)->establishUser($firstOwner);
+        app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+        $this->assertSame([$firstFamily], DB::table('media_uploads')->pluck('family_space_id')->all());
+        DB::rollBack();
+
+        $this->assertRlsRejects(function () use ($firstOwner, $firstFamily, $secondFamily, $now): void {
+            app(DatabaseTenantContext::class)->establishUser($firstOwner);
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            $uploadId = (string) Str::ulid();
+            DB::table('media_uploads')->insert([
+                'id' => $uploadId,
+                'family_space_id' => $secondFamily,
+                'user_id' => $firstOwner,
+                'state' => 'initiated',
+                'staging_object_key' => "families/{$secondFamily}/media-staging/{$uploadId}/original",
+                'client_filename' => 'cross-tenant.jpg',
+                'upload_method' => 'single',
+                'idempotency_key' => "cross-{$uploadId}",
+                'request_fingerprint' => hash('sha256', $uploadId),
+                'correlation_id' => (string) Str::uuid(),
+                'traceparent' => '00-'.str_repeat('1', 32).'-'.str_repeat('2', 16).'-01',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
         });
     }
 

@@ -1596,6 +1596,50 @@ tenant-scoped, extension-independent staging key; select and verify the
 concrete bounded-authority and write-once boundary without trusting client
 filename, MIME type or extension data.
 
+FPA-P05-S02 uses a server-generated `MediaUpload` ULID and the staging key
+`families/{family_space_id}/media-staging/{media_upload_id}/original`. A
+15-minute presigned S3-compatible PUT is scoped to that one key and signs the
+`If-None-Match: *` condition, so neither a reused nor a racing authority can
+replace bytes already accepted at the staging key. The browser-facing signing
+endpoint is configured separately from Laravel's internal object-storage
+endpoint; local bucket CORS permits the configured web origin to send the
+conditional PUT. The default plausible-size ceiling at completion is 100 MiB
+and remains configurable.
+
+Initiation is idempotent per Family Space, uploader and `Idempotency-Key`;
+reusing a key with a different request fingerprint is rejected. Client filename
+and claimed MIME type are retained only as non-authoritative metadata and do
+not affect the key. Completion independently inspects the staged object, then
+conditionally advances `initiated` to `uploaded`; repeated completion is a
+no-op success. The upload row retains the existing tenant operation context so
+FPA-P05-S03 can dispatch validation without reconstructing tenant, correlation
+or trace identity. No validation, malware scanning, format-derived archival
+key or processing transition is introduced in this stage.
+
+The React flow lives in the `media-uploads` feature. Its typed API module owns
+initiation, the direct storage PUT, envelope unwrapping and completion; its
+TanStack mutation hook owns server-state mutation; and the page only composes
+the accessible file-selection and result states.
+
+### Verification
+
+- API tests cover role authorization, tenant/account isolation, idempotent
+  initiation, conflicting key reuse, extension-independent keys, audit context,
+  missing/empty/oversized objects and duplicate completion.
+- Signing tests require the conditional header to be part of the signed
+  authority. The LocalStack regression uses one authority twice, requires the
+  second PUT to fail with precondition status, and verifies the first bytes are
+  unchanged.
+- PostgreSQL integration verifies the `media_uploads` Class C RLS boundary.
+- Frontend tests cover the typed initiate/direct-PUT/complete sequence, storage
+  rejection, accessible success and error presentation.
+
+### Commit boundary
+
+```text
+Implement media upload initiation and completion
+```
+
 ## FPA-P05-S03 — Validate and preserve originals
 
 Verify type, size and checksum; preserve original bytes; quarantine invalid
