@@ -1846,11 +1846,65 @@ Generate presentation media variants
 
 ## FPA-P05-S06 — Secure media delivery
 
-Use authorised application checks and short-lived signed URLs or an equivalent
-accepted approach. Record `original_download_authorised` when Laravel issues an
-authorised signed URL; do not claim the subsequent object-storage GET occurred.
-Ordinary APIs and presentation assets withhold privacy-sensitive metadata, while
-an authorised original download deliberately receives the untouched original.
+Expose three authenticated Family-Space-scoped authority endpoints for a
+`MediaUpload`: canonical viewing, one fixed current-version variant by transform
+name, and preserved-original download. The endpoints never proxy bytes or
+accept an object key from the client. Laravel resolves the tenant-owned upload
+and variant, applies `MediaUploadPolicy`, then returns a signed GET URL scoped
+to exactly the server-selected key.
+
+Owner, Administrator and Member receive the ADR-0007 baseline for all three
+delivery types. Contributor and Guest receive no default access. Canonical and
+variant authority is available only after the upload reaches `ready`; original
+authority is available once preservation succeeds and remains available during
+`preserved`, `processing`, `ready` and `degraded`. Cross-tenant identifiers,
+unknown transforms, missing current-version variants and unavailable assets
+fail closed.
+
+Delivery authority lasts five minutes by default and is capped at fifteen
+minutes even if configuration requests a longer interval. Each URL is an S3
+Signature V4 GET for one key. The verified database MIME type is signed into the
+response, and the signature leaves the `Range` header available so clients can
+request byte ranges. Object storage explicitly blocks all public ACLs and
+policies, validates presigned signatures, and permits browser GET/HEAD CORS with
+the required range-response headers. No stable unauthenticated URL or prefix
+grant is introduced.
+
+Canonical and variant authority is deliberately not written to `AuditEvent`.
+After original access has passed policy and URL signing succeeds, Laravel writes
+the exact `original_download_authorised` action before returning the URL. The
+event records the expiry but neither the URL nor an object key. Signing failure
+writes no audit event, and no `original_downloaded` action is emitted because
+Laravel cannot observe the subsequent storage GET. Ordinary API payloads expose
+no EXIF, GPS, ICC profile or other preserved private metadata; an authorised
+original GET still deliberately receives the untouched archival bytes.
+
+### Verification
+
+- Feature coverage proves Owner/Administrator/Member access, Contributor/Guest
+  denial, unauthenticated and cross-tenant denial, ready-state enforcement,
+  fixed-transform lookup, bounded expiry, clean response fields and truthful
+  original-authority auditing.
+- Real LocalStack coverage proves private-bucket controls, delivery CORS,
+  signature validation, key scoping, response MIME type and byte-range GETs.
+
+### Boundaries
+
+No frontend viewing surface or Phase 6 `Photo` route is introduced. S06 does
+not add bulk upload, abandoned/degraded recovery, tenant media teardown or a
+standalone media-delete operation; those remain FPA-P05-S07 or Phase 6.
+
+### Documentation updates
+
+- Recorded the delivery endpoints, role/state baseline, bounded signing,
+  storage controls, MIME/range behaviour and truthful audit boundary.
+- Advanced `tasks.json` to `FPA-P05-S07` after FPA-P05-S06 completed.
+
+### Commit boundary
+
+```text
+Secure media delivery
+```
 
 ## FPA-P05-S07 — Add upload recovery and bulk upload
 

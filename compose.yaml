@@ -343,6 +343,7 @@ services:
       AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-eu-west-2}"
       AWS_BUCKET: "${AWS_BUCKET:-fambam-media}"
       PERSISTENCE: "1"
+      S3_SKIP_SIGNATURE_VALIDATION: "0"
     volumes:
       - localstack-data:/var/lib/localstack
       - ./infrastructure/docker/localstack/init:/etc/localstack/init/ready.d:ro

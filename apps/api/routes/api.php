@@ -54,6 +54,9 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::post('/invitations/{invitation}/revoke', [InvitationController::class, 'revoke']);
         Route::post('/media-uploads', [MediaUploadController::class, 'store']);
         Route::post('/media-uploads/{mediaUpload}/complete', [MediaUploadController::class, 'complete']);
+        Route::get('/media-uploads/{mediaUpload}/canonical', [MediaUploadController::class, 'canonical']);
+        Route::get('/media-uploads/{mediaUpload}/variants/{transform}', [MediaUploadController::class, 'variant']);
+        Route::get('/media-uploads/{mediaUpload}/original', [MediaUploadController::class, 'original']);
         Route::get('/people', [PersonController::class, 'index']);
         Route::post('/people', [PersonController::class, 'store']);
         Route::get('/people/{person}', [PersonController::class, 'show']);
