@@ -3,10 +3,14 @@
 namespace App\Providers;
 
 use App\Listeners\SecurityEventSubscriber;
+use App\Media\CanonicalImageGenerator;
 use App\Media\ClamAvMalwareScanner;
+use App\Media\ExifToolMediaMetadataExtractor;
 use App\Media\ImageDecoderValidator;
+use App\Media\ImageMagickCanonicalImageGenerator;
 use App\Media\ImageMagickDecoderValidator;
 use App\Media\MalwareScanner;
+use App\Media\MediaMetadataExtractor;
 use App\Media\MediaObjectStorage;
 use App\Media\S3MediaObjectStorage;
 use App\Services\AuthenticateUser;
@@ -33,6 +37,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(MediaObjectStorage::class, S3MediaObjectStorage::class);
         $this->app->bind(ImageDecoderValidator::class, ImageMagickDecoderValidator::class);
         $this->app->bind(MalwareScanner::class, ClamAvMalwareScanner::class);
+        $this->app->bind(MediaMetadataExtractor::class, ExifToolMediaMetadataExtractor::class);
+        $this->app->bind(CanonicalImageGenerator::class, ImageMagickCanonicalImageGenerator::class);
 
         $this->app->singleton(
             AuthenticateUser::class,

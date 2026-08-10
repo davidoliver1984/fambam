@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\MediaUploadState;
+use App\Jobs\GenerateCanonicalMediaUpload;
 use App\Media\DetectedMediaFormat;
 use App\Media\ImageDecoderValidator;
 use App\Media\MalwareScanner;
@@ -159,6 +160,11 @@ class MediaValidationManager
 
         if ($transitioned) {
             $this->deleteStaging($upload);
+            GenerateCanonicalMediaUpload::dispatch(
+                $context->toArray(),
+                $upload->id,
+                $checksum,
+            );
         }
     }
 

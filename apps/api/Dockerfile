@@ -5,6 +5,7 @@ FROM php:8.4.5-cli-alpine
 RUN apk add --no-cache \
         $PHPIZE_DEPS \
         curl \
+        exiftool \
         imagemagick \
         imagemagick-heic \
         imagemagick-jpeg \

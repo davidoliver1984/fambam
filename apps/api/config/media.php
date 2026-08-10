@@ -23,4 +23,11 @@ return [
     'cleanup' => [
         'quarantine_retention_days' => (int) env('MEDIA_QUARANTINE_RETENTION_DAYS', 7),
     ],
+    'processing' => [
+        'exiftool_binary' => env('EXIFTOOL_BINARY', 'exiftool'),
+        'timeout_seconds' => (float) env('MEDIA_PROCESSING_TIMEOUT_SECONDS', 30),
+        'metadata_profile_max_bytes' => (int) env('MEDIA_METADATA_PROFILE_MAX_BYTES', 32 * 1024 * 1024),
+        'canonical_jpeg_quality' => (int) env('MEDIA_CANONICAL_JPEG_QUALITY', 90),
+        'integration_test_enabled' => env('RUN_MEDIA_PROCESSING_INTEGRATION', false),
+    ],
 ];

@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help up down restart status logs infrastructure-smoke media-validation-smoke observability-smoke foundation-check docs-check contracts-check compose-check format format-check lint typecheck test test-api test-api-postgres-rls test-web test-ai test-e2e security-check
+.PHONY: help up down restart status logs infrastructure-smoke media-validation-smoke media-processing-smoke observability-smoke foundation-check docs-check contracts-check compose-check format format-check lint typecheck test test-api test-api-postgres-rls test-web test-ai test-e2e security-check
 
 help: ## List supported repository commands
 	@awk 'BEGIN {FS = ":.*## "; printf "fambam commands:\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -24,6 +24,12 @@ infrastructure-smoke: ## Verify PostgreSQL, Redis, S3 and SQS locally
 
 media-validation-smoke: ## Verify required image decoders and malware scanning locally
 	@scripts/smoke-media-validation.sh
+
+media-processing-smoke: ## Verify real metadata extraction and canonical generation locally
+	@docker compose run --rm --no-deps \
+		--volume "$(CURDIR)/apps/api:/app" \
+		--env RUN_MEDIA_PROCESSING_INTEGRATION=true \
+		api php artisan test --filter=MediaProcessingIntegrationTest
 
 observability-smoke: ## Verify traces, propagation and structured identifiers
 	@scripts/smoke-observability.sh

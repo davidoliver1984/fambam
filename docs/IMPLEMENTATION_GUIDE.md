@@ -1723,6 +1723,70 @@ Validate and preserve uploaded originals
 
 Apply orientation correctly and preserve original EXIF separately.
 
+Successful S03 preservation dispatches a unique tenant-context-carrying
+canonical job keyed by `MediaUpload` and the frozen original SHA-256. The job
+only claims the `preserved` state, re-downloads the immutable original and
+recomputes its checksum before processing. A stale source identity, terminal
+state or replay after canonical completion is a no-op; unexpected integrity
+failure stops processing without replacing either source or canonical bytes.
+
+The replaceable metadata boundary is implemented with ExifTool in the Laravel
+worker. It extracts pixel width and height, original orientation, camera make
+and model, the EXIF capture timestamp, GPS coordinates, the exact raw EXIF
+profile and the exact embedded ICC profile. Raw binary profiles are stored
+losslessly as base64 text because PostgreSQL text-protocol binding truncates
+unencoded NUL-bearing profile bytes. Each decoded profile is bounded to a
+configurable 32 MiB default. The EXIF timestamp remains its technical string,
+including an offset only when the file supplied one; it is not converted into
+or exposed as a Phase 6 historical date.
+
+Normalized GPS coordinates and the lossless raw profiles remain tenant-owned
+database fields and are absent from every ordinary Phase 5 response. The
+preserved original itself remains byte-for-byte unchanged. This retains the
+complete source metadata while keeping GPS and other private metadata outside
+ordinary presentation.
+
+The replaceable canonical-generation boundary uses bounded ImageMagick in the
+Laravel job. It selects the first image frame, applies EXIF orientation,
+normalizes to sRGB and strips all metadata and profiles. An opaque source
+produces a quality-90 progressive JPEG by default; meaningful alpha produces a
+PNG so transparency is not flattened. The full-resolution canonical is written
+conditionally to
+`families/{family_space_id}/media/{media_upload_id}/canonical.{jpg|png}` with
+its SHA-256 as object metadata. Existing identical output is idempotent and a
+different object at that key is never overwritten. Once the database freezes
+the canonical key, MIME type and checksum together with the private technical
+metadata, the upload advances from `preserved` to `processing` for S05.
+
+### Verification
+
+- Feature tests cover source-checksum identity, tenant context, lossless
+  NUL-bearing EXIF/ICC representation, private GPS fields, canonical
+  finalisation, state transition, replay safety and immutable-key collision.
+- Ordinary upload responses explicitly exclude GPS and raw profile fields.
+- Real container tests prove orientation is applied, sRGB output is produced,
+  EXIF/GPS are stripped, the original checksum is unchanged, regeneration is
+  deterministic, meaningful alpha selects PNG, and HEIC, HEIF and TIFF all
+  produce browser-presentable canonical assets.
+- PostgreSQL 17.6 integration proves private metadata remains inside the
+  existing forced Class C tenant boundary and binary profiles round-trip
+  losslessly through their base64 representation.
+
+No thumbnail, card or display variant is introduced here; those remain the
+complete scope of FPA-P05-S05.
+
+### Documentation updates
+
+- Recorded the selected metadata/canonical tools, private-field representation,
+  processing limits, format selection and `preserved`-to-`processing` boundary.
+- Advanced `tasks.json` to `FPA-P05-S05` after FPA-P05-S04 completed.
+
+### Commit boundary
+
+```text
+Extract media metadata and generate canonical assets
+```
+
 ## FPA-P05-S05 — Generate presentation variants
 
 Create thumbnails and responsive variants through queued jobs.
