@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\MediaUploadState;
+use App\Jobs\GenerateCanonicalMediaUpload;
 use App\Media\DecodedImage;
 use App\Media\ImageDecoderValidator;
 use App\Media\MalwareScanner;
@@ -18,6 +19,7 @@ use App\Services\MediaValidationManager;
 use App\Tenancy\TenantOperationContext;
 use DateTimeInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -35,6 +37,7 @@ class MediaValidationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Queue::fake();
         $this->storage = new ValidationStorage;
         $this->decoder = new ValidationDecoder;
         $this->scanner = new ValidationMalwareScanner;
@@ -64,6 +67,11 @@ class MediaValidationTest extends TestCase
         $this->assertSame([$upload->staging_object_key], $this->storage->downloadedKeys);
         $this->assertSame(1, $this->decoder->calls);
         $this->assertSame(1, $this->scanner->calls);
+        Queue::assertPushed(GenerateCanonicalMediaUpload::class, function (GenerateCanonicalMediaUpload $job) use ($upload): bool {
+            return $job->mediaUploadId === $upload->id
+                && $job->sourceSha256 === $upload->original_sha256
+                && $job->context['family_space_id'] === $upload->family_space_id;
+        });
         $this->assertDatabaseHas('audit_events', [
             'family_space_id' => $upload->family_space_id,
             'action' => 'media_upload.original_accepted',

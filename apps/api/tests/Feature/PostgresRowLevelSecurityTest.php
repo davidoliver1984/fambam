@@ -217,9 +217,11 @@ SQL);
         [$firstOwner, $firstFamily] = $this->createOwnedFamily('first-media-rls');
         [$secondOwner, $secondFamily] = $this->createOwnedFamily('second-media-rls');
         $now = now();
+        $uploadIds = [];
 
         foreach ([[$firstOwner, $firstFamily], [$secondOwner, $secondFamily]] as [$ownerId, $familyId]) {
             $uploadId = (string) Str::ulid();
+            $uploadIds[] = $uploadId;
             $this->admin->table('media_uploads')->insert([
                 'id' => $uploadId,
                 'family_space_id' => $familyId,
@@ -243,7 +245,20 @@ SQL);
         app(DatabaseTenantContext::class)->establishUser($firstOwner);
         app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
         $this->assertSame([$firstFamily], DB::table('media_uploads')->pluck('family_space_id')->all());
-        DB::rollBack();
+        DB::table('media_uploads')->where('id', $uploadIds[0])->update([
+            'gps_latitude' => '51.5014000',
+            'gps_longitude' => '-0.1419000',
+            'original_exif_base64' => base64_encode("raw-exif\0bytes"),
+        ]);
+        DB::commit();
+
+        $privateMetadata = $this->admin->selectOne(
+            'SELECT gps_latitude, gps_longitude, original_exif_base64 FROM media_uploads WHERE id = ?',
+            [$uploadIds[0]],
+        );
+        $this->assertSame('51.5014000', $privateMetadata->gps_latitude);
+        $this->assertSame('-0.1419000', $privateMetadata->gps_longitude);
+        $this->assertSame("raw-exif\0bytes", base64_decode($privateMetadata->original_exif_base64, true));
 
         $this->assertRlsRejects(function () use ($firstOwner, $firstFamily, $secondFamily, $now): void {
             app(DatabaseTenantContext::class)->establishUser($firstOwner);

@@ -105,7 +105,11 @@ class MediaUploadTest extends TestCase
         $this->actingAs($member)->postJson($endpoint)
             ->assertOk()
             ->assertJsonPath('data.state', 'uploaded')
-            ->assertJsonPath('data.byte_size', 2048);
+            ->assertJsonPath('data.byte_size', 2048)
+            ->assertJsonMissingPath('data.gps_latitude')
+            ->assertJsonMissingPath('data.gps_longitude')
+            ->assertJsonMissingPath('data.original_exif_base64')
+            ->assertJsonMissingPath('data.original_icc_profile_base64');
         $uploadedAt = $upload->refresh()->uploaded_at;
 
         $this->actingAs($member)->postJson($endpoint)
