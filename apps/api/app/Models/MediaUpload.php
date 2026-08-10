@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'user_id',
     'state',
     'staging_object_key',
+    'staging_deleted_at',
     'original_object_key',
     'quarantine_object_key',
     'original_sha256',
@@ -89,6 +90,7 @@ class MediaUpload extends Model
             'gps_latitude' => 'decimal:7',
             'gps_longitude' => 'decimal:7',
             'uploaded_at' => 'immutable_datetime',
+            'staging_deleted_at' => 'immutable_datetime',
         ];
     }
 }

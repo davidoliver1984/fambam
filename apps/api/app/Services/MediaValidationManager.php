@@ -191,7 +191,7 @@ class MediaValidationManager
             $context,
             $upload,
             $format,
-            $checksum,
+            $storageChecksum,
             $key,
             $reason,
             $temporaryPath,
@@ -205,7 +205,7 @@ class MediaValidationManager
             $locked->update([
                 'state' => MediaUploadState::Quarantined,
                 'quarantine_object_key' => $key,
-                'original_sha256' => $checksum,
+                'original_sha256' => $storageChecksum,
                 'byte_size' => filesize($temporaryPath),
                 'detected_mime_type' => $format?->mimeType(),
                 'rejection_reason' => $reason,

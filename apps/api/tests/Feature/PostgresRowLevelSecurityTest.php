@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Enums\FamilySpaceRole;
 use App\Enums\MembershipState;
+use App\Jobs\AbandonMediaUpload;
 use App\Jobs\DeleteFamilySpace;
 use App\Jobs\PurgeMediaQuarantine;
+use App\Media\FamilyMediaStorageCleaner;
 use App\Models\Invitation;
 use App\Models\User;
 use App\Services\FamilySpaceDeletionManager;
@@ -36,6 +38,7 @@ class PostgresRowLevelSecurityTest extends TestCase
         }
 
         $this->admin = DB::connection('pgsql_admin');
+        $this->app->instance(FamilyMediaStorageCleaner::class, new RlsFamilyMediaStorageCleaner);
         $this->admin->unprepared(<<<'SQL'
 TRUNCATE TABLE media_variants, media_uploads, person_merge_proposals, person_merges,
     family_circle_people, family_circles, relationship_proposals, person_relationships,
@@ -1099,6 +1102,54 @@ SQL, [config('database.runtime_role')]);
         Queue::assertNotPushed(PurgeMediaQuarantine::class, fn (PurgeMediaQuarantine $job): bool => $job->mediaUploadId === $fresh);
     }
 
+    public function test_due_abandoned_upload_discovery_is_cross_tenant_but_narrowly_executable(): void
+    {
+        [$firstOwner, $firstFamily] = $this->createOwnedFamily('first-abandoned-family');
+        [$secondOwner, $secondFamily] = $this->createOwnedFamily('second-abandoned-family');
+        $firstDue = (string) Str::ulid();
+        $secondDue = (string) Str::ulid();
+        $fresh = (string) Str::ulid();
+
+        $this->insertInitiatedMedia($firstDue, $firstFamily, $firstOwner, now()->subHours(25));
+        $this->insertInitiatedMedia($secondDue, $secondFamily, $secondOwner, now()->subHours(25));
+        $this->insertInitiatedMedia($fresh, $firstFamily, $firstOwner, now()->subHours(23));
+
+        $privileges = $this->admin->selectOne(<<<'SQL'
+SELECT
+    has_function_privilege('public', 'app_due_abandoned_media_uploads(timestamp with time zone)', 'EXECUTE') AS public_execute,
+    has_function_privilege(?, 'app_due_abandoned_media_uploads(timestamp with time zone)', 'EXECUTE') AS runtime_execute
+SQL, [config('database.runtime_role')]);
+        $this->assertFalse($privileges->public_execute);
+        $this->assertTrue($privileges->runtime_execute);
+
+        Queue::fake();
+        $this->artisan('fambam:dispatch-due-abandoned-media-uploads')->assertSuccessful();
+
+        Queue::assertPushed(AbandonMediaUpload::class, 2);
+        Queue::assertPushed(AbandonMediaUpload::class, function (AbandonMediaUpload $job) use (
+            $firstDue,
+            $firstFamily,
+            $firstOwner,
+        ): bool {
+            return $job->mediaUploadId === $firstDue
+                && $job->context['family_space_id'] === $firstFamily
+                && $job->context['actor_user_id'] === $firstOwner;
+        });
+        Queue::assertPushed(AbandonMediaUpload::class, function (AbandonMediaUpload $job) use (
+            $secondDue,
+            $secondFamily,
+            $secondOwner,
+        ): bool {
+            return $job->mediaUploadId === $secondDue
+                && $job->context['family_space_id'] === $secondFamily
+                && $job->context['actor_user_id'] === $secondOwner;
+        });
+        Queue::assertNotPushed(
+            AbandonMediaUpload::class,
+            fn (AbandonMediaUpload $job): bool => $job->mediaUploadId === $fresh,
+        );
+    }
+
     /** @return array{int, string, string} */
     private function createOwnedFamily(string $slug): array
     {
@@ -1164,6 +1215,29 @@ SQL, [config('database.runtime_role')]);
             'traceparent' => TenantOperationContext::newTraceparent(),
             'created_at' => $updatedAt,
             'updated_at' => $updatedAt,
+        ]);
+    }
+
+    private function insertInitiatedMedia(
+        string $id,
+        string $familySpaceId,
+        int $userId,
+        \DateTimeInterface $createdAt,
+    ): void {
+        $this->admin->table('media_uploads')->insert([
+            'id' => $id,
+            'family_space_id' => $familySpaceId,
+            'user_id' => $userId,
+            'state' => 'initiated',
+            'staging_object_key' => "families/{$familySpaceId}/media-staging/{$id}/original",
+            'client_filename' => 'pending.jpg',
+            'client_mime_type' => 'image/jpeg',
+            'idempotency_key' => "abandoned-{$id}",
+            'request_fingerprint' => hash('sha256', $id),
+            'correlation_id' => (string) Str::uuid(),
+            'traceparent' => TenantOperationContext::newTraceparent(),
+            'created_at' => $createdAt,
+            'updated_at' => $createdAt,
         ]);
     }
 
@@ -1261,4 +1335,9 @@ SQL, [config('database.runtime_role')]);
 
         return '"'.$identifier.'"';
     }
+}
+
+class RlsFamilyMediaStorageCleaner implements FamilyMediaStorageCleaner
+{
+    public function deleteFamilyMedia(string $familySpaceId): void {}
 }

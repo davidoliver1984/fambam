@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Media\MediaObjectCollision;
+use App\Media\S3FamilyMediaStorageCleaner;
 use App\Media\S3MediaDeliveryUrlSigner;
 use App\Media\S3MediaObjectStorage;
 use Aws\S3\S3Client;
@@ -104,6 +105,44 @@ class S3MediaObjectStorageTest extends TestCase
         $this->assertEqualsCanonicalizing(['PUT', 'GET', 'HEAD'], $cors['AllowedMethods']);
         $this->assertContains('Content-Range', $cors['ExposeHeaders']);
         $this->assertContains('Accept-Ranges', $cors['ExposeHeaders']);
+    }
+
+    public function test_real_family_media_cleanup_is_prefix_scoped_and_idempotent(): void
+    {
+        if (! config('media.integration_test_enabled')) {
+            $this->markTestSkipped('The real S3-compatible storage regression runs with infrastructure smoke.');
+        }
+
+        $familyId = '01KDELETEFAMILYMEDIA00000';
+        $otherFamilyId = '01KKEEPFAMILYMEDIA000000';
+        config(['media.cleanup.storage_delete_page_size' => 2]);
+        $disk = Storage::disk('s3');
+        $familyKeys = [
+            "families/{$familyId}/media-staging/upload/original",
+            "families/{$familyId}/media/upload/original.jpg",
+            "families/{$familyId}/media/upload/variants/display.v1.webp",
+            "families/{$familyId}/media/upload/variants/thumbnail.v1.webp",
+            "families/{$familyId}/quarantine/upload/original.jpg",
+        ];
+        $otherKey = "families/{$otherFamilyId}/media/upload/original.jpg";
+        foreach ([...$familyKeys, $otherKey] as $key) {
+            $disk->put($key, 'bytes');
+        }
+
+        try {
+            $cleaner = new S3FamilyMediaStorageCleaner;
+            $cleaner->deleteFamilyMedia($familyId);
+            $cleaner->deleteFamilyMedia($familyId);
+
+            foreach ($familyKeys as $key) {
+                $this->assertFalse($disk->exists($key));
+            }
+            $this->assertTrue($disk->exists($otherKey));
+        } finally {
+            foreach ([...$familyKeys, $otherKey] as $key) {
+                $disk->delete($key);
+            }
+        }
     }
 
     public function test_reusing_real_upload_authority_cannot_replace_staged_bytes(): void

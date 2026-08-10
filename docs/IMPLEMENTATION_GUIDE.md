@@ -1913,6 +1913,55 @@ Extend ADR-0005's idempotent Family Space teardown to remove the tenant's media
 objects and Phase-5-owned rows without introducing a standalone media-delete
 operation.
 
+Degraded processing recovery is explicit and source-bound. A canonical job
+that exhausts its retries may move only the matching preserved source into
+`degraded`; the uploader, or an Owner/Administrator when the uploader is no
+longer able to act, may then redispatch canonical generation from the frozen
+original SHA-256, or variant generation from the frozen canonical SHA-256 and
+configured processing version. The state change is claimed under a row lock
+before dispatch, so repeated recovery requests do not enqueue duplicate work
+and never replace or mutate the preserved original.
+
+Bulk upload remains presentation-only grouping. The browser assigns one ULID
+`upload_batch_id` and a stable idempotency key to each selected file, then runs
+the ordinary per-file initiation, direct PUT and completion flow independently.
+One failed file does not roll back another. A tenant- and uploader-scoped batch
+status endpoint reports per-file state and aggregate counts. Members see only
+their own batch, while Owner and Administrator may monitor tenant batches and
+recover work orphaned by uploader access loss; rejection reasons remain limited
+to Owner and Administrator responses. The touched React upload
+feature keeps endpoint knowledge in its typed feature API module, mutation and
+polling state in TanStack Query hooks, and accessible progress, partial-failure
+and retry presentation in the page/component layer.
+
+An hourly scheduler discovers expired `initiated` uploads through a narrowly
+executable PostgreSQL function. The default cutoff is 24 hours. Each unique,
+tenant-context-bearing cleanup job claims the row as `abandoned` before it
+deletes the untrusted staging object, records `staging_deleted_at` only after
+successful deletion, and remains discoverable after a storage failure so the
+cleanup can be retried safely. Uploaded or otherwise progressed work is never
+abandoned by the sweep.
+
+ADR-0005 Family Space teardown now deletes only that tenant's `media-staging`,
+`media` and `quarantine` object prefixes before deleting its Phase-5-owned
+`MediaUpload` rows; `MediaVariant` rows follow their existing cascade. Both
+storage and row removal are idempotent, including retry after a storage
+failure. This is the already-authorised tenant-deletion exception only: S07
+does not add a standalone media-delete endpoint or any Phase 6 `Photo`
+deletion/restoration behaviour.
+
+### Verification
+
+- Feature tests cover source-bound canonical and variant recovery, repeated
+  retry safety, uploader/role authorization, independent batch progress and
+  privacy, abandoned cleanup and retry, and idempotent tenant teardown.
+- Frontend tests cover multi-file grouping, per-file partial failure, stable
+  duplicate-safe retry input, batch status loading and accessible progress.
+- PostgreSQL integration proves cross-tenant abandoned-work discovery and its
+  revoked-public/runtime-only execution boundary.
+- Real LocalStack coverage proves tenant-prefix teardown is bounded and
+  idempotent while preserving another Family Space's objects.
+
 ### Phase verification
 
 - Uploading the same completion event twice is safe.
@@ -1921,6 +1970,19 @@ operation.
 - Reused or racing upload authority cannot replace a preserved original.
 - Variants can be deleted and regenerated.
 - Unauthorised media access fails.
+
+### Documentation updates
+
+- Recorded the source-bound recovery, presentation-only batching, 24-hour
+  abandoned sweep and tenant-teardown implementation boundaries.
+- Completed FPA-P05-S07 and Phase 5 in `tasks.json`, advancing the current
+  stage to FPA-P06-S01 without starting Phase 6 or drafting ADR-0008.
+
+### Commit boundary
+
+```text
+Complete media upload recovery and bulk workflows
+```
 
 ---
 

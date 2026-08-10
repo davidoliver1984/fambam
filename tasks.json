@@ -6,8 +6,8 @@
     "version": "0.1.0",
     "status": "in_progress",
     "v1_release_phase": "P15",
-    "current_phase": "P05",
-    "current_stage": "FPA-P05-S07",
+    "current_phase": "P06",
+    "current_stage": "FPA-P06-S01",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-10"
   },
@@ -343,7 +343,7 @@
     {
       "id": "P05",
       "name": "Media Storage and Upload Pipeline",
-      "status": "in_progress",
+      "status": "completed",
       "stages": [
         {
           "id": "FPA-P05-S01",
@@ -414,23 +414,25 @@
         {
           "id": "FPA-P05-S07",
           "title": "Add upload recovery and bulk upload",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P05-S06"
           ],
-          "notes": []
+          "notes": [
+            "Implemented source-bound duplicate-safe degraded recovery; independent per-file bulk upload grouped by an uploader-scoped batch ULID; typed TanStack Query batch mutation/polling with accessible partial-failure reporting; a narrowly executable PostgreSQL scheduler sweep and unique tenant-aware jobs for the configurable 24-hour abandoned-upload cutoff; retryable staging cleanup; and idempotent Family Space media-prefix and Phase-5-row teardown. Persistent migration, PostgreSQL cross-tenant discovery, role/privacy regressions, frontend batch coverage and real LocalStack tenant-prefix cleanup passed on 2026-08-10. No Phase 6 Photo domain or standalone media deletion was introduced."
+          ]
         }
       ]
     },
     {
       "id": "P06",
       "name": "Photo Domain, Provenance and Organisation",
-      "status": "planned",
+      "status": "in_progress",
       "stages": [
         {
           "id": "FPA-P06-S01",
           "title": "Accept photo domain, provenance and organisation ADR",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P05-S07"
           ],
@@ -1491,6 +1493,22 @@
       "roadmap_stage": "FPA-P05-S06",
       "date": "2026-08-10",
       "description": "FPA-P05-S06 completed: tenant- and role-authorized canonical, fixed-variant and preserved-original authority endpoints; bounded key-scoped signed GETs; verified response MIME types and Range support; explicit private-bucket, browser CORS and signature-validation controls; fail-closed unavailable and cross-tenant behaviour; and truthful original_download_authorised auditing were implemented and verified with role/state regressions, real LocalStack delivery, observability and PostgreSQL tenancy gates."
+    },
+    {
+      "git_tag": "phase-5-s07",
+      "type": "stage_completion",
+      "adr": "ADR-0007",
+      "roadmap_stage": "FPA-P05-S07",
+      "date": "2026-08-10",
+      "description": "FPA-P05-S07 completed: source-bound duplicate-safe degraded recovery with Owner/Administrator orphan recovery; independent per-file bulk upload with typed TanStack Query progress, partial-failure and processing-retry controls; narrowly executable 24-hour abandoned-upload discovery and retryable staging cleanup; and idempotent, paginated tenant media-prefix and Phase-5-row teardown were implemented, persistently migrated and verified."
+    },
+    {
+      "git_tag": "phase-5",
+      "type": "phase_completion",
+      "adr": null,
+      "roadmap_stage": "FPA-P05-S07",
+      "date": "2026-08-10",
+      "description": "Phase 5 completed: the Media Storage and Upload Pipeline passed the complete repository, PostgreSQL 17.6, persistent migration, real format-processing, malware-validation, LocalStack storage/delivery/teardown, observability and security acceptance gates."
     }
   ]
 }
