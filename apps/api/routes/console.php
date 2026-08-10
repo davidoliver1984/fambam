@@ -15,3 +15,7 @@ Schedule::command('fambam:dispatch-due-family-space-deletions')
 Schedule::command('fambam:dispatch-due-media-quarantine-purges')
     ->hourly()
     ->withoutOverlapping();
+
+Schedule::command('fambam:dispatch-due-abandoned-media-uploads')
+    ->hourly()
+    ->withoutOverlapping();

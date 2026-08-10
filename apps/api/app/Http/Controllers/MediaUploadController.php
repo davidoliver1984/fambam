@@ -11,16 +11,21 @@ use App\Models\MediaUpload;
 use App\Models\MediaVariant;
 use App\Models\User;
 use App\Services\MediaDeliveryManager;
+use App\Services\MediaRecoveryManager;
+use App\Services\MediaUploadBatchManager;
 use App\Services\MediaUploadManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 class MediaUploadController extends Controller
 {
     public function __construct(
         private readonly MediaUploadManager $uploads,
         private readonly MediaDeliveryManager $delivery,
+        private readonly MediaRecoveryManager $recovery,
+        private readonly MediaUploadBatchManager $batches,
     ) {}
 
     public function store(FamilySpace $familySpace, InitiateMediaUploadRequest $request): JsonResponse
@@ -102,6 +107,33 @@ class MediaUploadController extends Controller
         ]);
     }
 
+    public function retryProcessing(
+        FamilySpace $familySpace,
+        string $mediaUpload,
+        Request $request,
+    ): JsonResponse {
+        $upload = $this->upload($familySpace, $mediaUpload);
+        Gate::authorize('retryProcessing', $upload);
+        /** @var User $actor */
+        $actor = $request->user();
+
+        return response()->json([
+            'data' => $this->payload($this->recovery->retry($familySpace, $upload, $actor, $request)),
+        ]);
+    }
+
+    public function batch(FamilySpace $familySpace, string $uploadBatch, Request $request): JsonResponse
+    {
+        Gate::authorize('viewBatch', MediaUpload::class);
+        abort_unless(Str::isUlid($uploadBatch), 404);
+        /** @var User $actor */
+        $actor = $request->user();
+
+        return response()->json([
+            'data' => $this->batches->status($familySpace, $actor, $uploadBatch),
+        ]);
+    }
+
     /** @return array<string, mixed> */
     private function payload(MediaUpload $upload, ?UploadAuthorization $authorization = null): array
     {
@@ -111,6 +143,7 @@ class MediaUploadController extends Controller
             'client_filename' => $upload->client_filename,
             'byte_size' => $upload->byte_size,
             'uploaded_at' => $upload->uploaded_at?->toAtomString(),
+            'upload_batch_id' => $upload->upload_batch_id,
             'upload_authorization' => $authorization === null ? null : [
                 'url' => $authorization->url,
                 'method' => 'PUT',

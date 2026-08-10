@@ -24,7 +24,9 @@ return [
         'timeout_seconds' => (float) env('CLAMAV_TIMEOUT_SECONDS', 30),
     ],
     'cleanup' => [
+        'abandoned_after_hours' => (int) env('MEDIA_ABANDONED_AFTER_HOURS', 24),
         'quarantine_retention_days' => (int) env('MEDIA_QUARANTINE_RETENTION_DAYS', 7),
+        'storage_delete_page_size' => 1000,
     ],
     'processing' => [
         'exiftool_binary' => env('EXIFTOOL_BINARY', 'exiftool'),

@@ -101,6 +101,7 @@ class MediaValidationTest extends TestCase
         $this->assertSame('unsupported_format', $unknown->rejection_reason);
         $this->assertStringEndsWith('/original.bin', $unknown->quarantine_object_key);
         $this->assertNull($unknown->detected_mime_type);
+        $this->assertSame(hash('sha256', 'not-an-image'), $unknown->original_sha256);
         $this->assertSame(0, $this->decoder->calls);
 
         [$avif, $avifContext] = $this->uploadedMedia(

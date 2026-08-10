@@ -6,8 +6,11 @@ use App\Enums\FamilySpaceRole;
 use App\Enums\FamilySpaceStatus;
 use App\Enums\MembershipState;
 use App\Jobs\DeleteFamilySpace;
+use App\Media\FamilyMediaStorageCleaner;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
+use App\Models\MediaUpload;
+use App\Models\MediaVariant;
 use App\Models\User;
 use App\Services\FamilySpaceDeletionManager;
 use App\Storage\FamilyStorageKey;
@@ -20,6 +23,15 @@ use Tests\TestCase;
 class FamilySpaceDeletionTest extends TestCase
 {
     use RefreshDatabase;
+
+    private FakeFamilyMediaStorageCleaner $mediaCleaner;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->mediaCleaner = new FakeFamilyMediaStorageCleaner;
+        $this->app->instance(FamilyMediaStorageCleaner::class, $this->mediaCleaner);
+    }
 
     public function test_only_an_owner_can_request_and_cancel_deletion(): void
     {
@@ -96,6 +108,22 @@ class FamilySpaceDeletionTest extends TestCase
     {
         [$familySpace, $owner] = $this->familyWithOwner('teardown-family');
         $this->addMember($familySpace, FamilySpaceRole::Member);
+        $upload = MediaUpload::factory()->create([
+            'family_space_id' => $familySpace->id,
+            'user_id' => $owner->id,
+        ]);
+        MediaVariant::query()->create([
+            'family_space_id' => $familySpace->id,
+            'media_upload_id' => $upload->id,
+            'transform_name' => 'thumbnail',
+            'processing_version' => 1,
+            'object_key' => "families/{$familySpace->id}/media/{$upload->id}/variants/thumbnail.v1.webp",
+            'mime_type' => 'image/webp',
+            'sha256' => hash('sha256', 'variant'),
+            'pixel_width' => 320,
+            'pixel_height' => 320,
+            'byte_size' => 100,
+        ]);
         $familySpace->forceFill([
             'status' => FamilySpaceStatus::DeletionRequested,
             'deletion_requested_at' => now()->subDays(15),
@@ -121,12 +149,47 @@ class FamilySpaceDeletionTest extends TestCase
         $this->assertSame(1, $this->getConnection()->table('audit_events')
             ->where('action', 'family_space.deleted')
             ->count());
+        $this->assertDatabaseMissing('media_uploads', ['family_space_id' => $familySpace->id]);
+        $this->assertDatabaseMissing('media_variants', ['family_space_id' => $familySpace->id]);
+        $this->assertSame([$familySpace->id], $this->mediaCleaner->familySpaceIds);
         $this->assertDatabaseHas('audit_events', [
             'family_space_id' => $familySpace->id,
             'actor_user_id' => $owner->id,
             'correlation_id' => 'teardown-correlation',
             'traceparent' => $context->traceparent,
         ]);
+    }
+
+    public function test_teardown_retries_storage_cleanup_before_deleting_media_rows(): void
+    {
+        [$familySpace, $owner] = $this->familyWithOwner('retry-teardown-family');
+        $upload = MediaUpload::factory()->create([
+            'family_space_id' => $familySpace->id,
+            'user_id' => $owner->id,
+        ]);
+        $familySpace->forceFill([
+            'status' => FamilySpaceStatus::DeletionRequested,
+            'deletion_requested_at' => now()->subDays(15),
+            'deletion_requested_by' => $owner->id,
+            'scheduled_deletion_at' => now()->subDay(),
+        ])->save();
+        $context = TenantOperationContext::forBackground($familySpace->id, $owner->id);
+        $this->mediaCleaner->failuresRemaining = 1;
+        $deletions = app(FamilySpaceDeletionManager::class);
+
+        try {
+            $deletions->teardown($context);
+            $this->fail('Storage cleanup failure was swallowed.');
+        } catch (\RuntimeException) {
+            $this->assertSame(FamilySpaceStatus::Deleting, $familySpace->refresh()->status);
+            $this->assertDatabaseHas('media_uploads', ['id' => $upload->id]);
+        }
+
+        $deletions->teardown($context);
+
+        $this->assertSame(FamilySpaceStatus::Deleted, $familySpace->refresh()->status);
+        $this->assertDatabaseMissing('media_uploads', ['id' => $upload->id]);
+        $this->assertSame([$familySpace->id, $familySpace->id], $this->mediaCleaner->familySpaceIds);
     }
 
     public function test_cancelled_deletion_makes_a_stale_teardown_job_a_no_op(): void
@@ -183,5 +246,22 @@ class FamilySpaceDeletionTest extends TestCase
         ]);
 
         return $user;
+    }
+}
+
+class FakeFamilyMediaStorageCleaner implements FamilyMediaStorageCleaner
+{
+    /** @var list<string> */
+    public array $familySpaceIds = [];
+
+    public int $failuresRemaining = 0;
+
+    public function deleteFamilyMedia(string $familySpaceId): void
+    {
+        $this->familySpaceIds[] = $familySpaceId;
+        if ($this->failuresRemaining > 0) {
+            $this->failuresRemaining--;
+            throw new \RuntimeException('Storage cleanup failed.');
+        }
     }
 }

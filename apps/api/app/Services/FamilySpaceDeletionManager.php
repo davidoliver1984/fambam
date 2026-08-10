@@ -5,9 +5,11 @@ namespace App\Services;
 use App\Enums\FamilySpaceRole;
 use App\Enums\FamilySpaceStatus;
 use App\Enums\MembershipState;
+use App\Media\FamilyMediaStorageCleaner;
 use App\Models\FamilyCircle;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
+use App\Models\MediaUpload;
 use App\Models\Person;
 use App\Models\User;
 use App\Tenancy\DatabaseTenantContext;
@@ -22,6 +24,7 @@ class FamilySpaceDeletionManager
     public function __construct(
         private readonly AuditRecorder $audit,
         private readonly DatabaseTenantContext $databaseTenantContext,
+        private readonly FamilyMediaStorageCleaner $mediaStorageCleaner,
     ) {}
 
     public function request(FamilySpace $familySpace, User $actor, Request $request): FamilySpace
@@ -108,6 +111,8 @@ class FamilySpaceDeletionManager
             return;
         }
 
+        $this->mediaStorageCleaner->deleteFamilyMedia($context->familySpaceId);
+
         DB::transaction(function () use ($context): void {
             $this->establishTeardownContext($context);
             $familySpace = FamilySpace::query()->lockForUpdate()->find($context->familySpaceId);
@@ -122,6 +127,9 @@ class FamilySpaceDeletionManager
 
             $familySpace->update(['status' => FamilySpaceStatus::Deleted]);
             FamilyCircle::query()
+                ->where('family_space_id', $familySpace->id)
+                ->delete();
+            MediaUpload::query()
                 ->where('family_space_id', $familySpace->id)
                 ->delete();
             Person::withTrashed()

@@ -53,7 +53,9 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
             ->middleware('throttle:invitation-issuance');
         Route::post('/invitations/{invitation}/revoke', [InvitationController::class, 'revoke']);
         Route::post('/media-uploads', [MediaUploadController::class, 'store']);
+        Route::get('/media-upload-batches/{uploadBatch}', [MediaUploadController::class, 'batch']);
         Route::post('/media-uploads/{mediaUpload}/complete', [MediaUploadController::class, 'complete']);
+        Route::post('/media-uploads/{mediaUpload}/retry-processing', [MediaUploadController::class, 'retryProcessing']);
         Route::get('/media-uploads/{mediaUpload}/canonical', [MediaUploadController::class, 'canonical']);
         Route::get('/media-uploads/{mediaUpload}/variants/{transform}', [MediaUploadController::class, 'variant']);
         Route::get('/media-uploads/{mediaUpload}/original', [MediaUploadController::class, 'original']);

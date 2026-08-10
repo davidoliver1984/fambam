@@ -16,6 +16,11 @@ class MediaUploadPolicy
         return $this->hasPhaseFiveMediaAccess($user);
     }
 
+    public function viewBatch(User $user): bool
+    {
+        return $this->hasPhaseFiveMediaAccess($user);
+    }
+
     public function complete(User $user, MediaUpload $upload): bool
     {
         return $this->hasPhaseFiveMediaAccess($user)
@@ -31,6 +36,13 @@ class MediaUploadPolicy
     public function downloadOriginal(User $user, MediaUpload $upload): bool
     {
         return $this->view($user, $upload);
+    }
+
+    public function retryProcessing(User $user, MediaUpload $upload): bool
+    {
+        return $this->view($user, $upload)
+            && ($this->tenantContext->membership()->role->canManageMembers()
+                || $upload->user_id === $user->id);
     }
 
     private function hasPhaseFiveMediaAccess(User $user): bool

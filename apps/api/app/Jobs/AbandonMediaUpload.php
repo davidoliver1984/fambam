@@ -2,8 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Services\MediaCanonicalManager;
-use App\Services\MediaRecoveryManager;
+use App\Services\MediaAbandonedUploadManager;
 use App\Tenancy\TenantOperationContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -15,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Trace\SpanKind;
 
-class GenerateCanonicalMediaUpload implements ShouldBeUnique, ShouldQueue
+class AbandonMediaUpload implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -24,24 +23,20 @@ class GenerateCanonicalMediaUpload implements ShouldBeUnique, ShouldQueue
     public int $uniqueFor = 3600;
 
     /** @param array{family_space_id: string, actor_user_id: int, correlation_id: string, traceparent: string} $context */
-    public function __construct(
-        public array $context,
-        public string $mediaUploadId,
-        public string $sourceSha256,
-    ) {}
+    public function __construct(public array $context, public string $mediaUploadId) {}
 
     public function uniqueId(): string
     {
-        return "canonical:{$this->mediaUploadId}:{$this->sourceSha256}";
+        return "media-abandoned:{$this->mediaUploadId}";
     }
 
-    public function handle(MediaCanonicalManager $canonical): void
+    public function handle(MediaAbandonedUploadManager $abandoned): void
     {
         $context = TenantOperationContext::fromArray($this->context);
         $parent = Globals::propagator()->extract(['traceparent' => $context->traceparent]);
         $span = Globals::tracerProvider()
             ->getTracer('fambam-api')
-            ->spanBuilder('media-upload.canonical-generation')
+            ->spanBuilder('media-upload.abandoned-cleanup')
             ->setSpanKind(SpanKind::KIND_CONSUMER)
             ->setParent($parent)
             ->startSpan();
@@ -49,20 +44,11 @@ class GenerateCanonicalMediaUpload implements ShouldBeUnique, ShouldQueue
         Log::withContext($context->toArray() + ['media_upload_id' => $this->mediaUploadId]);
 
         try {
-            $canonical->generate($context, $this->mediaUploadId, $this->sourceSha256);
+            $abandoned->abandon($context, $this->mediaUploadId);
         } finally {
             Log::withoutContext([...array_keys($context->toArray()), 'media_upload_id']);
             $scope->detach();
             $span->end();
         }
-    }
-
-    public function failed(\Throwable $exception): void
-    {
-        app(MediaRecoveryManager::class)->markCanonicalDegraded(
-            TenantOperationContext::fromArray($this->context),
-            $this->mediaUploadId,
-            $this->sourceSha256,
-        );
     }
 }
