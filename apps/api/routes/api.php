@@ -7,6 +7,7 @@ use App\Http\Controllers\FamilySpaceController;
 use App\Http\Controllers\FamilySpaceMembershipController;
 use App\Http\Controllers\InvitationAcceptanceController;
 use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\MediaUploadController;
 use App\Http\Controllers\PersonAccountLinkController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\PersonMergeController;
@@ -51,6 +52,8 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::post('/invitations/{invitation}/resend', [InvitationController::class, 'resend'])
             ->middleware('throttle:invitation-issuance');
         Route::post('/invitations/{invitation}/revoke', [InvitationController::class, 'revoke']);
+        Route::post('/media-uploads', [MediaUploadController::class, 'store']);
+        Route::post('/media-uploads/{mediaUpload}/complete', [MediaUploadController::class, 'complete']);
         Route::get('/people', [PersonController::class, 'index']);
         Route::post('/people', [PersonController::class, 'store']);
         Route::get('/people/{person}', [PersonController::class, 'show']);

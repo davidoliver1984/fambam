@@ -76,7 +76,10 @@ services:
       AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-eu-west-2}"
       AWS_BUCKET: "${AWS_BUCKET:-fambam-media}"
       AWS_ENDPOINT: "http://localstack:4566"
+      AWS_PUBLIC_ENDPOINT: "http://localhost:${LOCALSTACK_PORT:-4570}"
       AWS_USE_PATH_STYLE_ENDPOINT: "true"
+      MEDIA_UPLOAD_AUTHORITY_TTL_MINUTES: "${MEDIA_UPLOAD_AUTHORITY_TTL_MINUTES:-15}"
+      MEDIA_UPLOAD_MAX_BYTES: "${MEDIA_UPLOAD_MAX_BYTES:-104857600}"
       MAIL_MAILER: smtp
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
@@ -322,6 +325,7 @@ services:
       AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-eu-west-2}"
       AWS_BUCKET: "${AWS_BUCKET:-fambam-media}"
       LOCALSTACK_ENDPOINT: http://localstack:4566
+      CORS_ALLOWED_ORIGIN: "http://localhost:${WEB_PORT:-3010}"
     volumes:
       - ./infrastructure/docker/localstack/init/10-bootstrap.sh:/opt/fambam/10-bootstrap.sh:ro
     depends_on:
