@@ -13,17 +13,27 @@ class MediaUploadPolicy
 
     public function create(User $user): bool
     {
-        return $this->hasPhaseFiveUploadAccess($user);
+        return $this->hasPhaseFiveMediaAccess($user);
     }
 
     public function complete(User $user, MediaUpload $upload): bool
     {
-        return $this->hasPhaseFiveUploadAccess($user)
+        return $this->hasPhaseFiveMediaAccess($user)
             && $this->tenantContext->familySpace()->id === $upload->family_space_id
             && $upload->user_id === $user->id;
     }
 
-    private function hasPhaseFiveUploadAccess(User $user): bool
+    public function view(User $user, MediaUpload $upload): bool
+    {
+        return $this->matchesContext($user, $upload) && $this->hasPhaseFiveMediaAccess($user);
+    }
+
+    public function downloadOriginal(User $user, MediaUpload $upload): bool
+    {
+        return $this->view($user, $upload);
+    }
+
+    private function hasPhaseFiveMediaAccess(User $user): bool
     {
         if (! $this->tenantContext->isEstablished()
             || $this->tenantContext->membership()->user_id !== $user->id) {
@@ -35,5 +45,12 @@ class MediaUploadPolicy
             FamilySpaceRole::Administrator,
             FamilySpaceRole::Member,
         ], true);
+    }
+
+    private function matchesContext(User $user, MediaUpload $upload): bool
+    {
+        return $this->tenantContext->isEstablished()
+            && $this->tenantContext->membership()->user_id === $user->id
+            && $this->tenantContext->familySpace()->id === $upload->family_space_id;
     }
 }

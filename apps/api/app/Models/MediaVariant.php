@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property MediaVariantTransform $transform_name
+ */
 #[Fillable([
     'family_space_id',
     'media_upload_id',

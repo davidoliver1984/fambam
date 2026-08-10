@@ -14,7 +14,12 @@ fi
 
 awslocal --endpoint-url "${endpoint}" s3api put-bucket-cors \
     --bucket "${bucket}" \
-    --cors-configuration "{\"CORSRules\":[{\"AllowedHeaders\":[\"*\"],\"AllowedMethods\":[\"PUT\"],\"AllowedOrigins\":[\"${cors_origin}\"],\"ExposeHeaders\":[\"ETag\"],\"MaxAgeSeconds\":300}]}"
+    --cors-configuration "{\"CORSRules\":[{\"AllowedHeaders\":[\"*\"],\"AllowedMethods\":[\"PUT\",\"GET\",\"HEAD\"],\"AllowedOrigins\":[\"${cors_origin}\"],\"ExposeHeaders\":[\"ETag\",\"Content-Length\",\"Content-Range\",\"Accept-Ranges\"],\"MaxAgeSeconds\":300}]}"
+
+awslocal --endpoint-url "${endpoint}" s3api put-public-access-block \
+    --bucket "${bucket}" \
+    --public-access-block-configuration \
+    'BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true'
 
 for queue in \
     fambam-jobs \
