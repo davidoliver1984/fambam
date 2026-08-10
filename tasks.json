@@ -7,9 +7,9 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P05",
-    "current_stage": "FPA-P05-S01",
+    "current_stage": "FPA-P05-S02",
     "created_at": "2026-07-31",
-    "updated_at": "2026-08-06"
+    "updated_at": "2026-08-10"
   },
   "conventions": {
     "phase_id_format": "P##",
@@ -348,16 +348,18 @@
         {
           "id": "FPA-P05-S01",
           "title": "Accept media storage and upload pipeline ADR",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P04-S05"
           ],
-          "notes": []
+          "notes": [
+            "ADR-0007 accepted 2026-08-10 (git tag phase-5-s01). Stage scope was solely ADR acceptance, so the ADR-acceptance commit is the stage-completion commit. Phase 5 owns Family-Space-local MediaUpload and MediaVariant infrastructure without introducing the Phase 6 Photo domain. Direct browser uploads receive bounded authority for an extension-independent tenant staging key; server-side validation detects the format before write-once-equivalent finalisation under archival or quarantine keys, and racing or reused authority must not replace preserved bytes. The state machine separates arrived-but-untrusted uploads from SHA-256-verified immutable originals; deterministic Laravel jobs perform validation, required configurable malware scanning, complete original metadata preservation, canonical generation and fixed presentation variants for JPEG, PNG, HEIC/HEIF, WebP and TIFF. Ordinary APIs and presentation assets withhold privacy-sensitive metadata, while authorised Owner/Administrator/Member original downloads deliberately return the untouched original. Signed original access records original_download_authorised rather than claiming an unobserved object-storage GET. Contributor upload remains an explicit Phase 6/7 resource-scoped placeholder, not a permanent prohibition. ADR-0005 tenant teardown is the sole deletion exception for preserved Phase 5 media, and bulk upload remains independent per-file work grouped only for presentation."
+          ]
         },
         {
           "id": "FPA-P05-S02",
           "title": "Implement upload initiation and completion",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P05-S01"
           ],
@@ -1126,7 +1128,7 @@
       {
         "id": "ADR-0007",
         "title": "Media storage and upload pipeline",
-        "status": "planned",
+        "status": "accepted",
         "roadmap_phase": "P05",
         "required_by_stage": "FPA-P05-S01"
       },
@@ -1431,6 +1433,14 @@
       "roadmap_stage": "FPA-P04-S05",
       "date": "2026-08-06",
       "description": "Phase 4 completed: all People, Accounts and Relationships stages passed the full repository, PostgreSQL 17.6, persistent migration and rebuilt-stack acceptance gates."
+    },
+    {
+      "git_tag": "phase-5-s01",
+      "type": "stage_completion",
+      "adr": "ADR-0007",
+      "roadmap_stage": "FPA-P05-S01",
+      "date": "2026-08-10",
+      "description": "FPA-P05-S01 completed: ADR-0007 accepted. Phase 5 owns MediaUpload and MediaVariant infrastructure independently of Phase 6 Photo records; direct upload uses tenant-scoped extension-independent staging, server-detected final keys and a verified write-once-equivalent boundary; preserved originals remain byte-for-byte immutable with SHA-256 integrity and complete metadata; Laravel owns deterministic validation, required configurable malware scanning, canonical generation and fixed variants across JPEG, PNG, HEIC/HEIF, WebP and TIFF; ordinary presentation withholds privacy-sensitive metadata while authorised original downloads return the untouched file; Contributor upload remains a Phase 6/7 resource-scoped placeholder; and ADR-0005 tenant deletion is the sole preserved-media deletion exception. Stage scope was solely ADR acceptance, so this ADR-acceptance commit is the stage-completion commit."
     }
   ]
 }
