@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Enums\MediaVariantTransform;
 use App\Media\ExifToolMediaMetadataExtractor;
 use App\Media\ImageMagickCanonicalImageGenerator;
+use App\Media\ImageMagickPresentationVariantGenerator;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
@@ -97,6 +99,18 @@ class MediaProcessingIntegrationTest extends TestCase
                 '%[opaque]',
                 $transparentCanonical->path,
             ])));
+            $transparentVariant = (new ImageMagickPresentationVariantGenerator)->generate(
+                $transparentCanonical->path,
+                MediaVariantTransform::Thumbnail,
+            );
+            $canonicals[] = $transparentVariant->path;
+            $this->assertSame('False', trim($this->runProcess([
+                'magick',
+                'identify',
+                '-format',
+                '%[opaque]',
+                $transparentVariant->path,
+            ])));
 
             foreach (['heic', 'heif', 'tif'] as $extension) {
                 $source = $this->temporaryPath($extension);
@@ -116,6 +130,61 @@ class MediaProcessingIntegrationTest extends TestCase
         } finally {
             foreach ([...$sources, ...$canonicals] as $path) {
                 @unlink($path);
+            }
+        }
+    }
+
+    public function test_real_variant_processing_uses_the_fixed_geometry_and_strips_metadata_deterministically(): void
+    {
+        $this->requireIntegrationEnvironment();
+        $canonical = $this->temporaryPath('jpg');
+        $variantPaths = [];
+
+        try {
+            $this->runProcess(['magick', '-size', '3000x2000', 'gradient:red-blue', "jpeg:{$canonical}"]);
+            $this->runProcess([
+                'exiftool',
+                '-overwrite_original',
+                '-Make=Private Camera',
+                '-GPSLatitude=51.5014',
+                '-GPSLatitudeRef=N',
+                $canonical,
+            ]);
+            $generator = new ImageMagickPresentationVariantGenerator;
+            $expected = [
+                'thumbnail' => '320 320 sRGB WEBP',
+                'card' => '768 512 sRGB WEBP',
+                'display' => '2048 1365 sRGB WEBP',
+            ];
+
+            foreach (MediaVariantTransform::cases() as $transform) {
+                $variant = $generator->generate($canonical, $transform);
+                $variantPaths[] = $variant->path;
+                $this->assertSame('webp', $variant->extension);
+                $this->assertSame('image/webp', $variant->mimeType);
+                $this->assertSame($expected[$transform->value], trim($this->runProcess([
+                    'magick',
+                    'identify',
+                    '-format',
+                    '%w %h %[colorspace] %m',
+                    $variant->path,
+                ])));
+
+                $metadata = (new ExifToolMediaMetadataExtractor)->extract($variant->path);
+                $this->assertNull($metadata->cameraMake);
+                $this->assertNull($metadata->gpsLatitude);
+                $this->assertNull($metadata->rawExif);
+            }
+
+            $first = $generator->generate($canonical, MediaVariantTransform::Thumbnail);
+            $second = $generator->generate($canonical, MediaVariantTransform::Thumbnail);
+            $variantPaths[] = $first->path;
+            $variantPaths[] = $second->path;
+            $this->assertSame($first->sha256, $second->sha256);
+        } finally {
+            @unlink($canonical);
+            foreach ($variantPaths as $variantPath) {
+                @unlink($variantPath);
             }
         }
     }

@@ -1789,7 +1789,60 @@ Extract media metadata and generate canonical assets
 
 ## FPA-P05-S05 — Generate presentation variants
 
-Create thumbnails and responsive variants through queued jobs.
+Generate ADR-0007's fixed presentation-variant set from the canonical asset
+through a unique tenant-aware Laravel job. The V1 transform vocabulary is
+centralised and intentionally limited to:
+
+- `thumbnail`: 320 by 320 pixels, centre-cropped;
+- `card`: 768 by 512 pixels, centre-cropped;
+- `display`: contained within 2048 by 2048 pixels without enlargement.
+
+All three transforms produce sRGB WebP at quality 82 with embedded metadata
+stripped. This preserves meaningful transparency while giving each transform
+name one implied format and geometry. V1 does not introduce a responsive
+`srcset` family or AVIF. Every variant is stored under
+`families/{family_space_id}/media/{media_upload_id}/variants/{transform}.v{processing_version}.webp`
+and identified durably by `(media_upload_id, transform_name,
+processing_version)`. The initial processing version is `1`; a later transform
+change increments the version instead of replacing an earlier identity.
+
+Canonical completion dispatches the variant job with the existing
+`TenantOperationContext`, canonical SHA-256 and processing version. The job is
+unique for that source/version identity, re-verifies the downloaded canonical
+checksum, uses write-once-equivalent object finalisation and reconciles rows
+under a conditional state check. Completing all three variants moves the upload
+from `processing` to `ready`. Exhausting job retries moves only the matching
+`processing` upload to `degraded`; the preserved original and canonical remain
+untouched. A ready upload may be safely re-dispatched to reconstruct deleted
+disposable variant objects without adding duplicate rows.
+
+### Verification
+
+- Feature coverage proves the fixed set, versioned identity, duplicate-safe
+  persistence, stale-source rejection, write-once collision behaviour,
+  regeneration after variant deletion and the bounded degraded transition.
+- Real ImageMagick coverage proves exact crop/contain geometry, sRGB WebP
+  output, metadata stripping and deterministic regeneration.
+- PostgreSQL 17.6 coverage proves `media_variants` uses the forced Class C
+  Family-Space tenant boundary.
+
+### Boundaries
+
+No delivery URL or media-view authorization is added here; that remains
+FPA-P05-S06. No bulk-upload presentation, recovery endpoint, degraded retry
+surface, frontend flow or Phase 6 `Photo` record is introduced.
+
+### Documentation updates
+
+- Recorded the fixed V1 transform vocabulary, encoding, versioned key layout,
+  queued lifecycle and regeneration behaviour.
+- Advanced `tasks.json` to `FPA-P05-S06` after FPA-P05-S05 completed.
+
+### Commit boundary
+
+```text
+Generate presentation media variants
+```
 
 ## FPA-P05-S06 — Secure media delivery
 

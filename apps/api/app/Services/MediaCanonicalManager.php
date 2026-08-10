@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\MediaUploadState;
+use App\Jobs\GeneratePresentationMediaVariants;
 use App\Media\CanonicalImageGenerator;
 use App\Media\ExtractedMediaMetadata;
 use App\Media\GeneratedCanonical;
@@ -54,7 +55,14 @@ class MediaCanonicalManager
                 "media/{$upload->id}/canonical.{$canonical->extension}",
             );
             $this->storage->finalizeWriteOnce($canonical->path, $key, $canonical->sha256);
-            $this->persist($context, $upload, $sourceSha256, $metadata, $canonical, $key);
+            if ($this->persist($context, $upload, $sourceSha256, $metadata, $canonical, $key)) {
+                GeneratePresentationMediaVariants::dispatch(
+                    $context->toArray(),
+                    $upload->id,
+                    $canonical->sha256,
+                    (int) config('media.processing.variant_processing_version'),
+                );
+            }
         } finally {
             @unlink($originalPath);
             if ($canonical instanceof GeneratedCanonical) {
@@ -89,14 +97,14 @@ class MediaCanonicalManager
         ExtractedMediaMetadata $metadata,
         GeneratedCanonical $canonical,
         string $key,
-    ): void {
-        DB::transaction(function () use ($context, $upload, $sourceSha256, $metadata, $canonical, $key): void {
+    ): bool {
+        return DB::transaction(function () use ($context, $upload, $sourceSha256, $metadata, $canonical, $key): bool {
             $this->establishContext($context);
             $locked = MediaUpload::query()->lockForUpdate()->find($upload->id);
             if ($locked === null
                 || $locked->state !== MediaUploadState::Preserved
                 || ! hash_equals($sourceSha256, $locked->original_sha256 ?? '')) {
-                return;
+                return false;
             }
 
             $locked->update([
@@ -117,6 +125,8 @@ class MediaCanonicalManager
                 'canonical_mime_type' => $canonical->mimeType,
                 'canonical_sha256' => $canonical->sha256,
             ]);
+
+            return true;
         });
     }
 

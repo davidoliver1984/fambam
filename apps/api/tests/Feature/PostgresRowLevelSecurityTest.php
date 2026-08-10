@@ -37,7 +37,7 @@ class PostgresRowLevelSecurityTest extends TestCase
 
         $this->admin = DB::connection('pgsql_admin');
         $this->admin->unprepared(<<<'SQL'
-TRUNCATE TABLE media_uploads, person_merge_proposals, person_merges,
+TRUNCATE TABLE media_variants, media_uploads, person_merge_proposals, person_merges,
     family_circle_people, family_circles, relationship_proposals, person_relationships,
     person_account_claims, person_account_links, person_detail_proposals, people,
     invitation_claims, invitations, audit_events, family_space_memberships,
@@ -91,13 +91,13 @@ WHERE relname IN (
     'audit_events', 'family_spaces', 'family_space_memberships',
     'people', 'person_detail_proposals', 'person_account_links', 'person_account_claims',
     'person_relationships', 'relationship_proposals', 'family_circles', 'family_circle_people',
-    'person_merges', 'person_merge_proposals', 'media_uploads',
+    'person_merges', 'person_merge_proposals', 'media_uploads', 'media_variants',
     'rls_test_records'
 )
 ORDER BY relname
 SQL);
 
-        $this->assertCount(15, $tables);
+        $this->assertCount(16, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
@@ -237,14 +237,31 @@ SQL);
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
+            $this->admin->table('media_variants')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $familyId,
+                'media_upload_id' => $uploadId,
+                'transform_name' => 'thumbnail',
+                'processing_version' => 1,
+                'object_key' => "families/{$familyId}/media/{$uploadId}/variants/thumbnail.v1.webp",
+                'mime_type' => 'image/webp',
+                'sha256' => hash('sha256', "variant-{$uploadId}"),
+                'pixel_width' => 320,
+                'pixel_height' => 320,
+                'byte_size' => 100,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
         }
 
         $this->assertSame([], DB::table('media_uploads')->pluck('family_space_id')->all());
+        $this->assertSame([], DB::table('media_variants')->pluck('family_space_id')->all());
 
         DB::beginTransaction();
         app(DatabaseTenantContext::class)->establishUser($firstOwner);
         app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
         $this->assertSame([$firstFamily], DB::table('media_uploads')->pluck('family_space_id')->all());
+        $this->assertSame([$firstFamily], DB::table('media_variants')->pluck('family_space_id')->all());
         DB::table('media_uploads')->where('id', $uploadIds[0])->update([
             'gps_latitude' => '51.5014000',
             'gps_longitude' => '-0.1419000',
@@ -276,6 +293,26 @@ SQL);
                 'request_fingerprint' => hash('sha256', $uploadId),
                 'correlation_id' => (string) Str::uuid(),
                 'traceparent' => '00-'.str_repeat('1', 32).'-'.str_repeat('2', 16).'-01',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        });
+
+        $this->assertRlsRejects(function () use ($firstOwner, $firstFamily, $secondFamily, $uploadIds, $now): void {
+            app(DatabaseTenantContext::class)->establishUser($firstOwner);
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('media_variants')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $secondFamily,
+                'media_upload_id' => $uploadIds[1],
+                'transform_name' => 'card',
+                'processing_version' => 1,
+                'object_key' => "families/{$secondFamily}/media/{$uploadIds[1]}/variants/card.v1.webp",
+                'mime_type' => 'image/webp',
+                'sha256' => hash('sha256', 'cross-tenant-variant'),
+                'pixel_width' => 768,
+                'pixel_height' => 512,
+                'byte_size' => 200,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);

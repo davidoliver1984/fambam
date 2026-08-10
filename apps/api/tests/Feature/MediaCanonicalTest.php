@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\MediaUploadState;
+use App\Jobs\GeneratePresentationMediaVariants;
 use App\Media\CanonicalImageGenerator;
 use App\Media\ExtractedMediaMetadata;
 use App\Media\GeneratedCanonical;
@@ -18,6 +19,7 @@ use App\Services\MediaCanonicalManager;
 use App\Tenancy\TenantOperationContext;
 use DateTimeInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -34,6 +36,7 @@ class MediaCanonicalTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Queue::fake();
         $this->storage = new CanonicalStorage;
         $this->metadata = new CanonicalMetadataExtractor;
         $this->generator = new CanonicalGenerator;
@@ -70,6 +73,13 @@ class MediaCanonicalTest extends TestCase
         $this->assertSame('canonical-bytes', $this->storage->objects[$canonicalKey]);
         $this->assertSame(1, $this->metadata->calls);
         $this->assertSame(1, $this->generator->calls);
+        Queue::assertPushed(GeneratePresentationMediaVariants::class, function (
+            GeneratePresentationMediaVariants $job,
+        ) use ($upload): bool {
+            return $job->mediaUploadId === $upload->id
+                && $job->canonicalSha256 === hash('sha256', 'canonical-bytes')
+                && $job->processingVersion === 1;
+        });
     }
 
     public function test_stale_source_identity_and_final_key_collisions_fail_closed(): void

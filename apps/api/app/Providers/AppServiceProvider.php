@@ -9,9 +9,11 @@ use App\Media\ExifToolMediaMetadataExtractor;
 use App\Media\ImageDecoderValidator;
 use App\Media\ImageMagickCanonicalImageGenerator;
 use App\Media\ImageMagickDecoderValidator;
+use App\Media\ImageMagickPresentationVariantGenerator;
 use App\Media\MalwareScanner;
 use App\Media\MediaMetadataExtractor;
 use App\Media\MediaObjectStorage;
+use App\Media\PresentationVariantGenerator;
 use App\Media\S3MediaObjectStorage;
 use App\Services\AuthenticateUser;
 use App\Services\PwnedPasswordVerifier;
@@ -39,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(MalwareScanner::class, ClamAvMalwareScanner::class);
         $this->app->bind(MediaMetadataExtractor::class, ExifToolMediaMetadataExtractor::class);
         $this->app->bind(CanonicalImageGenerator::class, ImageMagickCanonicalImageGenerator::class);
+        $this->app->bind(PresentationVariantGenerator::class, ImageMagickPresentationVariantGenerator::class);
 
         $this->app->singleton(
             AuthenticateUser::class,

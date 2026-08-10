@@ -28,6 +28,8 @@ return [
         'timeout_seconds' => (float) env('MEDIA_PROCESSING_TIMEOUT_SECONDS', 30),
         'metadata_profile_max_bytes' => (int) env('MEDIA_METADATA_PROFILE_MAX_BYTES', 32 * 1024 * 1024),
         'canonical_jpeg_quality' => (int) env('MEDIA_CANONICAL_JPEG_QUALITY', 90),
+        'variant_processing_version' => (int) env('MEDIA_VARIANT_PROCESSING_VERSION', 1),
+        'variant_webp_quality' => (int) env('MEDIA_VARIANT_WEBP_QUALITY', 82),
         'integration_test_enabled' => env('RUN_MEDIA_PROCESSING_INTEGRATION', false),
     ],
 ];

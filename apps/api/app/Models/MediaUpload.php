@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property MediaUploadState $state
@@ -68,6 +69,12 @@ class MediaUpload extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /** @return HasMany<MediaVariant, $this> */
+    public function variants(): HasMany
+    {
+        return $this->hasMany(MediaVariant::class);
     }
 
     /** @return array<string, string> */
