@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\MediaUploadState;
+use App\Jobs\ValidateMediaUpload;
 use App\Media\MediaObjectStorage;
 use App\Media\MediaUploadInitiation;
 use App\Media\UploadAuthorization;
@@ -101,7 +102,7 @@ class MediaUploadManager
             $this->fail("The staged upload must be between 1 and {$maxBytes} bytes.");
         }
 
-        MediaUpload::query()
+        $transitioned = MediaUpload::query()
             ->whereKey($upload->id)
             ->where('state', MediaUploadState::Initiated->value)
             ->update([
@@ -110,6 +111,16 @@ class MediaUploadManager
                 'uploaded_at' => now(),
                 'updated_at' => now(),
             ]);
+
+        if ($transitioned === 1) {
+            $context = new TenantOperationContext(
+                $upload->family_space_id,
+                (int) $upload->user_id,
+                $upload->correlation_id,
+                $upload->traceparent,
+            );
+            ValidateMediaUpload::dispatch($context->toArray(), $upload->id);
+        }
 
         return $upload->refresh();
     }

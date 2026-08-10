@@ -1648,6 +1648,77 @@ derived only from the server-detected format. Select the concrete
 copy/move/finalisation API and prove that reused or racing upload authority
 cannot replace an already preserved original.
 
+Completion dispatches one unique, tenant-context-carrying Laravel validation
+job per `MediaUpload`. The job conditionally claims `uploaded` as `verifying`,
+re-downloads the staging object, and treats every filename, claimed MIME type
+and client extension as provenance only. Replayed validation against a terminal
+state is a no-op.
+
+The validation pipeline applies the configured byte ceiling; detects JPEG,
+PNG, HEIC, HEIF, WebP or TIFF from file signatures; rejects AVIF and unknown
+formats; performs a bounded ImageMagick header probe and full decode; enforces
+a configurable 100-million-pixel default; computes SHA-256 over the exact
+staged bytes; and submits those bytes to the replaceable `MalwareScanner`
+boundary. The deployed local implementation is ClamAV over its streaming TCP
+protocol. It fails closed on infection, timeout, an unavailable scanner or an
+unrecognised scan result. Decoder execution defaults to a 20-second timeout
+with explicit memory, map and disk limits; the ClamAV scan timeout defaults to
+30 seconds. The API image explicitly installs the JPEG, PNG, HEIC/HEIF, WebP
+and TIFF decoder support used by the accepted allowlist.
+
+Successful validation conditionally writes the untouched bytes to
+`families/{family_space_id}/media/{media_upload_id}/original.{detected_ext}`
+with their SHA-256 as object metadata. The signed server write includes
+`If-None-Match: *`; an existing object is idempotent only when both byte length
+and checksum match, and otherwise raises an immutable-object collision without
+overwriting it. The database then freezes the original key, detected MIME type,
+byte size and SHA-256 at `preserved`, records
+`media_upload.original_accepted`, and removes the staging object.
+
+A validation failure is finalised with the same write-once rule under
+`families/{family_space_id}/quarantine/{media_upload_id}/original.{detected_ext}`
+or `.bin` when no supported format was detected. The upload records a bounded
+machine-readable rejection reason, records
+`media_upload.original_quarantined`, and removes the staging object only after
+the quarantine object and database transition are durable. There is no
+canonical generation, metadata extraction, presentation variant or Photo
+domain work in this stage.
+
+An hourly scheduler command discovers quarantine objects older than the
+configurable seven-day default through a narrowly executable PostgreSQL
+function, then dispatches unique tenant-aware purge jobs. Purging deletes only
+the quarantine object and clears its object key idempotently; the terminal
+`MediaUpload` rejection row and its existing audit event remain durable. This
+does not introduce the S07 abandoned-upload sweep or any preserved-original
+deletion path.
+
+### Verification
+
+- Feature tests cover every accepted signature and detected extension,
+  misleading client metadata, explicit AVIF/unknown rejection, decoder-invalid
+  quarantine, malware detection, scanner unavailability and timeout,
+  checksum stability, replay idempotency and immutable-final-key collision.
+- Real LocalStack tests prove identical finalisation is idempotent while
+  different bytes cannot replace an existing archival object.
+- The media-validation smoke test proves all accepted ImageMagick coders can
+  write and decode a real sample, and proves the deployed ClamAV service accepts
+  clean input and rejects the EICAR test signature.
+- PostgreSQL integration re-runs all migrations and Class C tenant-isolation
+  checks with the quarantine-key schema present, and proves cross-tenant due
+  discovery is unavailable to `PUBLIC` while executable by the runtime role.
+
+### Documentation updates
+
+- Recorded the selected decoder, malware scanner, failure posture, limits,
+  write-once finalisation and quarantine mechanics.
+- Advanced `tasks.json` to `FPA-P05-S04` after FPA-P05-S03 completed.
+
+### Commit boundary
+
+```text
+Validate and preserve uploaded originals
+```
+
 ## FPA-P05-S04 — Extract metadata and generate canonical assets
 
 Apply orientation correctly and preserve original EXIF separately.

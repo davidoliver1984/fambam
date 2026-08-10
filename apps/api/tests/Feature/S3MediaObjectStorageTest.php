@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Media\MediaObjectCollision;
 use App\Media\S3MediaObjectStorage;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -60,6 +61,43 @@ class S3MediaObjectStorageTest extends TestCase
             $this->assertSame('first-preserved-bytes', $disk->get($key));
         } finally {
             $disk->delete($key);
+        }
+    }
+
+    public function test_real_finalisation_is_idempotent_only_for_identical_preserved_bytes(): void
+    {
+        if (! config('media.integration_test_enabled')) {
+            $this->markTestSkipped('The real S3-compatible storage regression runs with infrastructure smoke.');
+        }
+
+        $key = 'families/01KTEST/media/'.Str::ulid().'/original.jpg';
+        $disk = Storage::disk('s3');
+        $storage = new S3MediaObjectStorage;
+        $firstPath = tempnam(sys_get_temp_dir(), 'fambam-final-first-');
+        $secondPath = tempnam(sys_get_temp_dir(), 'fambam-final-second-');
+        $this->assertIsString($firstPath);
+        $this->assertIsString($secondPath);
+        file_put_contents($firstPath, 'first-preserved-bytes');
+        file_put_contents($secondPath, 'replacement-bytes');
+        $disk->delete($key);
+
+        try {
+            $checksum = hash_file('sha256', $firstPath);
+            $this->assertIsString($checksum);
+            $storage->finalizeWriteOnce($firstPath, $key, $checksum);
+            $storage->finalizeWriteOnce($firstPath, $key, $checksum);
+
+            $this->expectException(MediaObjectCollision::class);
+            $storage->finalizeWriteOnce(
+                $secondPath,
+                $key,
+                (string) hash_file('sha256', $secondPath),
+            );
+        } finally {
+            $this->assertSame('first-preserved-bytes', $disk->get($key));
+            $disk->delete($key);
+            @unlink($firstPath);
+            @unlink($secondPath);
         }
     }
 }

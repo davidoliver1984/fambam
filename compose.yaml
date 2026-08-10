@@ -80,6 +80,12 @@ services:
       AWS_USE_PATH_STYLE_ENDPOINT: "true"
       MEDIA_UPLOAD_AUTHORITY_TTL_MINUTES: "${MEDIA_UPLOAD_AUTHORITY_TTL_MINUTES:-15}"
       MEDIA_UPLOAD_MAX_BYTES: "${MEDIA_UPLOAD_MAX_BYTES:-104857600}"
+      MEDIA_MAX_PIXELS: "${MEDIA_MAX_PIXELS:-100000000}"
+      MEDIA_DECODER_TIMEOUT_SECONDS: "${MEDIA_DECODER_TIMEOUT_SECONDS:-20}"
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: 3310
+      CLAMAV_TIMEOUT_SECONDS: "${CLAMAV_TIMEOUT_SECONDS:-30}"
+      MEDIA_QUARANTINE_RETENTION_DAYS: "${MEDIA_QUARANTINE_RETENTION_DAYS:-7}"
       MAIL_MAILER: smtp
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
@@ -138,10 +144,35 @@ services:
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
       AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-eu-west-2}"
+      AWS_BUCKET: "${AWS_BUCKET:-fambam-media}"
+      AWS_ENDPOINT: "http://localstack:4566"
+      AWS_USE_PATH_STYLE_ENDPOINT: "true"
+      MEDIA_UPLOAD_MAX_BYTES: "${MEDIA_UPLOAD_MAX_BYTES:-104857600}"
+      MEDIA_MAX_PIXELS: "${MEDIA_MAX_PIXELS:-100000000}"
+      MEDIA_DECODER_TIMEOUT_SECONDS: "${MEDIA_DECODER_TIMEOUT_SECONDS:-20}"
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: 3310
+      CLAMAV_TIMEOUT_SECONDS: "${CLAMAV_TIMEOUT_SECONDS:-30}"
+      MEDIA_QUARANTINE_RETENTION_DAYS: "${MEDIA_QUARANTINE_RETENTION_DAYS:-7}"
     depends_on:
       api:
         condition: service_healthy
+      clamav:
+        condition: service_healthy
     restart: unless-stopped
+    networks:
+      - fambam
+
+  clamav:
+    image: clamav/clamav:1.5-debian13-slim
+    volumes:
+      - clamav-data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD-SHELL", "clamdscan --ping 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
     networks:
       - fambam
 
@@ -178,6 +209,7 @@ services:
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
       AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-eu-west-2}"
+      MEDIA_QUARANTINE_RETENTION_DAYS: "${MEDIA_QUARANTINE_RETENTION_DAYS:-7}"
     depends_on:
       api:
         condition: service_healthy
@@ -381,6 +413,7 @@ services:
       - fambam
 
 volumes:
+  clamav-data:
   localstack-data:
   postgres-data:
   redis-data:

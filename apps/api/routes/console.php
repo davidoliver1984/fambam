@@ -11,3 +11,7 @@ Artisan::command('inspire', function () {
 Schedule::command('fambam:dispatch-due-family-space-deletions')
     ->everyMinute()
     ->withoutOverlapping();
+
+Schedule::command('fambam:dispatch-due-media-quarantine-purges')
+    ->hourly()
+    ->withoutOverlapping();

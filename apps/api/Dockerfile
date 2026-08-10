@@ -5,6 +5,11 @@ FROM php:8.4.5-cli-alpine
 RUN apk add --no-cache \
         $PHPIZE_DEPS \
         curl \
+        imagemagick \
+        imagemagick-heic \
+        imagemagick-jpeg \
+        imagemagick-tiff \
+        imagemagick-webp \
         libpq-dev \
         libzip-dev \
         unzip \
