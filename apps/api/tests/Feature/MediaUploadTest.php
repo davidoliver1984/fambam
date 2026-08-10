@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\FamilySpaceRole;
 use App\Enums\MediaUploadState;
+use App\Jobs\ValidateMediaUpload;
 use App\Media\MediaObjectStorage;
 use App\Media\StoredObject;
 use App\Media\UploadAuthorization;
@@ -15,6 +16,7 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class MediaUploadTest extends TestCase
@@ -26,6 +28,7 @@ class MediaUploadTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Queue::fake();
         $this->storage = new FakeMediaObjectStorage;
         $this->app->instance(MediaObjectStorage::class, $this->storage);
     }
@@ -111,6 +114,7 @@ class MediaUploadTest extends TestCase
 
         $this->assertSame(1, $this->storage->inspectionCount);
         $this->assertTrue($uploadedAt?->equalTo($upload->refresh()->uploaded_at) ?? false);
+        Queue::assertPushed(ValidateMediaUpload::class, 1);
     }
 
     public function test_completion_rejects_missing_empty_and_oversized_objects(): void
@@ -209,5 +213,20 @@ class FakeMediaObjectStorage implements MediaObjectStorage
         $this->inspectionCount++;
 
         return $this->objects[$key] ?? null;
+    }
+
+    public function downloadTo(string $key, string $localPath): void
+    {
+        file_put_contents($localPath, 'fake');
+    }
+
+    public function finalizeWriteOnce(string $localPath, string $key, string $sha256): void
+    {
+        $this->objects[$key] = new StoredObject((int) filesize($localPath), $sha256);
+    }
+
+    public function delete(string $key): void
+    {
+        unset($this->objects[$key]);
     }
 }

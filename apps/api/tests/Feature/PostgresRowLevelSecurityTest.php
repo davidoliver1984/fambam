@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\FamilySpaceRole;
 use App\Enums\MembershipState;
 use App\Jobs\DeleteFamilySpace;
+use App\Jobs\PurgeMediaQuarantine;
 use App\Models\Invitation;
 use App\Models\User;
 use App\Services\FamilySpaceDeletionManager;
@@ -12,6 +13,7 @@ use App\Services\FamilySpaceManager;
 use App\Services\InvitationManager;
 use App\Services\MembershipInvitationAcceptor;
 use App\Tenancy\DatabaseTenantContext;
+use App\Tenancy\TenantOperationContext;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -1000,6 +1002,51 @@ SQL);
         $this->assertSame(1, $this->admin->table('audit_events')->where('action', 'family_space.deleted')->count());
     }
 
+    public function test_due_quarantine_discovery_is_cross_tenant_but_narrowly_executable(): void
+    {
+        [$firstOwner, $firstFamily] = $this->createOwnedFamily('first-quarantine-family');
+        [$secondOwner, $secondFamily] = $this->createOwnedFamily('second-quarantine-family');
+        $firstDue = (string) Str::ulid();
+        $secondDue = (string) Str::ulid();
+        $fresh = (string) Str::ulid();
+
+        $this->insertQuarantinedMedia($firstDue, $firstFamily, $firstOwner, now()->subDays(8));
+        $this->insertQuarantinedMedia($secondDue, $secondFamily, $secondOwner, now()->subDays(8));
+        $this->insertQuarantinedMedia($fresh, $firstFamily, $firstOwner, now()->subDays(6));
+
+        $privileges = $this->admin->selectOne(<<<'SQL'
+SELECT
+    has_function_privilege('public', 'app_due_media_quarantines(timestamp with time zone)', 'EXECUTE') AS public_execute,
+    has_function_privilege(?, 'app_due_media_quarantines(timestamp with time zone)', 'EXECUTE') AS runtime_execute
+SQL, [config('database.runtime_role')]);
+        $this->assertFalse($privileges->public_execute);
+        $this->assertTrue($privileges->runtime_execute);
+
+        Queue::fake();
+        $this->artisan('fambam:dispatch-due-media-quarantine-purges')->assertSuccessful();
+
+        Queue::assertPushed(PurgeMediaQuarantine::class, 2);
+        Queue::assertPushed(PurgeMediaQuarantine::class, function (PurgeMediaQuarantine $job) use (
+            $firstDue,
+            $firstFamily,
+            $firstOwner,
+        ): bool {
+            return $job->mediaUploadId === $firstDue
+                && $job->context['family_space_id'] === $firstFamily
+                && $job->context['actor_user_id'] === $firstOwner;
+        });
+        Queue::assertPushed(PurgeMediaQuarantine::class, function (PurgeMediaQuarantine $job) use (
+            $secondDue,
+            $secondFamily,
+            $secondOwner,
+        ): bool {
+            return $job->mediaUploadId === $secondDue
+                && $job->context['family_space_id'] === $secondFamily
+                && $job->context['actor_user_id'] === $secondOwner;
+        });
+        Queue::assertNotPushed(PurgeMediaQuarantine::class, fn (PurgeMediaQuarantine $job): bool => $job->mediaUploadId === $fresh);
+    }
+
     /** @return array{int, string, string} */
     private function createOwnedFamily(string $slug): array
     {
@@ -1040,6 +1087,31 @@ SQL);
             'timezone' => 'Europe/London',
             'created_at' => now(),
             'updated_at' => now(),
+        ]);
+    }
+
+    private function insertQuarantinedMedia(
+        string $id,
+        string $familySpaceId,
+        int $userId,
+        \DateTimeInterface $updatedAt,
+    ): void {
+        $this->admin->table('media_uploads')->insert([
+            'id' => $id,
+            'family_space_id' => $familySpaceId,
+            'user_id' => $userId,
+            'state' => 'quarantined',
+            'staging_object_key' => "families/{$familySpaceId}/media-staging/{$id}/original",
+            'quarantine_object_key' => "families/{$familySpaceId}/quarantine/{$id}/original.bin",
+            'client_filename' => 'rejected.bin',
+            'client_mime_type' => 'application/octet-stream',
+            'rejection_reason' => 'unsupported_format',
+            'idempotency_key' => "quarantine-{$id}",
+            'request_fingerprint' => hash('sha256', $id),
+            'correlation_id' => (string) Str::uuid(),
+            'traceparent' => TenantOperationContext::newTraceparent(),
+            'created_at' => $updatedAt,
+            'updated_at' => $updatedAt,
         ]);
     }
 

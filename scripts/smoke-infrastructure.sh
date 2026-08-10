@@ -88,7 +88,7 @@ docker compose exec -T api php artisan tinker --execute='cache()->put("infrastru
     AWS_ENDPOINT="http://localhost:${LOCALSTACK_PORT:-4570}" \
     AWS_PUBLIC_ENDPOINT="http://localhost:${LOCALSTACK_PORT:-4570}" \
     AWS_USE_PATH_STYLE_ENDPOINT=true \
-        php artisan test --filter=test_reusing_real_upload_authority_cannot_replace_staged_bytes
+        php artisan test --filter=S3MediaObjectStorageTest
 )
 
 echo "Infrastructure smoke checks passed."

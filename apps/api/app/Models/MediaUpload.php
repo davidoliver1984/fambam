@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'state',
     'staging_object_key',
     'original_object_key',
+    'quarantine_object_key',
     'original_sha256',
     'byte_size',
     'client_filename',
