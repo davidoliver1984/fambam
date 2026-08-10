@@ -1506,15 +1506,103 @@ persistent-migration and rebuilt-stack acceptance gate passed.
 
 ## FPA-P05-S01 — Accept media storage and upload pipeline ADR
 
-Resolve direct upload, object keys, supported formats, canonical assets and access strategy (ADR-0007).
+### Objective
+
+Decide the Phase 5/6 media boundary, direct-upload authority, storage-key
+lifecycle, original preservation and validation guarantees, deterministic
+processing ownership, metadata privacy, variant identity, secure delivery,
+role baseline, auditing and cleanup in ADR-0007 before implementation begins.
+
+### Engineering rationale
+
+Upload authority, byte immutability, validation, canonical generation,
+metadata exposure and delivery are one trust chain. Deciding that chain once
+prevents later stages from treating an arrived object as trusted, deriving a
+security-sensitive path from client claims, confusing a presentation asset
+with the archival original, or introducing a Phase 6 Photo dependency early.
+
+### Prerequisites
+
+- FPA-P04-S05 complete.
+
+### Expected changes
+
+- ADR-0007 accepted.
+
+### Verification
+
+- ADR-0007 covers the MediaUpload/MediaVariant ownership boundary; bounded
+  extension-independent staging authority; server-detected archival and
+  quarantine keys; write-once-equivalent finalisation; the explicit upload
+  state machine; server-computed SHA-256 integrity; required validation and
+  configurable malware scanning; JPEG, PNG, HEIC/HEIF, WebP and TIFF support;
+  complete original metadata preservation; presentation-safe canonical and
+  variant assets; Laravel processing ownership; tenant-aware asynchronous
+  work; independent bulk-upload semantics; short-lived authorised delivery;
+  Contributor/Guest deferral; truthful audit events; and cleanup including
+  ADR-0005 tenant teardown.
+
+ADR-0007 was accepted 2026-08-10. Phase 5 owns Family-Space-local
+`MediaUpload` and `MediaVariant` infrastructure while Phase 6 later introduces
+`Photo` and references a ready upload in that direction only. A browser receives
+bounded authority for a server-generated, tenant-scoped,
+extension-independent staging key. Laravel independently verifies the arrived
+object, detects its real format and finalises verified or quarantined bytes
+under the corresponding hierarchy without allowing stale, reused or racing
+upload authority to replace a preserved original. Database idempotency and
+object-byte immutability are separate required guarantees.
+
+The accepted lifecycle distinguishes initiated, uploaded-but-untrusted,
+verifying, preserved, processing, ready, quarantined, abandoned and degraded
+states. Preservation freezes a server-computed SHA-256 over the exact original
+bytes. The original retains its complete EXIF, GPS, ICC profile and encoding;
+ordinary APIs, UI responses, canonical assets and variants withhold
+privacy-sensitive metadata, while an authorised Owner, Administrator or Member
+download deliberately returns the untouched original and may therefore expose
+its embedded metadata. Laravel records `original_download_authorised` when it
+issues the signed URL and does not claim to have observed the later
+object-storage GET.
+
+Laravel owns deterministic validation and processing on the existing tenant
+job envelope. Malware scanning remains a required configurable validation
+stage. JPEG, PNG, HEIC/HEIF, WebP and TIFF originals are accepted; canonical
+assets are oriented, sRGB and metadata-stripped; thumbnail, card and display
+variants are versioned and regenerable. Bulk upload is independent per file.
+Contributor upload is intentionally absent from Phase 5 because no Album or
+Event resource exists to scope it to; this is a Phase 6/7 architectural
+placeholder, not a permanent prohibition. No ordinary Phase 5 operation may
+delete a preserved original; ADR-0005's idempotent Family Space teardown is the
+sole explicit tenant-deletion exception. The 24-hour abandoned and 7-day
+quarantine defaults remain accepted.
+
+This stage's entire scope was accepting the ADR, so the ADR-acceptance commit
+is the stage-completion commit and receives the `phase-5-s01` tag directly.
+
+### Documentation updates
+
+- Accepted ADR-0007 after its bounded consistency reconciliation.
+- Advanced `tasks.json` to `FPA-P05-S02` after FPA-P05-S01 completed.
+
+### Commit boundary
+
+```text
+Accept ADR-0007: Media storage and upload pipeline
+```
 
 ## FPA-P05-S02 — Implement upload initiation and completion
 
-Use idempotency keys and explicit upload states.
+Use idempotency keys and explicit upload states. Upload authority targets a
+tenant-scoped, extension-independent staging key; select and verify the
+concrete bounded-authority and write-once boundary without trusting client
+filename, MIME type or extension data.
 
 ## FPA-P05-S03 — Validate and preserve originals
 
-Verify type, size and checksum; preserve original bytes; quarantine invalid files.
+Verify type, size and checksum; preserve original bytes; quarantine invalid
+files. Finalise verified or quarantined bytes from staging with an extension
+derived only from the server-detected format. Select the concrete
+copy/move/finalisation API and prove that reused or racing upload authority
+cannot replace an already preserved original.
 
 ## FPA-P05-S04 — Extract metadata and generate canonical assets
 
@@ -1526,17 +1614,25 @@ Create thumbnails and responsive variants through queued jobs.
 
 ## FPA-P05-S06 — Secure media delivery
 
-Use authorised application checks and short-lived signed URLs or an equivalent accepted approach.
+Use authorised application checks and short-lived signed URLs or an equivalent
+accepted approach. Record `original_download_authorised` when Laravel issues an
+authorised signed URL; do not claim the subsequent object-storage GET occurred.
+Ordinary APIs and presentation assets withhold privacy-sensitive metadata, while
+an authorised original download deliberately receives the untouched original.
 
 ## FPA-P05-S07 — Add upload recovery and bulk upload
 
 Support retries, partial failure reporting and duplicate-safe client behaviour.
+Extend ADR-0005's idempotent Family Space teardown to remove the tenant's media
+objects and Phase-5-owned rows without introducing a standalone media-delete
+operation.
 
 ### Phase verification
 
 - Uploading the same completion event twice is safe.
 - HEIC and required mobile formats are tested.
 - Original checksums remain stable.
+- Reused or racing upload authority cannot replace a preserved original.
 - Variants can be deleted and regenerated.
 - Unauthorised media access fails.
 
