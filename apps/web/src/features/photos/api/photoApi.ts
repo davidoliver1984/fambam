@@ -10,6 +10,7 @@ import type {
   PhotoProposalResolution,
   PhotoProvenanceInput,
   PhotoProvenanceProposal,
+  PhotoFilters,
   UpdatePhotoInput,
 } from "../types/photo";
 
@@ -23,11 +24,13 @@ function photoPath(familySlug: string, photoId: string): string {
 
 export async function getPhotos(
   familySlug: string,
+  filters: PhotoFilters = {},
   signal?: AbortSignal,
 ): Promise<Photo[]> {
   return unwrap(
     await apiClient.get<ApiEnvelope<Photo[]>>(photosPath(familySlug), {
       signal,
+      params: filters,
     }),
   );
 }

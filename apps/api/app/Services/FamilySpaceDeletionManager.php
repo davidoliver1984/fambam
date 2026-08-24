@@ -6,6 +6,7 @@ use App\Enums\FamilySpaceRole;
 use App\Enums\FamilySpaceStatus;
 use App\Enums\MembershipState;
 use App\Media\FamilyMediaStorageCleaner;
+use App\Models\Album;
 use App\Models\FamilyCircle;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
@@ -129,6 +130,9 @@ class FamilySpaceDeletionManager
 
             $familySpace->update(['status' => FamilySpaceStatus::Deleted]);
             FamilyCircle::query()
+                ->where('family_space_id', $familySpace->id)
+                ->delete();
+            Album::query()
                 ->where('family_space_id', $familySpace->id)
                 ->delete();
             Photo::query()

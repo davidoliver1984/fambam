@@ -33,20 +33,59 @@ class PhotoQuery
             ])
             ->where('family_space_id', $this->tenantContext->familySpace()->id);
 
-        if (! $this->tenantContext->membership()->role->canManageMembers()) {
-            $query->where(function (Builder $builder) use ($viewer): void {
-                $builder->where('visibility', PhotoVisibility::FamilySpace->value)
-                    ->orWhere('created_by', $viewer->id);
+        $membership = $this->tenantContext->membership();
+        if (! $membership->role->canManageMembers()) {
+            $query->where(function (Builder $builder) use ($viewer, $membership): void {
+                $builder->where(function (Builder $intrinsic) use ($membership): void {
+                    $intrinsic->where('visibility', PhotoVisibility::FamilySpace->value);
+                    if ($membership->role->value !== 'member') {
+                        $intrinsic->whereRaw('1 = 0');
+                    }
+                })
+                    ->orWhere('created_by', $viewer->id)
+                    ->orWhereHas('albums', function (Builder $album) use ($viewer, $membership): void {
+                        $album->where('created_by', $viewer->id)
+                            ->orWhere(function (Builder $family) use ($membership): void {
+                                $family->where('albums.visibility', 'family_space');
+                                if ($membership->role->value !== 'member') {
+                                    $family->whereRaw('1 = 0');
+                                }
+                            })
+                            ->orWhereHas('grants', fn (Builder $grant) => $grant
+                                ->where('family_space_membership_id', $membership->id)->where('can_view', true));
+                    });
             });
         }
 
         return $query;
     }
 
-    /** @return Collection<int, Photo> */
-    public function listVisibleTo(User $viewer): Collection
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return Collection<int, Photo>
+     */
+    public function listVisibleTo(User $viewer, array $filters = []): Collection
     {
-        return $this->visibleTo($viewer)->latest('created_at')->latest('id')->get();
+        $query = $this->visibleTo($viewer);
+        if (! empty($filters['person_id'])) {
+            $query->whereHas('photoPeople', fn (Builder $people) => $people
+                ->where('person_id', $filters['person_id'])->where('status', 'approved'));
+        }
+        if (! empty($filters['tag'])) {
+            $query->whereHas('tags', fn (Builder $tags) => $tags
+                ->where('normalized_label', mb_strtolower(trim($filters['tag']))));
+        }
+        if (! empty($filters['location'])) {
+            $query->where('location_description', 'like', '%'.addcslashes($filters['location'], '%_').'%');
+        }
+        if (! empty($filters['historical_year'])) {
+            $query->whereYear('historical_date', (int) $filters['historical_year']);
+        }
+        if (($filters['without_confirmed_date'] ?? false) === true) {
+            $query->whereNull('historical_date_precision');
+        }
+
+        return $query->latest('created_at')->latest('id')->get();
     }
 
     public function findVisibleTo(User $viewer, string $photoId): Photo

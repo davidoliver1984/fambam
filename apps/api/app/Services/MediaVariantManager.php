@@ -20,6 +20,7 @@ class MediaVariantManager
         private readonly MediaObjectStorage $storage,
         private readonly PresentationVariantGenerator $generator,
         private readonly DatabaseTenantContext $databaseTenantContext,
+        private readonly AlbumContributionFinalizer $albumContributionFinalizer,
     ) {}
 
     public function generate(
@@ -147,6 +148,7 @@ class MediaVariantManager
             if ($locked->state === MediaUploadState::Processing) {
                 $locked->update(['state' => MediaUploadState::Ready]);
             }
+            $this->albumContributionFinalizer->finalize($locked, $context);
         });
     }
 

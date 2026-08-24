@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Album;
+use App\Models\AlbumGrant;
+use App\Models\AlbumPhoto;
 use App\Models\AuditEvent;
 use App\Models\FamilyCircle;
 use App\Models\FamilyCirclePerson;
@@ -93,7 +96,10 @@ class AuditRecorder
             || $subject instanceof PhotoMetadataProposal
             || $subject instanceof PhotoPerson
             || $subject instanceof PhotoProvenanceProposal
-            || $subject instanceof Tag) {
+            || $subject instanceof Tag
+            || $subject instanceof Album
+            || $subject instanceof AlbumGrant
+            || $subject instanceof AlbumPhoto) {
             return $subject->family_space_id;
         }
 

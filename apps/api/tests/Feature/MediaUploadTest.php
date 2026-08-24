@@ -8,6 +8,8 @@ use App\Jobs\ValidateMediaUpload;
 use App\Media\MediaObjectStorage;
 use App\Media\StoredObject;
 use App\Media\UploadAuthorization;
+use App\Models\Album;
+use App\Models\AlbumGrant;
 use App\Models\AuditEvent;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
@@ -152,6 +154,36 @@ class MediaUploadTest extends TestCase
                     'client_filename' => 'photo.jpg',
                 ])->assertForbidden();
         }
+    }
+
+    public function test_contributor_upload_is_scoped_to_a_live_album_contribution_grant(): void
+    {
+        [$family, $contributor] = $this->familyWithRole(FamilySpaceRole::Contributor, 'album-media');
+        $membership = FamilySpaceMembership::query()->where('user_id', $contributor->id)->sole();
+        $owner = User::factory()->create();
+        FamilySpaceMembership::factory()->create(['family_space_id' => $family->id, 'user_id' => $owner->id,
+            'role' => FamilySpaceRole::Owner]);
+        $album = Album::query()->create(['family_space_id' => $family->id, 'created_by' => $owner->id,
+            'name' => 'Shared contributions', 'visibility' => 'selected']);
+        $grant = AlbumGrant::query()->create(['family_space_id' => $family->id, 'album_id' => $album->id,
+            'family_space_membership_id' => $membership->id, 'can_view' => true, 'can_contribute' => true,
+            'granted_by' => $owner->id]);
+
+        $response = $this->actingAs($contributor)->withHeader('Idempotency-Key', 'album-photo')
+            ->postJson("/api/families/album-media/albums/{$album->id}/media-uploads", [
+                'client_filename' => 'contribution.jpg', 'client_mime_type' => 'image/jpeg',
+            ])->assertCreated()->assertJsonPath('data.target_album_id', $album->id);
+        $upload = MediaUpload::query()->findOrFail($response->json('data.id'));
+        $this->assertSame($album->id, $upload->target_album_id);
+        $this->storage->objects[$upload->staging_object_key] = new StoredObject(1024);
+        $this->actingAs($contributor)->postJson("/api/families/album-media/media-uploads/{$upload->id}/complete")
+            ->assertOk()->assertJsonPath('data.state', 'uploaded');
+
+        $grant->delete();
+        $this->actingAs($contributor)->withHeader('Idempotency-Key', 'revoked-album-photo')
+            ->postJson("/api/families/album-media/albums/{$album->id}/media-uploads", [
+                'client_filename' => 'denied.jpg',
+            ])->assertForbidden();
     }
 
     public function test_an_upload_cannot_be_completed_from_another_family_or_account(): void

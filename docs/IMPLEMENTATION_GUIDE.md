@@ -2295,6 +2295,53 @@ against the Photo's own intrinsic visibility regardless of any Album
 grant. This completes ADR-0008's security-critical delivery non-bypass
 requirement that S02 began.
 
+### Implementation record — 2026-08-24
+
+Implemented tenant-isolated `Album`, ordered `AlbumPhoto` and membership-bound
+`AlbumGrant` records with forced PostgreSQL row-level security. Private Albums
+hold no grants, Selected Albums use explicit live grants, and Family Space
+Albums retain the fixed Member contribution rule. Membership reactivation
+preserves grant identity because grants reference the membership row.
+
+Contributor upload authority is available only through a currently
+contributable Album. Successful processing creates exactly one private Photo
+already attached to that Album; revoked authority fails closed. Existing
+private Photos require an authorised, explicit widening confirmation before
+joining a broader Album, while removal narrows live reachability without
+mutating intrinsic Photo visibility.
+
+Canonical and variant delivery now recognises visible Album membership.
+Preserved-original delivery deliberately ignores Album grants and continues to
+apply the Photo's intrinsic visibility and ADR-0007 role boundary. Query-only
+Photo filters cover confirmed Person associations, tags, human location,
+historical year and missing confirmed dates without persisting view records.
+
+The React work follows the frontend engineering standard: typed Album and
+Photo feature API modules own endpoints and envelope handling, TanStack Query
+owns server state, and pages contain no direct shared-client calls or raw
+fetching effects. The Album UI exposes scoped upload and an explicit widening
+signal.
+
+### Verification
+
+- Regression tests cover Private/Selected grant invariants, live grant
+  revocation, widening confirmation, automatic narrowing, Contributor scoped
+  upload finalisation and idempotency, and the preserved-original denial.
+- Frontend tests cover Contributor controls, the absence of Album creation for
+  Contributors, and explicit widening confirmation.
+- The complete application suite, PostgreSQL 17.6 forced-RLS suite, contracts,
+  security, formatting, linting and type checks pass.
+
+### Documentation updates
+
+- Completed FPA-P06-S04 and advanced `tasks.json` to `FPA-P06-S05`.
+
+### Commit boundary
+
+```text
+Implement albums and dynamic photo views
+```
+
 ## FPA-P06-S05 — Implement stories, comments and reactions
 
 Add edit history and moderation boundaries appropriate for a private

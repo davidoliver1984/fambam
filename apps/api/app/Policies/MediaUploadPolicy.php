@@ -24,30 +24,49 @@ class MediaUploadPolicy
 
     public function complete(User $user, MediaUpload $upload): bool
     {
-        return $this->hasPhaseFiveMediaAccess($user)
-            && $this->tenantContext->familySpace()->id === $upload->family_space_id
-            && $upload->user_id === $user->id;
+        if (! $this->matchesContext($user, $upload) || $upload->user_id !== $user->id) {
+            return false;
+        }
+        if ($upload->target_album_id === null) {
+            return $this->hasPhaseFiveMediaAccess($user);
+        }
+        $upload->loadMissing('targetAlbum');
+
+        return $upload->targetAlbum !== null && $user->can('contribute', $upload->targetAlbum);
     }
 
     public function view(User $user, MediaUpload $upload): bool
     {
-        if (! $this->matchesContext($user, $upload) || ! $this->hasPhaseFiveMediaAccess($user)) {
+        if (! $this->matchesContext($user, $upload)) {
             return false;
         }
 
         $upload->loadMissing('photo');
         if ($upload->photo === null) {
-            return true;
+            if ($this->hasPhaseFiveMediaAccess($user)) {
+                return true;
+            }
+            $upload->loadMissing('targetAlbum');
+
+            return $upload->user_id === $user->id
+                && $upload->targetAlbum !== null
+                && $user->can('contribute', $upload->targetAlbum);
         }
 
-        return $this->tenantContext->membership()->role->canManageMembers()
-            || $upload->photo->visibility === PhotoVisibility::FamilySpace
-            || $upload->photo->created_by === $user->id;
+        return $user->can('view', $upload->photo);
     }
 
     public function downloadOriginal(User $user, MediaUpload $upload): bool
     {
-        return $this->view($user, $upload);
+        if (! $this->hasPhaseFiveMediaAccess($user) || ! $this->matchesContext($user, $upload)) {
+            return false;
+        }
+        $upload->loadMissing('photo');
+
+        return $upload->photo === null || $this->tenantContext->membership()->role->canManageMembers()
+            || ($upload->photo->visibility === PhotoVisibility::FamilySpace
+                && $this->tenantContext->membership()->role === FamilySpaceRole::Member)
+            || $upload->photo->created_by === $user->id;
     }
 
     public function retryProcessing(User $user, MediaUpload $upload): bool
