@@ -17,6 +17,8 @@ use App\Models\PersonMerge;
 use App\Models\PersonMergeProposal;
 use App\Models\PersonRelationship;
 use App\Models\Photo;
+use App\Models\PhotoMetadataProposal;
+use App\Models\PhotoPerson;
 use App\Models\PhotoProvenanceProposal;
 use App\Models\RelationshipProposal;
 use App\Models\Tag;
@@ -88,6 +90,8 @@ class AuditRecorder
             || $subject instanceof FamilyCircle
             || $subject instanceof FamilyCirclePerson
             || $subject instanceof Photo
+            || $subject instanceof PhotoMetadataProposal
+            || $subject instanceof PhotoPerson
             || $subject instanceof PhotoProvenanceProposal
             || $subject instanceof Tag) {
             return $subject->family_space_id;

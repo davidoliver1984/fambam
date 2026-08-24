@@ -3,13 +3,18 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   createPhoto,
   replacePhotoTags,
+  resolvePhotoMetadataProposal,
+  resolvePhotoPersonProposal,
   resolvePhotoProvenanceProposal,
   submitPhotoProvenance,
+  submitPhotoMetadata,
+  submitPhotoPerson,
   updatePhoto,
 } from "../api/photoApi";
 import { photoKeys } from "../api/photoKeys";
 import type {
   CreatePhotoInput,
+  PhotoMetadataInput,
   PhotoProposalResolution,
   PhotoProvenanceInput,
   UpdatePhotoInput,
@@ -23,6 +28,107 @@ export function useCreatePhotoMutation(familySlug: string) {
       await queryClient.invalidateQueries({
         queryKey: photoKeys.list(familySlug),
       });
+    },
+  });
+}
+
+export function useSubmitPhotoMetadataMutation(
+  familySlug: string,
+  photoId: string,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PhotoMetadataInput) =>
+      submitPhotoMetadata(familySlug, photoId, input),
+    onSuccess: async (proposal) => {
+      await queryClient.invalidateQueries({
+        queryKey: photoKeys.metadataProposals(familySlug, photoId),
+      });
+      if (proposal.status === "approved") {
+        await queryClient.invalidateQueries({
+          queryKey: photoKeys.detail(familySlug, photoId),
+        });
+      }
+    },
+  });
+}
+
+export function useResolvePhotoMetadataMutation(
+  familySlug: string,
+  photoId: string,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      proposalId,
+      resolution,
+    }: {
+      proposalId: string;
+      resolution: PhotoProposalResolution;
+    }) =>
+      resolvePhotoMetadataProposal(familySlug, photoId, proposalId, resolution),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: photoKeys.metadataProposals(familySlug, photoId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: photoKeys.detail(familySlug, photoId),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useSubmitPhotoPersonMutation(
+  familySlug: string,
+  photoId: string,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (personId: string) =>
+      submitPhotoPerson(familySlug, photoId, personId),
+    onSuccess: async (association) => {
+      await queryClient.invalidateQueries({
+        queryKey: photoKeys.personProposals(familySlug, photoId),
+      });
+      if (association.status === "approved") {
+        await queryClient.invalidateQueries({
+          queryKey: photoKeys.detail(familySlug, photoId),
+        });
+      }
+    },
+  });
+}
+
+export function useResolvePhotoPersonMutation(
+  familySlug: string,
+  photoId: string,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      associationId,
+      resolution,
+    }: {
+      associationId: string;
+      resolution: PhotoProposalResolution;
+    }) =>
+      resolvePhotoPersonProposal(
+        familySlug,
+        photoId,
+        associationId,
+        resolution,
+      ),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: photoKeys.personProposals(familySlug, photoId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: photoKeys.detail(familySlug, photoId),
+        }),
+      ]);
     },
   });
 }

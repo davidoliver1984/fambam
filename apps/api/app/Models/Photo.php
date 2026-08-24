@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\DatePrecision;
 use App\Enums\PhotoVisibility;
+use Carbon\CarbonImmutable;
 use Database\Factories\PhotoFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -12,7 +14,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/** @property PhotoVisibility $visibility */
+/**
+ * @property PhotoVisibility $visibility
+ * @property DatePrecision|null $historical_date_precision
+ * @property CarbonImmutable|null $historical_date
+ */
 #[Fillable([
     'family_space_id',
     'media_upload_id',
@@ -27,6 +33,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'scanner_description',
     'physical_owner_person_id',
     'physical_source_description',
+    'historical_date_precision',
+    'historical_date',
+    'location_description',
 ])]
 class Photo extends Model
 {
@@ -79,6 +88,18 @@ class Photo extends Model
         return $this->hasMany(PhotoProvenanceProposal::class);
     }
 
+    /** @return HasMany<PhotoMetadataProposal, $this> */
+    public function metadataProposals(): HasMany
+    {
+        return $this->hasMany(PhotoMetadataProposal::class);
+    }
+
+    /** @return HasMany<PhotoPerson, $this> */
+    public function photoPeople(): HasMany
+    {
+        return $this->hasMany(PhotoPerson::class);
+    }
+
     /** @return BelongsToMany<Tag, $this> */
     public function tags(): BelongsToMany
     {
@@ -88,6 +109,10 @@ class Photo extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['visibility' => PhotoVisibility::class];
+        return [
+            'visibility' => PhotoVisibility::class,
+            'historical_date_precision' => DatePrecision::class,
+            'historical_date' => 'immutable_date',
+        ];
     }
 }

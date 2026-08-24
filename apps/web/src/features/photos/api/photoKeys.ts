@@ -5,4 +5,8 @@ export const photoKeys = {
     [...photoKeys.all(familySlug), "detail", photoId] as const,
   proposals: (familySlug: string, photoId: string) =>
     [...photoKeys.detail(familySlug, photoId), "proposals"] as const,
+  metadataProposals: (familySlug: string, photoId: string) =>
+    [...photoKeys.detail(familySlug, photoId), "metadata-proposals"] as const,
+  personProposals: (familySlug: string, photoId: string) =>
+    [...photoKeys.detail(familySlug, photoId), "person-proposals"] as const,
 };

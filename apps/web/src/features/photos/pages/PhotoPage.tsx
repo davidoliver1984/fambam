@@ -4,11 +4,16 @@ import { toAppError } from "@/api/errors";
 import { usePeopleQuery } from "@/features/people/hooks/usePeopleQuery";
 
 import { PhotoForm } from "../components/PhotoForm";
+import { PhotoFamilyMetadataProposals } from "../components/PhotoFamilyMetadataProposals";
+import { PhotoMetadataForm } from "../components/PhotoMetadataForm";
+import { PhotoPersonForm } from "../components/PhotoPersonForm";
 import { PhotoProvenanceForm } from "../components/PhotoProvenanceForm";
 import { PhotoProvenanceProposals } from "../components/PhotoProvenanceProposals";
 import { PhotoTagsForm } from "../components/PhotoTagsForm";
 import {
   useReplacePhotoTagsMutation,
+  useSubmitPhotoMetadataMutation,
+  useSubmitPhotoPersonMutation,
   useSubmitPhotoProvenanceMutation,
   useUpdatePhotoMutation,
 } from "../hooks/usePhotoMutations";
@@ -24,6 +29,8 @@ export function PhotoPage() {
     familySlug,
     photoId,
   );
+  const submitMetadata = useSubmitPhotoMetadataMutation(familySlug, photoId);
+  const submitPerson = useSubmitPhotoPersonMutation(familySlug, photoId);
   const notFound =
     photoQuery.isError && toAppError(photoQuery.error).status === 404;
 
@@ -58,6 +65,14 @@ export function PhotoPage() {
           <dd>{photo.archive_source_description ?? "Not recorded"}</dd>
         </div>
         <div>
+          <dt>Historical date</dt>
+          <dd>{formatDate(photo.historical_date)}</dd>
+        </div>
+        <div>
+          <dt>Location</dt>
+          <dd>{photo.location_description ?? "Not recorded"}</dd>
+        </div>
+        <div>
           <dt>Photographer</dt>
           <dd>{formatClaim(photo.provenance.photographer)}</dd>
         </div>
@@ -72,6 +87,14 @@ export function PhotoPage() {
         <div>
           <dt>Tags</dt>
           <dd>{photo.tags.map((tag) => tag.label).join(", ") || "None"}</dd>
+        </div>
+        <div>
+          <dt>People appearing</dt>
+          <dd>
+            {photo.people
+              .map((association) => association.person.preferred_name)
+              .join(", ") || "None confirmed"}
+          </dd>
         </div>
       </dl>
 
@@ -98,6 +121,27 @@ export function PhotoPage() {
       )}
 
       {photo.permissions.can_propose_provenance && (
+        <section aria-labelledby="photo-family-metadata-title">
+          <h2 id="photo-family-metadata-title">Family-supplied metadata</h2>
+          <PhotoMetadataForm
+            pending={submitMetadata.isPending}
+            onSubmit={(input) => submitMetadata.mutateAsync(input)}
+          />
+          {peopleQuery.isPending && <p role="status">Loading People…</p>}
+          {peopleQuery.isError && (
+            <p role="alert">People could not be loaded for this Photo.</p>
+          )}
+          {peopleQuery.data !== undefined && (
+            <PhotoPersonForm
+              people={peopleQuery.data}
+              pending={submitPerson.isPending}
+              onSubmit={(personId) => submitPerson.mutateAsync(personId)}
+            />
+          )}
+        </section>
+      )}
+
+      {photo.permissions.can_propose_provenance && (
         <section aria-labelledby="photo-provenance-title">
           <h2 id="photo-provenance-title">Photo provenance</h2>
           {peopleQuery.isPending && <p role="status">Loading People…</p>}
@@ -115,6 +159,18 @@ export function PhotoPage() {
       )}
 
       {photo.permissions.can_resolve_provenance && (
+        <section aria-labelledby="photo-family-proposals-title">
+          <h2 id="photo-family-proposals-title">
+            Pending family metadata proposals
+          </h2>
+          <PhotoFamilyMetadataProposals
+            familySlug={familySlug}
+            photoId={photoId}
+          />
+        </section>
+      )}
+
+      {photo.permissions.can_resolve_provenance && (
         <section aria-labelledby="photo-proposals-title">
           <h2 id="photo-proposals-title">Pending provenance proposals</h2>
           <PhotoProvenanceProposals familySlug={familySlug} photoId={photoId} />
@@ -125,6 +181,14 @@ export function PhotoPage() {
       </Link>
     </main>
   );
+}
+
+function formatDate(
+  date: { precision: string; value: string | null } | null,
+): string {
+  if (date === null) return "Not recorded";
+  if (date.value === null) return "Unknown";
+  return `${date.precision.replaceAll("_", " ")}: ${date.value}`;
 }
 
 function formatClaim(claim: {

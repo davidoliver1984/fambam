@@ -2228,6 +2228,48 @@ Implement `PhotoPerson` under the same propose/confirm pattern; only
 confirmed rows are authoritative, and the table must remain structurally
 separate from any future machine-recognition output.
 
+Photo historical dates store the shared `DatePrecision` and normalized date
+value used by Person records, including an explicit unknown value with no
+invented date. Human-supplied location is an independent free-text claim. Both
+use retained metadata proposals: Member submissions remain pending while Owner
+and Administrator submissions or resolutions update the authoritative Photo
+fields. No implementation path reads EXIF capture time or GPS to pre-populate
+either value.
+
+`PhotoPerson` retains pending, approved and rejected human associations. Only
+approved rows are loaded into Photo payloads and the authoritative graph. The
+service hard-codes ordinary submissions as human proposals and exposes no
+machine-confirmation path, establishing the non-overwrite boundary Phase 9/10
+must inherit. Active duplicates are prevented; Person merge reconciliation
+collapses conflicting active associations deterministically and exact reversal
+restores the prior Person and resolution states.
+
+### Verification
+
+- Feature tests cover every uncertain-date precision, invalid precision/value
+  combinations, Member proposal and administrative confirmation, location,
+  confirmed-only PhotoPerson presentation, rejected-history retention and
+  cross-tenant denial.
+- Regressions prove historical date and location remain independent of stored
+  EXIF/GPS values, Person merge handles conflicting associations, reversal
+  restores exact state and Family Space teardown removes the new rows.
+- Frontend tests cover typed endpoint ownership, metadata/Person submission and
+  authoritative display.
+- PostgreSQL 17.6 integration proves forced Class C isolation for both new
+  proposal tables.
+
+### Documentation updates
+
+- Recorded the uncertain-date reuse, EXIF/GPS separation, confirmed-only human
+  graph and machine-recognition non-overwrite boundary.
+- Completed FPA-P06-S03 and advanced `tasks.json` to `FPA-P06-S04`.
+
+### Commit boundary
+
+```text
+Implement family metadata and approximate dates
+```
+
 ## FPA-P06-S04 — Implement albums and dynamic views
 
 Albums are explicit collections; generated views query shared metadata.

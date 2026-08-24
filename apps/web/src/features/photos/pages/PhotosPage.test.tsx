@@ -26,12 +26,15 @@ const photo: Photo = {
   caption: "Family picnic",
   description: null,
   archive_source_description: null,
+  historical_date: null,
+  location_description: null,
   provenance: {
     photographer: { person: null, description: null },
     scanner: { person: null, description: null },
     physical_owner: { person: null, description: null },
   },
   tags: [{ id: "01K70000000000000000000000", label: "Picnic" }],
+  people: [],
   created_at: "2026-08-24T10:00:00Z",
   updated_at: "2026-08-24T10:00:00Z",
   permissions: {

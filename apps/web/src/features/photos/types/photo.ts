@@ -1,5 +1,8 @@
 export type PhotoVisibility = "family_space" | "private";
 export type PhotoProvenanceRole = "photographer" | "scanner" | "physical_owner";
+export type DatePrecision =
+  "exact" | "month" | "year" | "decade" | "approximate" | "unknown";
+export type UncertainDate = { precision: DatePrecision; value: string | null };
 
 export type PhotoClaim = {
   person: { id: string; preferred_name: string } | null;
@@ -18,12 +21,15 @@ export type Photo = {
   caption: string | null;
   description: string | null;
   archive_source_description: string | null;
+  historical_date: UncertainDate | null;
+  location_description: string | null;
   provenance: {
     photographer: PhotoClaim;
     scanner: PhotoClaim;
     physical_owner: PhotoClaim;
   };
   tags: Array<{ id: string; label: string }>;
+  people: PhotoPerson[];
   created_at: string;
   updated_at: string;
   permissions: {
@@ -70,3 +76,36 @@ export type PhotoProvenanceProposal = {
 };
 
 export type PhotoProposalResolution = "approve" | "reject";
+
+export type PhotoMetadataInput = {
+  field: "historical_date" | "location";
+  date?: UncertainDate;
+  location_description?: string;
+  clears_claim?: boolean;
+};
+
+export type PhotoMetadataProposal = {
+  id: string;
+  photo_id: string;
+  field: "historical_date" | "location";
+  date: UncertainDate | null;
+  location_description: string | null;
+  clears_claim: boolean;
+  status: "pending" | "approved" | "rejected";
+  proposed_by: number | null;
+  resolved_by: number | null;
+  resolved_at: string | null;
+  created_at: string;
+};
+
+export type PhotoPerson = {
+  id: string;
+  photo_id: string;
+  person: { id: string; preferred_name: string };
+  proposal_source: string;
+  status: "pending" | "approved" | "rejected";
+  proposed_by: number | null;
+  resolved_by: number | null;
+  resolved_at: string | null;
+  created_at: string;
+};

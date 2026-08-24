@@ -69,6 +69,14 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::post('/photos/{photo}/provenance-proposals', [PhotoController::class, 'submitProvenance']);
         Route::post('/photos/{photo}/provenance-proposals/{proposal}/approve', [PhotoController::class, 'approveProposal']);
         Route::post('/photos/{photo}/provenance-proposals/{proposal}/reject', [PhotoController::class, 'rejectProposal']);
+        Route::get('/photos/{photo}/metadata-proposals', [PhotoController::class, 'metadataProposals']);
+        Route::post('/photos/{photo}/metadata-proposals', [PhotoController::class, 'submitMetadata']);
+        Route::post('/photos/{photo}/metadata-proposals/{proposal}/approve', [PhotoController::class, 'approveMetadata']);
+        Route::post('/photos/{photo}/metadata-proposals/{proposal}/reject', [PhotoController::class, 'rejectMetadata']);
+        Route::get('/photos/{photo}/person-proposals', [PhotoController::class, 'photoPersonProposals']);
+        Route::post('/photos/{photo}/people', [PhotoController::class, 'submitPhotoPerson']);
+        Route::post('/photos/{photo}/people/{association}/approve', [PhotoController::class, 'approvePhotoPerson']);
+        Route::post('/photos/{photo}/people/{association}/reject', [PhotoController::class, 'rejectPhotoPerson']);
         Route::get('/people', [PersonController::class, 'index']);
         Route::post('/people', [PersonController::class, 'store']);
         Route::get('/people/{person}', [PersonController::class, 'show']);
