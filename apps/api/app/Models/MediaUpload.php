@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property MediaUploadState $state
@@ -76,6 +77,12 @@ class MediaUpload extends Model
     public function variants(): HasMany
     {
         return $this->hasMany(MediaVariant::class);
+    }
+
+    /** @return HasOne<Photo, $this> */
+    public function photo(): HasOne
+    {
+        return $this->hasOne(Photo::class);
     }
 
     /** @return array<string, string> */

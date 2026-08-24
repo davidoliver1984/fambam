@@ -11,6 +11,8 @@ use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\MediaUpload;
 use App\Models\Person;
+use App\Models\Photo;
+use App\Models\Tag;
 use App\Models\User;
 use App\Tenancy\DatabaseTenantContext;
 use App\Tenancy\TenantOperationContext;
@@ -127,6 +129,12 @@ class FamilySpaceDeletionManager
 
             $familySpace->update(['status' => FamilySpaceStatus::Deleted]);
             FamilyCircle::query()
+                ->where('family_space_id', $familySpace->id)
+                ->delete();
+            Photo::query()
+                ->where('family_space_id', $familySpace->id)
+                ->delete();
+            Tag::query()
                 ->where('family_space_id', $familySpace->id)
                 ->delete();
             MediaUpload::query()

@@ -51,13 +51,22 @@ export function FamilySpacePage() {
         </p>
       )}
       {canUploadMedia && (
-        <p>
-          <Link
-            to={`/families/${encodeURIComponent(familySpace.slug)}/uploads`}
-          >
-            Upload photographs
-          </Link>
-        </p>
+        <>
+          <p>
+            <Link
+              to={`/families/${encodeURIComponent(familySpace.slug)}/photos`}
+            >
+              Open photograph archive
+            </Link>
+          </p>
+          <p>
+            <Link
+              to={`/families/${encodeURIComponent(familySpace.slug)}/uploads`}
+            >
+              Upload photographs
+            </Link>
+          </p>
+        </>
       )}
       {canManageInvitations ? (
         <InvitationManagement familySlug={familySpace.slug} />

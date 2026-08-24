@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Enums\FamilySpaceRole;
+use App\Enums\PhotoVisibility;
 use App\Models\MediaUpload;
 use App\Models\User;
 use App\Tenancy\TenantContext;
@@ -30,7 +31,18 @@ class MediaUploadPolicy
 
     public function view(User $user, MediaUpload $upload): bool
     {
-        return $this->matchesContext($user, $upload) && $this->hasPhaseFiveMediaAccess($user);
+        if (! $this->matchesContext($user, $upload) || ! $this->hasPhaseFiveMediaAccess($user)) {
+            return false;
+        }
+
+        $upload->loadMissing('photo');
+        if ($upload->photo === null) {
+            return true;
+        }
+
+        return $this->tenantContext->membership()->role->canManageMembers()
+            || $upload->photo->visibility === PhotoVisibility::FamilySpace
+            || $upload->photo->created_by === $user->id;
     }
 
     public function downloadOriginal(User $user, MediaUpload $upload): bool

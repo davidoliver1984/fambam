@@ -14,6 +14,8 @@ import { FamilySpacePage } from "./features/family-spaces/pages/FamilySpacePage"
 import { PeoplePage } from "./features/people/pages/PeoplePage";
 import { PersonPage } from "./features/people/pages/PersonPage";
 import { MediaUploadPage } from "./features/media-uploads/pages/MediaUploadPage";
+import { PhotoPage } from "./features/photos/pages/PhotoPage";
+import { PhotosPage } from "./features/photos/pages/PhotosPage";
 
 function WelcomePage() {
   return (
@@ -58,6 +60,11 @@ export function App() {
         <Route
           path="/families/:familySlug/uploads"
           element={<MediaUploadPage />}
+        />
+        <Route path="/families/:familySlug/photos" element={<PhotosPage />} />
+        <Route
+          path="/families/:familySlug/photos/:photoId"
+          element={<PhotoPage />}
         />
         <Route
           path="/families/:familySlug/people/:personId"

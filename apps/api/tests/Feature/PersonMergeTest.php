@@ -3,15 +3,19 @@
 namespace Tests\Feature;
 
 use App\Enums\FamilySpaceRole;
+use App\Enums\MediaUploadState;
 use App\Models\FamilyCircle;
 use App\Models\FamilyCirclePerson;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
+use App\Models\MediaUpload;
 use App\Models\Person;
 use App\Models\PersonAccountLink;
 use App\Models\PersonMerge;
 use App\Models\PersonMergeProposal;
 use App\Models\PersonRelationship;
+use App\Models\Photo;
+use App\Models\PhotoProvenanceProposal;
 use App\Models\RelationshipProposal;
 use App\Models\User;
 use Illuminate\Database\QueryException;
@@ -201,6 +205,26 @@ class PersonMergeTest extends TestCase
         ]);
         $membership = $this->circleMembership($family, $circle, $absorbed, $owner);
         $link = $this->link($family, $absorbed, $owner, $owner);
+        $photoUpload = MediaUpload::factory()->create([
+            'family_space_id' => $family->id,
+            'user_id' => $owner->id,
+            'state' => MediaUploadState::Ready,
+        ]);
+        $photo = Photo::factory()->create([
+            'family_space_id' => $family->id,
+            'media_upload_id' => $photoUpload->id,
+            'created_by' => $owner->id,
+            'photographer_person_id' => $absorbed->id,
+            'scanner_person_id' => $survivor->id,
+        ]);
+        $photoProposal = PhotoProvenanceProposal::query()->create([
+            'family_space_id' => $family->id,
+            'photo_id' => $photo->id,
+            'role' => 'physical_owner',
+            'person_id' => $absorbed->id,
+            'status' => 'pending',
+            'proposed_by' => $owner->id,
+        ]);
         $otherFamily = FamilySpace::factory()->create(['slug' => 'other-link-family']);
         FamilySpaceMembership::factory()->create([
             'family_space_id' => $otherFamily->id,
@@ -218,6 +242,14 @@ class PersonMergeTest extends TestCase
             ->postJson("/api/families/reverse-merge/people/{$absorbed->id}/merge", [
                 'survivor_person_id' => $survivor->id,
             ])->assertCreated()->json('data.id');
+        $this->assertDatabaseHas('photos', [
+            'id' => $photo->id,
+            'photographer_person_id' => $survivor->id,
+        ]);
+        $this->assertDatabaseHas('photo_provenance_proposals', [
+            'id' => $photoProposal->id,
+            'person_id' => $survivor->id,
+        ]);
         $this->actingAs($owner)
             ->postJson("/api/families/reverse-merge/person-merges/{$mergeId}/reverse")
             ->assertOk()->assertJsonPath('data.status', 'reversed');
@@ -239,6 +271,15 @@ class PersonMergeTest extends TestCase
         ]);
         $this->assertDatabaseHas('person_account_links', [
             'id' => $link->id,
+            'person_id' => $absorbed->id,
+        ]);
+        $this->assertDatabaseHas('photos', [
+            'id' => $photo->id,
+            'photographer_person_id' => $absorbed->id,
+            'scanner_person_id' => $survivor->id,
+        ]);
+        $this->assertDatabaseHas('photo_provenance_proposals', [
+            'id' => $photoProposal->id,
             'person_id' => $absorbed->id,
         ]);
         $this->assertDatabaseHas('person_account_links', ['id' => $otherFamilyLink->id]);
