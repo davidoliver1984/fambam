@@ -59,6 +59,11 @@ class PhotoPolicy
         return $this->view($user, $photo) && $this->hasPhotoDirectoryAccess($user);
     }
 
+    public function interact(User $user, Photo $photo): bool
+    {
+        return $this->view($user, $photo) && $this->tenantContext->membership()->role !== FamilySpaceRole::Guest;
+    }
+
     private function hasPhotoDirectoryAccess(User $user): bool
     {
         if (! $this->tenantContext->isEstablished()

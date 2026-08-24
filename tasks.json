@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P06",
-    "current_stage": "FPA-P06-S05",
+    "current_stage": "FPA-P06-S06",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-24"
   },
@@ -477,16 +477,18 @@
         {
           "id": "FPA-P06-S05",
           "title": "Implement stories, comments and reactions",
-          "status": "ready",
+          "status": "complete",
           "dependencies": [
             "FPA-P06-S04"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-24: implemented tenant-isolated attributed PhotoStory and PhotoComment content with author-only editing, durable prior-text revisions, author or Owner/Administrator soft removal and audit trails; added one-per-user reactions constrained to the fixed love/smile/laugh/remember vocabulary with no ranking or feed surface; and added typed TanStack Query UI. Persistently migrated and verified with complete API/frontend, PostgreSQL 17.6 RLS, security and repository gates."
+          ]
         },
         {
           "id": "FPA-P06-S06",
           "title": "Implement photo deletion and restoration",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P06-S05"
           ],
