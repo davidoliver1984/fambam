@@ -7,9 +7,9 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P06",
-    "current_stage": "FPA-P06-S01",
+    "current_stage": "FPA-P06-S02",
     "created_at": "2026-07-31",
-    "updated_at": "2026-08-10"
+    "updated_at": "2026-08-24"
   },
   "conventions": {
     "phase_id_format": "P##",
@@ -432,16 +432,18 @@
         {
           "id": "FPA-P06-S01",
           "title": "Accept photo domain, provenance and organisation ADR",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P05-S07"
           ],
-          "notes": []
+          "notes": [
+            "ADR-0008 accepted 2026-08-24 (git tag phase-6-s01). Stage scope was solely ADR acceptance, so the ADR-acceptance commit is the stage-completion commit. Photo.media_upload_id is required and unique, one-directional to MediaUpload, with at most one Photo per MediaUpload; a ready MediaUpload may exist indefinitely without becoming a Photo. Photo.created_by (distinct from MediaUpload.user_id) identifies who created the Photo record and is authority-bearing for later contribution, visibility and deletion rules. Photographer, scanner and original physical owner are single-valued Person-or-mutually-exclusive-free-text provenance roles following ADR-0006's Member-proposes/Owner-or-Administrator-confirms pattern; the physical-owner free-text field is named physical_source_description, never source_album. Historical date reuses ADR-0006's uncertain-date concept and stays strictly separate from MediaUpload's EXIF capture timestamp. PhotoPerson (FPA-P06-S03) uses the same proposed/authoritative pattern, and only confirmed rows are authoritative human ground truth that later machine recognition (Phase 9/10) may never overwrite. Photo.visibility has exactly two values, family_space and private; selected-audience sharing lives entirely in Albums via AlbumGrant (can_view/can_contribute), never a parallel photo_grants system. Adding a private Photo to a broader Album is an explicit, authorized, UI-visible, tested widening operation; removing it from every such Album automatically restores exactly its intrinsic visibility, computed from live state. Default family_space Album contribution is fixed product policy: Owner, Administrator, the Album's creator and ordinary Member all contribute by default; Contributor only through an explicit AlbumGrant; Guest never. This is Contributor's first concrete resource-scoped grant. Phase 5's MediaUploadPolicy delivery endpoints must become Photo/Album-aware once a MediaUpload is attached to a Photo, so the existing MediaUpload ULID can never bypass private/restricted access. Photo deletion is reversible soft deletion only, authorised for Owner/Administrator on any Photo and for the creator on their own while they retain Family Space access; Phase 5 assets and associated Album/story/comment/reaction rows are never affected. Stories and comments are author-editable with Owner/Administrator moderation authority; reactions use a small fixed vocabulary with no ranking or engagement-feed use. Dynamic views remain query-only; persisted views remain Phase 11. Duplicate linkage, Event/Event-Album structure, machine face data and persisted dynamic views are explicitly out of scope for Phase 6."
+          ]
         },
         {
           "id": "FPA-P06-S02",
           "title": "Implement photo and provenance records",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P06-S01"
           ],
@@ -1147,7 +1149,7 @@
       {
         "id": "ADR-0008",
         "title": "Photo domain, provenance and organisation",
-        "status": "planned",
+        "status": "accepted",
         "roadmap_phase": "P06",
         "required_by_stage": "FPA-P06-S01"
       },
@@ -1509,6 +1511,14 @@
       "roadmap_stage": "FPA-P05-S07",
       "date": "2026-08-10",
       "description": "Phase 5 completed: the Media Storage and Upload Pipeline passed the complete repository, PostgreSQL 17.6, persistent migration, real format-processing, malware-validation, LocalStack storage/delivery/teardown, observability and security acceptance gates."
+    },
+    {
+      "git_tag": "phase-6-s01",
+      "type": "stage_completion",
+      "adr": "ADR-0008",
+      "roadmap_stage": "FPA-P06-S01",
+      "date": "2026-08-24",
+      "description": "FPA-P06-S01 completed: ADR-0008 accepted. Photo.media_upload_id is required, unique and one-directional to MediaUpload; Photo.created_by is distinct from and authority-bearing over MediaUpload.user_id. Photographer, scanner and original physical owner are single-valued, Person-or-free-text provenance roles following ADR-0006's proposed/authoritative pattern; historical date reuses ADR-0006's uncertain-date concept and stays separate from EXIF capture timestamps. PhotoPerson uses the same proposed/authoritative pattern and is never overwritten by future machine recognition. Photo visibility is family_space or private only; selected-audience sharing lives entirely in Albums via AlbumGrant, with explicit, tested, reversible visibility widening on Album addition/removal. Default family_space Album contribution is fixed as product policy for Owner/Administrator/creator/Member, with Contributor gated behind an explicit AlbumGrant as its first concrete resource-scoped role. Phase 5's delivery endpoints must become Photo/Album-aware so the MediaUpload ULID cannot bypass private or restricted access. Photo deletion is reversible soft deletion only, scoped to Owner/Administrator and the Photo's creator. Stage scope was solely ADR acceptance, so this ADR-acceptance commit is the stage-completion commit."
     }
   ]
 }
