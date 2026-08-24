@@ -11,6 +11,8 @@ use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\MediaUpload;
 use App\Models\MediaVariant;
+use App\Models\Photo;
+use App\Models\Tag;
 use App\Models\User;
 use App\Services\FamilySpaceDeletionManager;
 use App\Storage\FamilyStorageKey;
@@ -124,6 +126,22 @@ class FamilySpaceDeletionTest extends TestCase
             'pixel_height' => 320,
             'byte_size' => 100,
         ]);
+        $photo = Photo::factory()->create([
+            'family_space_id' => $familySpace->id,
+            'media_upload_id' => $upload->id,
+            'created_by' => $owner->id,
+        ]);
+        $tag = Tag::query()->create([
+            'family_space_id' => $familySpace->id,
+            'label' => 'Family',
+            'normalized_label' => 'family',
+            'created_by' => $owner->id,
+        ]);
+        $photo->tags()->attach($tag->id, [
+            'family_space_id' => $familySpace->id,
+            'added_by' => $owner->id,
+            'created_at' => now(),
+        ]);
         $familySpace->forceFill([
             'status' => FamilySpaceStatus::DeletionRequested,
             'deletion_requested_at' => now()->subDays(15),
@@ -151,6 +169,8 @@ class FamilySpaceDeletionTest extends TestCase
             ->count());
         $this->assertDatabaseMissing('media_uploads', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('media_variants', ['family_space_id' => $familySpace->id]);
+        $this->assertDatabaseMissing('photos', ['family_space_id' => $familySpace->id]);
+        $this->assertDatabaseMissing('tags', ['family_space_id' => $familySpace->id]);
         $this->assertSame([$familySpace->id], $this->mediaCleaner->familySpaceIds);
         $this->assertDatabaseHas('audit_events', [
             'family_space_id' => $familySpace->id,

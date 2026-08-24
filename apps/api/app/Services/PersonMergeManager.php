@@ -12,6 +12,8 @@ use App\Models\PersonAccountLink;
 use App\Models\PersonMerge;
 use App\Models\PersonMergeProposal;
 use App\Models\PersonRelationship;
+use App\Models\Photo;
+use App\Models\PhotoProvenanceProposal;
 use App\Models\RelationshipProposal;
 use App\Models\User;
 use App\Relationships\RelationshipValidator;
@@ -83,6 +85,7 @@ class PersonMergeManager
                 $lockedSurvivor,
                 $accountLinkResolution,
             );
+            $this->reconcilePhotoProvenance($lockedAbsorbed, $lockedSurvivor);
             $lockedAbsorbed->delete();
 
             $merge = PersonMerge::query()->create([
@@ -443,6 +446,22 @@ class PersonMergeManager
         }
     }
 
+    private function reconcilePhotoProvenance(Person $absorbed, Person $survivor): void
+    {
+        Photo::query()
+            ->where('photographer_person_id', $absorbed->id)
+            ->update(['photographer_person_id' => $survivor->id, 'updated_at' => now()]);
+        Photo::query()
+            ->where('scanner_person_id', $absorbed->id)
+            ->update(['scanner_person_id' => $survivor->id, 'updated_at' => now()]);
+        Photo::query()
+            ->where('physical_owner_person_id', $absorbed->id)
+            ->update(['physical_owner_person_id' => $survivor->id, 'updated_at' => now()]);
+        PhotoProvenanceProposal::query()
+            ->where('person_id', $absorbed->id)
+            ->update(['person_id' => $survivor->id, 'updated_at' => now()]);
+    }
+
     /** @return array<string, mixed> */
     private function captureState(string $absorbedId, string $survivorId, bool $lock = false): array
     {
@@ -469,10 +488,22 @@ class PersonMergeManager
             ->orderBy('id');
         $circleQuery = FamilyCirclePerson::query()->whereIn('person_id', $personIds)->orderBy('id');
         $linkQuery = PersonAccountLink::query()->whereIn('person_id', $personIds)->orderBy('id');
+        $photoQuery = Photo::query()
+            ->where(function ($query) use ($personIds): void {
+                $query->whereIn('photographer_person_id', $personIds)
+                    ->orWhereIn('scanner_person_id', $personIds)
+                    ->orWhereIn('physical_owner_person_id', $personIds);
+            })
+            ->orderBy('id');
+        $photoProposalQuery = PhotoProvenanceProposal::query()
+            ->whereIn('person_id', $personIds)
+            ->orderBy('id');
         if ($lock) {
             $proposalQuery->lockForUpdate();
             $circleQuery->lockForUpdate();
             $linkQuery->lockForUpdate();
+            $photoQuery->lockForUpdate();
+            $photoProposalQuery->lockForUpdate();
         }
 
         return [
@@ -480,6 +511,9 @@ class PersonMergeManager
             'relationship_proposals' => $proposalQuery->get()->map($this->proposalSnapshot(...))->values()->all(),
             'circle_memberships' => $circleQuery->get()->map($this->circleSnapshot(...))->values()->all(),
             'account_links' => $linkQuery->get()->map($this->linkSnapshot(...))->values()->all(),
+            'photo_provenance' => $photoQuery->get()->map($this->photoProvenanceSnapshot(...))->values()->all(),
+            'photo_provenance_proposals' => $photoProposalQuery->get()
+                ->map($this->photoProvenanceProposalSnapshot(...))->values()->all(),
         ];
     }
 
@@ -541,6 +575,28 @@ class PersonMergeManager
             'created_by' => $link->created_by,
             'created_at' => $link->getRawOriginal('created_at'),
             'updated_at' => $link->getRawOriginal('updated_at'),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function photoProvenanceSnapshot(Photo $photo): array
+    {
+        return [
+            'id' => $photo->id,
+            'photographer_person_id' => $photo->photographer_person_id,
+            'scanner_person_id' => $photo->scanner_person_id,
+            'physical_owner_person_id' => $photo->physical_owner_person_id,
+            'updated_at' => $photo->getRawOriginal('updated_at'),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function photoProvenanceProposalSnapshot(PhotoProvenanceProposal $proposal): array
+    {
+        return [
+            'id' => $proposal->id,
+            'person_id' => $proposal->person_id,
+            'updated_at' => $proposal->getRawOriginal('updated_at'),
         ];
     }
 
@@ -614,6 +670,22 @@ class PersonMergeManager
         $links = $before['account_links'] ?? [];
         foreach ($links as $row) {
             DB::table('person_account_links')->insert($row);
+        }
+
+        /** @var list<array<string, mixed>> $photoProvenance */
+        $photoProvenance = $before['photo_provenance'] ?? [];
+        foreach ($photoProvenance as $row) {
+            $id = $row['id'];
+            unset($row['id']);
+            DB::table('photos')->where('id', $id)->update($row);
+        }
+
+        /** @var list<array<string, mixed>> $photoProposals */
+        $photoProposals = $before['photo_provenance_proposals'] ?? [];
+        foreach ($photoProposals as $row) {
+            $id = $row['id'];
+            unset($row['id']);
+            DB::table('photo_provenance_proposals')->where('id', $id)->update($row);
         }
     }
 

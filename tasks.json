@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P06",
-    "current_stage": "FPA-P06-S02",
+    "current_stage": "FPA-P06-S03",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-24"
   },
@@ -444,16 +444,18 @@
         {
           "id": "FPA-P06-S02",
           "title": "Implement photo and provenance records",
-          "status": "ready",
+          "status": "complete",
           "dependencies": [
             "FPA-P06-S01"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-24: implemented tenant-isolated Photo, provenance-proposal and Family-Space tag records; enforced intrinsic Photo visibility through every existing MediaUpload delivery path; integrated Photo provenance with Person merge, exact reversal and Family Space teardown; and added typed feature-local TanStack Query list/detail/edit flows. Persistently migrated and verified with complete repository, PostgreSQL 17.6 RLS, security and frontend acceptance gates."
+          ]
         },
         {
           "id": "FPA-P06-S03",
           "title": "Implement family metadata and approximate dates",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P06-S02"
           ],
@@ -1520,6 +1522,14 @@
       "roadmap_stage": "FPA-P06-S01",
       "date": "2026-08-24",
       "description": "FPA-P06-S01 completed: ADR-0008 accepted. Photo.media_upload_id is required, unique and one-directional to MediaUpload; Photo.created_by is distinct from and authority-bearing over MediaUpload.user_id. Photographer, scanner and original physical owner are single-valued, Person-or-free-text provenance roles following ADR-0006's proposed/authoritative pattern; historical date reuses ADR-0006's uncertain-date concept and stays separate from EXIF capture timestamps. PhotoPerson uses the same proposed/authoritative pattern and is never overwritten by future machine recognition. Photo visibility is family_space or private only; selected-audience sharing lives entirely in Albums via AlbumGrant, with explicit, tested, reversible visibility widening on Album addition/removal. Default family_space Album contribution is fixed as product policy for Owner/Administrator/creator/Member, with Contributor gated behind an explicit AlbumGrant as its first concrete resource-scoped role. Phase 5's delivery endpoints must become Photo/Album-aware so the MediaUpload ULID cannot bypass private or restricted access. Photo deletion is reversible soft deletion only, scoped to Owner/Administrator and the Photo's creator. Stage scope was solely ADR acceptance, so this ADR-acceptance commit is the stage-completion commit."
+    },
+    {
+      "git_tag": "phase-6-s02",
+      "type": "stage_completion",
+      "adr": "ADR-0008",
+      "roadmap_stage": "FPA-P06-S02",
+      "date": "2026-08-24",
+      "description": "FPA-P06-S02 completed: tenant-isolated Photo, identity-bearing provenance proposal and Family-Space tag records; role-bounded promotion of ready MediaUploads; intrinsic Photo visibility enforced through existing canonical, variant and original delivery routes; Person merge reconciliation and exact reversal; Family Space teardown integration; and typed feature-local TanStack Query list, detail, editing, tag and provenance flows were implemented, persistently migrated and verified."
     }
   ]
 }

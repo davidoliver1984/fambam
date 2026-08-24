@@ -1,0 +1,40 @@
+import { useQuery } from "@tanstack/react-query";
+
+import {
+  getPhoto,
+  getPhotoProvenanceProposals,
+  getPhotos,
+} from "../api/photoApi";
+import { photoKeys } from "../api/photoKeys";
+
+export function usePhotosQuery(familySlug: string) {
+  return useQuery({
+    queryKey: photoKeys.list(familySlug),
+    queryFn: ({ signal }) => getPhotos(familySlug, signal),
+    enabled: familySlug !== "",
+    retry: false,
+  });
+}
+
+export function usePhotoQuery(familySlug: string, photoId: string) {
+  return useQuery({
+    queryKey: photoKeys.detail(familySlug, photoId),
+    queryFn: ({ signal }) => getPhoto(familySlug, photoId, signal),
+    enabled: familySlug !== "" && photoId !== "",
+    retry: false,
+  });
+}
+
+export function usePhotoProvenanceProposalsQuery(
+  familySlug: string,
+  photoId: string,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: photoKeys.proposals(familySlug, photoId),
+    queryFn: ({ signal }) =>
+      getPhotoProvenanceProposals(familySlug, photoId, signal),
+    enabled: enabled && familySlug !== "" && photoId !== "",
+    retry: false,
+  });
+}

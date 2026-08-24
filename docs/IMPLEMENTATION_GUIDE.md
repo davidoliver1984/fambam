@@ -2172,6 +2172,50 @@ defer this to S04. This closes the security gap that would otherwise
 exist between this stage (which introduces `Photo.visibility`) and the
 stage that introduces Albums.
 
+Photo, provenance-proposal, Family-Space tag and Photo/tag-link records are
+tenant-isolated Class C data. Photo creation promotes exactly one ready
+MediaUpload: a Member may promote only their own upload, while Owner and
+Administrator may promote any ready upload in the Family Space. The Photo's
+creator remains independent of its uploader. Identity-bearing photographer,
+scanner and original-physical-owner claims use pending Member proposals and
+immediate or resolving Owner/Administrator confirmation; caption, description,
+archive source and free-text tags remain ordinary editable metadata.
+
+Intrinsic Photo visibility is enforced through all existing canonical,
+variant and preserved-original MediaUpload delivery routes as soon as the
+upload is attached to a Photo. Person merge reconciliation rewires every
+authoritative and proposed Person provenance reference, records the exact
+pre-merge state and restores it on a permitted reversal. Family Space teardown
+removes the new records before the underlying media rows. The touched React
+surface keeps endpoint knowledge in a typed `photos` feature API, server state
+in TanStack Query hooks and accessible list, detail, editing, tag and
+provenance presentation in page/components.
+
+### Verification
+
+- Feature tests cover creation authority, readiness and uniqueness, intrinsic
+  private visibility across list/detail and every Phase 5 delivery route,
+  proposal/confirmation, source-versus-owner separation, tags, content editing
+  and cross-tenant denial.
+- Merge and tenant-deletion regressions cover Photo-owned references, exact
+  reversal and complete teardown.
+- Frontend tests cover API ownership, list/create states, visibility, tags,
+  detail presentation and provenance submission.
+- PostgreSQL 17.6 integration proves forced Class C isolation for all four new
+  tables.
+
+### Documentation updates
+
+- Recorded the Photo/provenance/tag persistence, delivery non-bypass, merge and
+  teardown boundaries.
+- Completed FPA-P06-S02 and advanced `tasks.json` to `FPA-P06-S03`.
+
+### Commit boundary
+
+```text
+Implement photo and provenance records
+```
+
 ## FPA-P06-S03 — Implement family metadata and approximate dates
 
 Support exact, month, year, decade and approximate values without

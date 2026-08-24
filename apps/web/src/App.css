@@ -206,6 +206,37 @@
   padding-top: 0.75rem;
 }
 
+.photo-list {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  padding: 0;
+}
+
+.photo-list li {
+  border-top: 1px solid #ede5df;
+  display: grid;
+  gap: 0.25rem;
+  padding-top: 0.75rem;
+}
+
+.photo-list li > span,
+.photo-list li > small {
+  color: #68412f;
+}
+
+.photo-details div {
+  border-top: 1px solid #ede5df;
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: minmax(9rem, 1fr) 2fr;
+  padding: 0.6rem 0;
+}
+
+.photo-details dt {
+  font-weight: 700;
+}
+
 .proposal-list {
   list-style: none;
   padding: 0;

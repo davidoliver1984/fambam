@@ -16,7 +16,10 @@ use App\Models\PersonDetailProposal;
 use App\Models\PersonMerge;
 use App\Models\PersonMergeProposal;
 use App\Models\PersonRelationship;
+use App\Models\Photo;
+use App\Models\PhotoProvenanceProposal;
 use App\Models\RelationshipProposal;
+use App\Models\Tag;
 use App\Models\User;
 use App\Tenancy\TenantOperationContext;
 use Illuminate\Database\Eloquent\Model;
@@ -83,7 +86,10 @@ class AuditRecorder
             || $subject instanceof PersonRelationship
             || $subject instanceof RelationshipProposal
             || $subject instanceof FamilyCircle
-            || $subject instanceof FamilyCirclePerson) {
+            || $subject instanceof FamilyCirclePerson
+            || $subject instanceof Photo
+            || $subject instanceof PhotoProvenanceProposal
+            || $subject instanceof Tag) {
             return $subject->family_space_id;
         }
 
