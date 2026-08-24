@@ -62,6 +62,30 @@ const input: CreatePhotoInput = {
 };
 
 describe("photoApi", () => {
+  it("omits inactive Photo filters from the initial archive request", async () => {
+    let query = "not-called";
+    server.use(
+      http.get(
+        `${apiBaseUrl}/api/families/oliver-family/photos`,
+        ({ request }) => {
+          query = new URL(request.url).search;
+          return HttpResponse.json({ data: [] });
+        },
+      ),
+    );
+
+    await expect(
+      getPhotos("oliver-family", {
+        tag: "",
+        location: "",
+        historical_year: "",
+        without_confirmed_date: false,
+      }),
+    ).resolves.toEqual([]);
+
+    expect(query).toBe("");
+  });
+
   it("owns and unwraps every Phase 6 S02 Photo endpoint", async () => {
     const requests: string[] = [];
     const path = `${apiBaseUrl}/api/families/oliver-family/photos`;
