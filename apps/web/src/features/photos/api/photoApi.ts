@@ -28,10 +28,16 @@ export async function getPhotos(
   filters: PhotoFilters = {},
   signal?: AbortSignal,
 ): Promise<Photo[]> {
+  const params = Object.fromEntries(
+    Object.entries(filters).filter(
+      ([, value]) => value !== "" && value !== false,
+    ),
+  );
+
   return unwrap(
     await apiClient.get<ApiEnvelope<Photo[]>>(photosPath(familySlug), {
       signal,
-      params: filters,
+      params,
     }),
   );
 }
