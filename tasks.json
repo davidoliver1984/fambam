@@ -6,8 +6,8 @@
     "version": "0.1.0",
     "status": "in_progress",
     "v1_release_phase": "P15",
-    "current_phase": "P06",
-    "current_stage": "FPA-P06-S06",
+    "current_phase": "P07",
+    "current_stage": "FPA-P07-S01",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-24"
   },
@@ -427,7 +427,7 @@
     {
       "id": "P06",
       "name": "Photo Domain, Provenance and Organisation",
-      "status": "in_progress",
+      "status": "completed",
       "stages": [
         {
           "id": "FPA-P06-S01",
@@ -444,7 +444,7 @@
         {
           "id": "FPA-P06-S02",
           "title": "Implement photo and provenance records",
-          "status": "complete",
+          "status": "completed",
           "dependencies": [
             "FPA-P06-S01"
           ],
@@ -455,7 +455,7 @@
         {
           "id": "FPA-P06-S03",
           "title": "Implement family metadata and approximate dates",
-          "status": "complete",
+          "status": "completed",
           "dependencies": [
             "FPA-P06-S02"
           ],
@@ -466,7 +466,7 @@
         {
           "id": "FPA-P06-S04",
           "title": "Implement albums and dynamic views",
-          "status": "complete",
+          "status": "completed",
           "dependencies": [
             "FPA-P06-S03"
           ],
@@ -477,7 +477,7 @@
         {
           "id": "FPA-P06-S05",
           "title": "Implement stories, comments and reactions",
-          "status": "complete",
+          "status": "completed",
           "dependencies": [
             "FPA-P06-S04"
           ],
@@ -488,23 +488,25 @@
         {
           "id": "FPA-P06-S06",
           "title": "Implement photo deletion and restoration",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P06-S05"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-24: implemented reversible, tenant-isolated Photo soft deletion and restoration; enforced Owner/Administrator or retained creator authority against Photo.created_by rather than MediaUpload.user_id; retained Albums, stories, comments, reactions and Phase 5 assets; blocked list, detail, Album and all asset-delivery paths while deleted; restored valid associations and delivery without mutation; and preserved ADR-0005 Family Space teardown as the only permanent-deletion exception. Persistently migrated and verified with complete API/frontend, PostgreSQL 17.6 RLS, security and repository gates."
+          ]
         }
       ]
     },
     {
       "id": "P07",
       "name": "Events and Collaborative Sharing",
-      "status": "planned",
+      "status": "in_progress",
       "stages": [
         {
           "id": "FPA-P07-S01",
           "title": "Accept events and collaborative sharing ADR",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P06-S06"
           ],
@@ -1544,6 +1546,38 @@
       "roadmap_stage": "FPA-P06-S03",
       "date": "2026-08-24",
       "description": "FPA-P06-S03 completed: Photo historical dates reuse the exact ADR-0006 uncertain-date contract while remaining independent of EXIF; human-supplied free-text location remains independent of GPS; retained PhotoPerson proposals expose only confirmed associations as human ground truth; Member proposal and Owner/Administrator resolution, audit, Person merge and exact reversal, forced Class C RLS and typed feature-local TanStack Query controls were implemented, persistently migrated and verified."
+    },
+    {
+      "git_tag": "phase-6-s04",
+      "type": "stage_completion",
+      "adr": "ADR-0008",
+      "roadmap_stage": "FPA-P06-S04",
+      "date": "2026-08-24",
+      "description": "FPA-P06-S04 completed: tenant-isolated Albums, ordered AlbumPhoto membership and membership-scoped AlbumGrant records; live Private, Selected and Family Space authorization; explicit and reversible private-Photo widening; Contributor upload strictly through a live can_contribute grant; Album-aware presentation delivery; query-only dynamic filters; and typed feature-local TanStack Query UI were implemented, persistently migrated and verified."
+    },
+    {
+      "git_tag": "phase-6-s05",
+      "type": "stage_completion",
+      "adr": "ADR-0008",
+      "roadmap_stage": "FPA-P06-S05",
+      "date": "2026-08-24",
+      "description": "FPA-P06-S05 completed: attributed Photo stories and comments with author editing, durable revisions and moderated soft removal; one-per-user fixed-vocabulary reactions without ranking or feed behaviour; audit trails; and typed feature-local TanStack Query UI were implemented, persistently migrated and verified."
+    },
+    {
+      "git_tag": "phase-6-s06",
+      "type": "stage_completion",
+      "adr": "ADR-0008",
+      "roadmap_stage": "FPA-P06-S06",
+      "date": "2026-08-24",
+      "description": "FPA-P06-S06 completed: reversible tenant-isolated Photo soft deletion and restoration; authority based on Photo.created_by rather than MediaUpload.user_id; retention of Album, story, comment, reaction and Phase 5 asset records; complete presentation and asset-delivery denial while deleted; association-preserving restoration; and ADR-0005-only permanent tenant teardown were implemented, persistently migrated and verified."
+    },
+    {
+      "git_tag": "phase-6",
+      "type": "phase_completion",
+      "adr": null,
+      "roadmap_stage": "FPA-P06-S06",
+      "date": "2026-08-24",
+      "description": "Phase 6 completed: the Photo Domain, Provenance and Organisation passed the complete repository, frontend, API, PostgreSQL 17.6 RLS, persistent migration, asset-delivery, contracts and security acceptance gates."
     }
   ]
 }

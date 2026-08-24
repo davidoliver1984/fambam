@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
   createPhoto,
+  deletePhoto,
   replacePhotoTags,
   resolvePhotoMetadataProposal,
   resolvePhotoPersonProposal,
@@ -10,6 +11,7 @@ import {
   submitPhotoMetadata,
   submitPhotoPerson,
   updatePhoto,
+  restorePhoto,
 } from "../api/photoApi";
 import { photoKeys } from "../api/photoKeys";
 import type {
@@ -28,6 +30,39 @@ export function useCreatePhotoMutation(familySlug: string) {
       await queryClient.invalidateQueries({
         queryKey: photoKeys.list(familySlug),
       });
+    },
+  });
+}
+
+export function useDeletePhotoMutation(familySlug: string, photoId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => deletePhoto(familySlug, photoId),
+    onSuccess: async () => {
+      queryClient.removeQueries({
+        queryKey: photoKeys.detail(familySlug, photoId),
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: photoKeys.list(familySlug) }),
+        queryClient.invalidateQueries({
+          queryKey: photoKeys.deleted(familySlug),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useRestorePhotoMutation(familySlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (photoId: string) => restorePhoto(familySlug, photoId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: photoKeys.list(familySlug) }),
+        queryClient.invalidateQueries({
+          queryKey: photoKeys.deleted(familySlug),
+        }),
+      ]);
     },
   });
 }

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import {
   getPhoto,
+  getDeletedPhotos,
   getPhotoMetadataProposals,
   getPhotoPersonProposals,
   getPhotoProvenanceProposals,
@@ -14,6 +15,15 @@ export function usePhotosQuery(familySlug: string, filters: PhotoFilters = {}) {
   return useQuery({
     queryKey: photoKeys.list(familySlug, filters),
     queryFn: ({ signal }) => getPhotos(familySlug, filters, signal),
+    enabled: familySlug !== "",
+    retry: false,
+  });
+}
+
+export function useDeletedPhotosQuery(familySlug: string) {
+  return useQuery({
+    queryKey: photoKeys.deleted(familySlug),
+    queryFn: ({ signal }) => getDeletedPhotos(familySlug, signal),
     enabled: familySlug !== "",
     retry: false,
   });

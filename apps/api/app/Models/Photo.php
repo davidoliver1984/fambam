@@ -13,11 +13,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * @property PhotoVisibility $visibility
  * @property DatePrecision|null $historical_date_precision
  * @property CarbonImmutable|null $historical_date
+ * @property CarbonImmutable|null $deleted_at
  */
 #[Fillable([
     'family_space_id',
@@ -36,11 +38,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'historical_date_precision',
     'historical_date',
     'location_description',
+    'deleted_by',
 ])]
 class Photo extends Model
 {
     /** @use HasFactory<PhotoFactory> */
-    use HasFactory, HasUlids;
+    use HasFactory, HasUlids, SoftDeletes;
 
     public $incrementing = false;
 

@@ -18,6 +18,7 @@ use App\Models\PhotoProvenanceProposal;
 use App\Models\User;
 use App\People\UncertainDate;
 use App\Queries\PhotoQuery;
+use App\Services\PhotoDeletionManager;
 use App\Services\PhotoManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,6 +29,7 @@ class PhotoController extends Controller
     public function __construct(
         private readonly PhotoQuery $photos,
         private readonly PhotoManager $photoManager,
+        private readonly PhotoDeletionManager $deletionManager,
     ) {}
 
     public function index(FamilySpace $familySpace, Request $request): JsonResponse
@@ -71,6 +73,39 @@ class PhotoController extends Controller
         Gate::authorize('view', $target);
 
         return response()->json(['data' => $this->payload($target)]);
+    }
+
+    public function deleted(FamilySpace $familySpace, Request $request): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $request->user();
+
+        return response()->json(['data' => $this->photos->deletedManageableBy($viewer)->map(
+            fn (Photo $photo): array => ['id' => $photo->id, 'client_filename' => $photo->mediaUpload->client_filename,
+                'caption' => $photo->caption, 'deleted_at' => $photo->deleted_at?->toAtomString(),
+                'permissions' => ['can_restore' => Gate::allows('restore', $photo)]],
+        )]);
+    }
+
+    public function destroy(FamilySpace $familySpace, string $photo, Request $request): JsonResponse
+    {
+        /** @var User $actor */
+        $actor = $request->user();
+        $target = $this->photos->findVisibleTo($actor, $photo);
+        Gate::authorize('delete', $target);
+        $this->deletionManager->delete($target, $actor, $request);
+
+        return response()->json(null, 204);
+    }
+
+    public function restore(FamilySpace $familySpace, string $photo, Request $request): JsonResponse
+    {
+        /** @var User $actor */
+        $actor = $request->user();
+        $target = $this->photos->findDeletedManageableBy($actor, $photo);
+        Gate::authorize('restore', $target);
+
+        return response()->json(['data' => $this->payload($this->deletionManager->restore($target, $actor, $request))]);
     }
 
     public function update(

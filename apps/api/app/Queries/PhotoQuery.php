@@ -93,6 +93,24 @@ class PhotoQuery
         return $this->visibleTo($viewer)->find($photoId) ?? throw new NotFoundHttpException;
     }
 
+    /** @return Collection<int, Photo> */
+    public function deletedManageableBy(User $viewer): Collection
+    {
+        $query = Photo::onlyTrashed()->with('mediaUpload')
+            ->where('family_space_id', $this->tenantContext->familySpace()->id);
+        if (! $this->tenantContext->membership()->role->canManageMembers()) {
+            $query->where('created_by', $viewer->id);
+        }
+
+        return $query->latest('deleted_at')->get();
+    }
+
+    public function findDeletedManageableBy(User $viewer, string $photoId): Photo
+    {
+        return $this->deletedManageableBy($viewer)->firstWhere('id', $photoId)
+            ?? throw new NotFoundHttpException;
+    }
+
     public function findProposal(Photo $photo, string $proposalId): PhotoProvenanceProposal
     {
         return PhotoProvenanceProposal::query()

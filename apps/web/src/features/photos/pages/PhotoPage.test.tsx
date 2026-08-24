@@ -22,6 +22,7 @@ import type {
 import { PhotoPage } from "./PhotoPage";
 
 vi.mock("../api/photoApi", () => ({
+  deletePhoto: vi.fn(),
   getPhoto: vi.fn(),
   getPhotoProvenanceProposals: vi.fn(),
   getPhotoMetadataProposals: vi.fn(),
@@ -33,6 +34,7 @@ vi.mock("../api/photoApi", () => ({
   submitPhotoMetadata: vi.fn(),
   submitPhotoPerson: vi.fn(),
   submitPhotoProvenance: vi.fn(),
+  restorePhoto: vi.fn(),
   updatePhoto: vi.fn(),
 }));
 vi.mock("@/features/people/api/personApi", () => ({ getPeople: vi.fn() }));
