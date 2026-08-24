@@ -2054,9 +2054,11 @@ never derived from `MediaUpload.user_id`; every creator-based authority
 rule in this ADR (visibility, Album widening, deletion/restoration) reads
 `created_by`, not the uploader. A Member may create a Photo only from
 their own ready MediaUpload; Owner/Administrator may promote any ready
-MediaUpload in the Family Space; a Contributor may create a Photo only as
-an inseparable part of contributing to an Album on which they hold
-`AlbumGrant.can_contribute`.
+MediaUpload in the Family Space. A Contributor holds no Photo-creation
+authority at all — they introduce new Photos only by uploading through an
+Album for which they hold `AlbumGrant.can_contribute`, and the system
+creates the resulting Photo as part of that upload, never the Contributor
+directly.
 
 Photographer, scanner and original physical owner are single-valued,
 identity-bearing provenance claims, each a nullable `Person` reference or
@@ -2193,10 +2195,10 @@ Selected (grant-governed) visibility distinction, and rely on ADR-0005's
 in-place membership reactivation for `AlbumGrant` continuity with no extra
 reconciliation step. Default `family_space`-visibility contribution is
 fixed for Owner/Administrator/creator/Member; Contributor contributes, and
-uploads/creates a Photo, only through an explicit
-`AlbumGrant.can_contribute` — the resulting Photo is created already
-attached to that Album and defaults to `private` visibility, not
-`family_space`.
+introduces new Photos, only by uploading through an Album for which they
+hold `AlbumGrant.can_contribute` — never through direct Photo-creation
+authority. The system creates the resulting Photo already attached to
+that Album, defaulting to `private` visibility, not `family_space`.
 
 Implement §7's Photo-visibility-widening authorization, UI signal and
 automatic-narrowing-on-removal behaviour. **Extend** S02's already

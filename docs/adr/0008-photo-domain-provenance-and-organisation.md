@@ -122,13 +122,19 @@ derived from `MediaUpload.user_id`.
   the Family Space into a Photo, regardless of who uploaded it — the same
   administrative floor these two roles hold throughout ADR-0004 through
   ADR-0007.
-- A **Contributor** holds no general Photo-creation authority of this
-  kind. A Contributor may create a Photo only as an inseparable part of
-  contributing to a specific Album on which they hold
-  `AlbumGrant.can_contribute` (§8) — from their own `ready` `MediaUpload`,
-  resulting in a Photo that is created already attached to that Album. A
-  Contributor may never create a freestanding Photo outside that scoped
-  contribution action, and never from another member's `MediaUpload`.
+- A **Contributor** holds no Photo-creation authority of this kind at
+  all, general or otherwise. **Contributors may introduce new Photos only
+  by uploading through an Album for which they hold
+  `AlbumGrant.can_contribute` (§8) — the system creates the resulting
+  Photo, already attached to that Album, as part of that upload; the
+  Contributor never directly creates or promotes a Photo the way a
+  Member, Owner or Administrator does above.** A Contributor's upload
+  authority is therefore Album-scoped, not Photo-creation authority
+  narrowed to one Album — the distinction matters because it is the
+  Album grant, not a parallel (if restricted) creation permission, that
+  is doing the work. This never applies to another member's
+  `MediaUpload`, and never produces a freestanding Photo outside that one
+  upload-through-Album action.
 - **Guest** may not create a Photo in Phase 6, consistent with Guest's
   baseline throughout ADR-0005/0006/0007.
 
@@ -508,12 +514,15 @@ the placeholder ADR-0005 opened and ADR-0007 §16 explicitly deferred:
 Contributor upload authority "until a concrete contribution surface
 exists (an Album, an Event, or an equivalent Phase 6/7 resource)." Albums
 are that resource, and this ADR fulfils that placeholder rather than
-contradicting it: **a Contributor may upload media, and create the Photo
-that results from it, only through an Album on which they hold
-`AlbumGrant.can_contribute`** — per §1, that Photo is created already
-attached to the granting Album. A Contributor never receives
-Family-Space-wide upload capability; their upload authority is exactly as
-narrow, and scoped to exactly the same resource, as every other
+contradicting it: **Contributors may introduce new Photos only through an
+Album for which they hold `AlbumGrant.can_contribute`; they never receive
+Family-Space-wide Photo-creation authority.** Per §1, the system creates
+the resulting Photo, already attached to the granting Album, as part of
+that upload — the Album contribution workflow is the mechanism through
+which a Contributor's new Photos enter the archive, not a scoped-down
+version of the direct Photo-creation authority §1 gives Member, Owner and
+Administrator. Their upload authority is exactly as narrow, and scoped to
+exactly the same resource, as every other
 Contributor authority this section fixes.
 
 **Original download is not part of what Album access grants.**
@@ -775,12 +784,13 @@ add, a boundary this ADR names) — do not prebuild any of the above.
 | View Album (`family_space` visibility) | yes | yes | yes | no default | no |
 | View Album (`private` visibility) | yes | yes | creator only | no | no |
 | View Album (`selected` visibility) | yes | yes | `AlbumGrant.can_view` only | `AlbumGrant.can_view` only | no |
-| Create a Photo from own `ready` MediaUpload | yes | yes | yes (own upload only) | only via `AlbumGrant.can_contribute` (§1, §8) | no |
+| Create a Photo from own `ready` MediaUpload | yes | yes | yes (own upload only) | no — see "Introduce a Photo by uploading through an Album" below | no |
 | Promote another member's `ready` MediaUpload to Photo | yes | yes | no | no | no |
+| Introduce a Photo by uploading through an Album (§1, §8) | n/a — use the row above | n/a — use the row above | n/a — use the row above | yes, only via `AlbumGrant.can_contribute`; the system creates the Photo, not the Contributor | no |
 | Propose photographer/scanner/physical-owner claim | yes | yes | yes | no | no |
 | Confirm/correct photographer/scanner/physical-owner claim | yes | yes | no | no | no |
 | Edit caption / description / archive source description | yes | yes | creator (see §2) | no | no |
-| Add/remove Photo tags | yes | yes | yes (any Member with view access) | `AlbumGrant.can_contribute`-scoped only | no |
+| Add/remove Photo tags | yes | yes | yes (any Member with view access) | only via `AlbumGrant.can_contribute` | no |
 | Propose historical date / location / PhotoPerson | yes | yes | yes | no | no |
 | Confirm historical date / location / PhotoPerson | yes | yes | no | no | no |
 | Set/change Photo visibility | yes | yes | creator | no | no |
@@ -789,7 +799,7 @@ add, a boundary this ADR names) — do not prebuild any of the above.
 | Contribute to Album (`private`/`selected` visibility) | yes | yes | creator, or `AlbumGrant.can_contribute` | `AlbumGrant.can_contribute` only | no |
 | Widen a private Photo's audience via Album (§7) | yes | yes | creator, subject to authorization check | n/a | no |
 | Soft-delete / restore Photo | yes | yes | creator, while access retained | no | no |
-| Add/edit own Story or Comment | yes | yes | yes | `AlbumGrant.can_contribute`-scoped only | no |
+| Add/edit own Story or Comment | yes | yes | yes | only via `AlbumGrant.can_contribute` | no |
 | Remove any Story or Comment (moderation) | yes | yes | no | no | no |
 | React | yes | yes | yes | where Album access permits | no |
 
@@ -1083,8 +1093,9 @@ completion-signal receipts.
 
 - **FPA-P06-S02** implements §1 (`Photo` schema, required unique
   `media_upload_id`, `created_by` as defined in §1, and Photo-creation
-  authority: Member-own-upload / Owner-Administrator-promote-any /
-  Contributor's Album-scoped exception cross-referenced to §8), §2
+  authority: Member-own-upload / Owner-Administrator-promote-any — with
+  Contributor introducing new Photos only by uploading through an Album,
+  never through this creation authority, cross-referenced to §8), §2
   (provenance identity claims — photographer/scanner/physical-owner —
   under the proposed/authoritative pattern, and the now-separate ordinary
   `archive_source_description` field), §6 (`Tag`/`PhotoTag`, ordinary
@@ -1210,8 +1221,10 @@ completion-signal receipts.
    Photo record and is intentionally distinct from `MediaUpload.user_id`
    (who uploaded the bytes). A Member may create a Photo only from their
    own ready MediaUpload; Owner/Administrator may promote any ready
-   MediaUpload; a Contributor may create a Photo only as part of a scoped
-   Album contribution (§8); Guest may not create a Photo.
+   MediaUpload. A Contributor holds no Photo-creation authority at all —
+   they introduce new Photos only by uploading through an Album for which
+   they hold `AlbumGrant.can_contribute` (§8), and the system creates the
+   resulting Photo as part of that upload. Guest may not create a Photo.
 2. **Provenance** — uploader derived from `MediaUpload.user_id`, never
    duplicated; photographer, scanner and original physical owner are
    single-valued, Person-reference-or-mutually-exclusive-free-text
@@ -1256,9 +1269,11 @@ completion-signal receipts.
    `AlbumGrant` survives ADR-0005's in-place membership reactivation
    automatically. Default contribution on a `family_space`-visibility
    Album is fixed product policy for Owner/Administrator/creator/Member;
-   Contributor contributes only through an explicit `AlbumGrant`, and may
-   upload/create a Photo only through an Album it grants
-   `can_contribute` on — fulfilling ADR-0007 §16's deferred placeholder.
+   Contributor contributes only through an explicit `AlbumGrant`, and
+   introduces new Photos only by uploading through an Album that grants
+   `can_contribute` — never through direct Photo-creation authority; the
+   system creates the resulting Photo as part of that upload, fulfilling
+   ADR-0007 §16's deferred placeholder.
    `AlbumGrant` governs presentation access (canonical/variants) only,
    never preserved-original download. Guest deferred to Phase 7; Family
    Circles remain unrelated to Album authorization.
