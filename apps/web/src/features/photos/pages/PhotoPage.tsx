@@ -10,6 +10,7 @@ import { PhotoPersonForm } from "../components/PhotoPersonForm";
 import { PhotoProvenanceForm } from "../components/PhotoProvenanceForm";
 import { PhotoProvenanceProposals } from "../components/PhotoProvenanceProposals";
 import { PhotoTagsForm } from "../components/PhotoTagsForm";
+import { PhotoConversationPanel } from "../components/PhotoConversationPanel";
 import {
   useReplacePhotoTagsMutation,
   useSubmitPhotoMetadataMutation,
@@ -176,6 +177,10 @@ export function PhotoPage() {
           <PhotoProvenanceProposals familySlug={familySlug} photoId={photoId} />
         </section>
       )}
+      <section aria-labelledby="photo-conversation-title">
+        <h2 id="photo-conversation-title">Stories, comments and reactions</h2>
+        <PhotoConversationPanel familySlug={familySlug} photoId={photoId} />
+      </section>
       <Link to={`/families/${encodeURIComponent(familySlug)}/photos`}>
         Back to photographs
       </Link>

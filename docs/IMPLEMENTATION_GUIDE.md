@@ -2350,6 +2350,43 @@ removable; Owner/Administrator retain moderation removal authority
 regardless of author. Reactions use a small fixed vocabulary with no
 ranking, engagement feed, or memories/search weighting.
 
+### Implementation record — 2026-08-24
+
+Implemented attributed `PhotoStory` and `PhotoComment` records as distinct
+ordinary-content types. Authors alone may edit their text; each edit stores the
+prior body in a numbered revision row. Authors may remove their own content,
+while Owner and Administrator may moderate removal regardless of authorship.
+Removal is soft and audited so ordinary UI removal does not erase the content
+or its correction trail.
+
+Each user may hold at most one reaction per Photo. The fixed V1 vocabulary is
+`love`, `smile`, `laugh` and `remember`, enforced by request validation and a
+PostgreSQL constraint. Reactions are returned only as lightweight expressions;
+no ranking, score, feed, search weighting or memories weighting surface exists.
+
+All five S05 tables are Class C tenant content with forced PostgreSQL RLS. The
+React Photo conversation panel uses a typed feature API module and TanStack
+Query for all reads, mutations and cache reconciliation.
+
+### Verification
+
+- API tests cover author editing, immutable revision snapshots, author and
+  moderator removal boundaries, soft removal/audit, fixed reaction validation,
+  one-reaction replacement and cross-tenant/private denial.
+- Frontend tests cover separate story/comment presentation, editing and the
+  fixed reaction controls through the typed mutation boundary.
+- The complete API, frontend and PostgreSQL 17.6 forced-RLS suites pass.
+
+### Documentation updates
+
+- Completed FPA-P06-S05 and advanced `tasks.json` to `FPA-P06-S06`.
+
+### Commit boundary
+
+```text
+Implement photo stories comments and reactions
+```
+
 ## FPA-P06-S06 — Implement photo deletion and restoration
 
 Use reversible soft deletion, restoration, and derivative-preserving

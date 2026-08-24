@@ -120,6 +120,24 @@ class Photo extends Model
             ->withTimestamps();
     }
 
+    /** @return HasMany<PhotoStory, $this> */
+    public function stories(): HasMany
+    {
+        return $this->hasMany(PhotoStory::class);
+    }
+
+    /** @return HasMany<PhotoComment, $this> */
+    public function comments(): HasMany
+    {
+        return $this->hasMany(PhotoComment::class);
+    }
+
+    /** @return HasMany<PhotoReaction, $this> */
+    public function reactions(): HasMany
+    {
+        return $this->hasMany(PhotoReaction::class);
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {

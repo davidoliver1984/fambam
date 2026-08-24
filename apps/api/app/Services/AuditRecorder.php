@@ -20,9 +20,14 @@ use App\Models\PersonMerge;
 use App\Models\PersonMergeProposal;
 use App\Models\PersonRelationship;
 use App\Models\Photo;
+use App\Models\PhotoComment;
+use App\Models\PhotoCommentRevision;
 use App\Models\PhotoMetadataProposal;
 use App\Models\PhotoPerson;
 use App\Models\PhotoProvenanceProposal;
+use App\Models\PhotoReaction;
+use App\Models\PhotoStory;
+use App\Models\PhotoStoryRevision;
 use App\Models\RelationshipProposal;
 use App\Models\Tag;
 use App\Models\User;
@@ -99,7 +104,12 @@ class AuditRecorder
             || $subject instanceof Tag
             || $subject instanceof Album
             || $subject instanceof AlbumGrant
-            || $subject instanceof AlbumPhoto) {
+            || $subject instanceof AlbumPhoto
+            || $subject instanceof PhotoStory
+            || $subject instanceof PhotoStoryRevision
+            || $subject instanceof PhotoComment
+            || $subject instanceof PhotoCommentRevision
+            || $subject instanceof PhotoReaction) {
             return $subject->family_space_id;
         }
 
