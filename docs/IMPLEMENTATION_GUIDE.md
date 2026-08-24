@@ -2421,6 +2421,43 @@ S04) also respects a soft-deleted Photo's presentation state.
 - No Phase 6 code path permanently destroys a Photo or its underlying
   media.
 
+### Implementation record (2026-08-24)
+
+- Added tenant-isolated reversible Photo soft deletion and restoration,
+  with authority evaluated against `Photo.created_by`: Owner and
+  Administrator may manage every Photo, while a creator may manage their
+  own Photo only while they retain active non-Guest Family Space access.
+- Retained `AlbumPhoto`, `PhotoStory`, `PhotoComment`, `PhotoReaction`,
+  `MediaUpload` and `MediaVariant` records across the tombstone lifecycle;
+  restoration therefore re-establishes the existing associations without
+  reconstructing or mutating them.
+- Excluded deleted Photos from list, detail and Album presentation and
+  denied canonical, variant and preserved-original delivery while the
+  Photo is deleted. The MediaUpload relationship deliberately includes
+  soft-deleted Photos so a tombstone cannot be mistaken for an unattached
+  Phase 5 upload.
+- Kept permanent destruction exclusive to ADR-0005 Family Space teardown,
+  where already-deleted and live Photos are force-deleted idempotently as
+  part of tenant destruction; no standalone permanent Photo or media
+  deletion operation was added.
+- Added typed feature-local TanStack Query deletion/restoration operations,
+  a recently removed Photo surface and focused API/frontend regression
+  coverage for retention, delivery denial, restoration and the
+  creator-versus-uploader authority boundary.
+- Applied the persistent migration and completed the full repository,
+  frontend, API, PostgreSQL 17.6 RLS, contracts and security gates.
+
+### Documentation updates
+
+- Completed FPA-P06-S06 and Phase 6, then advanced `tasks.json` to the
+  ADR-only FPA-P07-S01 boundary without drafting or implementing Phase 7.
+
+### Commit boundary
+
+```text
+Implement reversible photo deletion and restoration
+```
+
 ---
 
 # Phase 7 — Events and Collaborative Sharing

@@ -5,13 +5,21 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router";
 
-import { createPhoto, getPhotos } from "../api/photoApi";
+import {
+  createPhoto,
+  getDeletedPhotos,
+  getPhotos,
+  restorePhoto,
+} from "../api/photoApi";
 import type { Photo } from "../types/photo";
 import { PhotosPage } from "./PhotosPage";
 
 vi.mock("../api/photoApi", () => ({
   createPhoto: vi.fn(),
+  deletePhoto: vi.fn(),
+  getDeletedPhotos: vi.fn(),
   getPhotos: vi.fn(),
+  restorePhoto: vi.fn(),
 }));
 
 const photo: Photo = {
@@ -62,16 +70,38 @@ function renderPage() {
 
 beforeEach(() => {
   vi.mocked(getPhotos).mockResolvedValue([photo]);
+  vi.mocked(getDeletedPhotos).mockResolvedValue([]);
   vi.mocked(createPhoto).mockResolvedValue(photo);
+  vi.mocked(restorePhoto).mockResolvedValue(photo);
 });
 
 afterEach(() => {
   cleanup();
   vi.mocked(getPhotos).mockReset();
+  vi.mocked(getDeletedPhotos).mockReset();
   vi.mocked(createPhoto).mockReset();
+  vi.mocked(restorePhoto).mockReset();
 });
 
 describe("PhotosPage", () => {
+  it("shows restorable tombstones without presenting them in the active archive", async () => {
+    vi.mocked(getDeletedPhotos).mockResolvedValue([
+      {
+        id: photo.id,
+        caption: "Removed picnic",
+        client_filename: "family.jpg",
+        deleted_at: "2026-08-24T12:00:00Z",
+        permissions: { can_restore: true },
+      },
+    ]);
+    const user = userEvent.setup();
+    renderPage();
+    expect(
+      await screen.findByRole("heading", { name: "Recently removed Photos" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Restore" }));
+    expect(restorePhoto).toHaveBeenCalledWith("oliver-family", photo.id);
+  });
   it("renders Photo visibility and tags from the query", async () => {
     renderPage();
     expect(await screen.findByText("Family picnic")).toBeInTheDocument();

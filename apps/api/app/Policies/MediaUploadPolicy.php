@@ -62,6 +62,9 @@ class MediaUploadPolicy
             return false;
         }
         $upload->loadMissing('photo');
+        if ($upload->photo?->trashed() === true) {
+            return false;
+        }
 
         return $upload->photo === null || $this->tenantContext->membership()->role->canManageMembers()
             || ($upload->photo->visibility === PhotoVisibility::FamilySpace

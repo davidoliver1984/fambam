@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 
 import { toAppError } from "@/api/errors";
 import { usePeopleQuery } from "@/features/people/hooks/usePeopleQuery";
@@ -13,6 +13,7 @@ import { PhotoTagsForm } from "../components/PhotoTagsForm";
 import { PhotoConversationPanel } from "../components/PhotoConversationPanel";
 import {
   useReplacePhotoTagsMutation,
+  useDeletePhotoMutation,
   useSubmitPhotoMetadataMutation,
   useSubmitPhotoPersonMutation,
   useSubmitPhotoProvenanceMutation,
@@ -23,6 +24,8 @@ import { usePhotoQuery } from "../hooks/usePhotoQueries";
 export function PhotoPage() {
   const { familySlug = "", photoId = "" } = useParams();
   const photoQuery = usePhotoQuery(familySlug, photoId);
+  const navigate = useNavigate();
+  const deletePhoto = useDeletePhotoMutation(familySlug, photoId);
   const peopleQuery = usePeopleQuery(familySlug);
   const updatePhoto = useUpdatePhotoMutation(familySlug, photoId);
   const replaceTags = useReplacePhotoTagsMutation(familySlug, photoId);
@@ -181,6 +184,31 @@ export function PhotoPage() {
         <h2 id="photo-conversation-title">Stories, comments and reactions</h2>
         <PhotoConversationPanel familySlug={familySlug} photoId={photoId} />
       </section>
+      {(photo.permissions.can_update ||
+        photo.permissions.can_resolve_provenance) && (
+        <section aria-labelledby="delete-photo-title">
+          <h2 id="delete-photo-title">Remove this Photo</h2>
+          <p>
+            This hides the Photo but keeps its original, Albums, stories and
+            comments so it can be restored.
+          </p>
+          <button
+            type="button"
+            disabled={deletePhoto.isPending}
+            onClick={() => {
+              deletePhoto.mutate(undefined, {
+                onSuccess: () => {
+                  void navigate(
+                    `/families/${encodeURIComponent(familySlug)}/photos`,
+                  );
+                },
+              });
+            }}
+          >
+            Remove Photo
+          </button>
+        </section>
+      )}
       <Link to={`/families/${encodeURIComponent(familySlug)}/photos`}>
         Back to photographs
       </Link>

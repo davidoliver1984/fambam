@@ -24,7 +24,7 @@ class PhotoPolicy
 
     public function view(User $user, Photo $photo): bool
     {
-        if (! $this->matchesContext($user, $photo)) {
+        if ($photo->trashed() || ! $this->matchesContext($user, $photo)) {
             return false;
         }
 
@@ -64,6 +64,16 @@ class PhotoPolicy
         return $this->view($user, $photo) && $this->tenantContext->membership()->role !== FamilySpaceRole::Guest;
     }
 
+    public function delete(User $user, Photo $photo): bool
+    {
+        return ! $photo->trashed() && $this->mayManageTombstone($user, $photo);
+    }
+
+    public function restore(User $user, Photo $photo): bool
+    {
+        return $photo->trashed() && $this->mayManageTombstone($user, $photo);
+    }
+
     private function hasPhotoDirectoryAccess(User $user): bool
     {
         if (! $this->tenantContext->isEstablished()
@@ -83,6 +93,17 @@ class PhotoPolicy
         return $this->tenantContext->isEstablished()
             && $this->tenantContext->membership()->user_id === $user->id
             && $this->tenantContext->familySpace()->id === $photo->family_space_id;
+    }
+
+    private function mayManageTombstone(User $user, Photo $photo): bool
+    {
+        if (! $this->matchesContext($user, $photo)
+            || $this->tenantContext->membership()->role === FamilySpaceRole::Guest) {
+            return false;
+        }
+
+        return $this->tenantContext->membership()->role->canManageMembers()
+            || $photo->created_by === $user->id;
     }
 
     private function hasAlbumAccess(Photo $photo): bool

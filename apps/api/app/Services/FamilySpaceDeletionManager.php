@@ -135,9 +135,9 @@ class FamilySpaceDeletionManager
             Album::query()
                 ->where('family_space_id', $familySpace->id)
                 ->delete();
-            Photo::query()
+            Photo::withTrashed()
                 ->where('family_space_id', $familySpace->id)
-                ->delete();
+                ->forceDelete();
             Tag::query()
                 ->where('family_space_id', $familySpace->id)
                 ->delete();

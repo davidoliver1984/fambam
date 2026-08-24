@@ -104,7 +104,9 @@ class AlbumController extends Controller
     /** @return array<string, mixed> */
     private function payload(Album $album): array
     {
-        $album->loadMissing(['creator:id,name', 'albumPhotos.photo.mediaUpload', 'grants.membership.user:id,name']);
+        $album->load(['creator:id,name',
+            'albumPhotos' => fn ($query) => $query->whereHas('photo')->with('photo.mediaUpload'),
+            'grants.membership.user:id,name']);
 
         return ['id' => $album->id, 'name' => $album->name, 'description' => $album->description,
             'visibility' => $album->visibility->value, 'created_by' => $album->created_by,

@@ -2,8 +2,14 @@ import { useState } from "react";
 import { Link, useParams } from "react-router";
 
 import { PhotoForm } from "../components/PhotoForm";
-import { useCreatePhotoMutation } from "../hooks/usePhotoMutations";
-import { usePhotosQuery } from "../hooks/usePhotoQueries";
+import {
+  useCreatePhotoMutation,
+  useRestorePhotoMutation,
+} from "../hooks/usePhotoMutations";
+import {
+  useDeletedPhotosQuery,
+  usePhotosQuery,
+} from "../hooks/usePhotoQueries";
 import type { CreatePhotoInput } from "../types/photo";
 
 export function PhotosPage() {
@@ -16,6 +22,8 @@ export function PhotosPage() {
   });
   const photos = usePhotosQuery(familySlug, filters);
   const createPhoto = useCreatePhotoMutation(familySlug);
+  const deleted = useDeletedPhotosQuery(familySlug);
+  const restore = useRestorePhotoMutation(familySlug);
 
   if (photos.isPending) return <p role="status">Loading photographs…</p>;
   if (photos.isError)
@@ -96,6 +104,28 @@ export function PhotosPage() {
           }
         />
       </section>
+      {deleted.data !== undefined && deleted.data.length > 0 && (
+        <section aria-labelledby="deleted-photos-title">
+          <h2 id="deleted-photos-title">Recently removed Photos</h2>
+          <ul>
+            {deleted.data.map((photo) => (
+              <li key={photo.id}>
+                {photo.caption ?? photo.client_filename}{" "}
+                {photo.permissions.can_restore && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      restore.mutate(photo.id);
+                    }}
+                  >
+                    Restore
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <p>
         <Link to={`/families/${encodeURIComponent(familySlug)}/uploads`}>
           Upload photographs

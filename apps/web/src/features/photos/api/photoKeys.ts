@@ -2,6 +2,8 @@ export const photoKeys = {
   all: (familySlug: string) => ["photos", familySlug] as const,
   list: (familySlug: string, filters: object = {}) =>
     [...photoKeys.all(familySlug), "list", filters] as const,
+  deleted: (familySlug: string) =>
+    [...photoKeys.all(familySlug), "deleted"] as const,
   detail: (familySlug: string, photoId: string) =>
     [...photoKeys.all(familySlug), "detail", photoId] as const,
   proposals: (familySlug: string, photoId: string) =>

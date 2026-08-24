@@ -83,7 +83,7 @@ class MediaUpload extends Model
     /** @return HasOne<Photo, $this> */
     public function photo(): HasOne
     {
-        return $this->hasOne(Photo::class);
+        return $this->hasOne(Photo::class)->withTrashed();
     }
 
     /** @return BelongsTo<Album, $this> */

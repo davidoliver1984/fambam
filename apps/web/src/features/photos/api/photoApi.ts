@@ -3,6 +3,7 @@ import { type ApiEnvelope, unwrap } from "@/api/envelope";
 
 import type {
   CreatePhotoInput,
+  DeletedPhoto,
   Photo,
   PhotoMetadataInput,
   PhotoMetadataProposal,
@@ -44,6 +45,38 @@ export async function getPhoto(
     await apiClient.get<ApiEnvelope<Photo>>(photoPath(familySlug, photoId), {
       signal,
     }),
+  );
+}
+
+export async function getDeletedPhotos(
+  familySlug: string,
+  signal?: AbortSignal,
+): Promise<DeletedPhoto[]> {
+  return unwrap(
+    await apiClient.get<ApiEnvelope<DeletedPhoto[]>>(
+      `${photosPath(familySlug)}/deleted`,
+      { signal },
+    ),
+  );
+}
+
+export async function deletePhoto(
+  familySlug: string,
+  photoId: string,
+): Promise<void> {
+  await ensureCsrfCookie();
+  await apiClient.delete(photoPath(familySlug, photoId));
+}
+
+export async function restorePhoto(
+  familySlug: string,
+  photoId: string,
+): Promise<Photo> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.post<ApiEnvelope<Photo>>(
+      `${photoPath(familySlug, photoId)}/restore`,
+    ),
   );
 }
 

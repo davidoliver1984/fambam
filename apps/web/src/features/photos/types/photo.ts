@@ -6,6 +6,13 @@ export type PhotoFilters = {
   historical_year?: string;
   without_confirmed_date?: boolean;
 };
+export type DeletedPhoto = {
+  id: string;
+  caption: string | null;
+  client_filename: string;
+  deleted_at: string;
+  permissions: { can_restore: boolean };
+};
 export type PhotoProvenanceRole = "photographer" | "scanner" | "physical_owner";
 export type DatePrecision =
   "exact" | "month" | "year" | "decade" | "approximate" | "unknown";

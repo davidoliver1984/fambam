@@ -63,8 +63,11 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::get('/media-uploads/{mediaUpload}/variants/{transform}', [MediaUploadController::class, 'variant']);
         Route::get('/media-uploads/{mediaUpload}/original', [MediaUploadController::class, 'original']);
         Route::get('/photos', [PhotoController::class, 'index']);
+        Route::get('/photos/deleted', [PhotoController::class, 'deleted']);
         Route::post('/photos', [PhotoController::class, 'store']);
         Route::get('/photos/{photo}', [PhotoController::class, 'show']);
+        Route::delete('/photos/{photo}', [PhotoController::class, 'destroy']);
+        Route::post('/photos/{photo}/restore', [PhotoController::class, 'restore']);
         Route::patch('/photos/{photo}', [PhotoController::class, 'update']);
         Route::put('/photos/{photo}/tags', [PhotoController::class, 'replaceTags']);
         Route::get('/photos/{photo}/provenance-proposals', [PhotoController::class, 'proposals']);
