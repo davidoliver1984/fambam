@@ -2017,76 +2017,122 @@ Photo's creator with its uploader.
 ### Verification
 
 - ADR-0008 covers the required unique one-directional Photo/MediaUpload
-  reference and the created_by/uploader distinction; single-valued
-  photographer/scanner/physical-owner provenance under ADR-0006's
-  proposed/authoritative pattern; the reused uncertain-date concept kept
-  strictly separate from EXIF capture timestamps; PhotoPerson under the
-  same proposed/authoritative pattern with a non-overwrite boundary
-  against future machine recognition; the two-value Photo visibility
-  model with Album-only selected-audience sharing and explicit, reversible
-  visibility widening; Album/AlbumGrant as Contributor's first
-  resource-scoped grant, including fixed default Member contribution on
-  family_space-visibility Albums; the Phase 5 delivery non-bypass
-  guarantee; reversible soft deletion and restoration authority; and the
-  Phase 7/8/9/10/11 non-goals this ADR explicitly declines to build.
+  reference, the created_by/uploader distinction, and who may create a
+  Photo (Member from their own upload only, Owner/Administrator from any
+  upload, Contributor only via a scoped Album contribution); the
+  identity-bearing photographer/scanner/physical-owner provenance claims
+  under ADR-0006's proposed/authoritative pattern, kept structurally
+  separate from the ordinary archive_source_description field; the reused
+  uncertain-date concept and the new human-supplied-location concept, both
+  kept strictly separate from EXIF/GPS technical metadata; PhotoPerson
+  under the same proposed/authoritative pattern with a non-overwrite
+  boundary against future machine recognition; free-text, Family-Space-
+  scoped Photo tags with no approval workflow; the two-value Photo
+  visibility model (defaulting to family_space, except a Contributor's
+  scoped contribution which defaults to private) with Album-only
+  selected-audience sharing and explicit, reversible visibility widening;
+  Album/AlbumGrant as Contributor's first resource-scoped grant, including
+  the explicit Private/Selected visibility distinction, the
+  can_contribute-implies-can_view invariant, membership-reactivation
+  continuity, and fixed default Member contribution on family_space-
+  visibility Albums; the Phase 5 delivery non-bypass guarantee — beginning
+  in FPA-P06-S02 for intrinsic visibility, extended in FPA-P06-S04 for
+  Album access — with preserved-original download carved out as
+  intrinsic-visibility-only; reversible soft deletion and restoration
+  authority with no permanent-deletion path; and the Phase 7/8/9/10/11
+  non-goals this ADR explicitly declines to build.
 
-ADR-0008 was accepted 2026-08-24. `Photo.media_upload_id` is required and
+ADR-0008 was accepted 2026-08-24, then amended the same day after a
+pre-implementation reconciliation review surfaced genuine ambiguities
+ahead of FPA-P06-S02 — a bounded clarification pass, not a redesign; no
+prior decision was reversed. `Photo.media_upload_id` is required and
 unique, one-directional to `MediaUpload`, and at most one `MediaUpload`
 backs one `Photo`; a `ready` `MediaUpload` may exist indefinitely without
 becoming a Photo. `Photo.created_by` identifies the Family Space member
 who created the Photo record and is intentionally distinct from and
 never derived from `MediaUpload.user_id`; every creator-based authority
 rule in this ADR (visibility, Album widening, deletion/restoration) reads
-`created_by`, not the uploader.
+`created_by`, not the uploader. A Member may create a Photo only from
+their own ready MediaUpload; Owner/Administrator may promote any ready
+MediaUpload in the Family Space; a Contributor may create a Photo only as
+an inseparable part of contributing to an Album on which they hold
+`AlbumGrant.can_contribute`.
 
-Photographer, scanner and original physical owner are single-valued
-provenance roles, each a nullable `Person` reference or a mutually
-exclusive free-text fallback, following ADR-0006's Member-proposes/
-Owner-or-Administrator-confirms pattern unmodified. The physical-owner
-free-text field is named `physical_source_description`, never
-`source_album`. Caption, description and the physical-source description
-itself are ordinary content requiring no approval workflow. The
-historical date reuses ADR-0006's uncertain-date concept unmodified and
-must never be silently populated or confirmed from `MediaUpload`'s EXIF
-capture timestamp. `PhotoPerson` uses the same proposed/authoritative
-pattern; only confirmed rows are authoritative human ground truth, and
-future machine-recognition output (Phase 9/10) may never overwrite them
-directly.
+Photographer, scanner and original physical owner are single-valued,
+identity-bearing provenance claims, each a nullable `Person` reference or
+a mutually exclusive free-text fallback, following ADR-0006's
+Member-proposes/Owner-or-Administrator-confirms pattern unmodified. The
+physical container or collection a photo came from (e.g. "Green family
+album," "Box labelled Spain") is a **separate, ordinary**
+`archive_source_description` field requiring no approval workflow — split
+explicitly from the identity-bearing physical-owner claim it was
+originally conflated with. Caption, description and archive source
+description are all ordinary content. The historical date reuses
+ADR-0006's uncertain-date concept unmodified and must never be silently
+populated or confirmed from `MediaUpload`'s EXIF capture timestamp. A new,
+equally lightweight human-supplied location field follows the same
+proposed/authoritative pattern and stays strictly separate from
+`MediaUpload`'s GPS coordinates — no GIS, coordinates, or reverse
+geocoding. `PhotoPerson` uses the same proposed/authoritative pattern;
+only confirmed rows are authoritative human ground truth, and future
+machine-recognition output (Phase 9/10) may never overwrite them directly.
+Photo tags are free-text, Family-Space-scoped, ordinary Member-editable
+labels with no approval workflow, no taxonomy and no hierarchy — not a
+substitute for Albums.
 
-`Photo.visibility` has exactly two values, `family_space` and `private`;
-no separate restricted tier or Photo-level grant table exists.
-Selected-audience sharing lives entirely in `Album`/`AlbumGrant`
-(`can_view`/`can_contribute` per membership). Adding a private Photo to a
-broader Album is an explicit, authorized, UI-visible, tested
-visibility-widening operation; removing it from every widening Album
-automatically and immediately restores exactly its intrinsic visibility,
-computed from live state rather than a cached grant. Default
+`Photo.visibility` has exactly two values, `family_space` (the default)
+and `private` (the default only for a Photo created via a Contributor's
+scoped Album contribution); no separate restricted tier or Photo-level
+grant table exists. Selected-audience sharing lives entirely in
+`Album`/`AlbumGrant` (`can_view`/`can_contribute` per membership, with
+`can_contribute` always implying `can_view`). A **private** Album has no
+`AlbumGrant` rows at all (creator/Owner/Administrator only); a
+**selected** Album's audience is governed entirely by its `AlbumGrant`
+rows — the two tiers are explicitly distinct, not interchangeable. An
+existing `AlbumGrant` remains attached automatically when ADR-0005's
+in-place membership reactivation reinstates a removed member. Adding a
+private Photo to a broader Album is an explicit, authorized, UI-visible,
+tested visibility-widening operation; removing it from every widening
+Album automatically and immediately restores exactly its intrinsic
+visibility, computed from live state rather than a cached grant. Default
 `family_space`-visibility Album contribution is fixed product policy:
 Owner, Administrator, the Album's creator, and ordinary Member all
-contribute by default; Contributor contributes only through an explicit
-`AlbumGrant`; Guest never contributes — this is Contributor's first
-concrete resource-scoped grant, closing the placeholder ADR-0005 opened
-and ADR-0007 deferred. Once a `MediaUpload` is attached to a Photo, the
-existing Phase 5 delivery endpoints (`MediaUploadPolicy`) must become
-Photo/Album-aware so that the `MediaUpload` ULID alone can never bypass a
-private Photo or a restricted Album; this is fixed as security-critical.
+contribute by default; Contributor contributes — and uploads — only
+through an explicit `AlbumGrant`; Guest never contributes — this is
+Contributor's first concrete resource-scoped grant, closing the
+placeholder ADR-0005 opened and ADR-0007 deferred. `AlbumGrant` governs
+presentation access only (canonical asset and variants); it never confers
+preserved-original download, which continues to follow ADR-0007 §16's
+existing role policy evaluated against the Photo's own intrinsic
+visibility. Once a `MediaUpload` is attached to a Photo, the existing
+Phase 5 delivery endpoints (`MediaUploadPolicy`) must become Photo-aware
+for intrinsic visibility **starting in FPA-P06-S02** — not deferred to
+Album work — so that the `MediaUpload` ULID alone can never bypass a
+private Photo even before any Album exists; FPA-P06-S04 then extends the
+same check to consult `AlbumGrant` for presentation-only widening. This is
+fixed as security-critical.
 
-Photo deletion is reversible soft deletion only. Owner or Administrator
-may soft-delete or restore any Photo; the Photo's creator may do the same
-to their own Photo while they retain Family Space access. No Member
-action can permanently destroy preserved media, and Phase 5's assets and
+Photo deletion is reversible soft deletion only, and Phase 6 introduces no
+permanent-deletion path of any kind. Owner or Administrator may
+soft-delete or restore any Photo; the Photo's creator may do the same to
+their own Photo while they retain Family Space access. No Member action
+can permanently destroy preserved media, and Phase 5's assets and
 associated Album/story/comment/reaction rows are unaffected by and
 retained across a soft delete. `PhotoStory` and `PhotoComment` are
 author-editable/removable with Owner/Administrator retaining moderation
 authority regardless of author; reactions use a small fixed vocabulary
 with explicit no-ranking/no-engagement-feed guarantees. Dynamic views are
-query-only; no persisted view entity exists. Duplicate linkage (Phase 8),
-Event/Event-Album structure (Phase 7), machine face data (Phase 9/10) and
-persisted dynamic views (Phase 11) are explicitly out of scope.
+query-only, spanning date, location and tag metadata alongside Photo and
+PhotoPerson; no persisted view entity exists. Duplicate linkage (Phase 8),
+Event/Event-Album structure (Phase 7), machine face data (Phase 9/10),
+persisted dynamic views (Phase 11), GIS/coordinate location, and tag
+taxonomy/hierarchy are explicitly out of scope.
 
 This stage's entire scope was accepting the ADR, so the ADR-acceptance
 commit is the stage-completion commit and receives the `phase-6-s01` tag
-directly.
+directly. The same-day reconciliation amendment was folded into that
+already-accepted ADR text rather than treated as a second stage, since no
+implementation work had yet begun against the ambiguous version.
 
 ### Documentation updates
 
@@ -2101,36 +2147,65 @@ Accept ADR-0008: Photo domain, provenance and organisation
 
 ## FPA-P06-S02 — Implement photo and provenance records
 
-Record uploader, photographer, scanner, source collection and original
-owner independently. `Photo.media_upload_id` is required and unique;
+Record uploader, photographer, scanner, archive source and original owner
+independently. `Photo.media_upload_id` is required and unique;
 `Photo.created_by` is distinct from and never derived from
-`MediaUpload.user_id`. Photographer/scanner/physical-owner claims are
-Person-or-free-text and follow the propose/confirm pattern; the
-physical-owner free-text column is `physical_source_description`, never
-`source_album`. Caption and description require no approval workflow.
-Establish `Photo.visibility` (`family_space`/`private`) as a column here,
-even though its full authorization behaviour is completed in S04.
+`MediaUpload.user_id`. A Member may create a Photo only from their own
+ready MediaUpload; Owner/Administrator may promote any ready MediaUpload;
+a Contributor's scoped exception is completed in S04 once `AlbumGrant`
+exists. Photographer/scanner/physical-owner claims are Person-or-free-text
+identity-bearing provenance and follow the propose/confirm pattern.
+`archive_source_description` is a **separate, ordinary** field (e.g.
+"Green family album," "Box labelled Spain") requiring no approval
+workflow — do not reuse the physical-owner free-text column for it.
+Caption and description likewise require no approval workflow. Implement
+`Tag`/`PhotoTag` (Family-Space-scoped, free-text, ordinary
+Member-editable, no taxonomy or hierarchy). Establish `Photo.visibility`
+(`family_space`/`private`, defaulting to `family_space`) as a column here.
+
+**S02 must also extend `MediaUploadPolicy`** so that, as soon as a
+`MediaUpload` is attached to a Photo, `Photo.visibility` alone is
+authoritative for canonical, variant, and original delivery — do not
+defer this to S04. This closes the security gap that would otherwise
+exist between this stage (which introduces `Photo.visibility`) and the
+stage that introduces Albums.
 
 ## FPA-P06-S03 — Implement family metadata and approximate dates
 
 Support exact, month, year, decade and approximate values without
 inventing precision, reusing ADR-0006's uncertain-date concept unmodified
 and keeping it strictly separate from `MediaUpload`'s EXIF capture
-timestamp. Implement `PhotoPerson` under the same propose/confirm
-pattern; only confirmed rows are authoritative, and the table must remain
-structurally separate from any future machine-recognition output.
+timestamp. Implement a human-supplied location field with the same
+propose/confirm pattern, strictly separate from `MediaUpload`'s GPS
+coordinates — free text only, no GIS, coordinates or reverse geocoding.
+Implement `PhotoPerson` under the same propose/confirm pattern; only
+confirmed rows are authoritative, and the table must remain structurally
+separate from any future machine-recognition output.
 
 ## FPA-P06-S04 — Implement albums and dynamic views
 
 Albums are explicit collections; generated views query shared metadata.
 Implement `Album`, `AlbumPhoto` and `AlbumGrant` (`can_view`/
-`can_contribute`), with default `family_space`-visibility contribution
-fixed for Owner/Administrator/creator/Member and Contributor gated behind
-an explicit grant. Implement §5's Photo-visibility-widening authorization,
-UI signal and automatic-narrowing-on-removal behaviour, and make
-`MediaUploadPolicy` Photo/Album-aware so the MediaUpload ULID cannot
-bypass private or restricted access — this closes ADR-0008's
-security-critical delivery non-bypass requirement.
+`can_contribute`, with `can_contribute` always implying `can_view` —
+reject or make unrepresentable any grant with `can_contribute = true` and
+`can_view = false`). Implement the explicit Private (zero grants) versus
+Selected (grant-governed) visibility distinction, and rely on ADR-0005's
+in-place membership reactivation for `AlbumGrant` continuity with no extra
+reconciliation step. Default `family_space`-visibility contribution is
+fixed for Owner/Administrator/creator/Member; Contributor contributes, and
+uploads/creates a Photo, only through an explicit
+`AlbumGrant.can_contribute` — the resulting Photo is created already
+attached to that Album and defaults to `private` visibility, not
+`family_space`.
+
+Implement §7's Photo-visibility-widening authorization, UI signal and
+automatic-narrowing-on-removal behaviour. **Extend** S02's already
+Photo-aware `MediaUploadPolicy` to additionally consult `AlbumGrant` for
+presentation-only access (canonical asset and variants) — never original
+download, which continues to follow ADR-0007's role policy evaluated
+against the Photo's own intrinsic visibility regardless of any Album
+grant. This completes ADR-0008's security-critical delivery non-bypass
+requirement that S02 began.
 
 ## FPA-P06-S05 — Implement stories, comments and reactions
 
@@ -2142,24 +2217,37 @@ ranking, engagement feed, or memories/search weighting.
 
 ## FPA-P06-S06 — Implement photo deletion and restoration
 
-Use soft deletion, derivative cleanup jobs and clear permanent-deletion
-rules. Deletion/restoration authority is evaluated against
-`Photo.created_by`, never `MediaUpload.user_id`. Associated Album/story/
-comment/reaction rows are retained, not deleted, across a soft delete, so
-restoration is a pure metadata reversal. Re-verify that the delivery
-non-bypass check (S04) also respects a soft-deleted Photo's presentation
-state.
+Use reversible soft deletion, restoration, and derivative-preserving
+cleanup jobs. **Phase 6 introduces no permanent-deletion path** — do not
+add one under this stage; permanent destruction remains governed
+exclusively by ADR-0005's Family Space teardown and any later Phase 13
+retention architecture. Deletion/restoration authority is evaluated
+against `Photo.created_by`, never `MediaUpload.user_id`. Associated
+Album/story/comment/reaction rows are retained, not deleted, across a soft
+delete, so restoration is a pure metadata reversal. Re-verify that the
+delivery non-bypass check (S02's intrinsic-visibility layer, extended in
+S04) also respects a soft-deleted Photo's presentation state.
 
 ### Phase verification
 
 - One photo can belong to several albums.
 - Provenance remains intact after edits.
-- Date sorting handles uncertain dates consistently.
+- The identity-bearing physical-owner claim and the ordinary archive
+  source description are stored and edited independently of each other.
+- Date and location sorting/filtering handle uncertain or free-text values
+  consistently.
 - Photo restoration re-establishes valid asset references.
-- A MediaUpload ULID cannot bypass a private Photo or restricted Album
-  through the existing Phase 5 delivery endpoints.
-- Removing a Photo from every widening Album restores exactly its
-  intrinsic visibility.
+- A MediaUpload ULID cannot bypass a private Photo through the existing
+  Phase 5 delivery endpoints immediately after S02, before any Album
+  exists.
+- Adding/removing a Photo from a widening Album correctly widens/restores
+  its reachability without mutating `Photo.visibility` itself.
+- No `AlbumGrant` can exist with `can_contribute = true` and `can_view =
+  false`.
+- Album-derived (grant-only) access never authorizes preserved-original
+  download for a role that would not otherwise qualify under ADR-0007.
+- No Phase 6 code path permanently destroys a Photo or its underlying
+  media.
 
 ---
 
