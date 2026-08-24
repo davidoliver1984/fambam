@@ -5,15 +5,19 @@ namespace App\Services;
 use App\Enums\FamilySpaceRole;
 use App\Enums\MediaUploadState;
 use App\Enums\PersonProposalStatus;
+use App\Enums\PhotoMetadataField;
 use App\Enums\PhotoProvenanceRole;
 use App\Enums\PhotoVisibility;
 use App\Models\FamilySpace;
 use App\Models\MediaUpload;
 use App\Models\Person;
 use App\Models\Photo;
+use App\Models\PhotoMetadataProposal;
+use App\Models\PhotoPerson;
 use App\Models\PhotoProvenanceProposal;
 use App\Models\Tag;
 use App\Models\User;
+use App\People\UncertainDate;
 use App\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -183,6 +187,146 @@ class PhotoManager
         });
     }
 
+    /** @param array<string, mixed> $input */
+    public function submitMetadata(Photo $photo, User $actor, array $input, Request $request): PhotoMetadataProposal
+    {
+        return DB::transaction(function () use ($photo, $actor, $input, $request): PhotoMetadataProposal {
+            $locked = Photo::query()->lockForUpdate()->findOrFail($photo->id);
+            $field = PhotoMetadataField::from((string) $input['field']);
+            $clears = (bool) ($input['clears_claim'] ?? false);
+            $date = null;
+            if (! $clears && $field === PhotoMetadataField::HistoricalDate) {
+                /** @var array{precision: string, value?: string|null} $dateInput */
+                $dateInput = $input['date'];
+                $date = UncertainDate::fromInput($dateInput);
+            }
+            $authoritative = $this->tenantContext->membership()->role->canManageMembers();
+
+            $proposal = PhotoMetadataProposal::query()->create([
+                'family_space_id' => $locked->family_space_id,
+                'photo_id' => $locked->id,
+                'field' => $field,
+                'date_precision' => $date?->precision,
+                'date_value' => $date?->storageDate(),
+                'location_description' => $clears ? null : (trim((string) ($input['location_description'] ?? '')) ?: null),
+                'clears_claim' => $clears,
+                'status' => $authoritative ? PersonProposalStatus::Approved : PersonProposalStatus::Pending,
+                'proposed_by' => $actor->id,
+                'resolved_by' => $authoritative ? $actor->id : null,
+                'resolved_at' => $authoritative ? now() : null,
+            ]);
+
+            if ($authoritative) {
+                $this->applyMetadata($locked, $proposal);
+            }
+
+            $this->audit->record(
+                $authoritative ? 'photo.metadata_confirmed' : 'photo.metadata_proposed',
+                $proposal,
+                $actor,
+                $request,
+                ['photo_id' => $locked->id, 'field' => $field->value],
+            );
+
+            return $proposal;
+        });
+    }
+
+    public function resolveMetadata(
+        Photo $photo,
+        PhotoMetadataProposal $proposal,
+        User $actor,
+        PersonProposalStatus $resolution,
+        Request $request,
+    ): PhotoMetadataProposal {
+        return DB::transaction(function () use ($photo, $proposal, $actor, $resolution, $request): PhotoMetadataProposal {
+            $lockedPhoto = Photo::query()->lockForUpdate()->findOrFail($photo->id);
+            $lockedProposal = PhotoMetadataProposal::query()->lockForUpdate()->findOrFail($proposal->id);
+            if ($lockedProposal->photo_id !== $lockedPhoto->id
+                || $lockedProposal->status !== PersonProposalStatus::Pending) {
+                throw ValidationException::withMessages(['proposal' => ['This metadata proposal can no longer be resolved.']]);
+            }
+            if ($resolution === PersonProposalStatus::Approved) {
+                $this->applyMetadata($lockedPhoto, $lockedProposal);
+            }
+            $lockedProposal->update([
+                'status' => $resolution,
+                'resolved_by' => $actor->id,
+                'resolved_at' => now(),
+            ]);
+            $this->audit->record(
+                $resolution === PersonProposalStatus::Approved ? 'photo.metadata_confirmed' : 'photo.metadata_rejected',
+                $lockedProposal,
+                $actor,
+                $request,
+                ['photo_id' => $lockedPhoto->id, 'field' => $lockedProposal->field->value],
+            );
+
+            return $lockedProposal;
+        });
+    }
+
+    /** @param array<string, mixed> $input */
+    public function submitPhotoPerson(Photo $photo, User $actor, array $input, Request $request): PhotoPerson
+    {
+        return DB::transaction(function () use ($photo, $actor, $input, $request): PhotoPerson {
+            $locked = Photo::query()->lockForUpdate()->findOrFail($photo->id);
+            $person = Person::query()
+                ->where('family_space_id', $locked->family_space_id)
+                ->findOrFail((string) $input['person_id']);
+            if (PhotoPerson::query()->where('photo_id', $locked->id)->where('person_id', $person->id)
+                ->whereIn('status', [PersonProposalStatus::Pending, PersonProposalStatus::Approved])->exists()) {
+                throw ValidationException::withMessages(['person_id' => ['This Person already has an active Photo association.']]);
+            }
+            $authoritative = $this->tenantContext->membership()->role->canManageMembers();
+            $association = PhotoPerson::query()->create([
+                'family_space_id' => $locked->family_space_id,
+                'photo_id' => $locked->id,
+                'person_id' => $person->id,
+                'proposal_source' => 'human',
+                'status' => $authoritative ? PersonProposalStatus::Approved : PersonProposalStatus::Pending,
+                'proposed_by' => $actor->id,
+                'resolved_by' => $authoritative ? $actor->id : null,
+                'resolved_at' => $authoritative ? now() : null,
+            ]);
+            $this->audit->record(
+                $authoritative ? 'photo.person_confirmed' : 'photo.person_proposed',
+                $association,
+                $actor,
+                $request,
+                ['photo_id' => $locked->id, 'person_id' => $person->id],
+            );
+
+            return $association->load('person:id,preferred_name');
+        });
+    }
+
+    public function resolvePhotoPerson(
+        Photo $photo,
+        PhotoPerson $association,
+        User $actor,
+        PersonProposalStatus $resolution,
+        Request $request,
+    ): PhotoPerson {
+        return DB::transaction(function () use ($photo, $association, $actor, $resolution, $request): PhotoPerson {
+            $lockedPhoto = Photo::query()->lockForUpdate()->findOrFail($photo->id);
+            $locked = PhotoPerson::query()->lockForUpdate()->findOrFail($association->id);
+            if ($locked->photo_id !== $lockedPhoto->id || $locked->status !== PersonProposalStatus::Pending) {
+                throw ValidationException::withMessages(['association' => ['This Person proposal can no longer be resolved.']]);
+            }
+            $locked->update(['status' => $resolution, 'resolved_by' => $actor->id, 'resolved_at' => now()]);
+            $this->audit->record(
+                $resolution === PersonProposalStatus::Approved ? 'photo.person_confirmed' : 'photo.person_rejected',
+                $locked,
+                $actor,
+                $request,
+                ['photo_id' => $lockedPhoto->id, 'person_id' => $locked->person_id],
+            );
+
+            return $locked->load('person:id,preferred_name');
+        });
+    }
+
     /** @param list<string> $labels */
     public function replaceTags(Photo $photo, User $actor, array $labels, Request $request): Photo
     {
@@ -221,6 +365,22 @@ class PhotoManager
         $photo->update([
             $personField => $proposal->clears_claim ? null : $proposal->person_id,
             $descriptionField => $proposal->clears_claim ? null : $proposal->description,
+        ]);
+    }
+
+    private function applyMetadata(Photo $photo, PhotoMetadataProposal $proposal): void
+    {
+        if ($proposal->field === PhotoMetadataField::HistoricalDate) {
+            $photo->update([
+                'historical_date_precision' => $proposal->clears_claim ? null : $proposal->date_precision,
+                'historical_date' => $proposal->clears_claim ? null : $proposal->date_value,
+            ]);
+
+            return;
+        }
+
+        $photo->update([
+            'location_description' => $proposal->clears_claim ? null : $proposal->location_description,
         ]);
     }
 

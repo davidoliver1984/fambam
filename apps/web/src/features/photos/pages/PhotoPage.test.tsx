@@ -8,15 +8,30 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { getPeople } from "@/features/people/api/personApi";
 import type { Person } from "@/features/people/types/person";
 
-import { getPhoto, submitPhotoProvenance } from "../api/photoApi";
-import type { Photo, PhotoProvenanceProposal } from "../types/photo";
+import {
+  getPhoto,
+  submitPhotoMetadata,
+  submitPhotoPerson,
+  submitPhotoProvenance,
+} from "../api/photoApi";
+import type {
+  Photo,
+  PhotoMetadataProposal,
+  PhotoProvenanceProposal,
+} from "../types/photo";
 import { PhotoPage } from "./PhotoPage";
 
 vi.mock("../api/photoApi", () => ({
   getPhoto: vi.fn(),
   getPhotoProvenanceProposals: vi.fn(),
+  getPhotoMetadataProposals: vi.fn(),
+  getPhotoPersonProposals: vi.fn(),
   replacePhotoTags: vi.fn(),
   resolvePhotoProvenanceProposal: vi.fn(),
+  resolvePhotoMetadataProposal: vi.fn(),
+  resolvePhotoPersonProposal: vi.fn(),
+  submitPhotoMetadata: vi.fn(),
+  submitPhotoPerson: vi.fn(),
   submitPhotoProvenance: vi.fn(),
   updatePhoto: vi.fn(),
 }));
@@ -59,12 +74,27 @@ const photo: Photo = {
   caption: "Family picnic",
   description: "Summer together",
   archive_source_description: "Green family album",
+  historical_date: { precision: "decade", value: "1980s" },
+  location_description: "Blackpool",
   provenance: {
     photographer: { person: null, description: "Unknown studio" },
     scanner: { person: null, description: null },
     physical_owner: { person, description: null },
   },
   tags: [{ id: "01K70000000000000000000000", label: "Picnic" }],
+  people: [
+    {
+      id: "01K90000000000000000000000",
+      photo_id: "01K60000000000000000000000",
+      person,
+      proposal_source: "human",
+      status: "approved",
+      proposed_by: 1,
+      resolved_by: 1,
+      resolved_at: "2026-08-24T10:00:00Z",
+      created_at: "2026-08-24T10:00:00Z",
+    },
+  ],
   created_at: "2026-08-24T10:00:00Z",
   updated_at: "2026-08-24T10:00:00Z",
   permissions: {
@@ -80,6 +110,19 @@ const proposal: PhotoProvenanceProposal = {
   role: "scanner",
   person,
   description: null,
+  clears_claim: false,
+  status: "pending",
+  proposed_by: 1,
+  resolved_by: null,
+  resolved_at: null,
+  created_at: "2026-08-24T11:00:00Z",
+};
+const metadataProposal: PhotoMetadataProposal = {
+  id: "01KA0000000000000000000000",
+  photo_id: photo.id,
+  field: "historical_date",
+  date: { precision: "year", value: "1987" },
+  location_description: null,
   clears_claim: false,
   status: "pending",
   proposed_by: 1,
@@ -107,6 +150,13 @@ beforeEach(() => {
   vi.mocked(getPhoto).mockResolvedValue(photo);
   vi.mocked(getPeople).mockResolvedValue([person]);
   vi.mocked(submitPhotoProvenance).mockResolvedValue(proposal);
+  vi.mocked(submitPhotoMetadata).mockResolvedValue(metadataProposal);
+  vi.mocked(submitPhotoPerson).mockResolvedValue({
+    ...photo.people[0],
+    status: "pending",
+    resolved_by: null,
+    resolved_at: null,
+  });
 });
 
 afterEach(() => {
@@ -121,7 +171,9 @@ describe("PhotoPage", () => {
       await screen.findByRole("heading", { name: "Family picnic" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Green family album")).toBeInTheDocument();
-    expect(screen.getAllByText("Aunt May")).toHaveLength(2);
+    expect(screen.getAllByText("Aunt May").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("decade: 1980s")).toBeInTheDocument();
+    expect(screen.getByText("Blackpool")).toBeInTheDocument();
     expect(screen.getByText("Unknown studio")).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: "Edit Photo" }),
@@ -149,5 +201,39 @@ describe("PhotoPage", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "submitted for review",
     );
+  });
+
+  it("submits uncertain-date and Photo Person proposals through feature mutations", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole("heading", { name: "Family-supplied metadata" });
+    await user.selectOptions(screen.getByLabelText("Date precision"), "year");
+    await user.type(screen.getByLabelText("Date value"), "1987");
+    await user.click(
+      screen.getByRole("button", { name: "Submit family metadata" }),
+    );
+    await user.selectOptions(
+      screen.getByLabelText("Person appearing in this Photo"),
+      person.id,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Submit Person proposal" }),
+    );
+
+    await waitFor(() => {
+      expect(submitPhotoMetadata).toHaveBeenCalledWith(
+        "oliver-family",
+        photo.id,
+        {
+          field: "historical_date",
+          date: { precision: "year", value: "1987" },
+        },
+      );
+      expect(submitPhotoPerson).toHaveBeenCalledWith(
+        "oliver-family",
+        photo.id,
+        person.id,
+      );
+    });
   });
 });

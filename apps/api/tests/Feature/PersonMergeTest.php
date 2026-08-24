@@ -15,6 +15,7 @@ use App\Models\PersonMerge;
 use App\Models\PersonMergeProposal;
 use App\Models\PersonRelationship;
 use App\Models\Photo;
+use App\Models\PhotoPerson;
 use App\Models\PhotoProvenanceProposal;
 use App\Models\RelationshipProposal;
 use App\Models\User;
@@ -225,6 +226,24 @@ class PersonMergeTest extends TestCase
             'status' => 'pending',
             'proposed_by' => $owner->id,
         ]);
+        $photoPerson = PhotoPerson::query()->create([
+            'family_space_id' => $family->id,
+            'photo_id' => $photo->id,
+            'person_id' => $absorbed->id,
+            'proposal_source' => 'human',
+            'status' => 'approved',
+            'proposed_by' => $owner->id,
+            'resolved_by' => $owner->id,
+            'resolved_at' => now(),
+        ]);
+        $survivorPhotoPerson = PhotoPerson::query()->create([
+            'family_space_id' => $family->id,
+            'photo_id' => $photo->id,
+            'person_id' => $survivor->id,
+            'proposal_source' => 'human',
+            'status' => 'pending',
+            'proposed_by' => $owner->id,
+        ]);
         $otherFamily = FamilySpace::factory()->create(['slug' => 'other-link-family']);
         FamilySpaceMembership::factory()->create([
             'family_space_id' => $otherFamily->id,
@@ -249,6 +268,16 @@ class PersonMergeTest extends TestCase
         $this->assertDatabaseHas('photo_provenance_proposals', [
             'id' => $photoProposal->id,
             'person_id' => $survivor->id,
+        ]);
+        $this->assertDatabaseHas('photo_people', [
+            'id' => $photoPerson->id,
+            'person_id' => $survivor->id,
+            'status' => 'approved',
+        ]);
+        $this->assertDatabaseHas('photo_people', [
+            'id' => $survivorPhotoPerson->id,
+            'person_id' => $survivor->id,
+            'status' => 'rejected',
         ]);
         $this->actingAs($owner)
             ->postJson("/api/families/reverse-merge/person-merges/{$mergeId}/reverse")
@@ -281,6 +310,16 @@ class PersonMergeTest extends TestCase
         $this->assertDatabaseHas('photo_provenance_proposals', [
             'id' => $photoProposal->id,
             'person_id' => $absorbed->id,
+        ]);
+        $this->assertDatabaseHas('photo_people', [
+            'id' => $photoPerson->id,
+            'person_id' => $absorbed->id,
+            'status' => 'approved',
+        ]);
+        $this->assertDatabaseHas('photo_people', [
+            'id' => $survivorPhotoPerson->id,
+            'person_id' => $survivor->id,
+            'status' => 'pending',
         ]);
         $this->assertDatabaseHas('person_account_links', ['id' => $otherFamilyLink->id]);
         $this->assertDatabaseHas('audit_events', ['action' => 'person.merge_reversed']);

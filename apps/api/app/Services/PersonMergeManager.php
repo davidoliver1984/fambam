@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\PersonMergeProposalStatus;
 use App\Enums\PersonMergeStatus;
+use App\Enums\PersonProposalStatus;
 use App\Enums\RelationshipProposalStatus;
 use App\Enums\RelationshipType;
 use App\Models\FamilyCirclePerson;
@@ -13,6 +14,7 @@ use App\Models\PersonMerge;
 use App\Models\PersonMergeProposal;
 use App\Models\PersonRelationship;
 use App\Models\Photo;
+use App\Models\PhotoPerson;
 use App\Models\PhotoProvenanceProposal;
 use App\Models\RelationshipProposal;
 use App\Models\User;
@@ -85,7 +87,7 @@ class PersonMergeManager
                 $lockedSurvivor,
                 $accountLinkResolution,
             );
-            $this->reconcilePhotoProvenance($lockedAbsorbed, $lockedSurvivor);
+            $this->reconcilePhotoProvenance($lockedAbsorbed, $lockedSurvivor, $actor);
             $lockedAbsorbed->delete();
 
             $merge = PersonMerge::query()->create([
@@ -446,7 +448,7 @@ class PersonMergeManager
         }
     }
 
-    private function reconcilePhotoProvenance(Person $absorbed, Person $survivor): void
+    private function reconcilePhotoProvenance(Person $absorbed, Person $survivor, User $actor): void
     {
         Photo::query()
             ->where('photographer_person_id', $absorbed->id)
@@ -460,6 +462,35 @@ class PersonMergeManager
         PhotoProvenanceProposal::query()
             ->where('person_id', $absorbed->id)
             ->update(['person_id' => $survivor->id, 'updated_at' => now()]);
+
+        $associations = PhotoPerson::query()->where('person_id', $absorbed->id)->lockForUpdate()->get();
+        foreach ($associations as $association) {
+            $survivorAssociation = PhotoPerson::query()
+                ->where('photo_id', $association->photo_id)
+                ->where('person_id', $survivor->id)
+                ->whereIn('status', [PersonProposalStatus::Pending->value, PersonProposalStatus::Approved->value])
+                ->lockForUpdate()->first();
+
+            if ($survivorAssociation !== null
+                && $association->status === PersonProposalStatus::Approved
+                && $survivorAssociation->status === PersonProposalStatus::Pending) {
+                $survivorAssociation->update([
+                    'status' => PersonProposalStatus::Rejected,
+                    'resolved_by' => $actor->id,
+                    'resolved_at' => now(),
+                ]);
+                $survivorAssociation = null;
+            }
+
+            $association->update([
+                'person_id' => $survivor->id,
+                ...($survivorAssociation !== null && $association->status !== PersonProposalStatus::Rejected ? [
+                    'status' => PersonProposalStatus::Rejected,
+                    'resolved_by' => $actor->id,
+                    'resolved_at' => now(),
+                ] : []),
+            ]);
+        }
     }
 
     /** @return array<string, mixed> */
@@ -498,12 +529,14 @@ class PersonMergeManager
         $photoProposalQuery = PhotoProvenanceProposal::query()
             ->whereIn('person_id', $personIds)
             ->orderBy('id');
+        $photoPersonQuery = PhotoPerson::query()->whereIn('person_id', $personIds)->orderBy('id');
         if ($lock) {
             $proposalQuery->lockForUpdate();
             $circleQuery->lockForUpdate();
             $linkQuery->lockForUpdate();
             $photoQuery->lockForUpdate();
             $photoProposalQuery->lockForUpdate();
+            $photoPersonQuery->lockForUpdate();
         }
 
         return [
@@ -514,6 +547,7 @@ class PersonMergeManager
             'photo_provenance' => $photoQuery->get()->map($this->photoProvenanceSnapshot(...))->values()->all(),
             'photo_provenance_proposals' => $photoProposalQuery->get()
                 ->map($this->photoProvenanceProposalSnapshot(...))->values()->all(),
+            'photo_people' => $photoPersonQuery->get()->map($this->photoPersonSnapshot(...))->values()->all(),
         ];
     }
 
@@ -597,6 +631,19 @@ class PersonMergeManager
             'id' => $proposal->id,
             'person_id' => $proposal->person_id,
             'updated_at' => $proposal->getRawOriginal('updated_at'),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function photoPersonSnapshot(PhotoPerson $association): array
+    {
+        return [
+            'id' => $association->id,
+            'person_id' => $association->person_id,
+            'status' => $association->status->value,
+            'resolved_by' => $association->resolved_by,
+            'resolved_at' => $association->getRawOriginal('resolved_at'),
+            'updated_at' => $association->getRawOriginal('updated_at'),
         ];
     }
 
@@ -686,6 +733,16 @@ class PersonMergeManager
             $id = $row['id'];
             unset($row['id']);
             DB::table('photo_provenance_proposals')->where('id', $id)->update($row);
+        }
+
+        /** @var list<array<string, mixed>> $photoPeople */
+        $photoPeople = $before['photo_people'] ?? [];
+        DB::table('photo_people')->whereIn('id', array_column($photoPeople, 'id'))
+            ->update(['status' => PersonProposalStatus::Rejected->value]);
+        foreach ($photoPeople as $row) {
+            $id = $row['id'];
+            unset($row['id']);
+            DB::table('photo_people')->where('id', $id)->update($row);
         }
     }
 

@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P06",
-    "current_stage": "FPA-P06-S03",
+    "current_stage": "FPA-P06-S04",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-24"
   },
@@ -455,16 +455,18 @@
         {
           "id": "FPA-P06-S03",
           "title": "Implement family metadata and approximate dates",
-          "status": "ready",
+          "status": "complete",
           "dependencies": [
             "FPA-P06-S02"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-24: implemented the shared uncertain-date contract for Photo historical dates, independent human-supplied location, and retained proposed/confirmed/rejected PhotoPerson associations. Member proposals, Owner/Administrator resolution, confirmed-only graph visibility, Person merge reconciliation and exact reversal, Class C RLS, typed feature-local TanStack Query controls and explicit EXIF/GPS non-derivation were persistently migrated and verified."
+          ]
         },
         {
           "id": "FPA-P06-S04",
           "title": "Implement albums and dynamic views",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P06-S03"
           ],
@@ -1530,6 +1532,14 @@
       "roadmap_stage": "FPA-P06-S02",
       "date": "2026-08-24",
       "description": "FPA-P06-S02 completed: tenant-isolated Photo, identity-bearing provenance proposal and Family-Space tag records; role-bounded promotion of ready MediaUploads; intrinsic Photo visibility enforced through existing canonical, variant and original delivery routes; Person merge reconciliation and exact reversal; Family Space teardown integration; and typed feature-local TanStack Query list, detail, editing, tag and provenance flows were implemented, persistently migrated and verified."
+    },
+    {
+      "git_tag": "phase-6-s03",
+      "type": "stage_completion",
+      "adr": "ADR-0008",
+      "roadmap_stage": "FPA-P06-S03",
+      "date": "2026-08-24",
+      "description": "FPA-P06-S03 completed: Photo historical dates reuse the exact ADR-0006 uncertain-date contract while remaining independent of EXIF; human-supplied free-text location remains independent of GPS; retained PhotoPerson proposals expose only confirmed associations as human ground truth; Member proposal and Owner/Administrator resolution, audit, Person merge and exact reversal, forced Class C RLS and typed feature-local TanStack Query controls were implemented, persistently migrated and verified."
     }
   ]
 }

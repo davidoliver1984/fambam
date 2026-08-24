@@ -4,6 +4,8 @@ namespace App\Queries;
 
 use App\Enums\PhotoVisibility;
 use App\Models\Photo;
+use App\Models\PhotoMetadataProposal;
+use App\Models\PhotoPerson;
 use App\Models\PhotoProvenanceProposal;
 use App\Models\User;
 use App\Tenancy\TenantContext;
@@ -25,6 +27,9 @@ class PhotoQuery
                 'photographer:id,preferred_name',
                 'scanner:id,preferred_name',
                 'physicalOwner:id,preferred_name',
+                'photoPeople' => fn ($query) => $query
+                    ->where('status', 'approved')
+                    ->with('person:id,preferred_name'),
             ])
             ->where('family_space_id', $this->tenantContext->familySpace()->id);
 
@@ -68,5 +73,41 @@ class PhotoQuery
             ->where('status', 'pending')
             ->oldest('created_at')
             ->get();
+    }
+
+    public function findMetadataProposal(Photo $photo, string $proposalId): PhotoMetadataProposal
+    {
+        return PhotoMetadataProposal::query()
+            ->where('family_space_id', $this->tenantContext->familySpace()->id)
+            ->where('photo_id', $photo->id)
+            ->find($proposalId) ?? throw new NotFoundHttpException;
+    }
+
+    /** @return Collection<int, PhotoMetadataProposal> */
+    public function pendingMetadataProposals(Photo $photo): Collection
+    {
+        return PhotoMetadataProposal::query()
+            ->where('family_space_id', $this->tenantContext->familySpace()->id)
+            ->where('photo_id', $photo->id)
+            ->where('status', 'pending')
+            ->oldest('created_at')->get();
+    }
+
+    public function findPhotoPerson(Photo $photo, string $associationId): PhotoPerson
+    {
+        return PhotoPerson::query()
+            ->where('family_space_id', $this->tenantContext->familySpace()->id)
+            ->where('photo_id', $photo->id)
+            ->find($associationId) ?? throw new NotFoundHttpException;
+    }
+
+    /** @return Collection<int, PhotoPerson> */
+    public function pendingPhotoPeople(Photo $photo): Collection
+    {
+        return PhotoPerson::query()->with('person:id,preferred_name')
+            ->where('family_space_id', $this->tenantContext->familySpace()->id)
+            ->where('photo_id', $photo->id)
+            ->where('status', 'pending')
+            ->oldest('created_at')->get();
     }
 }

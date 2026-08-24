@@ -4,14 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Enums\PersonProposalStatus;
 use App\Http\Requests\ReplacePhotoTagsRequest;
+use App\Http\Requests\StorePhotoMetadataProposalRequest;
+use App\Http\Requests\StorePhotoPersonRequest;
 use App\Http\Requests\StorePhotoProvenanceRequest;
 use App\Http\Requests\StorePhotoRequest;
 use App\Http\Requests\UpdatePhotoRequest;
 use App\Models\FamilySpace;
 use App\Models\Person;
 use App\Models\Photo;
+use App\Models\PhotoMetadataProposal;
+use App\Models\PhotoPerson;
 use App\Models\PhotoProvenanceProposal;
 use App\Models\User;
+use App\People\UncertainDate;
 use App\Queries\PhotoQuery;
 use App\Services\PhotoManager;
 use Illuminate\Http\JsonResponse;
@@ -171,6 +176,112 @@ class PhotoController extends Controller
         )]);
     }
 
+    public function submitMetadata(
+        FamilySpace $familySpace,
+        string $photo,
+        StorePhotoMetadataProposalRequest $request,
+    ): JsonResponse {
+        /** @var User $actor */
+        $actor = $request->user();
+        $target = $this->photos->findVisibleTo($actor, $photo);
+        Gate::authorize('proposeProvenance', $target);
+
+        return response()->json(['data' => $this->metadataProposalPayload(
+            $this->photoManager->submitMetadata($target, $actor, $request->validated(), $request),
+        )], 201);
+    }
+
+    public function metadataProposals(FamilySpace $familySpace, string $photo, Request $request): JsonResponse
+    {
+        /** @var User $actor */
+        $actor = $request->user();
+        $target = $this->photos->findVisibleTo($actor, $photo);
+        Gate::authorize('resolveProvenance', $target);
+
+        return response()->json(['data' => $this->photos->pendingMetadataProposals($target)
+            ->map($this->metadataProposalPayload(...))]);
+    }
+
+    public function approveMetadata(FamilySpace $familySpace, string $photo, string $proposal, Request $request): JsonResponse
+    {
+        return $this->resolveMetadataProposal($photo, $proposal, PersonProposalStatus::Approved, $request);
+    }
+
+    public function rejectMetadata(FamilySpace $familySpace, string $photo, string $proposal, Request $request): JsonResponse
+    {
+        return $this->resolveMetadataProposal($photo, $proposal, PersonProposalStatus::Rejected, $request);
+    }
+
+    private function resolveMetadataProposal(
+        string $photoId,
+        string $proposalId,
+        PersonProposalStatus $resolution,
+        Request $request,
+    ): JsonResponse {
+        /** @var User $actor */
+        $actor = $request->user();
+        $photo = $this->photos->findVisibleTo($actor, $photoId);
+        Gate::authorize('resolveProvenance', $photo);
+        $proposal = $this->photos->findMetadataProposal($photo, $proposalId);
+
+        return response()->json(['data' => $this->metadataProposalPayload(
+            $this->photoManager->resolveMetadata($photo, $proposal, $actor, $resolution, $request),
+        )]);
+    }
+
+    public function submitPhotoPerson(
+        FamilySpace $familySpace,
+        string $photo,
+        StorePhotoPersonRequest $request,
+    ): JsonResponse {
+        /** @var User $actor */
+        $actor = $request->user();
+        $target = $this->photos->findVisibleTo($actor, $photo);
+        Gate::authorize('proposeProvenance', $target);
+
+        return response()->json(['data' => $this->photoPersonPayload(
+            $this->photoManager->submitPhotoPerson($target, $actor, $request->validated(), $request),
+        )], 201);
+    }
+
+    public function photoPersonProposals(FamilySpace $familySpace, string $photo, Request $request): JsonResponse
+    {
+        /** @var User $actor */
+        $actor = $request->user();
+        $target = $this->photos->findVisibleTo($actor, $photo);
+        Gate::authorize('resolveProvenance', $target);
+
+        return response()->json(['data' => $this->photos->pendingPhotoPeople($target)
+            ->map($this->photoPersonPayload(...))]);
+    }
+
+    public function approvePhotoPerson(FamilySpace $familySpace, string $photo, string $association, Request $request): JsonResponse
+    {
+        return $this->resolvePhotoPersonProposal($photo, $association, PersonProposalStatus::Approved, $request);
+    }
+
+    public function rejectPhotoPerson(FamilySpace $familySpace, string $photo, string $association, Request $request): JsonResponse
+    {
+        return $this->resolvePhotoPersonProposal($photo, $association, PersonProposalStatus::Rejected, $request);
+    }
+
+    private function resolvePhotoPersonProposal(
+        string $photoId,
+        string $associationId,
+        PersonProposalStatus $resolution,
+        Request $request,
+    ): JsonResponse {
+        /** @var User $actor */
+        $actor = $request->user();
+        $photo = $this->photos->findVisibleTo($actor, $photoId);
+        Gate::authorize('resolveProvenance', $photo);
+        $association = $this->photos->findPhotoPerson($photo, $associationId);
+
+        return response()->json(['data' => $this->photoPersonPayload(
+            $this->photoManager->resolvePhotoPerson($photo, $association, $actor, $resolution, $request),
+        )]);
+    }
+
     /** @return array<string, mixed> */
     private function payload(Photo $photo): array
     {
@@ -180,6 +291,9 @@ class PhotoController extends Controller
             'photographer:id,preferred_name',
             'scanner:id,preferred_name',
             'physicalOwner:id,preferred_name',
+            'photoPeople' => fn ($query) => $query
+                ->where('status', 'approved')
+                ->with('person:id,preferred_name'),
         ]);
 
         return [
@@ -197,6 +311,11 @@ class PhotoController extends Controller
             'caption' => $photo->caption,
             'description' => $photo->description,
             'archive_source_description' => $photo->archive_source_description,
+            'historical_date' => $photo->historical_date_precision === null ? null : UncertainDate::fromStorage(
+                $photo->historical_date_precision,
+                $photo->historical_date?->format('Y-m-d'),
+            )->toPayload(),
+            'location_description' => $photo->location_description,
             'provenance' => [
                 'photographer' => $this->claimPayload($photo->photographer, $photo->photographer_description),
                 'scanner' => $this->claimPayload($photo->scanner, $photo->scanner_description),
@@ -206,6 +325,7 @@ class PhotoController extends Controller
                 ),
             ],
             'tags' => $photo->tags->map(fn ($tag): array => ['id' => $tag->id, 'label' => $tag->label])->values(),
+            'people' => $photo->photoPeople->map($this->photoPersonPayload(...))->values(),
             'created_at' => $photo->created_at?->toAtomString(),
             'updated_at' => $photo->updated_at?->toAtomString(),
             'permissions' => [
@@ -249,6 +369,48 @@ class PhotoController extends Controller
             'resolved_by' => $proposal->resolved_by,
             'resolved_at' => $proposal->resolved_at?->toAtomString(),
             'created_at' => $proposal->created_at?->toAtomString(),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function metadataProposalPayload(PhotoMetadataProposal $proposal): array
+    {
+        return [
+            'id' => $proposal->id,
+            'photo_id' => $proposal->photo_id,
+            'field' => $proposal->field->value,
+            'date' => $proposal->date_precision === null ? null : UncertainDate::fromStorage(
+                $proposal->date_precision,
+                $proposal->date_value?->format('Y-m-d'),
+            )->toPayload(),
+            'location_description' => $proposal->location_description,
+            'clears_claim' => $proposal->clears_claim,
+            'status' => $proposal->status->value,
+            'proposed_by' => $proposal->proposed_by,
+            'resolved_by' => $proposal->resolved_by,
+            'resolved_at' => $proposal->resolved_at?->toAtomString(),
+            'created_at' => $proposal->created_at?->toAtomString(),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function photoPersonPayload(PhotoPerson $association): array
+    {
+        $association->loadMissing('person:id,preferred_name');
+
+        return [
+            'id' => $association->id,
+            'photo_id' => $association->photo_id,
+            'person' => [
+                'id' => $association->person->id,
+                'preferred_name' => $association->person->preferred_name,
+            ],
+            'proposal_source' => $association->proposal_source,
+            'status' => $association->status->value,
+            'proposed_by' => $association->proposed_by,
+            'resolved_by' => $association->resolved_by,
+            'resolved_at' => $association->resolved_at?->toAtomString(),
+            'created_at' => $association->created_at?->toAtomString(),
         ];
     }
 }

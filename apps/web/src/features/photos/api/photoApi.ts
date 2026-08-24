@@ -4,6 +4,9 @@ import { type ApiEnvelope, unwrap } from "@/api/envelope";
 import type {
   CreatePhotoInput,
   Photo,
+  PhotoMetadataInput,
+  PhotoMetadataProposal,
+  PhotoPerson,
   PhotoProposalResolution,
   PhotoProvenanceInput,
   PhotoProvenanceProposal,
@@ -116,6 +119,88 @@ export async function resolvePhotoProvenanceProposal(
   return unwrap(
     await apiClient.post<ApiEnvelope<PhotoProvenanceProposal>>(
       `${photoPath(familySlug, photoId)}/provenance-proposals/${encodeURIComponent(proposalId)}/${resolution}`,
+    ),
+  );
+}
+
+export async function submitPhotoMetadata(
+  familySlug: string,
+  photoId: string,
+  input: PhotoMetadataInput,
+): Promise<PhotoMetadataProposal> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.post<ApiEnvelope<PhotoMetadataProposal>>(
+      `${photoPath(familySlug, photoId)}/metadata-proposals`,
+      input,
+    ),
+  );
+}
+
+export async function getPhotoMetadataProposals(
+  familySlug: string,
+  photoId: string,
+  signal?: AbortSignal,
+): Promise<PhotoMetadataProposal[]> {
+  return unwrap(
+    await apiClient.get<ApiEnvelope<PhotoMetadataProposal[]>>(
+      `${photoPath(familySlug, photoId)}/metadata-proposals`,
+      { signal },
+    ),
+  );
+}
+
+export async function resolvePhotoMetadataProposal(
+  familySlug: string,
+  photoId: string,
+  proposalId: string,
+  resolution: PhotoProposalResolution,
+): Promise<PhotoMetadataProposal> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.post<ApiEnvelope<PhotoMetadataProposal>>(
+      `${photoPath(familySlug, photoId)}/metadata-proposals/${encodeURIComponent(proposalId)}/${resolution}`,
+    ),
+  );
+}
+
+export async function submitPhotoPerson(
+  familySlug: string,
+  photoId: string,
+  personId: string,
+): Promise<PhotoPerson> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.post<ApiEnvelope<PhotoPerson>>(
+      `${photoPath(familySlug, photoId)}/people`,
+      { person_id: personId },
+    ),
+  );
+}
+
+export async function getPhotoPersonProposals(
+  familySlug: string,
+  photoId: string,
+  signal?: AbortSignal,
+): Promise<PhotoPerson[]> {
+  return unwrap(
+    await apiClient.get<ApiEnvelope<PhotoPerson[]>>(
+      `${photoPath(familySlug, photoId)}/person-proposals`,
+      { signal },
+    ),
+  );
+}
+
+export async function resolvePhotoPersonProposal(
+  familySlug: string,
+  photoId: string,
+  associationId: string,
+  resolution: PhotoProposalResolution,
+): Promise<PhotoPerson> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.post<ApiEnvelope<PhotoPerson>>(
+      `${photoPath(familySlug, photoId)}/people/${encodeURIComponent(associationId)}/${resolution}`,
     ),
   );
 }

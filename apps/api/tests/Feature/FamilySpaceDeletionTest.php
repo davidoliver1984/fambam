@@ -11,7 +11,10 @@ use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\MediaUpload;
 use App\Models\MediaVariant;
+use App\Models\Person;
 use App\Models\Photo;
+use App\Models\PhotoMetadataProposal;
+use App\Models\PhotoPerson;
 use App\Models\Tag;
 use App\Models\User;
 use App\Services\FamilySpaceDeletionManager;
@@ -142,6 +145,25 @@ class FamilySpaceDeletionTest extends TestCase
             'added_by' => $owner->id,
             'created_at' => now(),
         ]);
+        $person = Person::factory()->create(['family_space_id' => $familySpace->id]);
+        PhotoMetadataProposal::query()->create([
+            'family_space_id' => $familySpace->id,
+            'photo_id' => $photo->id,
+            'field' => 'location',
+            'location_description' => 'Blackpool',
+            'status' => 'pending',
+            'proposed_by' => $owner->id,
+        ]);
+        PhotoPerson::query()->create([
+            'family_space_id' => $familySpace->id,
+            'photo_id' => $photo->id,
+            'person_id' => $person->id,
+            'proposal_source' => 'human',
+            'status' => 'approved',
+            'proposed_by' => $owner->id,
+            'resolved_by' => $owner->id,
+            'resolved_at' => now(),
+        ]);
         $familySpace->forceFill([
             'status' => FamilySpaceStatus::DeletionRequested,
             'deletion_requested_at' => now()->subDays(15),
@@ -170,6 +192,8 @@ class FamilySpaceDeletionTest extends TestCase
         $this->assertDatabaseMissing('media_uploads', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('media_variants', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('photos', ['family_space_id' => $familySpace->id]);
+        $this->assertDatabaseMissing('photo_metadata_proposals', ['family_space_id' => $familySpace->id]);
+        $this->assertDatabaseMissing('photo_people', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('tags', ['family_space_id' => $familySpace->id]);
         $this->assertSame([$familySpace->id], $this->mediaCleaner->familySpaceIds);
         $this->assertDatabaseHas('audit_events', [
