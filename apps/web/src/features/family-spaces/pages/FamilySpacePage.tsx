@@ -16,6 +16,7 @@ export function FamilySpacePage() {
     familySpace?.role === "administrator" ||
     familySpace?.role === "member";
   const canUploadMedia = canAccessPeople;
+  const canAccessAlbums = familySpace?.role !== "guest";
   const notFound =
     familySpaceQuery.isError &&
     toAppError(familySpaceQuery.error).status === 404;
@@ -67,6 +68,13 @@ export function FamilySpacePage() {
             </Link>
           </p>
         </>
+      )}
+      {canAccessAlbums && (
+        <p>
+          <Link to={`/families/${encodeURIComponent(familySpace.slug)}/albums`}>
+            Open albums
+          </Link>
+        </p>
       )}
       {canManageInvitations ? (
         <InvitationManagement familySlug={familySpace.slug} />

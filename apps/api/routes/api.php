@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountSecurityController;
+use App\Http\Controllers\AlbumController;
 use App\Http\Controllers\CurrentUserController;
 use App\Http\Controllers\FamilyCircleController;
 use App\Http\Controllers\FamilySpaceController;
@@ -77,6 +78,15 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::post('/photos/{photo}/people', [PhotoController::class, 'submitPhotoPerson']);
         Route::post('/photos/{photo}/people/{association}/approve', [PhotoController::class, 'approvePhotoPerson']);
         Route::post('/photos/{photo}/people/{association}/reject', [PhotoController::class, 'rejectPhotoPerson']);
+        Route::get('/albums', [AlbumController::class, 'index']);
+        Route::post('/albums', [AlbumController::class, 'store']);
+        Route::get('/albums/{album}', [AlbumController::class, 'show']);
+        Route::patch('/albums/{album}', [AlbumController::class, 'update']);
+        Route::put('/albums/{album}/grants', [AlbumController::class, 'grant']);
+        Route::delete('/albums/{album}/grants/{membership}', [AlbumController::class, 'revokeGrant']);
+        Route::post('/albums/{album}/photos', [AlbumController::class, 'addPhoto']);
+        Route::delete('/albums/{album}/photos/{photo}', [AlbumController::class, 'removePhoto']);
+        Route::post('/albums/{album}/media-uploads', [AlbumController::class, 'initiateUpload']);
         Route::get('/people', [PersonController::class, 'index']);
         Route::post('/people', [PersonController::class, 'store']);
         Route::get('/people/{person}', [PersonController::class, 'show']);

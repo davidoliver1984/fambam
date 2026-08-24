@@ -44,6 +44,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'canonical_mime_type',
     'canonical_sha256',
     'upload_batch_id',
+    'target_album_id',
     'upload_method',
     'rejection_reason',
     'idempotency_key',
@@ -83,6 +84,12 @@ class MediaUpload extends Model
     public function photo(): HasOne
     {
         return $this->hasOne(Photo::class);
+    }
+
+    /** @return BelongsTo<Album, $this> */
+    public function targetAlbum(): BelongsTo
+    {
+        return $this->belongsTo(Album::class, 'target_album_id');
     }
 
     /** @return array<string, string> */

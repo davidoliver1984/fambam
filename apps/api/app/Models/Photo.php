@@ -106,6 +106,20 @@ class Photo extends Model
         return $this->belongsToMany(Tag::class)->withPivot(['family_space_id', 'added_by', 'created_at']);
     }
 
+    /** @return HasMany<AlbumPhoto, $this> */
+    public function albumPhotos(): HasMany
+    {
+        return $this->hasMany(AlbumPhoto::class);
+    }
+
+    /** @return BelongsToMany<Album, $this> */
+    public function albums(): BelongsToMany
+    {
+        return $this->belongsToMany(Album::class, 'album_photos')
+            ->withPivot(['id', 'family_space_id', 'position', 'added_by'])
+            ->withTimestamps();
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {

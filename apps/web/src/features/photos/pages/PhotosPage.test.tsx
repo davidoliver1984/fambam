@@ -79,6 +79,12 @@ describe("PhotosPage", () => {
     expect(screen.getByText("Picnic")).toBeInTheDocument();
     expect(getPhotos).toHaveBeenCalledWith(
       "oliver-family",
+      {
+        historical_year: "",
+        location: "",
+        tag: "",
+        without_confirmed_date: false,
+      },
       expect.any(AbortSignal),
     );
   });

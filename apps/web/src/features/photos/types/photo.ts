@@ -1,4 +1,11 @@
 export type PhotoVisibility = "family_space" | "private";
+export type PhotoFilters = {
+  person_id?: string;
+  tag?: string;
+  location?: string;
+  historical_year?: string;
+  without_confirmed_date?: boolean;
+};
 export type PhotoProvenanceRole = "photographer" | "scanner" | "physical_owner";
 export type DatePrecision =
   "exact" | "month" | "year" | "decade" | "approximate" | "unknown";

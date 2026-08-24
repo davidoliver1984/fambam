@@ -31,8 +31,9 @@ class PhotoPolicy
         $role = $this->tenantContext->membership()->role;
 
         return $role->canManageMembers()
-            || $photo->visibility === PhotoVisibility::FamilySpace
-            || $photo->created_by === $user->id;
+            || ($photo->visibility === PhotoVisibility::FamilySpace && $role === FamilySpaceRole::Member)
+            || $photo->created_by === $user->id
+            || $this->hasAlbumAccess($photo);
     }
 
     public function update(User $user, Photo $photo): bool
@@ -77,5 +78,25 @@ class PhotoPolicy
         return $this->tenantContext->isEstablished()
             && $this->tenantContext->membership()->user_id === $user->id
             && $this->tenantContext->familySpace()->id === $photo->family_space_id;
+    }
+
+    private function hasAlbumAccess(Photo $photo): bool
+    {
+        $membership = $this->tenantContext->membership();
+
+        return $photo->albums()->where(function ($query) use ($membership): void {
+            $query->where(function ($family) use ($membership): void {
+                $family->where('albums.visibility', 'family_space');
+                if ($membership->role !== FamilySpaceRole::Member) {
+                    $family->whereRaw('1 = 0');
+                }
+            })->orWhere('albums.created_by', $membership->user_id)
+                ->orWhereExists(function ($grant) use ($membership): void {
+                    $grant->selectRaw('1')->from('album_grants')
+                        ->whereColumn('album_grants.album_id', 'albums.id')
+                        ->where('album_grants.family_space_membership_id', $membership->id)
+                        ->where('album_grants.can_view', true);
+                });
+        })->exists();
     }
 }

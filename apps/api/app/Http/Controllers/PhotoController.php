@@ -37,7 +37,13 @@ class PhotoController extends Controller
         $viewer = $request->user();
 
         return response()->json([
-            'data' => $this->photos->listVisibleTo($viewer)->map($this->payload(...)),
+            'data' => $this->photos->listVisibleTo($viewer, $request->validate([
+                'person_id' => ['sometimes', 'string', 'size:26'],
+                'tag' => ['sometimes', 'string', 'max:80'],
+                'location' => ['sometimes', 'string', 'max:255'],
+                'historical_year' => ['sometimes', 'integer', 'between:1,9999'],
+                'without_confirmed_date' => ['sometimes', 'boolean'],
+            ]))->map($this->payload(...)),
         ]);
     }
 

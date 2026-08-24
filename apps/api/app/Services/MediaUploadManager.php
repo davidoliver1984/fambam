@@ -32,11 +32,13 @@ class MediaUploadManager
         string $idempotencyKey,
         array $input,
         Request $request,
+        ?string $targetAlbumId = null,
     ): MediaUploadInitiation {
         $fingerprint = hash('sha256', json_encode([
             'client_filename' => $input['client_filename'],
             'client_mime_type' => $input['client_mime_type'] ?? null,
             'upload_batch_id' => $input['upload_batch_id'] ?? null,
+            'target_album_id' => $targetAlbumId,
         ], JSON_THROW_ON_ERROR));
 
         $existing = $this->findIdempotent($familySpace, $actor, $idempotencyKey);
@@ -52,6 +54,7 @@ class MediaUploadManager
             'client_filename' => $input['client_filename'],
             'client_mime_type' => $input['client_mime_type'] ?? null,
             'upload_batch_id' => $input['upload_batch_id'] ?? null,
+            'target_album_id' => $targetAlbumId,
             'upload_method' => 'single',
             'idempotency_key' => $idempotencyKey,
             'request_fingerprint' => $fingerprint,
