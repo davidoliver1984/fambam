@@ -9,6 +9,7 @@ use App\Enums\PhotoVisibility;
 use App\Models\Album;
 use App\Models\AlbumGrant;
 use App\Models\AlbumPhoto;
+use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\Photo;
@@ -25,11 +26,14 @@ class AlbumManager
     /** @param array<string, mixed> $input */
     public function create(FamilySpace $space, User $actor, array $input, Request $request): Album
     {
+        $this->assertEventBelongsTo($space->id, $input);
+
         return DB::transaction(function () use ($space, $actor, $input, $request): Album {
             $album = Album::query()->create([
                 'family_space_id' => $space->id, 'created_by' => $actor->id,
                 'name' => $input['name'], 'description' => $input['description'] ?? null,
                 'visibility' => $input['visibility'] ?? AlbumVisibility::FamilySpace->value,
+                'event_id' => $input['event_id'] ?? null,
             ]);
             $this->audit->record('album.created', $album, $actor, $request);
 
@@ -40,6 +44,8 @@ class AlbumManager
     /** @param array<string, mixed> $input */
     public function update(Album $album, User $actor, array $input, Request $request): Album
     {
+        $this->assertEventBelongsTo($album->family_space_id, $input);
+
         return DB::transaction(function () use ($album, $actor, $input, $request): Album {
             $visibility = AlbumVisibility::tryFrom((string) ($input['visibility'] ?? ''));
             if ($visibility === AlbumVisibility::Private && $album->visibility !== AlbumVisibility::Private) {
@@ -132,5 +138,16 @@ class AlbumManager
     private function fail(string $message): never
     {
         throw ValidationException::withMessages(['album' => [$message]]);
+    }
+
+    /** @param array<string, mixed> $input */
+    private function assertEventBelongsTo(string $familySpaceId, array $input): void
+    {
+        if (! array_key_exists('event_id', $input) || $input['event_id'] === null) {
+            return;
+        }
+        if (! FamilyEvent::query()->where('family_space_id', $familySpaceId)->whereKey($input['event_id'])->exists()) {
+            throw ValidationException::withMessages(['event_id' => ['The selected Event is unavailable.']]);
+        }
     }
 }

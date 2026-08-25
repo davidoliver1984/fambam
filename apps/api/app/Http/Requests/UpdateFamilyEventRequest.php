@@ -2,11 +2,11 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\AlbumVisibility;
+use App\Enums\EventStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class UpdateAlbumRequest extends FormRequest
+class UpdateFamilyEventRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -19,8 +19,10 @@ class UpdateAlbumRequest extends FormRequest
         return [
             'name' => ['sometimes', 'string', 'max:120'],
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
-            'visibility' => ['sometimes', Rule::enum(AlbumVisibility::class)],
-            'event_id' => ['sometimes', 'nullable', 'string', 'size:26'],
+            'starts_on' => ['sometimes', 'nullable', 'date'],
+            'ends_on' => ['sometimes', 'nullable', 'date'],
+            'location' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'status' => ['sometimes', Rule::enum(EventStatus::class)],
         ];
     }
 }

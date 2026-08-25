@@ -19,7 +19,7 @@ class AlbumQuery
     public function visibleTo(User $viewer): Builder
     {
         $membership = $this->tenantContext->membership();
-        $query = Album::query()->with(['creator:id,name', 'photos.mediaUpload'])
+        $query = Album::query()->with(['creator:id,name', 'event:id,name,starts_on', 'photos.mediaUpload'])
             ->where('family_space_id', $this->tenantContext->familySpace()->id);
         if ($membership->role === FamilySpaceRole::Guest) {
             return $query->whereRaw('1 = 0');

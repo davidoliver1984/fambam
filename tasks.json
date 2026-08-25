@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P07",
-    "current_stage": "FPA-P07-S02",
+    "current_stage": "FPA-P07-S03",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-25"
   },
@@ -517,16 +517,18 @@
         {
           "id": "FPA-P07-S02",
           "title": "Implement events and event albums",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P07-S01"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-25: implemented tenant-isolated Events with presentation-only status and creator/manager editing; nullable authorization-inert Album.event_id and Photo.primary_event_id references; confirmed-PhotoPerson-derived attendance and Person reverse lookup; deterministic advisory duplicate candidates; Event and Event-Album TanStack Query UI; persistent PostgreSQL migration; and focused authorization, cross-tenant, database-constraint and RLS verification."
+          ]
         },
         {
           "id": "FPA-P07-S03",
           "title": "Implement event contributions",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P07-S02"
           ],
@@ -1588,6 +1590,14 @@
       "roadmap_stage": "FPA-P07-S01",
       "date": "2026-08-25",
       "description": "FPA-P07-S01 completed: ADR-0009 accepted. Event, Event-linked Albums, explicit primary-Event provenance, derived attendance, deterministic invitation/admission reuse, live revocable Guest admission, Album-level Guest participation, the narrow Event original-download exception, split conversational versus Story authority, reversible Event removal and advisory duplicate review were architecturally fixed before implementation. Stage scope was solely ADR acceptance, so this ADR-acceptance commit is the stage-completion commit."
+    },
+    {
+      "git_tag": "phase-7-s02",
+      "type": "stage_completion",
+      "adr": "ADR-0009",
+      "roadmap_stage": "FPA-P07-S02",
+      "date": "2026-08-25",
+      "description": "FPA-P07-S02 completed: tenant-isolated Event records, creator/manager editing, authorization-inert Event links from Albums and Photos, confirmed-PhotoPerson-derived attendance, Person reverse lookup, deterministic advisory duplicate candidates, typed TanStack Query Event and Event-Album UI, persistent PostgreSQL migration, database constraints and forced RLS were implemented and verified."
     }
   ]
 }

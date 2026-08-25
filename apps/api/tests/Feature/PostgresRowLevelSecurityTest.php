@@ -44,7 +44,7 @@ class PostgresRowLevelSecurityTest extends TestCase
         $this->app->instance(FamilyMediaStorageCleaner::class, new RlsFamilyMediaStorageCleaner);
         $this->admin->unprepared(<<<'SQL'
 TRUNCATE TABLE photo_reactions, photo_comment_revisions, photo_comments, photo_story_revisions, photo_stories,
-    album_grants, album_photos, albums,
+    album_grants, album_photos, albums, events,
     photo_people, photo_metadata_proposals, photo_tag, tags, photo_provenance_proposals, photos,
     media_variants, media_uploads, person_merge_proposals, person_merges,
     family_circle_people, family_circles, relationship_proposals, person_relationships,
@@ -102,17 +102,73 @@ WHERE relname IN (
     'person_relationships', 'relationship_proposals', 'family_circles', 'family_circle_people',
     'person_merges', 'person_merge_proposals', 'media_uploads', 'media_variants',
     'photos', 'photo_provenance_proposals', 'photo_metadata_proposals', 'photo_people', 'tags', 'photo_tag',
-    'albums', 'album_photos', 'album_grants',
+    'albums', 'album_photos', 'album_grants', 'events',
     'photo_stories', 'photo_story_revisions', 'photo_comments', 'photo_comment_revisions', 'photo_reactions',
     'rls_test_records'
 )
 ORDER BY relname
 SQL);
 
-        $this->assertCount(30, $tables);
+        $this->assertCount(31, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
+        }
+    }
+
+    public function test_events_are_tenant_isolated_and_database_constrained(): void
+    {
+        [$firstOwner, $firstFamily] = $this->createOwnedFamily('first-events-family');
+        [$secondOwner, $secondFamily] = $this->createOwnedFamily('second-events-family');
+        foreach ([[$firstOwner, $firstFamily], [$secondOwner, $secondFamily]] as [$owner, $family]) {
+            $this->admin->table('events')->insert([
+                'id' => (string) Str::ulid(), 'family_space_id' => $family, 'created_by' => $owner,
+                'name' => 'Family gathering', 'status' => 'planned', 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        $visibleFamilies = DB::transaction(function () use ($firstOwner, $firstFamily): array {
+            $context = app(DatabaseTenantContext::class);
+            $context->establishUser($firstOwner);
+            $context->establishFamilySpace($firstFamily);
+
+            return DB::table('events')->pluck('family_space_id')->all();
+        });
+        $this->assertSame([$firstFamily], $visibleFamilies);
+
+        try {
+            DB::transaction(function () use ($firstOwner, $firstFamily, $secondFamily): void {
+                $context = app(DatabaseTenantContext::class);
+                $context->establishUser($firstOwner);
+                $context->establishFamilySpace($firstFamily);
+                DB::table('events')->insert([
+                    'id' => (string) Str::ulid(), 'family_space_id' => $secondFamily, 'created_by' => $firstOwner,
+                    'name' => 'Cross tenant', 'status' => 'planned', 'created_at' => now(), 'updated_at' => now(),
+                ]);
+            });
+            $this->fail('Event RLS accepted a cross-tenant insert.');
+        } catch (QueryException $exception) {
+            $this->assertSame('42501', $exception->errorInfo[0]);
+        }
+
+        foreach ([
+            ['status' => 'unknown', 'starts_on' => null, 'ends_on' => null],
+            ['status' => 'planned', 'starts_on' => '2026-08-26', 'ends_on' => '2026-08-25'],
+        ] as $invalid) {
+            try {
+                DB::transaction(function () use ($firstOwner, $firstFamily, $invalid): void {
+                    $context = app(DatabaseTenantContext::class);
+                    $context->establishUser($firstOwner);
+                    $context->establishFamilySpace($firstFamily);
+                    DB::table('events')->insert([
+                        'id' => (string) Str::ulid(), 'family_space_id' => $firstFamily, 'created_by' => $firstOwner,
+                        'name' => 'Invalid', ...$invalid, 'created_at' => now(), 'updated_at' => now(),
+                    ]);
+                });
+                $this->fail('Event database constraints accepted invalid state.');
+            } catch (QueryException $exception) {
+                $this->assertSame('23514', $exception->errorInfo[0]);
+            }
         }
     }
 

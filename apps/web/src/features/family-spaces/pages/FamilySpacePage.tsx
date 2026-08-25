@@ -55,6 +55,13 @@ export function FamilySpacePage() {
         <>
           <p>
             <Link
+              to={`/families/${encodeURIComponent(familySpace.slug)}/events`}
+            >
+              Open events
+            </Link>
+          </p>
+          <p>
+            <Link
               to={`/families/${encodeURIComponent(familySpace.slug)}/photos`}
             >
               Open photograph archive

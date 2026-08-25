@@ -8,6 +8,7 @@ use App\Models\AlbumPhoto;
 use App\Models\AuditEvent;
 use App\Models\FamilyCircle;
 use App\Models\FamilyCirclePerson;
+use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\Invitation;
@@ -109,7 +110,8 @@ class AuditRecorder
             || $subject instanceof PhotoStoryRevision
             || $subject instanceof PhotoComment
             || $subject instanceof PhotoCommentRevision
-            || $subject instanceof PhotoReaction) {
+            || $subject instanceof PhotoReaction
+            || $subject instanceof FamilyEvent) {
             return $subject->family_space_id;
         }
 

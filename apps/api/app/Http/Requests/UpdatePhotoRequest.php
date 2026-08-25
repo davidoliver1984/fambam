@@ -21,6 +21,7 @@ class UpdatePhotoRequest extends FormRequest
             'caption' => ['sometimes', 'nullable', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'archive_source_description' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'primary_event_id' => ['sometimes', 'nullable', 'string', 'size:26'],
         ];
     }
 }

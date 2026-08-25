@@ -2521,6 +2521,54 @@ Accept ADR-0009: Events and collaborative sharing
 
 ## FPA-P07-S02 — Implement events and event albums
 
+### Objective
+
+Introduce the tenant-owned Event resource and its authorization-inert Album and
+Photo organisational references, together with derived attendance and a
+human-reviewed duplicate-candidate surface.
+
+### Implementation boundary
+
+- Add `events` with ULID identity, Family Space ownership, creator, name,
+  optional description/date range/location and presentation-only status
+  (`planned`, `active`, `completed`, `archived`). Enforce tenant RLS, status and
+  date-range constraints in PostgreSQL.
+- Owner, Administrator and Member may create Events. Owner and Administrator
+  may edit any Event; a Member may edit an Event they created. Contributor and
+  Guest receive no Event discovery or mutation path in this stage.
+- Add nullable `Album.event_id` and `Photo.primary_event_id`. Each reference may
+  identify only an Event in the same Family Space and has no authorization
+  effect in S02. Albums remain independently reachable resources.
+- Derive attendance at read time from distinct, confirmed `PhotoPerson`
+  associations on Photos reached through an Event Album or the Photo's explicit
+  primary Event. Do not persist attendance or infer it from upload activity.
+- Expose Event lists/details, Event Albums, derived attendees, Person-to-Event
+  reverse lookup and advisory duplicate candidates through typed feature API
+  modules and TanStack Query hooks.
+
+### Duplicate-candidate heuristic
+
+Candidate selection is deterministic, Family-Space-scoped and advisory only. A
+different Event is suggested when either its name is an exact match after
+Unicode-aware lowercasing, trimming and collapsing internal whitespace, or its
+start date is within seven calendar days and its non-empty location is an exact
+match after the same normalization. Suggestions never merge, delete, re-parent
+or otherwise mutate either Event automatically.
+
+### Verification
+
+- Feature tests cover role and creator authorization, cross-tenant reference
+  rejection, both attendance derivation paths, confirmed-only deduplication,
+  Person reverse lookup and deterministic advisory duplicate suggestions.
+- PostgreSQL verification covers Event RLS and database constraints.
+- Frontend type, lint, component/API tests and production build remain clean.
+
+### Commit boundary
+
+```text
+Implement events and event albums
+```
+
 ## FPA-P07-S03 — Implement event contributions
 
 ## FPA-P07-S04 — Implement restricted guest upload links

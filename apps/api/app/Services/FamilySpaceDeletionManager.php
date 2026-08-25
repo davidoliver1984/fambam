@@ -8,6 +8,7 @@ use App\Enums\MembershipState;
 use App\Media\FamilyMediaStorageCleaner;
 use App\Models\Album;
 use App\Models\FamilyCircle;
+use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\MediaUpload;
@@ -138,6 +139,9 @@ class FamilySpaceDeletionManager
             Photo::withTrashed()
                 ->where('family_space_id', $familySpace->id)
                 ->forceDelete();
+            FamilyEvent::query()
+                ->where('family_space_id', $familySpace->id)
+                ->delete();
             Tag::query()
                 ->where('family_space_id', $familySpace->id)
                 ->delete();

@@ -332,6 +332,7 @@ class PhotoController extends Controller
             'photographer:id,preferred_name',
             'scanner:id,preferred_name',
             'physicalOwner:id,preferred_name',
+            'primaryEvent:id,name,starts_on',
             'photoPeople' => fn ($query) => $query
                 ->where('status', 'approved')
                 ->with('person:id,preferred_name'),
@@ -352,6 +353,12 @@ class PhotoController extends Controller
             'caption' => $photo->caption,
             'description' => $photo->description,
             'archive_source_description' => $photo->archive_source_description,
+            'primary_event_id' => $photo->primary_event_id,
+            'primary_event' => $photo->primaryEvent === null ? null : [
+                'id' => $photo->primaryEvent->id,
+                'name' => $photo->primaryEvent->name,
+                'starts_on' => $photo->primaryEvent->starts_on?->format('Y-m-d'),
+            ],
             'historical_date' => $photo->historical_date_precision === null ? null : UncertainDate::fromStorage(
                 $photo->historical_date_precision,
                 $photo->historical_date?->format('Y-m-d'),
