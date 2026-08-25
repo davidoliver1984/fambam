@@ -10,6 +10,7 @@ use App\Media\MediaDeliveryAuthorization;
 use App\Media\MediaDeliveryUrlSigner;
 use App\Models\Album;
 use App\Models\AlbumGrant;
+use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\MediaUpload;
@@ -197,6 +198,43 @@ class AlbumTest extends TestCase
             'photo_id' => $existingPhoto->id, 'position' => 1]);
         $this->assertDatabaseHas('album_photos', ['album_id' => $album->id,
             'photo_id' => $uploadedPhoto->id, 'position' => 2]);
+    }
+
+    public function test_event_album_reuses_member_and_contributor_contribution_paths(): void
+    {
+        $family = FamilySpace::factory()->create(['slug' => 'event-contributions']);
+        [$owner] = $this->member($family, FamilySpaceRole::Owner);
+        [$member] = $this->member($family, FamilySpaceRole::Member);
+        [$contributor, $contributorMembership] = $this->member($family, FamilySpaceRole::Contributor);
+        $event = FamilyEvent::query()->create(['family_space_id' => $family->id, 'created_by' => $owner->id,
+            'name' => 'Wedding']);
+        $album = Album::query()->create(['family_space_id' => $family->id, 'created_by' => $owner->id,
+            'event_id' => $event->id, 'name' => 'Reception', 'visibility' => AlbumVisibility::FamilySpace]);
+        AlbumGrant::query()->create(['family_space_id' => $family->id, 'album_id' => $album->id,
+            'family_space_membership_id' => $contributorMembership->id, 'can_view' => true, 'can_contribute' => true,
+            'granted_by' => $owner->id]);
+
+        $memberPhoto = Photo::factory()->create(['family_space_id' => $family->id, 'created_by' => $member->id]);
+        $this->actingAs($member)->postJson("/api/families/event-contributions/albums/{$album->id}/photos", [
+            'photo_id' => $memberPhoto->id,
+        ])->assertCreated();
+
+        $upload = MediaUpload::factory()->create(['family_space_id' => $family->id, 'user_id' => $contributor->id,
+            'state' => MediaUploadState::Ready, 'target_album_id' => $album->id]);
+        app(AlbumContributionFinalizer::class)->finalize($upload, new TenantOperationContext(
+            $family->id,
+            $contributor->id,
+            'event-album-finalization',
+            TenantOperationContext::newTraceparent(),
+        ));
+
+        $contributedPhoto = Photo::query()->where('media_upload_id', $upload->id)->firstOrFail();
+        $this->assertSame(PhotoVisibility::Private, $contributedPhoto->visibility);
+        $this->assertDatabaseHas('album_photos', ['album_id' => $album->id,
+            'photo_id' => $memberPhoto->id, 'position' => 1]);
+        $this->assertDatabaseHas('album_photos', ['album_id' => $album->id,
+            'photo_id' => $contributedPhoto->id, 'position' => 2]);
+        $this->assertSame($event->id, $album->refresh()->event_id);
     }
 
     /** @return array{User, FamilySpaceMembership} */
