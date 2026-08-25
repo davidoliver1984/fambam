@@ -85,6 +85,12 @@ class Person extends Model
         return $this->hasOne(PersonAccountLink::class);
     }
 
+    /** @return HasMany<PhotoPerson, $this> */
+    public function photoPeople(): HasMany
+    {
+        return $this->hasMany(PhotoPerson::class);
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {

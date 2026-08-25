@@ -14,6 +14,8 @@ export type Album = {
   description: string | null;
   visibility: AlbumVisibility;
   created_by: number | null;
+  event_id?: string | null;
+  event?: { id: string; name: string; starts_on: string | null } | null;
   photos: AlbumPhoto[];
   grants: Array<{
     membership_id: string;
@@ -28,4 +30,5 @@ export type CreateAlbumInput = {
   name: string;
   description: string | null;
   visibility: AlbumVisibility;
+  event_id?: string | null;
 };

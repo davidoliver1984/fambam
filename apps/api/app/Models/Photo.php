@@ -39,6 +39,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'historical_date',
     'location_description',
     'deleted_by',
+    'primary_event_id',
 ])]
 class Photo extends Model
 {
@@ -65,6 +66,12 @@ class Photo extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** @return BelongsTo<FamilyEvent, $this> */
+    public function primaryEvent(): BelongsTo
+    {
+        return $this->belongsTo(FamilyEvent::class, 'primary_event_id');
     }
 
     /** @return BelongsTo<Person, $this> */

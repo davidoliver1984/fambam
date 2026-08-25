@@ -104,12 +104,15 @@ class AlbumController extends Controller
     /** @return array<string, mixed> */
     private function payload(Album $album): array
     {
-        $album->load(['creator:id,name',
+        $album->load(['creator:id,name', 'event:id,name,starts_on',
             'albumPhotos' => fn ($query) => $query->whereHas('photo')->with('photo.mediaUpload'),
             'grants.membership.user:id,name']);
 
         return ['id' => $album->id, 'name' => $album->name, 'description' => $album->description,
             'visibility' => $album->visibility->value, 'created_by' => $album->created_by,
+            'event_id' => $album->event_id,
+            'event' => $album->event === null ? null : ['id' => $album->event->id,
+                'name' => $album->event->name, 'starts_on' => $album->event->starts_on?->format('Y-m-d')],
             'photos' => $album->albumPhotos->map(fn ($link) => ['id' => $link->photo->id,
                 'caption' => $link->photo->caption, 'visibility' => $link->photo->visibility->value,
                 'client_filename' => $link->photo->mediaUpload->client_filename,

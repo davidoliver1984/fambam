@@ -17,6 +17,8 @@ import { MediaUploadPage } from "./features/media-uploads/pages/MediaUploadPage"
 import { PhotoPage } from "./features/photos/pages/PhotoPage";
 import { PhotosPage } from "./features/photos/pages/PhotosPage";
 import { AlbumsPage } from "./features/albums/pages/AlbumsPage";
+import { EventsPage } from "./features/events/pages/EventsPage";
+import { EventPage } from "./features/events/pages/EventPage";
 
 function WelcomePage() {
   return (
@@ -64,6 +66,11 @@ export function App() {
         />
         <Route path="/families/:familySlug/photos" element={<PhotosPage />} />
         <Route path="/families/:familySlug/albums" element={<AlbumsPage />} />
+        <Route path="/families/:familySlug/events" element={<EventsPage />} />
+        <Route
+          path="/families/:familySlug/events/:eventId"
+          element={<EventPage />}
+        />
         <Route
           path="/families/:familySlug/photos/:photoId"
           element={<PhotoPage />}

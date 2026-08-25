@@ -35,6 +35,8 @@ export type Photo = {
   caption: string | null;
   description: string | null;
   archive_source_description: string | null;
+  primary_event_id?: string | null;
+  primary_event?: { id: string; name: string; starts_on: string | null } | null;
   historical_date: UncertainDate | null;
   location_description: string | null;
   provenance: {
@@ -66,7 +68,7 @@ export type CreatePhotoInput = {
 export type UpdatePhotoInput = Omit<
   CreatePhotoInput,
   "media_upload_id" | "tags"
->;
+> & { primary_event_id?: string | null };
 
 export type PhotoProvenanceInput = {
   role: PhotoProvenanceRole;

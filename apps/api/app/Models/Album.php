@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /** @property AlbumVisibility $visibility */
-#[Fillable(['family_space_id', 'created_by', 'name', 'description', 'visibility'])]
+#[Fillable(['family_space_id', 'created_by', 'name', 'description', 'visibility', 'event_id'])]
 class Album extends Model
 {
     use HasUlids;
@@ -30,6 +30,12 @@ class Album extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** @return BelongsTo<FamilyEvent, $this> */
+    public function event(): BelongsTo
+    {
+        return $this->belongsTo(FamilyEvent::class, 'event_id');
     }
 
     /** @return HasMany<AlbumPhoto, $this> */

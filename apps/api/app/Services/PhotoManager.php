@@ -8,6 +8,7 @@ use App\Enums\PersonProposalStatus;
 use App\Enums\PhotoMetadataField;
 use App\Enums\PhotoProvenanceRole;
 use App\Enums\PhotoVisibility;
+use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\MediaUpload;
 use App\Models\Person;
@@ -26,7 +27,7 @@ use Illuminate\Validation\ValidationException;
 
 class PhotoManager
 {
-    private const CONTENT_FIELDS = ['caption', 'description', 'archive_source_description', 'visibility'];
+    private const CONTENT_FIELDS = ['caption', 'description', 'archive_source_description', 'visibility', 'primary_event_id'];
 
     public function __construct(
         private readonly AuditRecorder $audit,
@@ -36,6 +37,8 @@ class PhotoManager
     /** @param array<string, mixed> $input */
     public function create(FamilySpace $familySpace, User $actor, array $input, Request $request): Photo
     {
+        $this->assertEventBelongsTo($familySpace->id, $input);
+
         return DB::transaction(function () use ($familySpace, $actor, $input, $request): Photo {
             $upload = MediaUpload::query()->lockForUpdate()
                 ->where('family_space_id', $familySpace->id)
@@ -78,6 +81,8 @@ class PhotoManager
     /** @param array<string, mixed> $input */
     public function update(Photo $photo, User $actor, array $input, Request $request): Photo
     {
+        $this->assertEventBelongsTo($photo->family_space_id, $input);
+
         return DB::transaction(function () use ($photo, $actor, $input, $request): Photo {
             $locked = Photo::query()->lockForUpdate()->findOrFail($photo->id);
             $beforeVisibility = $locked->visibility;
@@ -96,6 +101,17 @@ class PhotoManager
 
             return $locked->load(['mediaUpload.uploader:id,name', 'tags:id,label']);
         });
+    }
+
+    /** @param array<string, mixed> $input */
+    private function assertEventBelongsTo(string $familySpaceId, array $input): void
+    {
+        if (! array_key_exists('primary_event_id', $input) || $input['primary_event_id'] === null) {
+            return;
+        }
+        if (! FamilyEvent::query()->where('family_space_id', $familySpaceId)->whereKey($input['primary_event_id'])->exists()) {
+            throw ValidationException::withMessages(['primary_event_id' => ['The selected Event is unavailable.']]);
+        }
     }
 
     /** @param array<string, mixed> $input */

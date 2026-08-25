@@ -22,6 +22,7 @@ class StorePhotoRequest extends FormRequest
             'caption' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
             'archive_source_description' => ['nullable', 'string', 'max:1000'],
+            'primary_event_id' => ['sometimes', 'nullable', 'string', 'size:26'],
             'tags' => ['sometimes', 'array', 'max:30'],
             'tags.*' => ['required', 'string', 'max:80'],
         ];
