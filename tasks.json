@@ -7,9 +7,9 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P07",
-    "current_stage": "FPA-P07-S01",
+    "current_stage": "FPA-P07-S02",
     "created_at": "2026-07-31",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-08-25"
   },
   "conventions": {
     "phase_id_format": "P##",
@@ -506,16 +506,18 @@
         {
           "id": "FPA-P07-S01",
           "title": "Accept events and collaborative sharing ADR",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P06-S06"
           ],
-          "notes": []
+          "notes": [
+            "ADR-0009 accepted 2026-08-25 (git tag phase-7-s01). Stage scope was solely ADR acceptance, so the ADR-acceptance commit is the stage-completion commit. Event is a Family-Space-owned resource with presentation-only status, Member/Owner/Administrator creation, creator-or-administrator editing, Owner/Administrator soft deletion and no visibility enum. Album.event_id and Photo.primary_event_id are nullable, single-Event organisational references introduced before they gain any Guest authorization effect. Attendance is derived from confirmed PhotoPerson associations, never maintained separately. Event invitations deterministically reuse an existing membership without role mutation, while event_admissions has one audited, revocable and re-admittable row per Event/membership with live-computed validity. Guest authority requires a valid Event admission plus Album guest_participation or an Event-scoped AlbumGrant; non-Event Guest access remains denied. Event Guests may comment/react and may download originals at view/contribute participation, but may not author PhotoStory content. Event removal is reversible and preserves all references; duplicate review remains advisory and human-resolved. Anonymous contribution, RSVP state, automatic Guest cleanup/promotion and Event hard deletion remain out of scope."
+          ]
         },
         {
           "id": "FPA-P07-S02",
           "title": "Implement events and event albums",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P07-S01"
           ],
@@ -1167,7 +1169,7 @@
       {
         "id": "ADR-0009",
         "title": "Events and collaborative sharing",
-        "status": "planned",
+        "status": "accepted",
         "roadmap_phase": "P07",
         "required_by_stage": "FPA-P07-S01"
       },
@@ -1578,6 +1580,14 @@
       "roadmap_stage": "FPA-P06-S06",
       "date": "2026-08-24",
       "description": "Phase 6 completed: the Photo Domain, Provenance and Organisation passed the complete repository, frontend, API, PostgreSQL 17.6 RLS, persistent migration, asset-delivery, contracts and security acceptance gates."
+    },
+    {
+      "git_tag": "phase-7-s01",
+      "type": "stage_completion",
+      "adr": "ADR-0009",
+      "roadmap_stage": "FPA-P07-S01",
+      "date": "2026-08-25",
+      "description": "FPA-P07-S01 completed: ADR-0009 accepted. Event, Event-linked Albums, explicit primary-Event provenance, derived attendance, deterministic invitation/admission reuse, live revocable Guest admission, Album-level Guest participation, the narrow Event original-download exception, split conversational versus Story authority, reversible Event removal and advisory duplicate review were architecturally fixed before implementation. Stage scope was solely ADR acceptance, so this ADR-acceptance commit is the stage-completion commit."
     }
   ]
 }

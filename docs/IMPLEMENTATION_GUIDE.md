@@ -2466,6 +2466,59 @@ Implement reversible photo deletion and restoration
 
 ## FPA-P07-S01 — Accept events and collaborative sharing ADR (ADR-0009)
 
+### Objective
+
+Decide the Event resource, Album/Event and Photo/primary-Event relationships,
+derived attendance, Event admission lifecycle, Guest trust boundary,
+contribution and delivery permissions, and reversible Event lifecycle before
+implementation begins.
+
+### Engineering rationale
+
+Events introduce the first legitimate Guest access path. Event discovery,
+admission, Album participation, media delivery and conversational authority
+therefore form one security boundary and must be fixed together rather than
+being inferred independently by later stages.
+
+### Prerequisites
+
+- FPA-P06-S06 complete, including the accepted Phase 6 Guest-denial correction.
+
+### Expected changes
+
+- ADR-0009 accepted.
+
+### Verification
+
+- Event creation, editing, discovery, removal and restoration authority is
+  explicit, with no Event visibility enum.
+- `Album.event_id` and `Photo.primary_event_id` remain single, nullable and
+  authorization-inert until the Guest-access stage.
+- Attendance derives only from confirmed `PhotoPerson` records.
+- Event-invitation acceptance reuses active memberships without role mutation;
+  Event admission is unique, revocable, re-admittable and evaluated live.
+- Guest access composes a valid admission with Album participation or an
+  Event-scoped grant, while non-Event Guest access remains denied.
+- Original download, comment/reaction, Story-authoring and Event soft-deletion
+  boundaries are explicit and covered by required bypass tests.
+
+ADR-0009 was accepted on 2026-08-25 after two pre-implementation blocker
+reviews. The reconciliations clarified existing decisions without changing the
+Event/Album/Guest architecture. This stage's entire scope was accepting the
+ADR, so the acceptance commit is the stage-completion commit and receives the
+`phase-7-s01` tag directly.
+
+### Documentation updates
+
+- Accepted ADR-0009.
+- Advanced `tasks.json` to FPA-P07-S02.
+
+### Commit boundary
+
+```text
+Accept ADR-0009: Events and collaborative sharing
+```
+
 ## FPA-P07-S02 — Implement events and event albums
 
 ## FPA-P07-S03 — Implement event contributions
