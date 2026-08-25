@@ -76,7 +76,10 @@ class AlbumPolicy
         }
 
         return AlbumGrant::query()->where('album_id', $album->id)
-            ->where('family_space_membership_id', $membership->id)->where('can_contribute', true)->exists();
+            ->where('family_space_membership_id', $membership->id)
+            ->where('can_view', true)
+            ->where('can_contribute', true)
+            ->exists();
     }
 
     private function manage(User $user, Album $album): bool

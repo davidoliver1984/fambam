@@ -61,7 +61,14 @@ class PhotoPolicy
 
     public function interact(User $user, Photo $photo): bool
     {
-        return $this->view($user, $photo) && $this->tenantContext->membership()->role !== FamilySpaceRole::Guest;
+        if (! $this->view($user, $photo)) {
+            return false;
+        }
+
+        $role = $this->tenantContext->membership()->role;
+
+        return $role !== FamilySpaceRole::Guest
+            && ($role !== FamilySpaceRole::Contributor || $this->hasAlbumContributionAccess($photo));
     }
 
     public function delete(User $user, Photo $photo): bool
@@ -110,6 +117,10 @@ class PhotoPolicy
     {
         $membership = $this->tenantContext->membership();
 
+        if ($membership->role === FamilySpaceRole::Guest) {
+            return false;
+        }
+
         return $photo->albums()->where(function ($query) use ($membership): void {
             $query->where(function ($family) use ($membership): void {
                 $family->where('albums.visibility', 'family_space');
@@ -124,5 +135,17 @@ class PhotoPolicy
                         ->where('album_grants.can_view', true);
                 });
         })->exists();
+    }
+
+    private function hasAlbumContributionAccess(Photo $photo): bool
+    {
+        $membership = $this->tenantContext->membership();
+
+        return $membership->role !== FamilySpaceRole::Guest
+            && $photo->albums()->whereHas('grants', fn ($grant) => $grant
+                ->where('family_space_membership_id', $membership->id)
+                ->where('can_view', true)
+                ->where('can_contribute', true))
+                ->exists();
     }
 }

@@ -8,8 +8,11 @@ use App\Jobs\AbandonMediaUpload;
 use App\Jobs\DeleteFamilySpace;
 use App\Jobs\PurgeMediaQuarantine;
 use App\Media\FamilyMediaStorageCleaner;
+use App\Models\Album;
 use App\Models\Invitation;
+use App\Models\Photo;
 use App\Models\User;
+use App\Services\AlbumManager;
 use App\Services\FamilySpaceDeletionManager;
 use App\Services\FamilySpaceManager;
 use App\Services\InvitationManager;
@@ -1022,6 +1025,140 @@ SQL);
             ->get();
         $this->assertCount(1, $memberships);
         $this->assertSame(MembershipState::Active->value, $memberships->sole()->state);
+    }
+
+    public function test_album_grant_constraint_allows_viewless_non_contributors_only(): void
+    {
+        [$ownerId, $familySpaceId] = $this->createOwnedFamily('album-grant-constraint');
+        $memberId = $this->createUser('album-grant-member@example.test');
+        $membershipId = $this->addMembership($familySpaceId, $memberId, FamilySpaceRole::Contributor);
+        $albumId = (string) Str::ulid();
+        $grantId = (string) Str::ulid();
+        $now = now();
+        $this->admin->table('albums')->insert([
+            'id' => $albumId, 'family_space_id' => $familySpaceId, 'created_by' => $ownerId,
+            'name' => 'Constraint album', 'visibility' => 'selected', 'created_at' => $now, 'updated_at' => $now,
+        ]);
+
+        $this->admin->table('album_grants')->insert([
+            'id' => $grantId, 'family_space_id' => $familySpaceId, 'album_id' => $albumId,
+            'family_space_membership_id' => $membershipId, 'can_view' => false, 'can_contribute' => false,
+            'granted_by' => $ownerId, 'created_at' => $now, 'updated_at' => $now,
+        ]);
+        $this->admin->table('album_grants')->where('id', $grantId)
+            ->update(['can_view' => true, 'can_contribute' => false]);
+        $this->admin->table('album_grants')->where('id', $grantId)
+            ->update(['can_view' => true, 'can_contribute' => true]);
+
+        try {
+            $this->admin->table('album_grants')->where('id', $grantId)
+                ->update(['can_view' => false, 'can_contribute' => true]);
+            $this->fail('PostgreSQL accepted contribution authority without view authority.');
+        } catch (QueryException $exception) {
+            $this->assertSame('23514', $exception->errorInfo[0]);
+        }
+    }
+
+    public function test_album_photo_positions_are_serialized_under_concurrent_contribution(): void
+    {
+        if (! function_exists('pcntl_fork') || ! function_exists('stream_socket_pair')) {
+            $this->markTestSkipped('The PostgreSQL concurrency test requires pcntl and stream sockets.');
+        }
+
+        [$ownerId, $familySpaceId] = $this->createOwnedFamily('concurrent-album-photos');
+        $albumId = (string) Str::ulid();
+        $photoIds = [(string) Str::ulid(), (string) Str::ulid()];
+        $now = now();
+        $this->admin->table('albums')->insert([
+            'id' => $albumId, 'family_space_id' => $familySpaceId, 'created_by' => $ownerId,
+            'name' => 'Concurrent contributions', 'visibility' => 'family_space',
+            'created_at' => $now, 'updated_at' => $now,
+        ]);
+        foreach ($photoIds as $index => $photoId) {
+            $uploadId = (string) Str::ulid();
+            $this->admin->table('media_uploads')->insert([
+                'id' => $uploadId, 'family_space_id' => $familySpaceId, 'user_id' => $ownerId,
+                'state' => 'ready',
+                'staging_object_key' => "families/{$familySpaceId}/media-staging/{$uploadId}/original",
+                'client_filename' => "concurrent-{$index}.jpg", 'client_mime_type' => 'image/jpeg',
+                'idempotency_key' => "concurrent-album-{$index}",
+                'request_fingerprint' => hash('sha256', "concurrent-album-{$index}"),
+                'correlation_id' => (string) Str::uuid(),
+                'traceparent' => TenantOperationContext::newTraceparent(),
+                'created_at' => $now, 'updated_at' => $now,
+            ]);
+            $this->admin->table('photos')->insert([
+                'id' => $photoId, 'family_space_id' => $familySpaceId, 'media_upload_id' => $uploadId,
+                'created_by' => $ownerId, 'visibility' => 'family_space',
+                'created_at' => $now, 'updated_at' => $now,
+            ]);
+        }
+
+        DB::disconnect();
+        DB::disconnect('pgsql_admin');
+        $children = [];
+        foreach ($photoIds as $photoId) {
+            $sockets = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+            $this->assertNotFalse($sockets);
+            $pid = pcntl_fork();
+            $this->assertNotSame(-1, $pid);
+
+            if ($pid === 0) {
+                fclose($sockets[0]);
+                fread($sockets[1], 1);
+                DB::purge();
+                DB::purge('pgsql_admin');
+
+                try {
+                    $outcome = DB::transaction(function () use ($familySpaceId, $albumId, $photoId, $ownerId): string {
+                        $context = app(DatabaseTenantContext::class);
+                        $context->establishUser($ownerId);
+                        $context->establishFamilySpace($familySpaceId);
+                        $actor = User::query()->findOrFail($ownerId);
+                        $request = Request::create('/api/albums/photos', 'POST');
+                        $request->setUserResolver(fn (?string $guard = null): User => $actor);
+                        $link = app(AlbumManager::class)->addPhoto(
+                            Album::query()->findOrFail($albumId),
+                            Photo::query()->findOrFail($photoId),
+                            $actor,
+                            false,
+                            $request,
+                        );
+
+                        return 'ok:'.$link->position;
+                    });
+                } catch (\Throwable $exception) {
+                    $outcome = 'error:'.get_class($exception).':'.$exception->getMessage();
+                }
+
+                fwrite($sockets[1], $outcome);
+                fclose($sockets[1]);
+                exit(0);
+            }
+
+            fclose($sockets[1]);
+            $children[] = ['pid' => $pid, 'socket' => $sockets[0]];
+        }
+
+        foreach ($children as $child) {
+            fwrite($child['socket'], '1');
+        }
+
+        $outcomes = [];
+        foreach ($children as $child) {
+            $outcomes[] = stream_get_contents($child['socket']);
+            fclose($child['socket']);
+            pcntl_waitpid($child['pid'], $status);
+            $this->assertTrue(pcntl_wifexited($status));
+            $this->assertSame(0, pcntl_wexitstatus($status));
+        }
+
+        DB::purge();
+        DB::purge('pgsql_admin');
+        $this->admin = DB::connection('pgsql_admin');
+        $this->assertEqualsCanonicalizing(['ok:1', 'ok:2'], $outcomes);
+        $this->assertSame([1, 2], $this->admin->table('album_photos')
+            ->where('album_id', $albumId)->orderBy('position')->pluck('position')->all());
     }
 
     public function test_due_deletion_dispatch_and_teardown_preserve_context_under_rls(): void

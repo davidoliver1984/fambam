@@ -9,7 +9,6 @@ use App\Models\PhotoReaction;
 use App\Models\PhotoStory;
 use App\Models\PhotoStoryRevision;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -55,10 +54,12 @@ class PhotoConversationManager
         });
     }
 
-    public function remove(Model $content, User $actor, Request $request): void
+    public function remove(PhotoStory|PhotoComment $content, User $actor, Request $request): void
     {
         DB::transaction(function () use ($content, $actor, $request): void {
-            $this->audit->record($content instanceof PhotoStory ? 'photo_story.removed' : 'photo_comment.removed', $content, $actor, $request);
+            if ($content->author_id !== $actor->id) {
+                $this->audit->record($content instanceof PhotoStory ? 'photo_story.removed' : 'photo_comment.removed', $content, $actor, $request);
+            }
             $content->delete();
         });
     }
@@ -83,14 +84,14 @@ class PhotoConversationManager
     }
 
     /**
-     * @template TModel of Model
+     * @template TModel of PhotoStory|PhotoComment
      *
      * @param  class-string<TModel>  $class
      * @return TModel
      */
-    private function create(string $class, string $action, Photo $photo, User $actor, string $body, Request $request): Model
+    private function create(string $class, string $action, Photo $photo, User $actor, string $body, Request $request): PhotoStory|PhotoComment
     {
-        return DB::transaction(function () use ($class, $action, $photo, $actor, $body, $request): Model {
+        return DB::transaction(function () use ($class, $action, $photo, $actor, $body, $request): PhotoStory|PhotoComment {
             $model = $class::query()->create(['family_space_id' => $photo->family_space_id, 'photo_id' => $photo->id, 'author_id' => $actor->id, 'body' => trim($body)]);
             $this->audit->record($action, $model, $actor, $request);
 

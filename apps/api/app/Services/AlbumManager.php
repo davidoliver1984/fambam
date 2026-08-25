@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\AlbumVisibility;
+use App\Enums\FamilySpaceRole;
 use App\Enums\MembershipState;
 use App\Enums\PhotoVisibility;
 use App\Models\Album;
@@ -62,6 +63,9 @@ class AlbumManager
         if ($membership === null) {
             $this->fail('The selected active membership does not belong to this Family Space.');
         }
+        if ($membership->role === FamilySpaceRole::Guest) {
+            $this->fail('Guest Album grants are not available in the Phase 6 baseline.');
+        }
 
         return DB::transaction(function () use ($album, $membership, $actor, $input, $request): AlbumGrant {
             $grant = AlbumGrant::query()->updateOrCreate(
@@ -99,6 +103,7 @@ class AlbumManager
         }
 
         return DB::transaction(function () use ($album, $photo, $actor, $request): AlbumPhoto {
+            Album::query()->whereKey($album->id)->lockForUpdate()->firstOrFail();
             $existing = AlbumPhoto::query()->where('album_id', $album->id)->where('photo_id', $photo->id)->first();
             if ($existing !== null) {
                 return $existing;
@@ -115,6 +120,7 @@ class AlbumManager
     public function removePhoto(Album $album, string $photoId, User $actor, Request $request): void
     {
         DB::transaction(function () use ($album, $photoId, $actor, $request): void {
+            Album::query()->whereKey($album->id)->lockForUpdate()->firstOrFail();
             $link = AlbumPhoto::query()->where('album_id', $album->id)->where('photo_id', $photoId)->firstOrFail();
             $this->audit->record('album.photo_removed', $link, $actor, $request);
             $position = $link->position;
