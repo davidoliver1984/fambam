@@ -33,8 +33,10 @@ function ExistingAccountInvitationAcceptance({
 
   async function accept() {
     try {
-      await acceptInvitation.mutateAsync({ claim_token: claim.claim_token });
-      window.location.assign("/account");
+      const accepted = await acceptInvitation.mutateAsync({
+        claim_token: claim.claim_token,
+      });
+      window.location.assign(destination(accepted));
     } catch {
       setMessage(
         "Sign in with the invited account, then open the invitation link again.",
@@ -79,11 +81,13 @@ function NewAccountInvitationAcceptance({ claim }: { claim: AcceptanceClaim }) {
     setMessage("Creating your account…");
 
     try {
-      await acceptInvitation.mutateAsync({
+      const accepted = await acceptInvitation.mutateAsync({
         claim_token: claim.claim_token,
         ...values,
       });
-      window.location.assign("/login");
+      window.location.assign(
+        `/login?returnTo=${encodeURIComponent(destination(accepted))}`,
+      );
     } catch (error) {
       const fields = toLaravelFieldErrors(error);
       for (const field of ["name", "timezone", "password"] as const) {
@@ -167,4 +171,13 @@ function NewAccountInvitationAcceptance({ claim }: { claim: AcceptanceClaim }) {
       </form>
     </main>
   );
+}
+
+function destination(accepted: {
+  family_slug: string;
+  event_id: string | null;
+}): string {
+  return accepted.event_id === null
+    ? "/account"
+    : `/families/${encodeURIComponent(accepted.family_slug)}/events/${encodeURIComponent(accepted.event_id)}`;
 }

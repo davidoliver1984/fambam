@@ -43,7 +43,7 @@ export function PhotoConversationPanel({
           mutations.remove.mutate({ kind: "stories", id });
         }}
       />
-      {conversation.data.permissions.can_interact && (
+      {conversation.data.permissions.can_author_story && (
         <form
           onSubmit={submit("stories", story, () => {
             setStory("");

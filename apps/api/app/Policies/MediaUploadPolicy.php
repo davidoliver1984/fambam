@@ -6,11 +6,15 @@ use App\Enums\FamilySpaceRole;
 use App\Enums\PhotoVisibility;
 use App\Models\MediaUpload;
 use App\Models\User;
+use App\Services\EventAccess;
 use App\Tenancy\TenantContext;
 
 class MediaUploadPolicy
 {
-    public function __construct(private readonly TenantContext $tenantContext) {}
+    public function __construct(
+        private readonly TenantContext $tenantContext,
+        private readonly EventAccess $eventAccess,
+    ) {}
 
     public function create(User $user): bool
     {
@@ -58,11 +62,19 @@ class MediaUploadPolicy
 
     public function downloadOriginal(User $user, MediaUpload $upload): bool
     {
-        if (! $this->hasPhaseFiveMediaAccess($user) || ! $this->matchesContext($user, $upload)) {
+        if (! $this->matchesContext($user, $upload)) {
             return false;
         }
         $upload->loadMissing('photo');
         if ($upload->photo?->trashed() === true) {
+            return false;
+        }
+
+        if ($this->tenantContext->membership()->role === FamilySpaceRole::Guest) {
+            return $upload->photo !== null
+                && $upload->photo->albums()->get()->contains(fn ($album) => $this->eventAccess->guestMayDownloadOriginal($album, $this->tenantContext->membership()));
+        }
+        if (! $this->hasPhaseFiveMediaAccess($user)) {
             return false;
         }
 

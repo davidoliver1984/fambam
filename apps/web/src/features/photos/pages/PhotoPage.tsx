@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 
 import { toAppError } from "@/api/errors";
 import { usePeopleQuery } from "@/features/people/hooks/usePeopleQuery";
@@ -23,10 +23,14 @@ import { usePhotoQuery } from "../hooks/usePhotoQueries";
 
 export function PhotoPage() {
   const { familySlug = "", photoId = "" } = useParams();
+  const [search] = useSearchParams();
   const photoQuery = usePhotoQuery(familySlug, photoId);
   const navigate = useNavigate();
   const deletePhoto = useDeletePhotoMutation(familySlug, photoId);
-  const peopleQuery = usePeopleQuery(familySlug);
+  const peopleQuery = usePeopleQuery(
+    familySlug,
+    photoQuery.data?.permissions.can_propose_provenance === true,
+  );
   const updatePhoto = useUpdatePhotoMutation(familySlug, photoId);
   const replaceTags = useReplacePhotoTagsMutation(familySlug, photoId);
   const submitProvenance = useSubmitPhotoProvenanceMutation(
@@ -209,9 +213,17 @@ export function PhotoPage() {
           </button>
         </section>
       )}
-      <Link to={`/families/${encodeURIComponent(familySlug)}/photos`}>
-        Back to photographs
-      </Link>
+      {search.get("eventId") !== null && search.get("albumId") !== null ? (
+        <Link
+          to={`/families/${encodeURIComponent(familySlug)}/albums/${encodeURIComponent(search.get("albumId") ?? "")}`}
+        >
+          Back to Event Album
+        </Link>
+      ) : (
+        <Link to={`/families/${encodeURIComponent(familySlug)}/photos`}>
+          Back to photographs
+        </Link>
+      )}
     </main>
   );
 }

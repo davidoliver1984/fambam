@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountSecurityController;
 use App\Http\Controllers\AlbumController;
 use App\Http\Controllers\CurrentUserController;
+use App\Http\Controllers\EventAdmissionController;
 use App\Http\Controllers\FamilyCircleController;
 use App\Http\Controllers\FamilyEventController;
 use App\Http\Controllers\FamilySpaceController;
@@ -103,9 +104,15 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::post('/albums/{album}/media-uploads', [AlbumController::class, 'initiateUpload']);
         Route::get('/events', [FamilyEventController::class, 'index']);
         Route::post('/events', [FamilyEventController::class, 'store']);
+        Route::get('/events/deleted', [FamilyEventController::class, 'deleted']);
         Route::get('/events/{event}', [FamilyEventController::class, 'show']);
         Route::patch('/events/{event}', [FamilyEventController::class, 'update']);
         Route::get('/events/{event}/duplicate-candidates', [FamilyEventController::class, 'duplicateCandidates']);
+        Route::delete('/events/{event}', [FamilyEventController::class, 'destroy']);
+        Route::post('/events/{event}/restore', [FamilyEventController::class, 'restore']);
+        Route::get('/events/{event}/admissions', [EventAdmissionController::class, 'index']);
+        Route::post('/events/{event}/admissions', [EventAdmissionController::class, 'store']);
+        Route::delete('/events/{event}/admissions/{membership}', [EventAdmissionController::class, 'destroy']);
         Route::get('/people', [PersonController::class, 'index']);
         Route::post('/people', [PersonController::class, 'store']);
         Route::get('/people/{person}', [PersonController::class, 'show']);

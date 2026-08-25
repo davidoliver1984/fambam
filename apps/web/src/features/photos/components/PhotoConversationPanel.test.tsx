@@ -51,7 +51,7 @@ beforeEach(() => {
     ],
     comments: [],
     reactions: [{ user_id: 2, name: "Anne", reaction: "love" }],
-    permissions: { can_interact: true },
+    permissions: { can_interact: true, can_author_story: true },
   });
 });
 afterEach(() => {
@@ -94,5 +94,20 @@ describe("PhotoConversationPanel", () => {
     expect(createPhotoText).not.toHaveBeenCalled();
     expect(removePhotoText).not.toHaveBeenCalled();
     expect(removePhotoReaction).not.toHaveBeenCalled();
+  });
+
+  it("keeps Guest comments and reactions while withholding archival Story authoring", async () => {
+    vi.mocked(getPhotoConversation).mockResolvedValue({
+      stories: [],
+      comments: [],
+      reactions: [],
+      permissions: { can_interact: true, can_author_story: false },
+    });
+    renderPanel();
+    expect(await screen.findByLabelText("Add a comment")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "love" })).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Add an archival story"),
+    ).not.toBeInTheDocument();
   });
 });

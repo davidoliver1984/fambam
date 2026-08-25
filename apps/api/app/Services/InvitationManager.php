@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\FamilySpaceRole;
 use App\Enums\InvitationStatus;
 use App\Enums\MembershipState;
+use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\Invitation;
@@ -28,6 +29,7 @@ class InvitationManager
         private readonly AuditRecorder $audit,
         private readonly MembershipInvitationAcceptor $membershipAcceptor,
         private readonly DatabaseTenantContext $databaseTenantContext,
+        private readonly EventAdmissionManager $admissions,
     ) {}
 
     public function issue(
@@ -36,6 +38,7 @@ class InvitationManager
         string $email,
         FamilySpaceRole $role,
         Request $request,
+        ?FamilyEvent $event = null,
     ): Invitation {
         $email = Str::lower(trim($email));
         $rawToken = $this->newToken();
@@ -48,11 +51,12 @@ class InvitationManager
                 $role,
                 $rawToken,
                 $request,
+                $event,
             ): Invitation {
                 $this->ensureCanManageInvitations($actor, $familySpace);
                 $existingUserId = User::query()->where('email', $email)->value('id');
 
-                if ($existingUserId !== null && FamilySpaceMembership::query()
+                if ($event === null && $existingUserId !== null && FamilySpaceMembership::query()
                     ->where('family_space_id', $familySpace->id)
                     ->where('user_id', $existingUserId)
                     ->where('state', MembershipState::Active->value)
@@ -63,6 +67,7 @@ class InvitationManager
                 $existing = Invitation::query()
                     ->where('family_space_id', $familySpace->id)
                     ->where('email', $email)
+                    ->where('event_id', $event?->id)
                     ->where('status', InvitationStatus::Pending->value)
                     ->lockForUpdate()
                     ->latest('id')
@@ -80,6 +85,7 @@ class InvitationManager
                     'family_space_id' => $familySpace->id,
                     'email' => $email,
                     'role' => $role,
+                    'event_id' => $event?->id,
                     'token_hash' => $this->hashToken($rawToken),
                     'invited_by' => $actor->id,
                     'status' => InvitationStatus::Pending,
@@ -89,6 +95,7 @@ class InvitationManager
                 $this->audit->record('invitation.issued', $invitation, $actor, $request, [
                     'family_space_id' => $familySpace->id,
                     'role' => $role->value,
+                    'event_id' => $event?->id,
                 ]);
 
                 return $invitation;
@@ -105,6 +112,9 @@ class InvitationManager
     public function resend(Invitation $invitation, User $actor, Request $request): Invitation
     {
         $this->ensureCanManageInvitations($actor, $invitation->familySpace);
+        if ($invitation->event_id !== null && ! FamilyEvent::query()->whereKey($invitation->event_id)->exists()) {
+            $this->fail('An invitation for a removed Event cannot be resent.');
+        }
         $rawToken = $this->newToken();
 
         $result = DB::transaction(function () use ($invitation, $actor, $request, $rawToken): ?Invitation {
@@ -173,7 +183,7 @@ class InvitationManager
         return $result;
     }
 
-    /** @return array{claim_token: string, email: string, family_space_name: string, role: string, existing_account: bool, expires_at: string} */
+    /** @return array{claim_token: string, email: string, family_space_name: string, role: string, event: array{id: string, name: string}|null, existing_account: bool, expires_at: string} */
     public function exchange(string $rawToken, Request $request): array
     {
         $claimToken = $this->newToken();
@@ -189,6 +199,10 @@ class InvitationManager
             }
 
             $this->databaseTenantContext->establishFamilySpace($invitation->family_space_id);
+
+            if ($invitation->event_id !== null && ! FamilyEvent::query()->whereKey($invitation->event_id)->exists()) {
+                return null;
+            }
 
             if ($invitation->expires_at->isPast()) {
                 $this->expire($invitation, $request);
@@ -207,6 +221,10 @@ class InvitationManager
                 'email' => $invitation->email,
                 'family_space_name' => $invitation->familySpace->name,
                 'role' => $invitation->role->value,
+                'event' => $invitation->event === null ? null : [
+                    'id' => $invitation->event->id,
+                    'name' => $invitation->event->name,
+                ],
                 'existing_account' => User::query()->where('email', $invitation->email)->exists(),
                 'expires_at' => $claim->expires_at->toAtomString(),
             ];
@@ -219,10 +237,13 @@ class InvitationManager
         return $result;
     }
 
-    /** @param array{name?: ?string, password?: ?string, timezone?: ?string} $attributes */
-    public function accept(string $claimToken, array $attributes, Request $request): User
+    /**
+     * @param  array{name?: string|null, password?: string|null, timezone?: string|null}  $attributes
+     * @return array{user: User, family_slug: string, event_id: string|null}
+     */
+    public function accept(string $claimToken, array $attributes, Request $request): array
     {
-        $result = DB::transaction(function () use ($claimToken, $attributes, $request): ?User {
+        $result = DB::transaction(function () use ($claimToken, $attributes, $request): ?array {
             $claimReference = InvitationClaim::query()
                 ->where('token_hash', $this->hashToken($claimToken))
                 ->whereNull('used_at')
@@ -251,6 +272,13 @@ class InvitationManager
             );
 
             if ($invitation->status !== InvitationStatus::Pending) {
+                return null;
+            }
+
+            if ($invitation->event_id !== null && ! FamilyEvent::query()
+                ->where('family_space_id', $invitation->family_space_id)
+                ->whereKey($invitation->event_id)
+                ->exists()) {
                 return null;
             }
 
@@ -286,7 +314,14 @@ class InvitationManager
 
             $this->databaseTenantContext->establishUser($user);
 
-            $membershipResult = $this->membershipAcceptor->accept($invitation, $user);
+            $existingMembership = FamilySpaceMembership::query()
+                ->where('family_space_id', $invitation->family_space_id)
+                ->where('user_id', $user->id)->first();
+            $reusedActiveMembership = $invitation->event_id !== null
+                && $existingMembership?->state === MembershipState::Active;
+            $membershipResult = $reusedActiveMembership
+                ? ['membership' => $existingMembership, 'reactivated' => false]
+                : $this->membershipAcceptor->accept($invitation, $user);
 
             if ($membershipResult === null) {
                 return null;
@@ -304,21 +339,32 @@ class InvitationManager
                 'user_id' => $user->id,
                 'created_user' => $createdUser,
             ]);
-            $this->audit->record(
-                $membershipResult['reactivated']
-                    ? 'family_space.member_reactivated'
-                    : 'family_space.member_joined',
-                $membershipResult['membership'],
-                $user,
-                $request,
-                [
-                    'family_space_id' => $invitation->family_space_id,
-                    'role' => $invitation->role->value,
-                    'invitation_id' => $invitation->id,
-                ],
-            );
+            if (! $reusedActiveMembership) {
+                $this->audit->record(
+                    $membershipResult['reactivated']
+                        ? 'family_space.member_reactivated'
+                        : 'family_space.member_joined',
+                    $membershipResult['membership'],
+                    $user,
+                    $request,
+                    [
+                        'family_space_id' => $invitation->family_space_id,
+                        'role' => $invitation->role->value,
+                        'invitation_id' => $invitation->id,
+                    ],
+                );
+            }
+            if ($invitation->event_id !== null) {
+                $event = FamilyEvent::query()->where('family_space_id', $invitation->family_space_id)
+                    ->findOrFail($invitation->event_id);
+                $this->admissions->admit($event, $membershipResult['membership'], $user, $request);
+            }
 
-            return $user;
+            return [
+                'user' => $user,
+                'family_slug' => $invitation->familySpace->slug,
+                'event_id' => $invitation->event_id,
+            ];
         });
 
         if ($result === null) {

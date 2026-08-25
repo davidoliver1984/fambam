@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * @property EventStatus $status
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['family_space_id', 'created_by', 'name', 'description', 'starts_on', 'ends_on', 'location', 'status'])]
 class FamilyEvent extends Model
 {
-    use HasUlids;
+    use HasUlids, SoftDeletes;
 
     protected $table = 'events';
 
@@ -48,6 +49,18 @@ class FamilyEvent extends Model
     public function primaryPhotos(): HasMany
     {
         return $this->hasMany(Photo::class, 'primary_event_id');
+    }
+
+    /** @return HasMany<EventAdmission, $this> */
+    public function admissions(): HasMany
+    {
+        return $this->hasMany(EventAdmission::class, 'event_id');
+    }
+
+    /** @return HasMany<Invitation, $this> */
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(Invitation::class, 'event_id');
     }
 
     /** @return array<string, string> */

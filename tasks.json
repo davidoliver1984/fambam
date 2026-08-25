@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P07",
-    "current_stage": "FPA-P07-S04",
+    "current_stage": "FPA-P07-S05",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-25"
   },
@@ -539,16 +539,18 @@
         {
           "id": "FPA-P07-S04",
           "title": "Implement restricted guest upload links",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P07-S03"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-25: added live, revocable and re-admittable EventAdmission state; Event-scoped invitations that reuse active memberships without role mutation; Album guest_participation; the narrow Guest Event/Album/Photo/media authorization exception; scoped original download; Guest comment/reaction with Story denial; Guest exclusion from ordinary Family Space and membership surfaces; reversible Event removal/restoration; typed Event admission and scoped Album UI; and required SQLite, PostgreSQL and frontend regressions. The admission lifetime is configurable through EVENT_ADMISSION_LIFETIME_DAYS with a 30-day default and no expiry sweep."
+          ]
         },
         {
           "id": "FPA-P07-S05",
           "title": "Implement event notifications and exports",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P07-S04"
           ],
@@ -1608,6 +1610,14 @@
       "roadmap_stage": "FPA-P07-S03",
       "date": "2026-08-25",
       "description": "FPA-P07-S03 completed: Event Albums were verified to reuse the existing Member and grant-scoped Contributor contribution paths, including MediaUpload.target_album_id finalisation to one private attached Photo, without introducing Guest admission or participation behaviour from S04."
+    },
+    {
+      "git_tag": "phase-7-s04",
+      "type": "stage_completion",
+      "adr": "ADR-0009",
+      "roadmap_stage": "FPA-P07-S04",
+      "date": "2026-08-25",
+      "description": "FPA-P07-S04 completed: restricted authenticated Guest access now composes an active Guest membership, a live EventAdmission and Album guest_participation or an Event-scoped individual grant; Event invitations reuse existing memberships without role mutation; Guests remain excluded from ordinary Family Space surfaces; uploads reuse the existing Album-targeted pipeline; original download remains participation-scoped; comments/reactions are separated from denied Guest Story authoring; and Event removal/restoration disables/resumes access without destroying references."
     }
   ]
 }

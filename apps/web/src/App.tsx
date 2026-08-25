@@ -19,6 +19,7 @@ import { PhotosPage } from "./features/photos/pages/PhotosPage";
 import { AlbumsPage } from "./features/albums/pages/AlbumsPage";
 import { EventsPage } from "./features/events/pages/EventsPage";
 import { EventPage } from "./features/events/pages/EventPage";
+import { AlbumPage } from "./features/albums/pages/AlbumPage";
 
 function WelcomePage() {
   return (
@@ -66,6 +67,10 @@ export function App() {
         />
         <Route path="/families/:familySlug/photos" element={<PhotosPage />} />
         <Route path="/families/:familySlug/albums" element={<AlbumsPage />} />
+        <Route
+          path="/families/:familySlug/albums/:albumId"
+          element={<AlbumPage />}
+        />
         <Route path="/families/:familySlug/events" element={<EventsPage />} />
         <Route
           path="/families/:familySlug/events/:eventId"

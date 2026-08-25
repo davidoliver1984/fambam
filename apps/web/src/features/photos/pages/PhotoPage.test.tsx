@@ -187,7 +187,7 @@ describe("PhotoPage", () => {
     renderPage();
     await screen.findByRole("heading", { name: "Photo provenance" });
     await user.selectOptions(
-      screen.getByLabelText("Provenance role"),
+      await screen.findByLabelText("Provenance role"),
       "scanner",
     );
     await user.selectOptions(screen.getByLabelText("Person"), person.id);

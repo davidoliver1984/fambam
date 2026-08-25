@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\FamilySpaceRole;
 use App\Models\FamilySpace;
 use App\Models\User;
 use App\Tenancy\TenantContext;
@@ -12,7 +13,8 @@ class FamilySpacePolicy
 
     public function view(User $user, FamilySpace $familySpace): bool
     {
-        return $this->matchesContext($user, $familySpace);
+        return $this->matchesContext($user, $familySpace)
+            && $this->tenantContext->membership()->role !== FamilySpaceRole::Guest;
     }
 
     public function manageInvitations(User $user, FamilySpace $familySpace): bool

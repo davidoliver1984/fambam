@@ -36,7 +36,21 @@ class PhotoQuery
 
         $membership = $this->tenantContext->membership();
         if ($membership->role === FamilySpaceRole::Guest) {
-            return $query->whereRaw('1 = 0');
+            $cutoff = now()->subDays((int) config('events.admission_lifetime_days'));
+
+            return $query->whereHas('albums', fn (Builder $albums) => $albums
+                ->whereNotNull('event_id')
+                ->whereHas('event')
+                ->whereHas('event.admissions', fn (Builder $admissions) => $admissions
+                    ->where('family_space_membership_id', $membership->id)
+                    ->whereNull('revoked_at')
+                    ->where('admitted_at', '>', $cutoff))
+                ->where(function (Builder $access) use ($membership): void {
+                    $access->whereIn('guest_participation', ['view', 'contribute'])
+                        ->orWhereHas('grants', fn (Builder $grant) => $grant
+                            ->where('family_space_membership_id', $membership->id)
+                            ->where('can_view', true));
+                }));
         }
         if (! $membership->role->canManageMembers()) {
             $query->where(function (Builder $builder) use ($viewer, $membership): void {

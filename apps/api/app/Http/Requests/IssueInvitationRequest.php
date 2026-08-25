@@ -19,9 +19,10 @@ class IssueInvitationRequest extends FormRequest
         return [
             'email' => ['required', 'string', 'email:rfc', 'max:255'],
             'role' => [
-                'required',
+                'required_without:event_id',
                 Rule::enum(FamilySpaceRole::class)->except([FamilySpaceRole::Owner]),
             ],
+            'event_id' => ['sometimes', 'nullable', 'string', 'size:26'],
         ];
     }
 }

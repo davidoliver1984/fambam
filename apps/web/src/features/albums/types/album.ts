@@ -1,4 +1,5 @@
 export type AlbumVisibility = "private" | "selected" | "family_space";
+export type GuestParticipation = "none" | "view" | "contribute";
 
 export type AlbumPhoto = {
   id: string;
@@ -16,6 +17,7 @@ export type Album = {
   created_by: number | null;
   event_id?: string | null;
   event?: { id: string; name: string; starts_on: string | null } | null;
+  guest_participation: GuestParticipation;
   photos: AlbumPhoto[];
   grants: Array<{
     membership_id: string;
@@ -31,4 +33,5 @@ export type CreateAlbumInput = {
   description: string | null;
   visibility: AlbumVisibility;
   event_id?: string | null;
+  guest_participation?: GuestParticipation;
 };

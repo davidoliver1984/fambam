@@ -2632,6 +2632,83 @@ Implement event contributions
 
 ## FPA-P07-S04 — Implement restricted guest upload links
 
+### Objective
+
+Implement ADR-0009's authenticated, Event-scoped Guest boundary without adding
+anonymous uploads or widening ordinary Family Space access.
+
+### Engineering rationale
+
+A Guest membership is an authenticated identity, not a general Family Space
+grant. Authority is evaluated live from an active Guest membership, a valid
+`EventAdmission`, and either the Event Album's `guest_participation` or an
+individual Event-scoped `AlbumGrant`. The Event page is the Guest's only
+navigation root.
+
+### Prerequisites
+
+- FPA-P07-S03 complete.
+- ADR-0009 accepted.
+
+### Expected changes
+
+- Add `Album.guest_participation` (`none`, `view`, `contribute`), nullable
+  `Invitation.event_id`, and the tenant-owned `event_admissions` table with one
+  reusable row per Event and membership.
+- Use `EVENT_ADMISSION_LIFETIME_DAYS` with a 30-day default. Compute validity
+  live as `now < admitted_at + lifetime`; do not persist an expiry state or run
+  an expiry sweep.
+- Scope ordinary pending invitations by Family Space and email, and Event
+  invitations by Family Space, email and Event. Event acceptance creates or
+  reactivates a Guest membership when needed, reuses an active membership
+  without changing its role, and admits that membership to the Event.
+- Provide Owner/Administrator admission, revocation and re-admission endpoints.
+  Re-admission reuses the row, clears revocation and starts a fresh validity
+  window. Admission transitions are audited.
+- Exclude Guest rows from ordinary Family Space discovery and membership
+  presentation. Deny Guests every existing general Family Space, membership,
+  People, relationship, invitation, Album, Photo and Event enumeration path.
+- Permit a Guest to reach only a specifically admitted, non-deleted Event and
+  Albums/Photos allowed by `guest_participation` or an Event-scoped individual
+  grant. A non-Event grant remains ineffective.
+- Reuse the existing Album-targeted upload workflow for `contribute`; do not add
+  a second upload endpoint. Guest uploads create private Photos and preserve
+  uploader and source provenance.
+- Permit comments and reactions for visible Event Photos, while authorising
+  `PhotoStory` creation separately and denying it to Guests.
+- Permit preserved-original download only through `view` or `contribute`
+  participation plus a currently valid admission. An individual grant alone
+  permits presentation access but not original download.
+- Add reversible Owner/Administrator Event removal and restoration. Removal
+  immediately disables Guest access without deleting admissions, Albums,
+  Photos or references; restoration resumes any still-valid access.
+- Add typed feature API functions and TanStack Query hooks for Event admission,
+  Event detail and scoped Album detail. The Guest UI navigates only from the
+  admitted Event to its Albums and Photos.
+
+### Verification
+
+- Prove direct-identifier, cross-Event and non-Event access fails closed across
+  Event, Album, Photo and media delivery paths.
+- Prove live expiry, configuration changes, revocation, idempotent revocation,
+  re-admission, Event removal and restoration without an expiry job.
+- Prove active Owner, Administrator, Member and Contributor roles are never
+  changed by Event invitation acceptance; prove two Event invitations can be
+  accepted in either order while reusing one membership.
+- Prove only Owner/Administrator manages admissions, Guests do not appear in
+  family membership surfaces, and Guests may comment/react but not author a
+  Story.
+- Prove both participation levels allow original download, while an individual
+  grant at `none` does not.
+- Run the full API, PostgreSQL RLS, frontend, formatting, lint, type, security,
+  documentation and foundation gates.
+
+### Commit boundary
+
+```text
+Implement restricted Event guest access
+```
+
 ## FPA-P07-S05 — Implement event notifications and exports
 
 ### Phase verification

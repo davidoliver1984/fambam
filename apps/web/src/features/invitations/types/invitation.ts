@@ -14,6 +14,7 @@ export type AcceptanceClaim = {
   claim_token: string;
   email: string;
   family_space_name: string;
+  event: { id: string; name: string } | null;
   role: Invitation["role"];
   existing_account: boolean;
   expires_at: string;
@@ -32,12 +33,15 @@ export type AcceptInvitationInput =
 
 export type IssueInvitationInput = {
   email: string;
-  role: Invitation["role"];
+  role?: Invitation["role"];
+  event_id?: string;
 };
 
 export type AcceptedAccount = {
   id: number;
   email: string;
+  family_slug: string;
+  event_id: string | null;
 };
 
 export type InvitationTransition = "resend" | "revoke";

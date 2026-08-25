@@ -6,11 +6,15 @@ use App\Enums\FamilySpaceRole;
 use App\Enums\PhotoVisibility;
 use App\Models\Photo;
 use App\Models\User;
+use App\Services\EventAccess;
 use App\Tenancy\TenantContext;
 
 class PhotoPolicy
 {
-    public function __construct(private readonly TenantContext $tenantContext) {}
+    public function __construct(
+        private readonly TenantContext $tenantContext,
+        private readonly EventAccess $eventAccess,
+    ) {}
 
     public function viewAny(User $user): bool
     {
@@ -39,6 +43,7 @@ class PhotoPolicy
     public function update(User $user, Photo $photo): bool
     {
         return $this->matchesContext($user, $photo)
+            && $this->tenantContext->membership()->role !== FamilySpaceRole::Guest
             && ($this->tenantContext->membership()->role->canManageMembers()
                 || $photo->created_by === $user->id);
     }
@@ -67,8 +72,15 @@ class PhotoPolicy
 
         $role = $this->tenantContext->membership()->role;
 
-        return $role !== FamilySpaceRole::Guest
-            && ($role !== FamilySpaceRole::Contributor || $this->hasAlbumContributionAccess($photo));
+        return $role === FamilySpaceRole::Guest
+            || $role !== FamilySpaceRole::Contributor
+            || $this->hasAlbumContributionAccess($photo);
+    }
+
+    public function authorStory(User $user, Photo $photo): bool
+    {
+        return $this->interact($user, $photo)
+            && $this->tenantContext->membership()->role !== FamilySpaceRole::Guest;
     }
 
     public function delete(User $user, Photo $photo): bool
@@ -118,7 +130,9 @@ class PhotoPolicy
         $membership = $this->tenantContext->membership();
 
         if ($membership->role === FamilySpaceRole::Guest) {
-            return false;
+            return $photo->albums()->get()->contains(
+                fn ($album) => $this->eventAccess->guestMayViewAlbum($album, $membership)
+            );
         }
 
         return $photo->albums()->where(function ($query) use ($membership): void {

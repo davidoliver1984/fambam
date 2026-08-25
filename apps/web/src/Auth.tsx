@@ -55,7 +55,12 @@ export function LoginPage() {
 
     try {
       const result = await login.mutateAsync(values);
-      void navigate(result.two_factor ? "/two-factor-challenge" : "/account");
+      const returnTo = new URLSearchParams(window.location.search).get(
+        "returnTo",
+      );
+      const safeReturnTo =
+        returnTo?.startsWith("/families/") === true ? returnTo : "/account";
+      void navigate(result.two_factor ? "/two-factor-challenge" : safeReturnTo);
     } catch (error) {
       const fields = toLaravelFieldErrors(error);
       for (const field of ["email", "password"] as const) {

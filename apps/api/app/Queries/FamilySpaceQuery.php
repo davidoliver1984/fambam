@@ -2,6 +2,7 @@
 
 namespace App\Queries;
 
+use App\Enums\FamilySpaceRole;
 use App\Enums\MembershipState;
 use App\Models\FamilySpace;
 use App\Models\User;
@@ -24,6 +25,10 @@ class FamilySpaceQuery
     public function listAccessibleTo(User $user): Collection
     {
         return $this->accessibleTo($user)
+            ->whereHas('memberships', fn (Builder $query) => $query
+                ->where('user_id', $user->id)
+                ->where('state', MembershipState::Active->value)
+                ->where('role', '!=', FamilySpaceRole::Guest->value))
             ->with(['memberships' => function ($query) use ($user): void {
                 $query->where('user_id', $user->id)
                     ->where('state', MembershipState::Active->value);

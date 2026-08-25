@@ -4,6 +4,7 @@ import {
   addPhotoToAlbum,
   createAlbum,
   getAlbums,
+  getAlbum,
   removePhotoFromAlbum,
   uploadPhotoToAlbum,
 } from "../api/albumApi";
@@ -15,6 +16,15 @@ export function useAlbumsQuery(familySlug: string) {
     queryKey: albumKeys.list(familySlug),
     queryFn: ({ signal }) => getAlbums(familySlug, signal),
     enabled: familySlug !== "",
+    retry: false,
+  });
+}
+
+export function useAlbumQuery(familySlug: string, albumId: string) {
+  return useQuery({
+    queryKey: albumKeys.detail(familySlug, albumId),
+    queryFn: ({ signal }) => getAlbum(familySlug, albumId, signal),
+    enabled: familySlug !== "" && albumId !== "",
     retry: false,
   });
 }

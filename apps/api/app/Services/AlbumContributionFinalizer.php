@@ -16,7 +16,10 @@ use App\Tenancy\TenantOperationContext;
 
 class AlbumContributionFinalizer
 {
-    public function __construct(private readonly AuditRecorder $audit) {}
+    public function __construct(
+        private readonly AuditRecorder $audit,
+        private readonly EventAccess $eventAccess,
+    ) {}
 
     public function finalize(MediaUpload $upload, TenantOperationContext $context): void
     {
@@ -35,7 +38,7 @@ class AlbumContributionFinalizer
         if ($photo === null) {
             $photo = Photo::query()->create(['family_space_id' => $upload->family_space_id,
                 'media_upload_id' => $upload->id, 'created_by' => $upload->user_id,
-                'visibility' => $membership->role === FamilySpaceRole::Contributor
+                'visibility' => in_array($membership->role, [FamilySpaceRole::Contributor, FamilySpaceRole::Guest], true)
                     ? PhotoVisibility::Private : PhotoVisibility::FamilySpace]);
             $this->audit->record('photo.created_from_album_upload', $photo, operationContext: $context);
         }
@@ -50,7 +53,7 @@ class AlbumContributionFinalizer
     private function mayContribute(Album $album, FamilySpaceMembership $membership): bool
     {
         if ($membership->role === FamilySpaceRole::Guest) {
-            return false;
+            return $this->eventAccess->guestMayContributeToAlbum($album, $membership);
         }
 
         if ($membership->role->canManageMembers() || $album->created_by === $membership->user_id) {

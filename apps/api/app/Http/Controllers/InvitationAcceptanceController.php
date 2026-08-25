@@ -21,7 +21,7 @@ class InvitationAcceptanceController extends Controller
     public function accept(AcceptInvitationRequest $request): JsonResponse
     {
         $validated = $request->validated();
-        $user = $this->invitations->accept($validated['claim_token'], [
+        $accepted = $this->invitations->accept($validated['claim_token'], [
             'name' => $validated['name'] ?? null,
             'password' => $validated['password'] ?? null,
             'timezone' => $validated['timezone'] ?? null,
@@ -29,8 +29,10 @@ class InvitationAcceptanceController extends Controller
 
         return response()->json([
             'data' => [
-                'id' => $user->id,
-                'email' => $user->email,
+                'id' => $accepted['user']->id,
+                'email' => $accepted['user']->email,
+                'family_slug' => $accepted['family_slug'],
+                'event_id' => $accepted['event_id'],
             ],
         ], 201);
     }
