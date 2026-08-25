@@ -19,3 +19,6 @@ coverage/
 
 # Local drafting notes -- not part of the repository's engineering record
 docs/local_drafts/
+
+# Local generated project journey account
+PROJECT_JOURNEY.md
