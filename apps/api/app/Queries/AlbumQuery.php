@@ -21,6 +21,9 @@ class AlbumQuery
         $membership = $this->tenantContext->membership();
         $query = Album::query()->with(['creator:id,name', 'photos.mediaUpload'])
             ->where('family_space_id', $this->tenantContext->familySpace()->id);
+        if ($membership->role === FamilySpaceRole::Guest) {
+            return $query->whereRaw('1 = 0');
+        }
         if (! $membership->role->canManageMembers()) {
             $query->where(function (Builder $builder) use ($viewer, $membership): void {
                 $builder->where('created_by', $viewer->id)

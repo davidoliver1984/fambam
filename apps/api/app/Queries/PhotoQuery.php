@@ -2,6 +2,7 @@
 
 namespace App\Queries;
 
+use App\Enums\FamilySpaceRole;
 use App\Enums\PhotoVisibility;
 use App\Models\Photo;
 use App\Models\PhotoMetadataProposal;
@@ -34,6 +35,9 @@ class PhotoQuery
             ->where('family_space_id', $this->tenantContext->familySpace()->id);
 
         $membership = $this->tenantContext->membership();
+        if ($membership->role === FamilySpaceRole::Guest) {
+            return $query->whereRaw('1 = 0');
+        }
         if (! $membership->role->canManageMembers()) {
             $query->where(function (Builder $builder) use ($viewer, $membership): void {
                 $builder->where(function (Builder $intrinsic) use ($membership): void {

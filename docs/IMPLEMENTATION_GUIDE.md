@@ -2356,8 +2356,10 @@ Implemented attributed `PhotoStory` and `PhotoComment` records as distinct
 ordinary-content types. Authors alone may edit their text; each edit stores the
 prior body in a numbered revision row. Authors may remove their own content,
 while Owner and Administrator may moderate removal regardless of authorship.
-Removal is soft and audited so ordinary UI removal does not erase the content
-or its correction trail.
+Removal is soft so ordinary UI removal does not erase the content or its
+correction trail. Owner/Administrator removal of another author's content is
+audited as moderation; author self-removal is ordinary activity and does not
+emit that moderation event.
 
 Each user may hold at most one reaction per Photo. The fixed V1 vocabulary is
 `love`, `smile`, `laugh` and `remember`, enforced by request validation and a

@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Enums\AlbumVisibility;
 use App\Enums\FamilySpaceRole;
 use App\Enums\PhotoVisibility;
+use App\Models\Album;
+use App\Models\AlbumGrant;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\Photo;
@@ -11,6 +14,7 @@ use App\Models\PhotoComment;
 use App\Models\PhotoStory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class PhotoConversationTest extends TestCase
@@ -62,6 +66,65 @@ class PhotoConversationTest extends TestCase
             ->assertOk()->assertJsonPath('data.reactions.0.reaction', 'remember');
         $this->actingAs($member)->deleteJson($path)->assertNoContent();
         $this->assertDatabaseCount('photo_reactions', 0);
+    }
+
+    public function test_contributor_interactions_require_an_album_contribution_grant(): void
+    {
+        $family = FamilySpace::factory()->create(['slug' => 'contributor-interactions']);
+        $owner = $this->member($family, FamilySpaceRole::Owner);
+        $contributor = $this->member($family, FamilySpaceRole::Contributor);
+        $membership = FamilySpaceMembership::query()->where('family_space_id', $family->id)
+            ->where('user_id', $contributor->id)->sole();
+        $photo = Photo::factory()->create(['family_space_id' => $family->id, 'created_by' => $owner->id,
+            'visibility' => PhotoVisibility::Private]);
+        $album = Album::query()->create(['family_space_id' => $family->id, 'created_by' => $owner->id,
+            'name' => 'Selected memories', 'visibility' => AlbumVisibility::Selected]);
+        $grant = AlbumGrant::query()->create(['family_space_id' => $family->id, 'album_id' => $album->id,
+            'family_space_membership_id' => $membership->id, 'can_view' => true, 'can_contribute' => false,
+            'granted_by' => $owner->id]);
+        $album->photos()->attach($photo->id, ['id' => (string) Str::ulid(),
+            'family_space_id' => $family->id, 'position' => 1, 'added_by' => $owner->id]);
+        $base = "/api/families/contributor-interactions/photos/{$photo->id}";
+
+        $this->actingAs($contributor)->getJson($base)->assertOk();
+        $this->actingAs($contributor)->postJson("{$base}/stories", ['body' => 'View only'])->assertForbidden();
+        $this->actingAs($contributor)->postJson("{$base}/comments", ['body' => 'View only'])->assertForbidden();
+        $this->actingAs($contributor)->putJson("{$base}/reaction", ['reaction' => 'love'])->assertForbidden();
+
+        $grant->update(['can_contribute' => true]);
+
+        $this->actingAs($contributor)->postJson("{$base}/stories", ['body' => 'A contributed story.'])->assertCreated();
+        $this->actingAs($contributor)->postJson("{$base}/comments", ['body' => 'A contributed comment.'])->assertCreated();
+        $this->actingAs($contributor)->putJson("{$base}/reaction", ['reaction' => 'love'])->assertOk();
+    }
+
+    public function test_self_removal_is_not_a_moderation_audit_but_moderator_removal_is(): void
+    {
+        $family = FamilySpace::factory()->create(['slug' => 'conversation-removal-audit']);
+        $author = $this->member($family, FamilySpaceRole::Member);
+        $administrator = $this->member($family, FamilySpaceRole::Administrator);
+        $photo = Photo::factory()->create(['family_space_id' => $family->id, 'created_by' => $author->id]);
+        $base = "/api/families/conversation-removal-audit/photos/{$photo->id}";
+
+        $ownStory = $this->actingAs($author)->postJson("{$base}/stories", ['body' => 'My story.'])
+            ->assertCreated()->json('data.id');
+        $ownComment = $this->actingAs($author)->postJson("{$base}/comments", ['body' => 'My comment.'])
+            ->assertCreated()->json('data.id');
+        $this->actingAs($author)->deleteJson("{$base}/stories/{$ownStory}")->assertNoContent();
+        $this->actingAs($author)->deleteJson("{$base}/comments/{$ownComment}")->assertNoContent();
+        $this->assertDatabaseMissing('audit_events', ['action' => 'photo_story.removed', 'subject_id' => $ownStory]);
+        $this->assertDatabaseMissing('audit_events', ['action' => 'photo_comment.removed', 'subject_id' => $ownComment]);
+
+        $moderatedStory = $this->actingAs($author)->postJson("{$base}/stories", ['body' => 'Moderated story.'])
+            ->assertCreated()->json('data.id');
+        $moderatedComment = $this->actingAs($author)->postJson("{$base}/comments", ['body' => 'Moderated comment.'])
+            ->assertCreated()->json('data.id');
+        $this->actingAs($administrator)->deleteJson("{$base}/stories/{$moderatedStory}")->assertNoContent();
+        $this->actingAs($administrator)->deleteJson("{$base}/comments/{$moderatedComment}")->assertNoContent();
+        $this->assertDatabaseHas('audit_events', ['action' => 'photo_story.removed',
+            'actor_user_id' => $administrator->id, 'subject_id' => $moderatedStory]);
+        $this->assertDatabaseHas('audit_events', ['action' => 'photo_comment.removed',
+            'actor_user_id' => $administrator->id, 'subject_id' => $moderatedComment]);
     }
 
     public function test_private_and_cross_tenant_photos_do_not_expose_conversation_content(): void

@@ -441,13 +441,14 @@ AlbumGrant
 
 **Contribution always implies view access.** `can_contribute = true` with
 `can_view = false` is not a valid `AlbumGrant` state — an implementation
-must not construct, persist, or authorize against that combination.
-Every `AlbumGrant` is therefore either `(can_view = true, can_contribute =
-false)` or `(can_view = true, can_contribute = true)`; there is no
-contribute-without-view grant, because contributing to a collection you
-cannot see is incoherent on its own terms. The exact enforcement mechanism
-(a database constraint, a service-layer invariant, or both) is
-implementation-guide detail; the invariant itself is fixed here.
+must not construct, persist, or authorize against that combination. Every
+`AlbumGrant` is therefore `(can_view = false, can_contribute = false)`,
+`(can_view = true, can_contribute = false)`, or `(can_view = true,
+can_contribute = true)`; there is no contribute-without-view grant,
+because contributing to a collection you cannot see is incoherent on its
+own terms. The exact enforcement mechanism (a database constraint, a
+service-layer invariant, or both) is implementation-guide detail; the
+invariant itself is fixed here.
 
 `AlbumGrant` realises a **selected**-visibility Album's audience directly
 (one row per granted membership) and is also how a role that has no
