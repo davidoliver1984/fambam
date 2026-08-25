@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P07",
-    "current_stage": "FPA-P07-S03",
+    "current_stage": "FPA-P07-S04",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-25"
   },
@@ -528,16 +528,18 @@
         {
           "id": "FPA-P07-S03",
           "title": "Implement event contributions",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P07-S02"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-25: verified that Event Albums reuse ADR-0008's existing Member default-contribution and Contributor AlbumGrant.can_contribute paths unchanged, including MediaUpload.target_album_id finalisation to one private attached Photo; added focused backend and frontend regression coverage without introducing any FPA-P07-S04 Guest admission or participation behavior."
+          ]
         },
         {
           "id": "FPA-P07-S04",
           "title": "Implement restricted guest upload links",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P07-S03"
           ],
@@ -1598,6 +1600,14 @@
       "roadmap_stage": "FPA-P07-S02",
       "date": "2026-08-25",
       "description": "FPA-P07-S02 completed: tenant-isolated Event records, creator/manager editing, authorization-inert Event links from Albums and Photos, confirmed-PhotoPerson-derived attendance, Person reverse lookup, deterministic advisory duplicate candidates, typed TanStack Query Event and Event-Album UI, persistent PostgreSQL migration, database constraints and forced RLS were implemented and verified."
+    },
+    {
+      "git_tag": "phase-7-s03",
+      "type": "stage_completion",
+      "adr": "ADR-0009",
+      "roadmap_stage": "FPA-P07-S03",
+      "date": "2026-08-25",
+      "description": "FPA-P07-S03 completed: Event Albums were verified to reuse the existing Member and grant-scoped Contributor contribution paths, including MediaUpload.target_album_id finalisation to one private attached Photo, without introducing Guest admission or participation behaviour from S04."
     }
   ]
 }

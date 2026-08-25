@@ -2571,6 +2571,65 @@ Implement events and event albums
 
 ## FPA-P07-S03 — Implement event contributions
 
+### Objective
+
+Confirm that Event Albums use the existing Album contribution model without a
+parallel Event upload workflow.
+
+### Engineering rationale
+
+ADR-0009 §13 deliberately keeps Member and Contributor contribution governed by
+ADR-0008's existing `AlbumPolicy::contribute` rules. `Album.event_id` is an
+organisational reference only in this stage, so the established
+`MediaUpload.target_album_id` initiation, completion and per-file finalisation
+path must behave identically for Event-linked and ordinary Albums.
+
+### Prerequisites
+
+- FPA-P07-S02 is complete.
+- ADR-0009 is accepted.
+
+### Expected changes
+
+- Add focused backend regression coverage proving ordinary Member contribution
+  and grant-scoped Contributor upload/finalisation on an Event Album.
+- Add frontend coverage proving an Event-linked Album exposes the existing
+  scoped contribution controls to an authorised Contributor.
+- Do not add `guest_participation`, Event admissions, Guest upload authority or
+  any alternate upload endpoint; those belong to FPA-P07-S04.
+
+### Commands
+
+Use the existing Album endpoints and `MediaUpload.target_album_id` workflow. No
+production-code branch is required for Event Albums because the S02 Event
+reference is intentionally authorization-inert.
+
+### Verification
+
+- Focused API and frontend tests cover Event Album contribution.
+- Repository format, lint, type, application-test and security checks remain
+  clean.
+
+### Risks and edge cases
+
+- Event linkage must never weaken or replace the existing Album contribution
+  policy.
+- Contributor uploads still require a live `AlbumGrant.can_contribute` and
+  create one private Photo attached to the target Album.
+- Guest access remains denied until FPA-P07-S04 introduces the complete
+  admission and participation model.
+
+### Documentation updates
+
+- Mark FPA-P07-S03 complete in `tasks.json` with verification evidence.
+- Record the bounded implementation in the session journal.
+
+### Commit boundary
+
+```text
+Implement event contributions
+```
+
 ## FPA-P07-S04 — Implement restricted guest upload links
 
 ## FPA-P07-S05 — Implement event notifications and exports

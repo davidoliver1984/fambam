@@ -33,6 +33,12 @@ const album: Album = {
   description: null,
   visibility: "selected",
   created_by: 1,
+  event_id: "01KB0000000000000000000000",
+  event: {
+    id: "01KB0000000000000000000000",
+    name: "Family wedding",
+    starts_on: "2026-08-25",
+  },
   photos: [],
   grants: [],
   permissions: { can_manage: false, can_contribute: true },
@@ -72,7 +78,7 @@ afterEach(() => {
 });
 
 describe("AlbumsPage", () => {
-  it("shows scoped contribution controls without offering Contributor album creation", async () => {
+  it("shows scoped Event Album contribution controls without offering Contributor album creation", async () => {
     renderPage();
     expect(await screen.findByText("Selected memories")).toBeInTheDocument();
     expect(
