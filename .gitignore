@@ -19,3 +19,6 @@ coverage/
 
 # Personal ChatGPT drafting notes -- not part of the repository's engineering record
 docs/gpt_drafts/
+
+# Plain-language project journey account -- not part of the repository's engineering record
+PROJECT_JOURNEY.md
