@@ -29,7 +29,7 @@ class PhotoConversationController extends Controller
     public function storeStory(FamilySpace $familySpace, string $photo, StorePhotoTextRequest $request): JsonResponse
     {
         $target = $this->photo($request, $photo);
-        Gate::authorize('interact', $target);
+        Gate::authorize('authorStory', $target);
 
         return response()->json(['data' => $this->textPayload($this->manager->createStory($target, $request->user(), $request->validated('body'), $request))], 201);
     }
@@ -110,7 +110,7 @@ class PhotoConversationController extends Controller
     {
         $photo->load(['stories.author:id,name', 'comments.author:id,name', 'reactions.user:id,name']);
 
-        return ['stories' => $photo->stories->map($this->textPayload(...)), 'comments' => $photo->comments->map($this->textPayload(...)), 'reactions' => $photo->reactions->map(fn (PhotoReaction $reaction) => ['user_id' => $reaction->user_id, 'name' => $reaction->user->name, 'reaction' => $reaction->reaction->value]), 'permissions' => ['can_interact' => Gate::allows('interact', $photo)]];
+        return ['stories' => $photo->stories->map($this->textPayload(...)), 'comments' => $photo->comments->map($this->textPayload(...)), 'reactions' => $photo->reactions->map(fn (PhotoReaction $reaction) => ['user_id' => $reaction->user_id, 'name' => $reaction->user->name, 'reaction' => $reaction->reaction->value]), 'permissions' => ['can_interact' => Gate::allows('interact', $photo), 'can_author_story' => Gate::allows('authorStory', $photo)]];
     }
 
     /** @return array<string, mixed> */

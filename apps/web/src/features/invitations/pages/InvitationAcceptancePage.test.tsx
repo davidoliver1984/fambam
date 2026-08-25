@@ -21,6 +21,7 @@ beforeEach(() => {
     claim_token: "opaque-claim",
     email: "relative@example.test",
     family_space_name: "Oliver Family",
+    event: null,
     role: "member",
     existing_account: false,
     expires_at: "2026-08-02T12:15:00Z",

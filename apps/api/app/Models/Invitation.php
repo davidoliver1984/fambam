@@ -19,7 +19,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonImmutable $expires_at
  * @property CarbonImmutable|null $accepted_at
  * @property CarbonImmutable|null $revoked_at
+ * @property string|null $event_id
  * @property-read FamilySpace $familySpace
+ * @property-read FamilyEvent|null $event
  */
 #[Fillable([
     'family_space_id',
@@ -31,6 +33,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'expires_at',
     'accepted_at',
     'revoked_at',
+    'event_id',
 ])]
 #[Hidden(['token_hash'])]
 class Invitation extends Model
@@ -54,6 +57,12 @@ class Invitation extends Model
     public function claims(): HasMany
     {
         return $this->hasMany(InvitationClaim::class);
+    }
+
+    /** @return BelongsTo<FamilyEvent, $this> */
+    public function event(): BelongsTo
+    {
+        return $this->belongsTo(FamilyEvent::class, 'event_id');
     }
 
     /** @return array<string, string> */

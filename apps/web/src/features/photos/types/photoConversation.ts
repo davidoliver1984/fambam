@@ -15,5 +15,5 @@ export type PhotoConversation = {
     name: string;
     reaction: PhotoReactionType;
   }>;
-  permissions: { can_interact: boolean };
+  permissions: { can_interact: boolean; can_author_story: boolean };
 };

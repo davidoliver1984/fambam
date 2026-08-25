@@ -32,6 +32,20 @@ class FamilyEventQuery
             ->find($id) ?? throw new NotFoundHttpException;
     }
 
+    public function findDeleted(string $id): FamilyEvent
+    {
+        return FamilyEvent::onlyTrashed()->where('family_space_id', $this->tenantContext->familySpace()->id)
+            ->find($id) ?? throw new NotFoundHttpException;
+    }
+
+    /** @return Collection<int, FamilyEvent> */
+    public function deleted(): Collection
+    {
+        return FamilyEvent::onlyTrashed()->with('creator:id,name')
+            ->where('family_space_id', $this->tenantContext->familySpace()->id)
+            ->latest('deleted_at')->get();
+    }
+
     /** @return Collection<int, Person> */
     public function attendees(FamilyEvent $event): Collection
     {

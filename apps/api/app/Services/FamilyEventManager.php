@@ -54,6 +54,26 @@ class FamilyEventManager
         });
     }
 
+    public function delete(FamilyEvent $event, User $actor, Request $request): void
+    {
+        DB::transaction(function () use ($event, $actor, $request): void {
+            $locked = FamilyEvent::query()->lockForUpdate()->findOrFail($event->id);
+            $locked->delete();
+            $this->audit->record('event.removed', $locked, $actor, $request);
+        });
+    }
+
+    public function restore(FamilyEvent $event, User $actor, Request $request): FamilyEvent
+    {
+        return DB::transaction(function () use ($event, $actor, $request): FamilyEvent {
+            $locked = FamilyEvent::onlyTrashed()->lockForUpdate()->findOrFail($event->id);
+            $locked->restore();
+            $this->audit->record('event.restored', $locked, $actor, $request);
+
+            return $locked;
+        });
+    }
+
     /**
      * @param  array<string, mixed>  $input
      * @return array<string, mixed>

@@ -6,6 +6,7 @@ use App\Enums\AlbumVisibility;
 use App\Enums\FamilySpaceRole;
 use App\Models\Album;
 use App\Models\User;
+use App\Services\EventAccess;
 use App\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -13,7 +14,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class AlbumQuery
 {
-    public function __construct(private readonly TenantContext $tenantContext) {}
+    public function __construct(
+        private readonly TenantContext $tenantContext,
+        private readonly EventAccess $eventAccess,
+    ) {}
 
     /** @return Builder<Album> */
     public function visibleTo(User $viewer): Builder
@@ -22,7 +26,7 @@ class AlbumQuery
         $query = Album::query()->with(['creator:id,name', 'event:id,name,starts_on', 'photos.mediaUpload'])
             ->where('family_space_id', $this->tenantContext->familySpace()->id);
         if ($membership->role === FamilySpaceRole::Guest) {
-            return $query->whereRaw('1 = 0');
+            return $this->eventAccess->scopeAlbumsForGuest($query, $membership);
         }
         if (! $membership->role->canManageMembers()) {
             $query->where(function (Builder $builder) use ($viewer, $membership): void {

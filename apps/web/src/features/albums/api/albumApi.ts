@@ -16,6 +16,19 @@ export async function getAlbums(familySlug: string, signal?: AbortSignal) {
   );
 }
 
+export async function getAlbum(
+  familySlug: string,
+  albumId: string,
+  signal?: AbortSignal,
+): Promise<Album> {
+  return unwrap(
+    await apiClient.get<ApiEnvelope<Album>>(
+      `${albumsPath(familySlug)}/${encodeURIComponent(albumId)}`,
+      { signal },
+    ),
+  );
+}
+
 export async function createAlbum(familySlug: string, input: CreateAlbumInput) {
   await ensureCsrfCookie();
   return unwrap(

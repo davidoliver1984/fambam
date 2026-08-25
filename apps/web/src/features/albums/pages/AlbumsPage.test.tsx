@@ -39,6 +39,7 @@ const album: Album = {
     name: "Family wedding",
     starts_on: "2026-08-25",
   },
+  guest_participation: "none",
   photos: [],
   grants: [],
   permissions: { can_manage: false, can_contribute: true },

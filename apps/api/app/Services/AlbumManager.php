@@ -34,6 +34,7 @@ class AlbumManager
                 'name' => $input['name'], 'description' => $input['description'] ?? null,
                 'visibility' => $input['visibility'] ?? AlbumVisibility::FamilySpace->value,
                 'event_id' => $input['event_id'] ?? null,
+                'guest_participation' => ($input['event_id'] ?? null) === null ? 'none' : ($input['guest_participation'] ?? 'none'),
             ]);
             $this->audit->record('album.created', $album, $actor, $request);
 
@@ -47,6 +48,9 @@ class AlbumManager
         $this->assertEventBelongsTo($album->family_space_id, $input);
 
         return DB::transaction(function () use ($album, $actor, $input, $request): Album {
+            if (($input['event_id'] ?? $album->event_id) === null) {
+                $input['guest_participation'] = 'none';
+            }
             $visibility = AlbumVisibility::tryFrom((string) ($input['visibility'] ?? ''));
             if ($visibility === AlbumVisibility::Private && $album->visibility !== AlbumVisibility::Private) {
                 $album->grants()->delete();
@@ -69,8 +73,8 @@ class AlbumManager
         if ($membership === null) {
             $this->fail('The selected active membership does not belong to this Family Space.');
         }
-        if ($membership->role === FamilySpaceRole::Guest) {
-            $this->fail('Guest Album grants are not available in the Phase 6 baseline.');
+        if ($membership->role === FamilySpaceRole::Guest && $album->event_id === null) {
+            $this->fail('Guest Album grants require an Event-linked Album.');
         }
 
         return DB::transaction(function () use ($album, $membership, $actor, $input, $request): AlbumGrant {

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\AlbumVisibility;
+use App\Enums\GuestParticipation;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -21,6 +22,7 @@ class UpdateAlbumRequest extends FormRequest
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'visibility' => ['sometimes', Rule::enum(AlbumVisibility::class)],
             'event_id' => ['sometimes', 'nullable', 'string', 'size:26'],
+            'guest_participation' => ['sometimes', Rule::enum(GuestParticipation::class)],
         ];
     }
 }

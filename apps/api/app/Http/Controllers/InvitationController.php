@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\FamilySpaceRole;
 use App\Http\Requests\IssueInvitationRequest;
+use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\Invitation;
 use App\Models\User;
@@ -35,12 +36,15 @@ class InvitationController extends Controller
         Gate::authorize('manageInvitations', $familySpace);
         /** @var User $actor */
         $actor = $request->user();
+        $event = $request->validated('event_id') === null ? null : FamilyEvent::query()
+            ->where('family_space_id', $familySpace->id)->findOrFail($request->validated('event_id'));
         $invitation = $this->invitations->issue(
             $actor,
             $familySpace,
             $request->validated('email'),
-            FamilySpaceRole::from($request->validated('role')),
+            $event === null ? FamilySpaceRole::from($request->validated('role')) : FamilySpaceRole::Guest,
             $request,
+            $event,
         );
 
         return response()->json(['data' => $this->payload($invitation)], 201);
@@ -68,12 +72,13 @@ class InvitationController extends Controller
         return response()->json(['data' => $this->payload($invitation)]);
     }
 
-    /** @return array{id: int, family_space_id: string, email: string, role: string, status: string, expires_at: string, accepted_at: ?string, revoked_at: ?string, acceptable: bool} */
+    /** @return array{id: int, family_space_id: string, event_id: ?string, email: string, role: string, status: string, expires_at: string, accepted_at: ?string, revoked_at: ?string, acceptable: bool} */
     private function payload(Invitation $invitation): array
     {
         return [
             'id' => $invitation->id,
             'family_space_id' => $invitation->family_space_id,
+            'event_id' => $invitation->event_id,
             'email' => $invitation->email,
             'role' => $invitation->role->value,
             'status' => $invitation->status->value,

@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\FamilySpaceRole;
 use App\Models\PhotoStory;
 use App\Models\User;
 use App\Tenancy\TenantContext;
@@ -12,12 +13,16 @@ class PhotoStoryPolicy
 
     public function update(User $user, PhotoStory $story): bool
     {
-        return $this->matches($user, $story) && $story->author_id === $user->id;
+        return $this->matches($user, $story)
+            && $this->context->membership()->role !== FamilySpaceRole::Guest
+            && $story->author_id === $user->id;
     }
 
     public function delete(User $user, PhotoStory $story): bool
     {
-        return $this->matches($user, $story) && ($story->author_id === $user->id || $this->context->membership()->role->canManageMembers());
+        return $this->matches($user, $story)
+            && $this->context->membership()->role !== FamilySpaceRole::Guest
+            && ($story->author_id === $user->id || $this->context->membership()->role->canManageMembers());
     }
 
     private function matches(User $user, PhotoStory $story): bool

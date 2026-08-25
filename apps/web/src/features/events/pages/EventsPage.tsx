@@ -3,12 +3,18 @@ import { Link, useParams } from "react-router";
 
 import {
   useCreateEventMutation,
+  useDeletedEventsQuery,
   useEventsQuery,
+  useRestoreEventMutation,
 } from "../hooks/useEventQueries";
 
 export function EventsPage() {
   const { familySlug = "" } = useParams();
   const events = useEventsQuery(familySlug);
+  const canManage =
+    events.data?.some((item) => item.permissions.can_delete) === true;
+  const deleted = useDeletedEventsQuery(familySlug, canManage);
+  const restore = useRestoreEventMutation(familySlug);
   const create = useCreateEventMutation(familySlug);
   const [name, setName] = useState("");
   const [startsOn, setStartsOn] = useState("");
@@ -73,6 +79,35 @@ export function EventsPage() {
         </form>
         {create.isError && <p role="alert">The Event could not be created.</p>}
       </section>
+      {canManage && (
+        <section aria-labelledby="removed-events-title">
+          <h2 id="removed-events-title">Removed Events</h2>
+          {deleted.isPending ? (
+            <p role="status">Loading removed Events…</p>
+          ) : deleted.isError ? (
+            <p role="alert">Removed Events could not be loaded.</p>
+          ) : deleted.data.length === 0 ? (
+            <p>No Events have been removed.</p>
+          ) : (
+            <ul>
+              {deleted.data.map((item) => (
+                <li key={item.id}>
+                  {item.name}{" "}
+                  <button
+                    type="button"
+                    disabled={restore.isPending}
+                    onClick={() => {
+                      restore.mutate(item.id);
+                    }}
+                  >
+                    Restore
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
       <Link to={`/families/${encodeURIComponent(familySlug)}`}>
         Back to Family Space
       </Link>

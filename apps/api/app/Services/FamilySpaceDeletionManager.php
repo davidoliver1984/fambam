@@ -7,10 +7,12 @@ use App\Enums\FamilySpaceStatus;
 use App\Enums\MembershipState;
 use App\Media\FamilyMediaStorageCleaner;
 use App\Models\Album;
+use App\Models\EventAdmission;
 use App\Models\FamilyCircle;
 use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
+use App\Models\Invitation;
 use App\Models\MediaUpload;
 use App\Models\Person;
 use App\Models\Photo;
@@ -133,15 +135,22 @@ class FamilySpaceDeletionManager
             FamilyCircle::query()
                 ->where('family_space_id', $familySpace->id)
                 ->delete();
+            EventAdmission::query()
+                ->where('family_space_id', $familySpace->id)
+                ->delete();
+            Invitation::query()
+                ->where('family_space_id', $familySpace->id)
+                ->whereNotNull('event_id')
+                ->delete();
             Album::query()
                 ->where('family_space_id', $familySpace->id)
                 ->delete();
             Photo::withTrashed()
                 ->where('family_space_id', $familySpace->id)
                 ->forceDelete();
-            FamilyEvent::query()
+            FamilyEvent::withTrashed()
                 ->where('family_space_id', $familySpace->id)
-                ->delete();
+                ->forceDelete();
             Tag::query()
                 ->where('family_space_id', $familySpace->id)
                 ->delete();
