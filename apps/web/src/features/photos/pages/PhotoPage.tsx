@@ -2,6 +2,8 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 
 import { toAppError } from "@/api/errors";
 import { usePeopleQuery } from "@/features/people/hooks/usePeopleQuery";
+import { PhotoDuplicateFlagPanel } from "@/features/duplicates/components/PhotoDuplicateFlagPanel";
+import { useFlagPhotoDuplicateMutation } from "@/features/duplicates/hooks/useDuplicateReview";
 
 import { PhotoForm } from "../components/PhotoForm";
 import { PhotoFamilyMetadataProposals } from "../components/PhotoFamilyMetadataProposals";
@@ -19,12 +21,16 @@ import {
   useSubmitPhotoProvenanceMutation,
   useUpdatePhotoMutation,
 } from "../hooks/usePhotoMutations";
-import { usePhotoQuery } from "../hooks/usePhotoQueries";
+import { usePhotoQuery, usePhotosQuery } from "../hooks/usePhotoQueries";
 
 export function PhotoPage() {
   const { familySlug = "", photoId = "" } = useParams();
   const [search] = useSearchParams();
   const photoQuery = usePhotoQuery(familySlug, photoId);
+  const canFlagDuplicate =
+    photoQuery.data?.permissions.can_flag_duplicate === true;
+  const duplicateOptions = usePhotosQuery(familySlug, {}, canFlagDuplicate);
+  const flagDuplicate = useFlagPhotoDuplicateMutation(familySlug, photoId);
   const navigate = useNavigate();
   const deletePhoto = useDeletePhotoMutation(familySlug, photoId);
   const peopleQuery = usePeopleQuery(
@@ -126,6 +132,29 @@ export function PhotoPage() {
             onSubmit={(tags) => replaceTags.mutateAsync(tags)}
           />
         </section>
+      )}
+
+      {photo.permissions.can_flag_duplicate && (
+        <>
+          {duplicateOptions.isPending && (
+            <p role="status">Loading Photos for duplicate suggestion…</p>
+          )}
+          {duplicateOptions.isError && (
+            <p role="alert">Other Photos could not be loaded.</p>
+          )}
+          {duplicateOptions.data !== undefined && (
+            <PhotoDuplicateFlagPanel
+              currentPhotoId={photo.id}
+              photos={duplicateOptions.data}
+              pending={flagDuplicate.isPending}
+              succeeded={flagDuplicate.isSuccess}
+              failed={flagDuplicate.isError}
+              onSubmit={(candidateId) => {
+                flagDuplicate.mutate(candidateId);
+              }}
+            />
+          )}
+        </>
       )}
 
       {photo.permissions.can_propose_provenance && (

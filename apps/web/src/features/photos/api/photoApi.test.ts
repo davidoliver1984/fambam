@@ -50,6 +50,7 @@ const photo: Photo = {
     can_propose_provenance: true,
     can_resolve_provenance: true,
     can_manage_tags: true,
+    can_flag_duplicate: false,
   },
 };
 const input: CreatePhotoInput = {

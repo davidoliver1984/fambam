@@ -6,8 +6,8 @@
     "version": "0.1.0",
     "status": "in_progress",
     "v1_release_phase": "P15",
-    "current_phase": "P08",
-    "current_stage": "FPA-P08-S04",
+    "current_phase": "P09",
+    "current_stage": "FPA-P09-S01",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-26"
   },
@@ -563,7 +563,7 @@
     {
       "id": "P08",
       "name": "Duplicate Detection",
-      "status": "in_progress",
+      "status": "completed",
       "stages": [
         {
           "id": "FPA-P08-S01",
@@ -601,23 +601,25 @@
         {
           "id": "FPA-P08-S04",
           "title": "Implement duplicate review",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P08-S03"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-26: Owner/Administrator archive-wide review exposes exactly leave-pending or dismiss-as-not-duplicate; dismissal settles and audits the canonical pair without modifying either Photo, reopening is an audited transition on the same durable decision row, later natural detection can re-pend reopened pairs, and Members may flag only pairs of Photos they can already view. Typed feature API modules, TanStack Query hooks, accessible canonical-image comparison UI, strict Contributor/Guest exclusion and complete backend/frontend regression coverage were implemented with no merge, deletion, redirect, aggregation or consolidation mechanism."
+          ]
         }
       ]
     },
     {
       "id": "P09",
       "name": "Local Face Analysis Foundation",
-      "status": "planned",
+      "status": "in_progress",
       "stages": [
         {
           "id": "FPA-P09-S01",
           "title": "Build representative local benchmark",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P08-S04"
           ],
@@ -1658,6 +1660,30 @@
       "roadmap_stage": "FPA-P08-S02",
       "date": "2026-08-26",
       "description": "FPA-P08-S02 completed: tenant- and visibility-scoped exact SHA-256 detection across direct Photo creation and asynchronous Album/Event contribution; deterministic three-outcome resolution and uploader-owned duplicate holds; canonical multi-match DuplicateDecision suppression; idempotent retrospective exact candidates; Album-scoped new comments and reactions with preserved read-only legacy history; typed TanStack Query UI; persistent PostgreSQL migration; and forced RLS were implemented and verified."
+    },
+    {
+      "git_tag": "phase-8-s03",
+      "type": "stage_completion",
+      "adr": "ADR-0010",
+      "roadmap_stage": "FPA-P08-S03",
+      "date": "2026-08-26",
+      "description": "FPA-P08-S03 completed: empirical calibration selected dhash-luma-64 version 1 at Hamming distance <= 18 with 18 true positives, 0 false negatives, 0 false positives and 762 true negatives; deterministic canonical-asset hashing, versioned tenant-owned storage, scheduled PostgreSQL discovery, idempotent exact/settled/deleted suppression, persistent migration batch 31, forced RLS and private calibration cleanup were implemented and verified."
+    },
+    {
+      "git_tag": "phase-8-s04",
+      "type": "stage_completion",
+      "adr": "ADR-0010",
+      "roadmap_stage": "FPA-P08-S04",
+      "date": "2026-08-26",
+      "description": "FPA-P08-S04 completed: Owner/Administrator archive-wide duplicate review exposes exactly leave-pending or dismiss-as-not-duplicate; Member flagging is limited to visible Photos; dismissal settles and audits the canonical pair without altering either Photo; reopening reuses the same audited decision row and permits later natural rediscovery; and the typed TanStack Query comparison UI includes no merge, deletion, redirect, aggregation or consolidation action."
+    },
+    {
+      "git_tag": "phase-8",
+      "type": "phase_completion",
+      "adr": null,
+      "roadmap_stage": "FPA-P08-S04",
+      "date": "2026-08-26",
+      "description": "Phase 8 completed: exact and calibrated visual duplicate detection, three-outcome creation handling, durable suppression and audited reopening passed the complete repository, frontend, API, PostgreSQL 17.6 RLS, persistent migration, real media-processing, infrastructure, contracts and security acceptance gates without any consolidation mechanism."
     }
   ]
 }

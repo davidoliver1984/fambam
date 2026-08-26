@@ -84,7 +84,16 @@ export function FamilySpacePage() {
         </p>
       )}
       {canManageInvitations ? (
-        <InvitationManagement familySlug={familySpace.slug} />
+        <>
+          <p>
+            <Link
+              to={`/families/${encodeURIComponent(familySpace.slug)}/duplicates`}
+            >
+              Review possible duplicate Photos
+            </Link>
+          </p>
+          <InvitationManagement familySlug={familySpace.slug} />
+        </>
       ) : (
         <p>Invitation management is available to Owners and Administrators.</p>
       )}
