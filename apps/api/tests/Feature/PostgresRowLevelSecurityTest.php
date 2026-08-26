@@ -43,7 +43,7 @@ class PostgresRowLevelSecurityTest extends TestCase
         $this->admin = DB::connection('pgsql_admin');
         $this->app->instance(FamilyMediaStorageCleaner::class, new RlsFamilyMediaStorageCleaner);
         $this->admin->unprepared(<<<'SQL'
-TRUNCATE TABLE media_upload_duplicate_holds, duplicate_decisions, duplicate_candidates,
+TRUNCATE TABLE perceptual_hashes, media_upload_duplicate_holds, duplicate_decisions, duplicate_candidates,
     photo_reactions, photo_comment_revisions, photo_comments, photo_story_revisions, photo_stories,
     event_notification_deliveries, event_exports, event_admissions, album_grants, album_photos, albums, events,
     photo_people, photo_metadata_proposals, photo_tag, tags, photo_provenance_proposals, photos,
@@ -106,13 +106,13 @@ WHERE relname IN (
     'albums', 'album_photos', 'album_grants', 'events', 'event_admissions', 'event_exports',
     'event_notification_deliveries',
     'photo_stories', 'photo_story_revisions', 'photo_comments', 'photo_comment_revisions', 'photo_reactions',
-    'duplicate_candidates', 'duplicate_decisions', 'media_upload_duplicate_holds',
+    'duplicate_candidates', 'duplicate_decisions', 'media_upload_duplicate_holds', 'perceptual_hashes',
     'rls_test_records'
 )
 ORDER BY relname
 SQL);
 
-        $this->assertCount(37, $tables);
+        $this->assertCount(38, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
@@ -262,6 +262,81 @@ SQL);
                 'updated_at' => $now,
             ]);
         });
+        $this->assertRlsRejects(function () use ($firstOwner, $firstFamily, $secondFamily, $uploadIds, $now): void {
+            app(DatabaseTenantContext::class)->establishUser($firstOwner);
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('perceptual_hashes')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $secondFamily,
+                'media_upload_id' => $uploadIds[0],
+                'algorithm' => 'dhash-luma-64',
+                'processing_version' => 1,
+                'hash_value' => '0000000000000000',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        });
+    }
+
+    public function test_perceptual_hash_discovery_is_versioned_and_stops_after_persistence(): void
+    {
+        [$owner, $family] = $this->createOwnedFamily('perceptual-discovery');
+        $uploadId = (string) Str::ulid();
+        $photoId = (string) Str::ulid();
+        $now = now();
+        $canonicalSha256 = hash('sha256', 'perceptual-canonical');
+        $this->admin->table('media_uploads')->insert([
+            'id' => $uploadId,
+            'family_space_id' => $family,
+            'user_id' => $owner,
+            'state' => 'ready',
+            'staging_object_key' => "families/{$family}/media-staging/{$uploadId}/original",
+            'canonical_object_key' => "families/{$family}/media/{$uploadId}/canonical.jpg",
+            'canonical_sha256' => $canonicalSha256,
+            'client_filename' => 'perceptual-discovery.jpg',
+            'idempotency_key' => 'perceptual-discovery',
+            'request_fingerprint' => hash('sha256', 'perceptual-discovery'),
+            'correlation_id' => (string) Str::uuid(),
+            'traceparent' => TenantOperationContext::newTraceparent(),
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        $this->admin->table('photos')->insert([
+            'id' => $photoId,
+            'family_space_id' => $family,
+            'media_upload_id' => $uploadId,
+            'created_by' => $owner,
+            'visibility' => 'family_space',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $due = DB::select('SELECT * FROM app_due_perceptual_hashes(?, ?)', ['dhash-luma-64', 1]);
+        $this->assertCount(1, $due);
+        $this->assertSame($uploadId, trim($due[0]->media_upload_id));
+        $this->assertSame($family, trim($due[0]->family_space_id));
+        $this->assertSame($owner, (int) $due[0]->actor_user_id);
+        $this->assertSame($canonicalSha256, trim($due[0]->canonical_sha256));
+
+        $this->admin->table('perceptual_hashes')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $family,
+            'media_upload_id' => $uploadId,
+            'algorithm' => 'dhash-luma-64',
+            'processing_version' => 1,
+            'hash_value' => '0000000000000000',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $this->assertSame([], DB::select('SELECT * FROM app_due_perceptual_hashes(?, ?)', [
+            'dhash-luma-64',
+            1,
+        ]));
+        $this->assertCount(1, DB::select('SELECT * FROM app_due_perceptual_hashes(?, ?)', [
+            'dhash-luma-64',
+            2,
+        ]));
     }
 
     public function test_event_admissions_are_tenant_isolated_for_reads_and_writes(): void
