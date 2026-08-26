@@ -49,6 +49,22 @@ class PhotoController extends Controller
         ]);
     }
 
+    public function promotableUploads(FamilySpace $familySpace, Request $request): JsonResponse
+    {
+        Gate::authorize('create', Photo::class);
+        /** @var User $viewer */
+        $viewer = $request->user();
+
+        return response()->json([
+            'data' => $this->photos->promotableUploads($viewer)->map(fn ($upload): array => [
+                'id' => $upload->id,
+                'client_filename' => $upload->client_filename,
+                'byte_size' => $upload->byte_size,
+                'uploaded_at' => $upload->uploaded_at?->toAtomString(),
+            ])->values(),
+        ]);
+    }
+
     public function store(FamilySpace $familySpace, StorePhotoRequest $request): JsonResponse
     {
         Gate::authorize('create', Photo::class);

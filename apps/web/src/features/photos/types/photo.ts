@@ -13,6 +13,12 @@ export type DeletedPhoto = {
   deleted_at: string;
   permissions: { can_restore: boolean };
 };
+export type PromotableMediaUpload = {
+  id: string;
+  client_filename: string;
+  byte_size: number | null;
+  uploaded_at: string | null;
+};
 export type PhotoProvenanceRole = "photographer" | "scanner" | "physical_owner";
 export type DatePrecision =
   "exact" | "month" | "year" | "decade" | "approximate" | "unknown";

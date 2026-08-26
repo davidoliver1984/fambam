@@ -9,6 +9,7 @@ import {
   createPhoto,
   getDeletedPhotos,
   getPhotos,
+  getPromotableMediaUploads,
   restorePhoto,
 } from "../api/photoApi";
 import { getDuplicateHolds } from "../api/photoDuplicateApi";
@@ -20,6 +21,7 @@ vi.mock("../api/photoApi", () => ({
   deletePhoto: vi.fn(),
   getDeletedPhotos: vi.fn(),
   getPhotos: vi.fn(),
+  getPromotableMediaUploads: vi.fn(),
   restorePhoto: vi.fn(),
 }));
 vi.mock("../api/photoDuplicateApi", () => ({
@@ -58,6 +60,12 @@ const photo: Photo = {
     can_flag_duplicate: false,
   },
 };
+const promotableUpload = {
+  id: "01K50000000000000000000001",
+  client_filename: "nan-at-seaside.jpg",
+  byte_size: 123_456,
+  uploaded_at: "2026-08-24T09:30:00Z",
+};
 
 function renderPage() {
   const queryClient = new QueryClient({
@@ -77,6 +85,7 @@ function renderPage() {
 beforeEach(() => {
   vi.mocked(getPhotos).mockResolvedValue([photo]);
   vi.mocked(getDeletedPhotos).mockResolvedValue([]);
+  vi.mocked(getPromotableMediaUploads).mockResolvedValue([promotableUpload]);
   vi.mocked(createPhoto).mockResolvedValue({
     outcome: "photo_created",
     photo,
@@ -89,6 +98,7 @@ afterEach(() => {
   cleanup();
   vi.mocked(getPhotos).mockReset();
   vi.mocked(getDeletedPhotos).mockReset();
+  vi.mocked(getPromotableMediaUploads).mockReset();
   vi.mocked(createPhoto).mockReset();
   vi.mocked(getDuplicateHolds).mockReset();
   vi.mocked(restorePhoto).mockReset();
@@ -134,9 +144,9 @@ describe("PhotosPage", () => {
     const user = userEvent.setup();
     renderPage();
     await screen.findByText("Family picnic");
-    await user.type(
-      screen.getByLabelText("Ready MediaUpload ID"),
-      photo.media_upload.id,
+    await user.selectOptions(
+      screen.getByLabelText("Ready upload"),
+      promotableUpload.id,
     );
     await user.type(screen.getByLabelText("Caption"), "Nan at the seaside");
     await user.type(screen.getByLabelText("Tags"), "Holiday, Seaside");
@@ -146,7 +156,7 @@ describe("PhotosPage", () => {
       expect(createPhoto).toHaveBeenCalledWith(
         "oliver-family",
         expect.objectContaining({
-          media_upload_id: photo.media_upload.id,
+          media_upload_id: promotableUpload.id,
           caption: "Nan at the seaside",
           tags: ["Holiday", "Seaside"],
         }),
@@ -176,9 +186,10 @@ describe("PhotosPage", () => {
     const user = userEvent.setup();
     renderPage();
     await screen.findByText("Family picnic");
-    await user.type(
-      screen.getByLabelText("Ready MediaUpload ID"),
-      photo.media_upload.id,
+    expect(screen.queryByText(promotableUpload.id)).not.toBeInTheDocument();
+    await user.selectOptions(
+      screen.getByLabelText("Ready upload"),
+      promotableUpload.id,
     );
     await user.click(screen.getByRole("button", { name: "Create Photo" }));
     expect(
@@ -198,6 +209,17 @@ describe("PhotosPage", () => {
         }),
       );
     });
+  });
+
+  it("explains when no eligible ready uploads are available", async () => {
+    vi.mocked(getPromotableMediaUploads).mockResolvedValue([]);
+    renderPage();
+    expect(
+      await screen.findByText(
+        "There are no ready uploads available to promote.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create Photo" })).toBeDisabled();
   });
 
   it("renders empty and error states accessibly", async () => {

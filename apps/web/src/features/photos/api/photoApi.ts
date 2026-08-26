@@ -15,6 +15,7 @@ import type {
   PhotoProvenanceInput,
   PhotoProvenanceProposal,
   PhotoFilters,
+  PromotableMediaUpload,
   UpdatePhotoInput,
 } from "../types/photo";
 
@@ -64,6 +65,18 @@ export async function getDeletedPhotos(
   return unwrap(
     await apiClient.get<ApiEnvelope<DeletedPhoto[]>>(
       `${photosPath(familySlug)}/deleted`,
+      { signal },
+    ),
+  );
+}
+
+export async function getPromotableMediaUploads(
+  familySlug: string,
+  signal?: AbortSignal,
+): Promise<PromotableMediaUpload[]> {
+  return unwrap(
+    await apiClient.get<ApiEnvelope<PromotableMediaUpload[]>>(
+      `${photosPath(familySlug)}/promotable-uploads`,
       { signal },
     ),
   );

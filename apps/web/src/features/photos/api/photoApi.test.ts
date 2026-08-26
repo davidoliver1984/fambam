@@ -10,6 +10,7 @@ import {
   getPhotoPersonProposals,
   getPhotoProvenanceProposals,
   getPhotos,
+  getPromotableMediaUploads,
   replacePhotoTags,
   resolvePhotoMetadataProposal,
   resolvePhotoPersonProposal,
@@ -63,6 +64,25 @@ const input: CreatePhotoInput = {
 };
 
 describe("photoApi", () => {
+  it("fetches typed promotable upload summaries from the Photo feature", async () => {
+    const upload = {
+      id: "01K50000000000000000000001",
+      client_filename: "nan-at-seaside.jpg",
+      byte_size: 123_456,
+      uploaded_at: "2026-08-24T09:30:00Z",
+    };
+    server.use(
+      http.get(
+        `${apiBaseUrl}/api/families/oliver-family/photos/promotable-uploads`,
+        () => HttpResponse.json({ data: [upload] }),
+      ),
+    );
+
+    await expect(getPromotableMediaUploads("oliver-family")).resolves.toEqual([
+      upload,
+    ]);
+  });
+
   it("omits inactive Photo filters from the initial archive request", async () => {
     let query = "not-called";
     server.use(

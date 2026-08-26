@@ -3,8 +3,10 @@
 namespace App\Queries;
 
 use App\Enums\FamilySpaceRole;
+use App\Enums\MediaUploadState;
 use App\Enums\PhotoVisibility;
 use App\Models\FamilySpaceMembership;
+use App\Models\MediaUpload;
 use App\Models\Photo;
 use App\Models\PhotoMetadataProposal;
 use App\Models\PhotoPerson;
@@ -117,6 +119,23 @@ class PhotoQuery
         }
 
         return $query->latest('created_at')->latest('id')->get();
+    }
+
+    /** @return Collection<int, MediaUpload> */
+    public function promotableUploads(User $viewer): Collection
+    {
+        $membership = $this->tenantContext->membership();
+        $query = MediaUpload::query()
+            ->where('family_space_id', $this->tenantContext->familySpace()->id)
+            ->where('state', MediaUploadState::Ready)
+            ->whereNull('target_album_id')
+            ->whereDoesntHave('photo');
+
+        if (! $membership->role->canManageMembers()) {
+            $query->where('user_id', $viewer->id);
+        }
+
+        return $query->latest('uploaded_at')->latest('id')->get();
     }
 
     public function findVisibleTo(User $viewer, string $photoId): Photo

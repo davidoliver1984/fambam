@@ -9,6 +9,7 @@ use App\Enums\PersonProposalStatus;
 use App\Enums\PhotoVisibility;
 use App\Media\MediaDeliveryAuthorization;
 use App\Media\MediaDeliveryUrlSigner;
+use App\Models\Album;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\MediaUpload;
@@ -30,6 +31,58 @@ class PhotoRecordTest extends TestCase
     {
         parent::setUp();
         $this->app->instance(MediaDeliveryUrlSigner::class, new PhotoTestMediaDeliveryUrlSigner);
+    }
+
+    public function test_promotable_uploads_are_discoverable_only_with_existing_photo_creation_authority(): void
+    {
+        [$family, $owner] = $this->familyWithRole(FamilySpaceRole::Owner, 'promotable-uploads');
+        $member = $this->addMember($family, FamilySpaceRole::Member);
+        $contributor = $this->addMember($family, FamilySpaceRole::Contributor);
+        $ownerUpload = $this->readyUpload($family, $owner);
+        $memberUpload = $this->readyUpload($family, $member);
+        $promotedUpload = $this->readyUpload($family, $member);
+        Photo::factory()->create([
+            'family_space_id' => $family->id,
+            'media_upload_id' => $promotedUpload->id,
+            'created_by' => $member->id,
+        ]);
+        $album = Album::query()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $owner->id,
+            'name' => 'Contribution album',
+            'visibility' => 'selected',
+        ]);
+        $albumUpload = MediaUpload::factory()->create([
+            'family_space_id' => $family->id,
+            'user_id' => $member->id,
+            'state' => MediaUploadState::Ready,
+            'target_album_id' => $album->id,
+        ]);
+        $processingUpload = MediaUpload::factory()->create([
+            'family_space_id' => $family->id,
+            'user_id' => $member->id,
+            'state' => MediaUploadState::Processing,
+        ]);
+
+        $this->actingAs($owner)
+            ->getJson('/api/families/promotable-uploads/photos/promotable-uploads')
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonFragment(['id' => $ownerUpload->id])
+            ->assertJsonFragment(['id' => $memberUpload->id])
+            ->assertJsonMissing(['id' => $promotedUpload->id])
+            ->assertJsonMissing(['id' => $albumUpload->id])
+            ->assertJsonMissing(['id' => $processingUpload->id]);
+
+        $this->actingAs($member)
+            ->getJson('/api/families/promotable-uploads/photos/promotable-uploads')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $memberUpload->id);
+
+        $this->actingAs($contributor)
+            ->getJson('/api/families/promotable-uploads/photos/promotable-uploads')
+            ->assertForbidden();
     }
 
     public function test_member_creates_a_photo_only_from_their_own_ready_upload_and_defaults_to_family_space(): void
