@@ -36,7 +36,7 @@ class PhotoPolicy
 
         return $role->canManageMembers()
             || ($photo->visibility === PhotoVisibility::FamilySpace && $role === FamilySpaceRole::Member)
-            || $photo->created_by === $user->id
+            || ($role !== FamilySpaceRole::Guest && $photo->created_by === $user->id)
             || $this->hasAlbumAccess($photo);
     }
 

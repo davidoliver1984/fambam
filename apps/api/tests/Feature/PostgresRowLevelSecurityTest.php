@@ -44,7 +44,7 @@ class PostgresRowLevelSecurityTest extends TestCase
         $this->app->instance(FamilyMediaStorageCleaner::class, new RlsFamilyMediaStorageCleaner);
         $this->admin->unprepared(<<<'SQL'
 TRUNCATE TABLE photo_reactions, photo_comment_revisions, photo_comments, photo_story_revisions, photo_stories,
-    event_admissions, album_grants, album_photos, albums, events,
+    event_notification_deliveries, event_exports, event_admissions, album_grants, album_photos, albums, events,
     photo_people, photo_metadata_proposals, photo_tag, tags, photo_provenance_proposals, photos,
     media_variants, media_uploads, person_merge_proposals, person_merges,
     family_circle_people, family_circles, relationship_proposals, person_relationships,
@@ -102,14 +102,15 @@ WHERE relname IN (
     'person_relationships', 'relationship_proposals', 'family_circles', 'family_circle_people',
     'person_merges', 'person_merge_proposals', 'media_uploads', 'media_variants',
     'photos', 'photo_provenance_proposals', 'photo_metadata_proposals', 'photo_people', 'tags', 'photo_tag',
-    'albums', 'album_photos', 'album_grants', 'events', 'event_admissions',
+    'albums', 'album_photos', 'album_grants', 'events', 'event_admissions', 'event_exports',
+    'event_notification_deliveries',
     'photo_stories', 'photo_story_revisions', 'photo_comments', 'photo_comment_revisions', 'photo_reactions',
     'rls_test_records'
 )
 ORDER BY relname
 SQL);
 
-        $this->assertCount(32, $tables);
+        $this->assertCount(34, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
@@ -170,6 +171,110 @@ SQL);
                 $this->assertSame('23514', $exception->errorInfo[0]);
             }
         }
+    }
+
+    public function test_event_admissions_are_tenant_isolated_for_reads_and_writes(): void
+    {
+        [$firstOwner, $firstFamily] = $this->createOwnedFamily('first-event-admissions');
+        [$secondOwner, $secondFamily] = $this->createOwnedFamily('second-event-admissions');
+        $firstGuest = $this->createUser('first-admission-guest@example.test');
+        $secondGuest = $this->createUser('second-admission-guest@example.test');
+        $firstMembership = $this->addMembership($firstFamily, $firstGuest, FamilySpaceRole::Guest);
+        $secondMembership = $this->addMembership($secondFamily, $secondGuest, FamilySpaceRole::Guest);
+        $now = now();
+        $admissionIds = [];
+
+        foreach ([
+            [$firstOwner, $firstFamily, $firstMembership],
+            [$secondOwner, $secondFamily, $secondMembership],
+        ] as [$owner, $family, $membership]) {
+            $event = (string) Str::ulid();
+            $admission = (string) Str::ulid();
+            $admissionIds[] = $admission;
+            $this->admin->table('events')->insert([
+                'id' => $event, 'family_space_id' => $family, 'created_by' => $owner,
+                'name' => 'Private gathering', 'status' => 'planned',
+                'created_at' => $now, 'updated_at' => $now,
+            ]);
+            $this->admin->table('event_admissions')->insert([
+                'id' => $admission, 'family_space_id' => $family, 'event_id' => $event,
+                'family_space_membership_id' => $membership, 'admitted_at' => $now,
+                'created_at' => $now, 'updated_at' => $now,
+            ]);
+        }
+
+        DB::beginTransaction();
+        app(DatabaseTenantContext::class)->establishUser($firstOwner);
+        app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+        $this->assertSame([$admissionIds[0]], DB::table('event_admissions')->pluck('id')->all());
+        DB::rollBack();
+
+        $this->assertRlsRejects(function () use (
+            $firstOwner,
+            $firstFamily,
+            $secondFamily,
+            $secondMembership,
+            $now,
+        ): void {
+            app(DatabaseTenantContext::class)->establishUser($firstOwner);
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('event_admissions')->insert([
+                'id' => (string) Str::ulid(), 'family_space_id' => $secondFamily,
+                'event_id' => $this->admin->table('events')->where('family_space_id', $secondFamily)->value('id'),
+                'family_space_membership_id' => $secondMembership, 'admitted_at' => $now,
+                'created_at' => $now, 'updated_at' => $now,
+            ]);
+        });
+    }
+
+    public function test_event_exports_use_the_standard_tenant_boundary_and_bounded_expiry_discovery(): void
+    {
+        [$firstOwner, $firstFamily] = $this->createOwnedFamily('first-event-exports');
+        [$secondOwner, $secondFamily] = $this->createOwnedFamily('second-event-exports');
+        $now = now();
+        $exports = [];
+
+        foreach ([[$firstOwner, $firstFamily], [$secondOwner, $secondFamily]] as [$owner, $family]) {
+            $event = (string) Str::ulid();
+            $export = (string) Str::ulid();
+            $exports[] = $export;
+            $this->admin->table('events')->insert([
+                'id' => $event, 'family_space_id' => $family, 'created_by' => $owner,
+                'name' => 'Family celebration', 'status' => 'planned',
+                'created_at' => $now, 'updated_at' => $now,
+            ]);
+            $this->admin->table('event_exports')->insert([
+                'id' => $export, 'family_space_id' => $family, 'event_id' => $event,
+                'requested_by' => $owner, 'state' => 'ready',
+                'object_key' => "families/{$family}/event-exports/{$event}/{$export}.zip",
+                'expires_at' => $now->copy()->subMinute(),
+                'created_at' => $now, 'updated_at' => $now,
+            ]);
+        }
+
+        DB::beginTransaction();
+        app(DatabaseTenantContext::class)->establishUser($firstOwner);
+        app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+        $this->assertSame([$exports[0]], DB::table('event_exports')->pluck('id')->all());
+        DB::rollBack();
+
+        $this->assertRlsRejects(function () use ($firstOwner, $firstFamily, $secondFamily, $now): void {
+            app(DatabaseTenantContext::class)->establishUser($firstOwner);
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('event_exports')->insert([
+                'id' => (string) Str::ulid(), 'family_space_id' => $secondFamily,
+                'event_id' => $this->admin->table('events')->where('family_space_id', $secondFamily)->value('id'),
+                'requested_by' => $firstOwner, 'state' => 'pending',
+                'object_key' => "families/{$secondFamily}/event-exports/cross-tenant.zip",
+                'created_at' => $now, 'updated_at' => $now,
+            ]);
+        });
+
+        $due = DB::select('SELECT * FROM app_due_event_exports()');
+        $this->assertEqualsCanonicalizing($exports, array_map(
+            fn ($row): string => trim((string) $row->event_export_id),
+            $due,
+        ));
     }
 
     public function test_audit_runtime_access_is_insert_only_with_no_read_or_mutation_policies(): void
@@ -1081,6 +1186,102 @@ SQL);
             ->get();
         $this->assertCount(1, $memberships);
         $this->assertSame(MembershipState::Active->value, $memberships->sole()->state);
+    }
+
+    public function test_new_guest_event_invitations_are_race_safe_under_concurrent_acceptance(): void
+    {
+        if (! function_exists('pcntl_fork') || ! function_exists('stream_socket_pair')) {
+            $this->markTestSkipped('The PostgreSQL concurrency test requires pcntl and stream sockets.');
+        }
+
+        [$ownerId, $familySpaceId] = $this->createOwnedFamily('concurrent-event-invitations');
+        $email = 'brand-new-concurrent-guest@example.test';
+        $password = 'a-very-long-concurrent-passphrase';
+        $claimTokens = [];
+        $invitationIds = [];
+
+        foreach (['Ceremony', 'Reception'] as $name) {
+            $eventId = (string) Str::ulid();
+            $this->admin->table('events')->insert([
+                'id' => $eventId, 'family_space_id' => $familySpaceId, 'created_by' => $ownerId,
+                'name' => $name, 'status' => 'planned', 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $claimToken = Str::random(64);
+            $invitationId = (int) $this->admin->table('invitations')->insertGetId([
+                'family_space_id' => $familySpaceId, 'email' => $email,
+                'role' => FamilySpaceRole::Guest->value, 'event_id' => $eventId,
+                'invited_by' => $ownerId, 'status' => 'pending', 'expires_at' => now()->addDay(),
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $this->admin->table('invitation_claims')->insert([
+                'invitation_id' => $invitationId, 'token_hash' => hash('sha256', $claimToken),
+                'expires_at' => now()->addMinutes(15), 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $claimTokens[] = $claimToken;
+            $invitationIds[] = $invitationId;
+        }
+
+        DB::disconnect();
+        DB::disconnect('pgsql_admin');
+
+        $children = [];
+        foreach ($claimTokens as $claimToken) {
+            $sockets = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+            $this->assertNotFalse($sockets);
+            $pid = pcntl_fork();
+            $this->assertNotSame(-1, $pid);
+
+            if ($pid === 0) {
+                fclose($sockets[0]);
+                fread($sockets[1], 1);
+                DB::purge();
+                DB::purge('pgsql_admin');
+
+                try {
+                    $request = Request::create('/api/invitations/accept', 'POST');
+                    app(InvitationManager::class)->accept($claimToken, [
+                        'name' => 'Concurrent Guest',
+                        'password' => $password,
+                        'timezone' => 'Europe/London',
+                    ], $request);
+                    $outcome = 'accepted';
+                } catch (\Throwable $exception) {
+                    $outcome = 'error:'.get_class($exception).':'.$exception->getMessage();
+                }
+
+                fwrite($sockets[1], $outcome);
+                fclose($sockets[1]);
+                exit(0);
+            }
+
+            fclose($sockets[1]);
+            $children[] = ['pid' => $pid, 'socket' => $sockets[0]];
+        }
+
+        foreach ($children as $child) {
+            fwrite($child['socket'], '1');
+        }
+
+        $outcomes = [];
+        foreach ($children as $child) {
+            $outcomes[] = stream_get_contents($child['socket']);
+            fclose($child['socket']);
+            pcntl_waitpid($child['pid'], $status);
+            $this->assertTrue(pcntl_wifexited($status));
+            $this->assertSame(0, pcntl_wexitstatus($status));
+        }
+
+        DB::purge();
+        DB::purge('pgsql_admin');
+        $this->admin = DB::connection('pgsql_admin');
+
+        $this->assertSame(['accepted', 'accepted'], $outcomes);
+        $userId = $this->admin->table('users')->where('email', $email)->sole()->id;
+        $this->assertSame(1, $this->admin->table('family_space_memberships')
+            ->where('family_space_id', $familySpaceId)->where('user_id', $userId)->count());
+        $this->assertSame(2, $this->admin->table('event_admissions')->where('family_space_id', $familySpaceId)->count());
+        $this->assertSame(2, $this->admin->table('invitations')->whereIn('id', $invitationIds)
+            ->where('status', 'accepted')->count());
     }
 
     public function test_album_grant_constraint_allows_viewless_non_contributors_only(): void

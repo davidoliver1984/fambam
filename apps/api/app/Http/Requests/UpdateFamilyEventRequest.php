@@ -20,7 +20,7 @@ class UpdateFamilyEventRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:120'],
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'starts_on' => ['sometimes', 'nullable', 'date'],
-            'ends_on' => ['sometimes', 'nullable', 'date'],
+            'ends_on' => ['sometimes', 'nullable', 'date', 'after_or_equal:starts_on'],
             'location' => ['sometimes', 'nullable', 'string', 'max:255'],
             'status' => ['sometimes', Rule::enum(EventStatus::class)],
         ];

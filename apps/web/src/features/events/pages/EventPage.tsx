@@ -4,6 +4,8 @@ import { Link, useNavigate, useParams } from "react-router";
 import {
   useEventAdmissionMutations,
   useEventAdmissionsQuery,
+  useEventExportMutations,
+  useEventExportsQuery,
   useDuplicateEventCandidatesQuery,
   useCreateEventAlbumMutation,
   useDeleteEventMutation,
@@ -21,6 +23,7 @@ export function EventPage() {
     event.data?.permissions.can_review_duplicates === true;
   const canManageAdmissions =
     event.data?.permissions.can_manage_admissions === true;
+  const canManageExports = event.data?.permissions.can_manage_exports === true;
   const duplicates = useDuplicateEventCandidatesQuery(
     familySlug,
     eventId,
@@ -32,6 +35,8 @@ export function EventPage() {
     canManageAdmissions,
   );
   const admissionMutations = useEventAdmissionMutations(familySlug, eventId);
+  const exports = useEventExportsQuery(familySlug, eventId, canManageExports);
+  const exportMutations = useEventExportMutations(familySlug, eventId);
   const issueInvitation = useIssueInvitationMutation(familySlug);
   const update = useUpdateEventMutation(familySlug, eventId);
   const remove = useDeleteEventMutation(familySlug, eventId);
@@ -295,6 +300,62 @@ export function EventPage() {
               automatically.
             </small>
           </p>
+        </section>
+      )}
+      {item.permissions.can_manage_exports && (
+        <section aria-labelledby="event-archives">
+          <h2 id="event-archives">Event archives</h2>
+          <p>
+            Create a private, 24-hour ZIP containing preserved originals and a
+            metadata manifest.
+          </p>
+          <button
+            type="button"
+            disabled={exportMutations.request.isPending}
+            onClick={() => {
+              exportMutations.request.mutate();
+            }}
+          >
+            Create Event archive
+          </button>
+          {exportMutations.request.isError && (
+            <p role="alert">The Event archive could not be requested.</p>
+          )}
+          {exportMutations.download.isError && (
+            <p role="alert">
+              The Event archive download could not be authorised.
+            </p>
+          )}
+          {exports.isPending ? (
+            <p role="status">Loading Event archives…</p>
+          ) : exports.isError ? (
+            <p role="alert">Event archives could not be loaded.</p>
+          ) : exports.data.length === 0 ? (
+            <p>No Event archives have been created.</p>
+          ) : (
+            <ul>
+              {exports.data.map((archive) => (
+                <li key={archive.id}>
+                  Archive requested by {archive.requester.name}: {archive.state}
+                  {archive.state === "ready" && (
+                    <button
+                      type="button"
+                      disabled={exportMutations.download.isPending}
+                      onClick={() => {
+                        exportMutations.download.mutate(archive.id, {
+                          onSuccess: (authorization) => {
+                            window.location.assign(authorization.url);
+                          },
+                        });
+                      }}
+                    >
+                      Download archive
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
       {item.permissions.can_create_album && (

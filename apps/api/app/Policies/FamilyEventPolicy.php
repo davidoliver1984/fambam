@@ -54,6 +54,11 @@ class FamilyEventPolicy
         return $this->manageAdmissions($user, $event);
     }
 
+    public function manageExports(User $user, FamilyEvent $event): bool
+    {
+        return $this->manageAdmissions($user, $event) && ! $event->trashed();
+    }
+
     public function update(User $user, FamilyEvent $event): bool
     {
         return $this->view($user, $event)

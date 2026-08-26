@@ -115,6 +115,32 @@ class EventGuestAccessTest extends TestCase
         $this->assertSame($album->id, Album::query()->findOrFail($album->id)->id);
     }
 
+    public function test_guest_creator_authority_never_outlives_live_event_access(): void
+    {
+        config(['events.admission_lifetime_days' => 30]);
+        [$family, $owner] = $this->family('guest-created-photo-lifecycle');
+        [$guest, $membership] = $this->membership($family, FamilySpaceRole::Guest);
+        $event = $this->event($family, $owner, 'Reception');
+        $album = $this->album($family, $owner, $event, GuestParticipation::Contribute);
+        $photo = $this->photo($family, $guest, $album);
+        $admission = $this->admit($family, $event, $membership);
+        $base = "/api/families/{$family->slug}";
+
+        $this->actingAs($guest)->getJson("{$base}/photos/{$photo->id}")->assertOk();
+        $this->actingAs($guest)->getJson("{$base}/media-uploads/{$photo->media_upload_id}/canonical")
+            ->assertOk();
+
+        $admission->update(['revoked_at' => now(), 'revoked_by' => $owner->id]);
+        $this->assertGuestPhotoAccessDenied($guest, $base, $photo);
+
+        $admission->update(['admitted_at' => now()->subDays(30), 'revoked_at' => null, 'revoked_by' => null]);
+        $this->assertGuestPhotoAccessDenied($guest, $base, $photo);
+
+        $admission->update(['admitted_at' => now()]);
+        $event->delete();
+        $this->assertGuestPhotoAccessDenied($guest, $base, $photo);
+    }
+
     public function test_configured_lifetime_changes_existing_admission_authority_immediately(): void
     {
         [$family, $owner] = $this->family('guest-config-lifetime');
@@ -304,6 +330,19 @@ class EventGuestAccessTest extends TestCase
             'family_space_id' => $family->id, 'event_id' => $event->id,
             'family_space_membership_id' => $membership->id, 'admitted_at' => now(),
         ]);
+    }
+
+    private function assertGuestPhotoAccessDenied(User $guest, string $base, Photo $photo): void
+    {
+        $this->actingAs($guest)->getJson("{$base}/photos/{$photo->id}")->assertNotFound();
+        $this->actingAs($guest)->getJson("{$base}/media-uploads/{$photo->media_upload_id}/canonical")
+            ->assertForbidden();
+        $this->actingAs($guest)->getJson("{$base}/media-uploads/{$photo->media_upload_id}/original")
+            ->assertForbidden();
+        $this->actingAs($guest)->postJson("{$base}/photos/{$photo->id}/comments", ['body' => 'Denied'])
+            ->assertNotFound();
+        $this->actingAs($guest)->putJson("{$base}/photos/{$photo->id}/reaction", ['reaction' => 'love'])
+            ->assertNotFound();
     }
 
     private function issueEventInvitation(

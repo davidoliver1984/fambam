@@ -137,6 +137,7 @@ class FamilyEventController extends Controller
             'permissions' => ['can_update' => Gate::allows('update', $event),
                 'can_manage_admissions' => Gate::allows('manageAdmissions', $event),
                 'can_review_duplicates' => Gate::allows('reviewDuplicates', $event),
+                'can_manage_exports' => Gate::allows('manageExports', $event),
                 'can_delete' => ! $event->trashed() && Gate::allows('delete', $event),
                 'can_restore' => $event->trashed() && Gate::allows('restore', $event),
                 'can_create_album' => ! $event->trashed()

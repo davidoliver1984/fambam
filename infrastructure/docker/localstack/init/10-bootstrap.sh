@@ -31,3 +31,9 @@ do
         awslocal --endpoint-url "${endpoint}" sqs create-queue --queue-name "${queue}"
     fi
 done
+
+jobs_queue_url="$(awslocal --endpoint-url "${endpoint}" sqs get-queue-url \
+    --queue-name fambam-jobs --query QueueUrl --output text)"
+awslocal --endpoint-url "${endpoint}" sqs set-queue-attributes \
+    --queue-url "${jobs_queue_url}" \
+    --attributes VisibilityTimeout=960

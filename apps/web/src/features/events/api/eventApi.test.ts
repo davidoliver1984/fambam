@@ -10,12 +10,15 @@ import {
   getDuplicateEventCandidates,
   getEvent,
   getEventAdmissions,
+  getEventExports,
   getDeletedEvents,
   getEvents,
   getPersonEvents,
   updateEvent,
   revokeEventAdmission,
   restoreEvent,
+  requestEventExport,
+  authorizeEventExportDownload,
 } from "./eventApi";
 import type { FamilyEvent } from "../types/event";
 
@@ -34,6 +37,7 @@ const event: FamilyEvent = {
     can_update: true,
     can_manage_admissions: true,
     can_review_duplicates: true,
+    can_manage_exports: true,
     can_delete: true,
     can_restore: false,
     can_create_album: true,
@@ -52,6 +56,18 @@ describe("eventApi", () => {
       admitted_at: "2026-08-25T10:00:00Z",
       revoked_at: null,
       valid_until: "2026-09-24T10:00:00Z",
+    };
+    const eventExport = {
+      id: "01KE0000000000000000000000",
+      state: "ready" as const,
+      requested_by: 1,
+      requester: { id: 1, name: "David" },
+      photo_count: 2,
+      byte_size: 4096,
+      archive_sha256: "a".repeat(64),
+      failure_reason: null,
+      expires_at: "2026-08-26T10:00:00Z",
+      created_at: "2026-08-25T10:00:00Z",
     };
     server.use(
       http.get(base, () => HttpResponse.json({ data: [event] })),
@@ -86,6 +102,20 @@ describe("eventApi", () => {
       http.delete(`${detail}/admissions/${admission.membership_id}`, () =>
         HttpResponse.json({
           data: { ...admission, revoked_at: "2026-08-25T11:00:00Z" },
+        }),
+      ),
+      http.get(`${detail}/exports`, () =>
+        HttpResponse.json({ data: [eventExport] }),
+      ),
+      http.post(`${detail}/exports`, () =>
+        HttpResponse.json({ data: eventExport }, { status: 202 }),
+      ),
+      http.get(`${detail}/exports/${eventExport.id}/download`, () =>
+        HttpResponse.json({
+          data: {
+            url: "http://localhost:4566/archive.zip",
+            expires_at: "2026-08-25T10:05:00Z",
+          },
         }),
       ),
       http.get(
@@ -124,5 +154,14 @@ describe("eventApi", () => {
     await expect(
       revokeEventAdmission("family-archive", event.id, admission.membership_id),
     ).resolves.toMatchObject({ revoked_at: "2026-08-25T11:00:00Z" });
+    await expect(getEventExports("family-archive", event.id)).resolves.toEqual([
+      eventExport,
+    ]);
+    await expect(
+      requestEventExport("family-archive", event.id),
+    ).resolves.toEqual(eventExport);
+    await expect(
+      authorizeEventExportDownload("family-archive", event.id, eventExport.id),
+    ).resolves.toMatchObject({ url: "http://localhost:4566/archive.zip" });
   });
 });

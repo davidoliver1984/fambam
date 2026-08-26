@@ -237,6 +237,30 @@ class AlbumTest extends TestCase
         $this->assertSame($event->id, $album->refresh()->event_id);
     }
 
+    public function test_detaching_an_event_album_resets_guest_participation(): void
+    {
+        $family = FamilySpace::factory()->create(['slug' => 'event-album-detach']);
+        [$owner] = $this->member($family, FamilySpaceRole::Owner);
+        $event = FamilyEvent::query()->create([
+            'family_space_id' => $family->id, 'created_by' => $owner->id, 'name' => 'Reception',
+        ]);
+        $album = Album::query()->create([
+            'family_space_id' => $family->id, 'created_by' => $owner->id,
+            'event_id' => $event->id, 'name' => 'Guest photographs',
+            'visibility' => AlbumVisibility::FamilySpace,
+            'guest_participation' => 'contribute',
+        ]);
+
+        $this->actingAs($owner)->patchJson("/api/families/{$family->slug}/albums/{$album->id}", [
+            'event_id' => null,
+        ])->assertOk()
+            ->assertJsonPath('data.event_id', null)
+            ->assertJsonPath('data.guest_participation', 'none');
+
+        $this->assertNull($album->refresh()->event_id);
+        $this->assertSame('none', $album->guest_participation->value);
+    }
+
     /** @return array{User, FamilySpaceMembership} */
     private function member(FamilySpace $family, FamilySpaceRole $role): array
     {

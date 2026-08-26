@@ -48,7 +48,8 @@ class AlbumManager
         $this->assertEventBelongsTo($album->family_space_id, $input);
 
         return DB::transaction(function () use ($album, $actor, $input, $request): Album {
-            if (($input['event_id'] ?? $album->event_id) === null) {
+            $eventId = array_key_exists('event_id', $input) ? $input['event_id'] : $album->event_id;
+            if ($eventId === null) {
                 $input['guest_participation'] = 'none';
             }
             $visibility = AlbumVisibility::tryFrom((string) ($input['visibility'] ?? ''));

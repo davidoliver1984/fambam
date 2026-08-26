@@ -31,7 +31,7 @@ class S3FamilyMediaStorageCleaner implements FamilyMediaStorageCleaner
 
     public function deleteFamilyMedia(string $familySpaceId): void
     {
-        foreach (['media-staging', 'media', 'quarantine'] as $area) {
+        foreach (['media-staging', 'media', 'quarantine', 'event-exports'] as $area) {
             $this->deletePrefix(FamilyStorageKey::for($familySpaceId, $area).'/');
         }
     }

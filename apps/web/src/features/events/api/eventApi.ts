@@ -1,7 +1,13 @@
 import { apiClient, ensureCsrfCookie } from "@/api/client";
 import { type ApiEnvelope, unwrap } from "@/api/envelope";
 
-import type { EventAdmission, EventInput, FamilyEvent } from "../types/event";
+import type {
+  EventAdmission,
+  EventExport,
+  EventExportDownload,
+  EventInput,
+  FamilyEvent,
+} from "../types/event";
 
 const base = (familySlug: string) =>
   `/api/families/${encodeURIComponent(familySlug)}/events`;
@@ -148,6 +154,43 @@ export async function revokeEventAdmission(
   return unwrap(
     await apiClient.delete<ApiEnvelope<EventAdmission>>(
       `${base(familySlug)}/${encodeURIComponent(eventId)}/admissions/${encodeURIComponent(membershipId)}`,
+    ),
+  );
+}
+
+export async function getEventExports(
+  familySlug: string,
+  eventId: string,
+  signal?: AbortSignal,
+): Promise<EventExport[]> {
+  return unwrap(
+    await apiClient.get<ApiEnvelope<EventExport[]>>(
+      `${base(familySlug)}/${encodeURIComponent(eventId)}/exports`,
+      { signal },
+    ),
+  );
+}
+
+export async function requestEventExport(
+  familySlug: string,
+  eventId: string,
+): Promise<EventExport> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.post<ApiEnvelope<EventExport>>(
+      `${base(familySlug)}/${encodeURIComponent(eventId)}/exports`,
+    ),
+  );
+}
+
+export async function authorizeEventExportDownload(
+  familySlug: string,
+  eventId: string,
+  eventExportId: string,
+): Promise<EventExportDownload> {
+  return unwrap(
+    await apiClient.get<ApiEnvelope<EventExportDownload>>(
+      `${base(familySlug)}/${encodeURIComponent(eventId)}/exports/${encodeURIComponent(eventExportId)}/download`,
     ),
   );
 }
