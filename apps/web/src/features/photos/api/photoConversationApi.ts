@@ -13,12 +13,13 @@ function path(familySlug: string, photoId: string) {
 export async function getPhotoConversation(
   familySlug: string,
   photoId: string,
+  albumId?: string,
   signal?: AbortSignal,
 ) {
   return unwrap(
     await apiClient.get<ApiEnvelope<PhotoConversation>>(
       `${path(familySlug, photoId)}/conversation`,
-      { signal },
+      { signal, params: albumId === undefined ? {} : { album_id: albumId } },
     ),
   );
 }
@@ -27,12 +28,13 @@ export async function createPhotoText(
   photoId: string,
   kind: "stories" | "comments",
   body: string,
+  albumId?: string,
 ) {
   await ensureCsrfCookie();
   return unwrap(
     await apiClient.post<ApiEnvelope<PhotoTextContent>>(
       `${path(familySlug, photoId)}/${kind}`,
-      { body },
+      { body, ...(kind === "comments" ? { album_id: albumId } : {}) },
     ),
   );
 }
@@ -66,11 +68,21 @@ export async function savePhotoReaction(
   familySlug: string,
   photoId: string,
   reaction: PhotoReactionType,
+  albumId: string,
 ) {
   await ensureCsrfCookie();
-  await apiClient.put(`${path(familySlug, photoId)}/reaction`, { reaction });
+  await apiClient.put(`${path(familySlug, photoId)}/reaction`, {
+    reaction,
+    album_id: albumId,
+  });
 }
-export async function removePhotoReaction(familySlug: string, photoId: string) {
+export async function removePhotoReaction(
+  familySlug: string,
+  photoId: string,
+  albumId: string,
+) {
   await ensureCsrfCookie();
-  await apiClient.delete(`${path(familySlug, photoId)}/reaction`);
+  await apiClient.delete(`${path(familySlug, photoId)}/reaction`, {
+    params: { album_id: albumId },
+  });
 }

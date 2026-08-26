@@ -2900,6 +2900,46 @@ checksum work and does not wait on S03's calibration gate below. S03
 owns perceptual candidate generation only, and nothing about exact
 matching.
 
+### Implementation record (2026-08-26)
+
+- Added Family-Space-scoped exact matching from the existing frozen original
+  SHA-256, filtering interactive disclosures through the actor's live Photo
+  visibility and preserving ADR-0008's existing promotion authority.
+- Implemented the three explicit outcomes for direct Photo creation and the
+  asynchronous Album/Event contribution finalizer. The latter records a
+  separate uploader-owned hold without changing `MediaUpload.state` and
+  rechecks current contribution authority at resolution time.
+- Made multi-match decisions deterministic under races by carrying the exact
+  disclosed Photo identifiers into the resolving request, revalidating them,
+  and writing one canonical `DuplicateDecision` per disclosed pair in the same
+  transaction as creation. Matches that appear later are not treated as if the
+  actor had already reviewed them.
+- Added idempotent retrospective exact-candidate generation with settled-
+  decision suppression; no perceptual hash, algorithm or threshold was added.
+- Re-scoped new comments and reactions to `(photo_id, album_id)`, retained
+  legacy null-Album rows as direct-page-only read-only history, and retained
+  Album conversation rows across AlbumPhoto removal and re-addition.
+- Added typed feature-local API modules, TanStack Query hooks and explicit
+  direct/held duplicate-choice UI, including the existing private-Photo
+  visibility-widening confirmation.
+- Applied the migration to persistent PostgreSQL as batch 30 and verified the
+  three new tables under forced tenant RLS. The complete API, frontend,
+  PostgreSQL 17.6, documentation, contract, security and repository gates pass.
+
+FPA-P08-S02 was accepted on 2026-08-26. FPA-P08-S03 has not begun; its
+empirical algorithm/threshold calibration gate remains the next-stage
+prerequisite.
+
+### Documentation updates
+
+- Completed FPA-P08-S02 and advanced `tasks.json` to FPA-P08-S03.
+
+### Commit boundary
+
+```text
+Implement exact duplicate detection
+```
+
 ## FPA-P08-S03 — Implement perceptual similarity analysis
 
 **Before this stage begins**, complete the calibration gate: choose a

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useParams } from "react-router";
 
 import { PhotoForm } from "../components/PhotoForm";
+import { PhotoDuplicateHolds } from "../components/PhotoDuplicateHolds";
 import {
   useCreatePhotoMutation,
   useRestorePhotoMutation,
@@ -104,6 +105,7 @@ export function PhotosPage() {
           }
         />
       </section>
+      <PhotoDuplicateHolds familySlug={familySlug} />
       {deleted.data !== undefined && deleted.data.length > 0 && (
         <section aria-labelledby="deleted-photos-title">
           <h2 id="deleted-photos-title">Recently removed Photos</h2>

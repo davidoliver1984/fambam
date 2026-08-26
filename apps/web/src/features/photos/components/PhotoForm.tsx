@@ -2,6 +2,8 @@ import { type SyntheticEvent, useState } from "react";
 
 import type {
   CreatePhotoInput,
+  CreatePhotoResult,
+  DuplicatePhotoCandidate,
   Photo,
   PhotoVisibility,
   UpdatePhotoInput,
@@ -11,7 +13,9 @@ import { splitTags } from "../validation/tagInput";
 type PhotoFormProps = {
   photo?: Photo;
   pending: boolean;
-  onSubmit: (input: CreatePhotoInput | UpdatePhotoInput) => Promise<unknown>;
+  onSubmit: (
+    input: CreatePhotoInput | UpdatePhotoInput,
+  ) => Promise<CreatePhotoResult | Photo>;
 };
 
 export function PhotoForm({ photo, pending, onSubmit }: PhotoFormProps) {
@@ -28,6 +32,75 @@ export function PhotoForm({ photo, pending, onSubmit }: PhotoFormProps) {
     photo?.tags.map((tag) => tag.label).join(", ") ?? "",
   );
   const [message, setMessage] = useState("");
+  const [duplicateCandidates, setDuplicateCandidates] = useState<
+    DuplicatePhotoCandidate[]
+  >([]);
+  const [selectedCandidateId, setSelectedCandidateId] = useState("");
+
+  function createInput(
+    duplicateResolution?: CreatePhotoInput["duplicate_resolution"],
+  ): CreatePhotoInput {
+    return {
+      visibility,
+      caption: emptyToNull(caption),
+      description: emptyToNull(description),
+      archive_source_description: emptyToNull(archiveSource),
+      media_upload_id: mediaUploadId.trim(),
+      tags: splitTags(tags),
+      ...(duplicateResolution === undefined
+        ? {}
+        : { duplicate_resolution: duplicateResolution }),
+      ...(duplicateResolution === "use_existing"
+        ? { existing_photo_id: selectedCandidateId }
+        : {}),
+      ...(duplicateResolution === "create_new"
+        ? {
+            disclosed_photo_ids: duplicateCandidates.map(
+              (candidate) => candidate.id,
+            ),
+          }
+        : {}),
+    };
+  }
+
+  function clearCreationForm() {
+    setMediaUploadId("");
+    setCaption("");
+    setDescription("");
+    setArchiveSource("");
+    setTags("");
+    setDuplicateCandidates([]);
+    setSelectedCandidateId("");
+  }
+
+  function handleCreationResult(result: CreatePhotoResult) {
+    if (result.outcome === "duplicate_detected") {
+      setDuplicateCandidates(result.candidates);
+      setSelectedCandidateId(result.candidates[0]?.id ?? "");
+      setMessage("Choose how to handle the matching photograph.");
+      return;
+    }
+    clearCreationForm();
+    setMessage(
+      result.outcome === "existing_photo"
+        ? "The existing Photo was used."
+        : result.outcome === "cancelled"
+          ? "Photo creation cancelled."
+          : "Photo record created.",
+    );
+  }
+
+  async function resolveDuplicate(
+    resolution: NonNullable<CreatePhotoInput["duplicate_resolution"]>,
+  ) {
+    setMessage("");
+    try {
+      const result = await onSubmit(createInput(resolution));
+      if ("outcome" in result) handleCreationResult(result);
+    } catch {
+      setMessage("The duplicate decision could not be saved. Try again.");
+    }
+  }
 
   async function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,22 +114,12 @@ export function PhotoForm({ photo, pending, onSubmit }: PhotoFormProps) {
 
     try {
       if (photo === undefined) {
-        await onSubmit({
-          ...content,
-          media_upload_id: mediaUploadId.trim(),
-          tags: splitTags(tags),
-        });
-        setMediaUploadId("");
-        setCaption("");
-        setDescription("");
-        setArchiveSource("");
-        setTags("");
+        const result = await onSubmit(createInput());
+        if ("outcome" in result) handleCreationResult(result);
       } else {
         await onSubmit(content);
+        setMessage("Photo updated.");
       }
-      setMessage(
-        photo === undefined ? "Photo record created." : "Photo updated.",
-      );
     } catch {
       setMessage(
         "The Photo could not be saved. Check the details and try again.",
@@ -84,6 +147,52 @@ export function PhotoForm({ photo, pending, onSubmit }: PhotoFormProps) {
             their own uploads.
           </p>
         </>
+      )}
+      {photo === undefined && duplicateCandidates.length > 0 && (
+        <fieldset>
+          <legend>Matching Photos already in the archive</legend>
+          {duplicateCandidates.map((candidate) => (
+            <label key={candidate.id}>
+              <input
+                type="radio"
+                name="duplicate-photo"
+                value={candidate.id}
+                checked={selectedCandidateId === candidate.id}
+                onChange={() => {
+                  setSelectedCandidateId(candidate.id);
+                }}
+              />
+              {candidate.caption ?? candidate.client_filename}
+            </label>
+          ))}
+          <button
+            type="button"
+            disabled={pending || selectedCandidateId === ""}
+            onClick={() => {
+              void resolveDuplicate("use_existing");
+            }}
+          >
+            Use existing Photo
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              void resolveDuplicate("create_new");
+            }}
+          >
+            Create a new Photo
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              void resolveDuplicate("cancel");
+            }}
+          >
+            Cancel
+          </button>
+        </fieldset>
       )}
       <label htmlFor={`photo-caption-${photo?.id ?? "new"}`}>Caption</label>
       <input
@@ -144,13 +253,15 @@ export function PhotoForm({ photo, pending, onSubmit }: PhotoFormProps) {
           />
         </>
       )}
-      <button type="submit" disabled={pending}>
-        {pending
-          ? "Saving…"
-          : photo === undefined
-            ? "Create Photo"
-            : "Save changes"}
-      </button>
+      {(photo !== undefined || duplicateCandidates.length === 0) && (
+        <button type="submit" disabled={pending}>
+          {pending
+            ? "Saving…"
+            : photo === undefined
+              ? "Create Photo"
+              : "Save changes"}
+        </button>
+      )}
       {message !== "" && (
         <p
           className="form-message"

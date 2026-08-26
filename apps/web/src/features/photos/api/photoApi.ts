@@ -1,8 +1,11 @@
+import axios from "axios";
+
 import { apiClient, ensureCsrfCookie } from "@/api/client";
 import { type ApiEnvelope, unwrap } from "@/api/envelope";
 
 import type {
   CreatePhotoInput,
+  CreatePhotoResult,
   DeletedPhoto,
   Photo,
   PhotoMetadataInput,
@@ -89,11 +92,24 @@ export async function restorePhoto(
 export async function createPhoto(
   familySlug: string,
   input: CreatePhotoInput,
-): Promise<Photo> {
+): Promise<CreatePhotoResult> {
   await ensureCsrfCookie();
-  return unwrap(
-    await apiClient.post<ApiEnvelope<Photo>>(photosPath(familySlug), input),
-  );
+  try {
+    const response = await apiClient.post<ApiEnvelope<CreatePhotoResult>>(
+      photosPath(familySlug),
+      input,
+    );
+    if (response.status === 204) return { outcome: "cancelled" };
+    return unwrap(response);
+  } catch (error: unknown) {
+    if (
+      axios.isAxiosError<ApiEnvelope<CreatePhotoResult>>(error) &&
+      error.response?.status === 409
+    ) {
+      return error.response.data.data;
+    }
+    throw error;
+  }
 }
 
 export async function updatePhoto(

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Album;
 use App\Models\Photo;
 use App\Models\PhotoComment;
 use App\Models\PhotoCommentRevision;
@@ -21,9 +22,20 @@ class PhotoConversationManager
         return $this->create(PhotoStory::class, 'photo_story.created', $photo, $actor, $body, $request);
     }
 
-    public function createComment(Photo $photo, User $actor, string $body, Request $request): PhotoComment
+    public function createComment(Photo $photo, Album $album, User $actor, string $body, Request $request): PhotoComment
     {
-        return $this->create(PhotoComment::class, 'photo_comment.created', $photo, $actor, $body, $request);
+        return DB::transaction(function () use ($photo, $album, $actor, $body, $request): PhotoComment {
+            $comment = PhotoComment::query()->create([
+                'family_space_id' => $photo->family_space_id,
+                'photo_id' => $photo->id,
+                'album_id' => $album->id,
+                'author_id' => $actor->id,
+                'body' => trim($body),
+            ]);
+            $this->audit->record('photo_comment.created', $comment, $actor, $request, ['album_id' => $album->id]);
+
+            return $comment->load('author:id,name');
+        });
     }
 
     public function updateStory(PhotoStory $story, User $actor, string $body, Request $request): PhotoStory
@@ -64,21 +76,25 @@ class PhotoConversationManager
         });
     }
 
-    public function react(Photo $photo, User $actor, string $reaction, Request $request): PhotoReaction
+    public function react(Photo $photo, Album $album, User $actor, string $reaction, Request $request): PhotoReaction
     {
-        return DB::transaction(function () use ($photo, $actor, $reaction, $request): PhotoReaction {
-            $model = PhotoReaction::query()->updateOrCreate(['photo_id' => $photo->id, 'user_id' => $actor->id], ['family_space_id' => $photo->family_space_id, 'reaction' => $reaction]);
-            $this->audit->record('photo.reaction_saved', $model, $actor, $request);
+        return DB::transaction(function () use ($photo, $album, $actor, $reaction, $request): PhotoReaction {
+            $model = PhotoReaction::query()->updateOrCreate(
+                ['photo_id' => $photo->id, 'album_id' => $album->id, 'user_id' => $actor->id],
+                ['family_space_id' => $photo->family_space_id, 'reaction' => $reaction],
+            );
+            $this->audit->record('photo.reaction_saved', $model, $actor, $request, ['album_id' => $album->id]);
 
             return $model;
         });
     }
 
-    public function removeReaction(Photo $photo, User $actor, Request $request): void
+    public function removeReaction(Photo $photo, Album $album, User $actor, Request $request): void
     {
-        DB::transaction(function () use ($photo, $actor, $request): void {
-            $reaction = PhotoReaction::query()->where('photo_id', $photo->id)->where('user_id', $actor->id)->firstOrFail();
-            $this->audit->record('photo.reaction_removed', $reaction, $actor, $request);
+        DB::transaction(function () use ($photo, $album, $actor, $request): void {
+            $reaction = PhotoReaction::query()->where('photo_id', $photo->id)
+                ->where('album_id', $album->id)->where('user_id', $actor->id)->firstOrFail();
+            $this->audit->record('photo.reaction_removed', $reaction, $actor, $request, ['album_id' => $album->id]);
             $reaction->delete();
         });
     }

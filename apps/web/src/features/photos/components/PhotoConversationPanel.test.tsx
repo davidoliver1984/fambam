@@ -32,6 +32,7 @@ function renderPanel() {
       <PhotoConversationPanel
         familySlug="family-archive"
         photoId="01KB0000000000000000000000"
+        albumId="01KC0000000000000000000000"
       />
     </QueryClientProvider>,
   );
@@ -52,6 +53,8 @@ beforeEach(() => {
     comments: [],
     reactions: [{ user_id: 2, name: "Anne", reaction: "love" }],
     permissions: { can_interact: true, can_author_story: true },
+    conversation_scope: "album",
+    album_id: "01KC0000000000000000000000",
   });
 });
 afterEach(() => {
@@ -90,6 +93,7 @@ describe("PhotoConversationPanel", () => {
       "family-archive",
       "01KB0000000000000000000000",
       "remember",
+      "01KC0000000000000000000000",
     );
     expect(createPhotoText).not.toHaveBeenCalled();
     expect(removePhotoText).not.toHaveBeenCalled();
@@ -102,6 +106,8 @@ describe("PhotoConversationPanel", () => {
       comments: [],
       reactions: [],
       permissions: { can_interact: true, can_author_story: false },
+      conversation_scope: "album",
+      album_id: "01KC0000000000000000000000",
     });
     renderPanel();
     expect(await screen.findByLabelText("Add a comment")).toBeInTheDocument();

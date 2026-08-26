@@ -11,10 +11,15 @@ import {
 import { photoKeys } from "../api/photoKeys";
 import type { PhotoReactionType } from "../types/photoConversation";
 
-export function usePhotoConversation(familySlug: string, photoId: string) {
+export function usePhotoConversation(
+  familySlug: string,
+  photoId: string,
+  albumId?: string,
+) {
   return useQuery({
-    queryKey: photoKeys.conversation(familySlug, photoId),
-    queryFn: ({ signal }) => getPhotoConversation(familySlug, photoId, signal),
+    queryKey: photoKeys.conversation(familySlug, photoId, albumId),
+    queryFn: ({ signal }) =>
+      getPhotoConversation(familySlug, photoId, albumId, signal),
     enabled: familySlug !== "" && photoId !== "",
     retry: false,
   });
@@ -22,16 +27,17 @@ export function usePhotoConversation(familySlug: string, photoId: string) {
 export function usePhotoConversationMutations(
   familySlug: string,
   photoId: string,
+  albumId?: string,
 ) {
   const client = useQueryClient();
   const refresh = () =>
     client.invalidateQueries({
-      queryKey: photoKeys.conversation(familySlug, photoId),
+      queryKey: photoKeys.conversation(familySlug, photoId, albumId),
     });
   return {
     create: useMutation({
       mutationFn: (input: { kind: "stories" | "comments"; body: string }) =>
-        createPhotoText(familySlug, photoId, input.kind, input.body),
+        createPhotoText(familySlug, photoId, input.kind, input.body, albumId),
       onSuccess: refresh,
     }),
     update: useMutation({
@@ -49,12 +55,17 @@ export function usePhotoConversationMutations(
       onSuccess: refresh,
     }),
     react: useMutation({
-      mutationFn: (reaction: PhotoReactionType) =>
-        savePhotoReaction(familySlug, photoId, reaction),
+      mutationFn: (reaction: PhotoReactionType) => {
+        if (albumId === undefined) throw new Error("An Album is required.");
+        return savePhotoReaction(familySlug, photoId, reaction, albumId);
+      },
       onSuccess: refresh,
     }),
     removeReaction: useMutation({
-      mutationFn: () => removePhotoReaction(familySlug, photoId),
+      mutationFn: () => {
+        if (albumId === undefined) throw new Error("An Album is required.");
+        return removePhotoReaction(familySlug, photoId, albumId);
+      },
       onSuccess: refresh,
     }),
   };

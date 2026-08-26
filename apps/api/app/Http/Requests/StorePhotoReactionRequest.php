@@ -16,6 +16,9 @@ class StorePhotoReactionRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        return ['reaction' => ['required', Rule::enum(PhotoReactionType::class)]];
+        return [
+            'reaction' => ['required', Rule::enum(PhotoReactionType::class)],
+            'album_id' => ['required', 'string', 'size:26'],
+        ];
     }
 }

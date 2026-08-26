@@ -63,6 +63,42 @@ export type CreatePhotoInput = {
   description: string | null;
   archive_source_description: string | null;
   tags: string[];
+  duplicate_resolution?: "use_existing" | "create_new" | "cancel";
+  existing_photo_id?: string;
+  disclosed_photo_ids?: string[];
+};
+
+export type DuplicatePhotoCandidate = {
+  id: string;
+  caption: string | null;
+  visibility: PhotoVisibility;
+  client_filename: string;
+  created_at: string;
+};
+
+export type CreatePhotoResult =
+  | { outcome: "duplicate_detected"; candidates: DuplicatePhotoCandidate[] }
+  | { outcome: "photo_created" | "existing_photo"; photo: Photo }
+  | { outcome: "cancelled" };
+
+export type MediaUploadDuplicateHold = {
+  id: string;
+  media_upload: { id: string; client_filename: string };
+  target_album: {
+    id: string;
+    name: string;
+    visibility: "private" | "selected" | "family_space";
+  };
+  detected_at: string;
+  candidates: DuplicatePhotoCandidate[];
+};
+
+export type ResolveDuplicateHoldInput = {
+  holdId: string;
+  resolution: "use_existing" | "create_new" | "cancel";
+  existing_photo_id?: string;
+  disclosed_photo_ids?: string[];
+  confirm_visibility_widening?: boolean;
 };
 
 export type UpdatePhotoInput = Omit<

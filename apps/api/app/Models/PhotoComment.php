@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property CarbonImmutable|null $created_at
  * @property User|null $author
  */
-#[Fillable(['family_space_id', 'photo_id', 'author_id', 'body', 'edited_at'])]
+#[Fillable(['family_space_id', 'photo_id', 'album_id', 'author_id', 'body', 'edited_at'])]
 class PhotoComment extends Model
 {
     use HasUlids, SoftDeletes;
@@ -31,6 +31,12 @@ class PhotoComment extends Model
     public function photo(): BelongsTo
     {
         return $this->belongsTo(Photo::class);
+    }
+
+    /** @return BelongsTo<Album, $this> */
+    public function album(): BelongsTo
+    {
+        return $this->belongsTo(Album::class);
     }
 
     /** @return BelongsTo<User, $this> */

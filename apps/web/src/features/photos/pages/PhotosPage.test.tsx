@@ -11,6 +11,7 @@ import {
   getPhotos,
   restorePhoto,
 } from "../api/photoApi";
+import { getDuplicateHolds } from "../api/photoDuplicateApi";
 import type { Photo } from "../types/photo";
 import { PhotosPage } from "./PhotosPage";
 
@@ -20,6 +21,10 @@ vi.mock("../api/photoApi", () => ({
   getDeletedPhotos: vi.fn(),
   getPhotos: vi.fn(),
   restorePhoto: vi.fn(),
+}));
+vi.mock("../api/photoDuplicateApi", () => ({
+  getDuplicateHolds: vi.fn(),
+  resolveDuplicateHold: vi.fn(),
 }));
 
 const photo: Photo = {
@@ -71,7 +76,11 @@ function renderPage() {
 beforeEach(() => {
   vi.mocked(getPhotos).mockResolvedValue([photo]);
   vi.mocked(getDeletedPhotos).mockResolvedValue([]);
-  vi.mocked(createPhoto).mockResolvedValue(photo);
+  vi.mocked(createPhoto).mockResolvedValue({
+    outcome: "photo_created",
+    photo,
+  });
+  vi.mocked(getDuplicateHolds).mockResolvedValue([]);
   vi.mocked(restorePhoto).mockResolvedValue(photo);
 });
 
@@ -80,6 +89,7 @@ afterEach(() => {
   vi.mocked(getPhotos).mockReset();
   vi.mocked(getDeletedPhotos).mockReset();
   vi.mocked(createPhoto).mockReset();
+  vi.mocked(getDuplicateHolds).mockReset();
   vi.mocked(restorePhoto).mockReset();
 });
 
@@ -145,6 +155,48 @@ describe("PhotosPage", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "Photo record created.",
     );
+  });
+
+  it("requires an explicit choice when exact duplicate candidates are returned", async () => {
+    vi.mocked(createPhoto)
+      .mockResolvedValueOnce({
+        outcome: "duplicate_detected",
+        candidates: [
+          {
+            id: photo.id,
+            caption: photo.caption,
+            visibility: photo.visibility,
+            client_filename: photo.media_upload.client_filename,
+            created_at: photo.created_at,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ outcome: "existing_photo", photo });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Family picnic");
+    await user.type(
+      screen.getByLabelText("Ready MediaUpload ID"),
+      photo.media_upload.id,
+    );
+    await user.click(screen.getByRole("button", { name: "Create Photo" }));
+    expect(
+      await screen.findByRole("group", {
+        name: "Matching Photos already in the archive",
+      }),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Use existing Photo" }),
+    );
+    await waitFor(() => {
+      expect(createPhoto).toHaveBeenLastCalledWith(
+        "oliver-family",
+        expect.objectContaining({
+          duplicate_resolution: "use_existing",
+          existing_photo_id: photo.id,
+        }),
+      );
+    });
   });
 
   it("renders empty and error states accessibly", async () => {
