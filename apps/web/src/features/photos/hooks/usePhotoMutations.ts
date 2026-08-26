@@ -36,6 +36,9 @@ export function useCreatePhotoMutation(familySlug: string) {
       await queryClient.invalidateQueries({
         queryKey: photoKeys.list(familySlug),
       });
+      await queryClient.invalidateQueries({
+        queryKey: photoKeys.promotableUploads(familySlug),
+      });
     },
   });
 }

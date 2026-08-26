@@ -9,6 +9,7 @@ import {
 } from "../hooks/usePhotoMutations";
 import {
   useDeletedPhotosQuery,
+  usePromotableMediaUploadsQuery,
   usePhotosQuery,
 } from "../hooks/usePhotoQueries";
 import type { CreatePhotoInput } from "../types/photo";
@@ -23,6 +24,7 @@ export function PhotosPage() {
   });
   const photos = usePhotosQuery(familySlug, filters);
   const createPhoto = useCreatePhotoMutation(familySlug);
+  const promotableUploads = usePromotableMediaUploadsQuery(familySlug);
   const deleted = useDeletedPhotosQuery(familySlug);
   const restore = useRestorePhotoMutation(familySlug);
 
@@ -98,12 +100,26 @@ export function PhotosPage() {
       )}
       <section aria-labelledby="create-photo-title">
         <h2 id="create-photo-title">Create a Photo record</h2>
-        <PhotoForm
-          pending={createPhoto.isPending}
-          onSubmit={(input) =>
-            createPhoto.mutateAsync(input as CreatePhotoInput)
-          }
-        />
+        {promotableUploads.isPending && (
+          <p role="status">Loading ready uploads…</p>
+        )}
+        {promotableUploads.isError && (
+          <p role="alert">Ready uploads could not be loaded.</p>
+        )}
+        {promotableUploads.data !== undefined && (
+          <>
+            {promotableUploads.data.length === 0 && (
+              <p>There are no ready uploads available to promote.</p>
+            )}
+            <PhotoForm
+              promotableUploads={promotableUploads.data}
+              pending={createPhoto.isPending}
+              onSubmit={(input) =>
+                createPhoto.mutateAsync(input as CreatePhotoInput)
+              }
+            />
+          </>
+        )}
       </section>
       <PhotoDuplicateHolds familySlug={familySlug} />
       {deleted.data !== undefined && deleted.data.length > 0 && (

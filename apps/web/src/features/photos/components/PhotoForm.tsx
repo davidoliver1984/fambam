@@ -6,19 +6,26 @@ import type {
   DuplicatePhotoCandidate,
   Photo,
   PhotoVisibility,
+  PromotableMediaUpload,
   UpdatePhotoInput,
 } from "../types/photo";
 import { splitTags } from "../validation/tagInput";
 
 type PhotoFormProps = {
   photo?: Photo;
+  promotableUploads?: PromotableMediaUpload[];
   pending: boolean;
   onSubmit: (
     input: CreatePhotoInput | UpdatePhotoInput,
   ) => Promise<CreatePhotoResult | Photo>;
 };
 
-export function PhotoForm({ photo, pending, onSubmit }: PhotoFormProps) {
+export function PhotoForm({
+  photo,
+  promotableUploads = [],
+  pending,
+  onSubmit,
+}: PhotoFormProps) {
   const [mediaUploadId, setMediaUploadId] = useState("");
   const [visibility, setVisibility] = useState<PhotoVisibility>(
     photo?.visibility ?? "family_space",
@@ -131,20 +138,25 @@ export function PhotoForm({ photo, pending, onSubmit }: PhotoFormProps) {
     <form onSubmit={(event) => void submit(event)}>
       {photo === undefined && (
         <>
-          <label htmlFor="photo-media-upload">Ready MediaUpload ID</label>
-          <input
+          <label htmlFor="photo-media-upload">Ready upload</label>
+          <select
             id="photo-media-upload"
             value={mediaUploadId}
             onChange={(event) => {
               setMediaUploadId(event.target.value);
             }}
-            minLength={26}
-            maxLength={26}
             required
-          />
+          >
+            <option value="">Choose a ready upload</option>
+            {promotableUploads.map((upload) => (
+              <option key={upload.id} value={upload.id}>
+                {uploadLabel(upload)}
+              </option>
+            ))}
+          </select>
           <p>
-            Use the identifier from a completed upload. Members may promote only
-            their own uploads.
+            Choose a completed upload to promote. Members see only their own
+            eligible uploads.
           </p>
         </>
       )}
@@ -254,7 +266,10 @@ export function PhotoForm({ photo, pending, onSubmit }: PhotoFormProps) {
         </>
       )}
       {(photo !== undefined || duplicateCandidates.length === 0) && (
-        <button type="submit" disabled={pending}>
+        <button
+          type="submit"
+          disabled={pending || (photo === undefined && mediaUploadId === "")}
+        >
           {pending
             ? "Saving…"
             : photo === undefined
@@ -277,4 +292,12 @@ export function PhotoForm({ photo, pending, onSubmit }: PhotoFormProps) {
 function emptyToNull(value: string): string | null {
   const trimmed = value.trim();
   return trimmed === "" ? null : trimmed;
+}
+
+function uploadLabel(upload: PromotableMediaUpload): string {
+  if (upload.uploaded_at === null) return upload.client_filename;
+  return `${upload.client_filename} — ${new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(upload.uploaded_at))}`;
 }

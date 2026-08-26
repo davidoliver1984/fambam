@@ -7,6 +7,7 @@ import {
   getPhotoPersonProposals,
   getPhotoProvenanceProposals,
   getPhotos,
+  getPromotableMediaUploads,
 } from "../api/photoApi";
 import { photoKeys } from "../api/photoKeys";
 import type { PhotoFilters } from "../types/photo";
@@ -28,6 +29,15 @@ export function useDeletedPhotosQuery(familySlug: string) {
   return useQuery({
     queryKey: photoKeys.deleted(familySlug),
     queryFn: ({ signal }) => getDeletedPhotos(familySlug, signal),
+    enabled: familySlug !== "",
+    retry: false,
+  });
+}
+
+export function usePromotableMediaUploadsQuery(familySlug: string) {
+  return useQuery({
+    queryKey: photoKeys.promotableUploads(familySlug),
+    queryFn: ({ signal }) => getPromotableMediaUploads(familySlug, signal),
     enabled: familySlug !== "",
     retry: false,
   });

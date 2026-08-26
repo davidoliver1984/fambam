@@ -75,6 +75,7 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::get('/media-uploads/{mediaUpload}/original', [MediaUploadController::class, 'original']);
         Route::get('/photos', [PhotoController::class, 'index']);
         Route::get('/photos/deleted', [PhotoController::class, 'deleted']);
+        Route::get('/photos/promotable-uploads', [PhotoController::class, 'promotableUploads']);
         Route::post('/photos', [PhotoController::class, 'store']);
         Route::get('/photos/{photo}', [PhotoController::class, 'show']);
         Route::post('/photos/{photo}/duplicate-flags', [DuplicateReviewController::class, 'flag']);

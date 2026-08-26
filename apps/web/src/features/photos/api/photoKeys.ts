@@ -4,6 +4,8 @@ export const photoKeys = {
     [...photoKeys.all(familySlug), "list", filters] as const,
   deleted: (familySlug: string) =>
     [...photoKeys.all(familySlug), "deleted"] as const,
+  promotableUploads: (familySlug: string) =>
+    [...photoKeys.all(familySlug), "promotable-uploads"] as const,
   duplicateHolds: (familySlug: string) =>
     [...photoKeys.all(familySlug), "duplicate-holds"] as const,
   detail: (familySlug: string, photoId: string) =>
