@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P08",
-    "current_stage": "FPA-P08-S02",
+    "current_stage": "FPA-P08-S03",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-26"
   },
@@ -579,16 +579,18 @@
         {
           "id": "FPA-P08-S02",
           "title": "Implement exact duplicate detection",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P08-S01"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-26: exact SHA-256 matching is tenant- and visibility-scoped across direct Photo creation and asynchronous Album/Event contribution; three-outcome resolution preserves existing promotion and contribution authority; disclosed candidate snapshots make multi-match DuplicateDecision writes deterministic under races; exact retrospective candidates, canonical pair suppression, uploader-owned duplicate holds, Album-scoped new conversation with read-only legacy preservation, persistent PostgreSQL migration, forced RLS and typed TanStack Query UI were implemented and verified. No perceptual matching or S03 calibration work was included."
+          ]
         },
         {
           "id": "FPA-P08-S03",
           "title": "Implement perceptual similarity analysis",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P08-S02"
           ],
@@ -1646,6 +1648,14 @@
       "roadmap_stage": "FPA-P08-S01",
       "date": "2026-08-26",
       "description": "FPA-P08-S01 completed: ADR-0010 accepted. Exact and perceptual duplicate detection remain advisory, tenant-isolated and visibility-filtered; the three-outcome choice is mapped onto both Photo-creation paths without changing promotion authority; existing conversation history is preserved while new conversation becomes Album-scoped; duplicate decisions suppress automatic rediscovery with explicit audited reopening; and Phase 8 introduces no merge, redirect, aggregation, consolidation or automatic deletion mechanism."
+    },
+    {
+      "git_tag": "phase-8-s02",
+      "type": "stage_completion",
+      "adr": "ADR-0010",
+      "roadmap_stage": "FPA-P08-S02",
+      "date": "2026-08-26",
+      "description": "FPA-P08-S02 completed: tenant- and visibility-scoped exact SHA-256 detection across direct Photo creation and asynchronous Album/Event contribution; deterministic three-outcome resolution and uploader-owned duplicate holds; canonical multi-match DuplicateDecision suppression; idempotent retrospective exact candidates; Album-scoped new comments and reactions with preserved read-only legacy history; typed TanStack Query UI; persistent PostgreSQL migration; and forced RLS were implemented and verified."
     }
   ]
 }

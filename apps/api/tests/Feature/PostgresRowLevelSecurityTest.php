@@ -43,7 +43,8 @@ class PostgresRowLevelSecurityTest extends TestCase
         $this->admin = DB::connection('pgsql_admin');
         $this->app->instance(FamilyMediaStorageCleaner::class, new RlsFamilyMediaStorageCleaner);
         $this->admin->unprepared(<<<'SQL'
-TRUNCATE TABLE photo_reactions, photo_comment_revisions, photo_comments, photo_story_revisions, photo_stories,
+TRUNCATE TABLE media_upload_duplicate_holds, duplicate_decisions, duplicate_candidates,
+    photo_reactions, photo_comment_revisions, photo_comments, photo_story_revisions, photo_stories,
     event_notification_deliveries, event_exports, event_admissions, album_grants, album_photos, albums, events,
     photo_people, photo_metadata_proposals, photo_tag, tags, photo_provenance_proposals, photos,
     media_variants, media_uploads, person_merge_proposals, person_merges,
@@ -105,12 +106,13 @@ WHERE relname IN (
     'albums', 'album_photos', 'album_grants', 'events', 'event_admissions', 'event_exports',
     'event_notification_deliveries',
     'photo_stories', 'photo_story_revisions', 'photo_comments', 'photo_comment_revisions', 'photo_reactions',
+    'duplicate_candidates', 'duplicate_decisions', 'media_upload_duplicate_holds',
     'rls_test_records'
 )
 ORDER BY relname
 SQL);
 
-        $this->assertCount(34, $tables);
+        $this->assertCount(37, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
@@ -171,6 +173,95 @@ SQL);
                 $this->assertSame('23514', $exception->errorInfo[0]);
             }
         }
+    }
+
+    public function test_duplicate_records_reject_cross_tenant_writes(): void
+    {
+        [$firstOwner, $firstFamily] = $this->createOwnedFamily('first-duplicate-rls');
+        [$secondOwner, $secondFamily] = $this->createOwnedFamily('second-duplicate-rls');
+        $now = now();
+        $photoIds = [(string) Str::ulid(), (string) Str::ulid()];
+        $uploadIds = [(string) Str::ulid(), (string) Str::ulid(), (string) Str::ulid()];
+        foreach ($uploadIds as $index => $uploadId) {
+            $this->admin->table('media_uploads')->insert([
+                'id' => $uploadId,
+                'family_space_id' => $secondFamily,
+                'user_id' => $secondOwner,
+                'state' => 'ready',
+                'staging_object_key' => "families/{$secondFamily}/media-staging/{$uploadId}/original",
+                'client_filename' => "duplicate-rls-{$index}.jpg",
+                'idempotency_key' => "duplicate-rls-{$index}",
+                'request_fingerprint' => hash('sha256', "duplicate-rls-{$index}"),
+                'correlation_id' => (string) Str::uuid(),
+                'traceparent' => TenantOperationContext::newTraceparent(),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+        foreach ($photoIds as $index => $photoId) {
+            $this->admin->table('photos')->insert([
+                'id' => $photoId,
+                'family_space_id' => $secondFamily,
+                'media_upload_id' => $uploadIds[$index],
+                'created_by' => $secondOwner,
+                'visibility' => 'family_space',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+        $albumId = (string) Str::ulid();
+        $this->admin->table('albums')->insert([
+            'id' => $albumId,
+            'family_space_id' => $secondFamily,
+            'created_by' => $secondOwner,
+            'name' => 'Duplicate RLS Album',
+            'visibility' => 'family_space',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $this->assertRlsRejects(function () use ($firstOwner, $firstFamily, $secondFamily, $photoIds, $now): void {
+            app(DatabaseTenantContext::class)->establishUser($firstOwner);
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('duplicate_candidates')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $secondFamily,
+                'photo_id' => $photoIds[0],
+                'candidate_photo_id' => $photoIds[1],
+                'source' => 'exact',
+                'status' => 'pending',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        });
+        $this->assertRlsRejects(function () use ($firstOwner, $firstFamily, $secondFamily, $secondOwner, $photoIds, $now): void {
+            app(DatabaseTenantContext::class)->establishUser($firstOwner);
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('duplicate_decisions')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $secondFamily,
+                'photo_low_id' => $photoIds[0],
+                'photo_high_id' => $photoIds[1],
+                'source' => 'exact_creation_choice',
+                'decided_by' => $secondOwner,
+                'decided_at' => $now,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        });
+        $this->assertRlsRejects(function () use ($firstOwner, $firstFamily, $secondFamily, $uploadIds, $albumId, $now): void {
+            app(DatabaseTenantContext::class)->establishUser($firstOwner);
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('media_upload_duplicate_holds')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $secondFamily,
+                'media_upload_id' => $uploadIds[2],
+                'target_album_id' => $albumId,
+                'detected_at' => $now,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        });
     }
 
     public function test_event_admissions_are_tenant_isolated_for_reads_and_writes(): void

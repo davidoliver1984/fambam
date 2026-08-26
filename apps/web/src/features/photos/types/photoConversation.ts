@@ -16,4 +16,6 @@ export type PhotoConversation = {
     reaction: PhotoReactionType;
   }>;
   permissions: { can_interact: boolean; can_author_story: boolean };
+  conversation_scope: "legacy" | "album";
+  album_id: string | null;
 };

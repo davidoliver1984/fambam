@@ -55,14 +55,29 @@ class PhotoController extends Controller
         /** @var User $actor */
         $actor = $request->user();
 
+        $result = $this->photoManager->create(
+            $familySpace,
+            $actor,
+            $request->validated(),
+            $request,
+        );
+
+        if ($result->outcome === 'duplicate_detected') {
+            return response()->json(['data' => [
+                'outcome' => $result->outcome,
+                'candidates' => $result->candidates->map($this->duplicateCandidatePayload(...))->values(),
+            ]], 409);
+        }
+        if ($result->outcome === 'cancelled') {
+            return response()->json(null, 204);
+        }
+
         return response()->json([
-            'data' => $this->payload($this->photoManager->create(
-                $familySpace,
-                $actor,
-                $request->validated(),
-                $request,
-            )),
-        ], 201);
+            'data' => [
+                'outcome' => $result->outcome,
+                'photo' => $this->payload($result->photo ?? throw new \LogicException('Photo result missing.')),
+            ],
+        ], $result->outcome === 'photo_created' ? 201 : 200);
     }
 
     public function show(FamilySpace $familySpace, string $photo, Request $request): JsonResponse
@@ -382,6 +397,20 @@ class PhotoController extends Controller
                 'can_resolve_provenance' => Gate::allows('resolveProvenance', $photo),
                 'can_manage_tags' => Gate::allows('manageTags', $photo),
             ],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function duplicateCandidatePayload(Photo $photo): array
+    {
+        $photo->loadMissing('mediaUpload');
+
+        return [
+            'id' => $photo->id,
+            'caption' => $photo->caption,
+            'visibility' => $photo->visibility->value,
+            'client_filename' => $photo->mediaUpload->client_filename,
+            'created_at' => $photo->created_at?->toAtomString(),
         ];
     }
 

@@ -11,7 +11,9 @@ use App\Models\AlbumGrant;
 use App\Models\AlbumPhoto;
 use App\Models\FamilySpaceMembership;
 use App\Models\MediaUpload;
+use App\Models\MediaUploadDuplicateHold;
 use App\Models\Photo;
+use App\Models\User;
 use App\Tenancy\TenantOperationContext;
 
 class AlbumContributionFinalizer
@@ -20,6 +22,7 @@ class AlbumContributionFinalizer
         private readonly AuditRecorder $audit,
         private readonly EventAccess $eventAccess,
         private readonly EventContributionNotifier $eventNotifications,
+        private readonly ExactDuplicateDetector $duplicates,
     ) {}
 
     public function finalize(MediaUpload $upload, TenantOperationContext $context): void
@@ -35,6 +38,38 @@ class AlbumContributionFinalizer
             return;
         }
 
+        if (MediaUploadDuplicateHold::query()->where('media_upload_id', $upload->id)->exists()) {
+            return;
+        }
+
+        $actor = User::query()->find($upload->user_id);
+        if ($actor === null) {
+            return;
+        }
+        $this->duplicates->lock($upload);
+        $matches = $this->duplicates->visibleMatches($upload, $actor, $membership);
+        if ($matches->isNotEmpty()) {
+            $hold = MediaUploadDuplicateHold::query()->firstOrCreate(
+                ['media_upload_id' => $upload->id],
+                ['family_space_id' => $upload->family_space_id, 'target_album_id' => $album->id, 'detected_at' => now()],
+            );
+            if ($hold->wasRecentlyCreated) {
+                $this->audit->record('media_upload_duplicate_hold.created', $hold, operationContext: $context);
+            }
+
+            return;
+        }
+
+        $this->completeNewContribution($upload, $album, $membership, $context);
+    }
+
+    public function completeNewContribution(
+        MediaUpload $upload,
+        Album $album,
+        FamilySpaceMembership $membership,
+        TenantOperationContext $context,
+        bool $generateCandidates = true,
+    ): Photo {
         $photo = Photo::query()->where('media_upload_id', $upload->id)->first();
         if ($photo === null) {
             $photo = Photo::query()->create(['family_space_id' => $upload->family_space_id,
@@ -50,9 +85,15 @@ class AlbumContributionFinalizer
             $this->audit->record('album.photo_created', $link, operationContext: $context);
             $this->eventNotifications->dispatch($album, $photo, $context);
         }
+
+        if ($generateCandidates) {
+            $this->duplicates->generateCandidatesFor($photo);
+        }
+
+        return $photo;
     }
 
-    private function mayContribute(Album $album, FamilySpaceMembership $membership): bool
+    public function mayContribute(Album $album, FamilySpaceMembership $membership): bool
     {
         if ($membership->role === FamilySpaceRole::Guest) {
             return $this->eventAccess->guestMayContributeToAlbum($album, $membership);

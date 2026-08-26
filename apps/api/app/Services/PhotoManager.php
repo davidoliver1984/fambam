@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\DuplicateResolution;
 use App\Enums\FamilySpaceRole;
 use App\Enums\MediaUploadState;
 use App\Enums\PersonProposalStatus;
@@ -19,6 +20,7 @@ use App\Models\PhotoProvenanceProposal;
 use App\Models\Tag;
 use App\Models\User;
 use App\People\UncertainDate;
+use App\Photos\PhotoCreationResult;
 use App\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -32,14 +34,15 @@ class PhotoManager
     public function __construct(
         private readonly AuditRecorder $audit,
         private readonly TenantContext $tenantContext,
+        private readonly ExactDuplicateDetector $duplicates,
     ) {}
 
     /** @param array<string, mixed> $input */
-    public function create(FamilySpace $familySpace, User $actor, array $input, Request $request): Photo
+    public function create(FamilySpace $familySpace, User $actor, array $input, Request $request): PhotoCreationResult
     {
         $this->assertEventBelongsTo($familySpace->id, $input);
 
-        return DB::transaction(function () use ($familySpace, $actor, $input, $request): Photo {
+        return DB::transaction(function () use ($familySpace, $actor, $input, $request): PhotoCreationResult {
             $upload = MediaUpload::query()->lockForUpdate()
                 ->where('family_space_id', $familySpace->id)
                 ->findOrFail((string) $input['media_upload_id']);
@@ -59,6 +62,41 @@ class PhotoManager
                 throw ValidationException::withMessages(['media_upload_id' => ['This upload already belongs to a Photo.']]);
             }
 
+            $this->duplicates->lock($upload);
+            $matches = $this->duplicates->visibleMatches(
+                $upload,
+                $actor,
+                $this->tenantContext->membership(),
+            );
+            $resolution = DuplicateResolution::tryFrom((string) ($input['duplicate_resolution'] ?? ''));
+
+            if ($resolution === DuplicateResolution::Cancel) {
+                return PhotoCreationResult::cancelled();
+            }
+            if ($matches->isNotEmpty() && $resolution === null) {
+                return PhotoCreationResult::duplicateDetected($matches);
+            }
+            if ($resolution === DuplicateResolution::UseExisting) {
+                $existing = $matches->firstWhere('id', (string) ($input['existing_photo_id'] ?? ''));
+                if ($existing === null) {
+                    throw ValidationException::withMessages([
+                        'existing_photo_id' => ['The selected duplicate Photo is unavailable.'],
+                    ]);
+                }
+
+                return PhotoCreationResult::existing($existing);
+            }
+            $disclosedMatches = $matches;
+            if ($resolution === DuplicateResolution::CreateNew) {
+                $disclosedIds = $input['disclosed_photo_ids'] ?? [];
+                $disclosedMatches = $matches->whereIn('id', $disclosedIds)->values();
+                if ($disclosedMatches->count() !== count($disclosedIds)) {
+                    throw ValidationException::withMessages([
+                        'disclosed_photo_ids' => ['The disclosed duplicate Photos have changed. Refresh and try again.'],
+                    ]);
+                }
+            }
+
             $photo = Photo::query()->create([
                 'family_space_id' => $familySpace->id,
                 'media_upload_id' => $upload->id,
@@ -74,7 +112,19 @@ class PhotoManager
                 'visibility' => $photo->visibility->value,
             ]);
 
-            return $photo->load(['mediaUpload.uploader:id,name', 'tags:id,label']);
+            if ($resolution === DuplicateResolution::CreateNew) {
+                foreach ($disclosedMatches as $match) {
+                    $decision = $this->duplicates->recordSeparateDecision($photo, $match, $actor);
+                    $this->audit->record('photo_duplicate.decision_recorded', $decision, $actor, $request, [
+                        'resolution' => DuplicateResolution::CreateNew->value,
+                    ]);
+                }
+            }
+            $this->duplicates->generateCandidatesFor($photo);
+
+            return PhotoCreationResult::created(
+                $photo->load(['mediaUpload.uploader:id,name', 'tags:id,label']),
+            );
         });
     }
 

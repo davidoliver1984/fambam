@@ -26,7 +26,13 @@ export function useCreatePhotoMutation(familySlug: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreatePhotoInput) => createPhoto(familySlug, input),
-    onSuccess: async () => {
+    onSuccess: async (result) => {
+      if (
+        result.outcome === "duplicate_detected" ||
+        result.outcome === "cancelled"
+      ) {
+        return;
+      }
       await queryClient.invalidateQueries({
         queryKey: photoKeys.list(familySlug),
       });

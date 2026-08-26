@@ -186,7 +186,11 @@ export function PhotoPage() {
       )}
       <section aria-labelledby="photo-conversation-title">
         <h2 id="photo-conversation-title">Stories, comments and reactions</h2>
-        <PhotoConversationPanel familySlug={familySlug} photoId={photoId} />
+        <PhotoConversationPanel
+          familySlug={familySlug}
+          photoId={photoId}
+          albumId={search.get("albumId") ?? undefined}
+        />
       </section>
       {(photo.permissions.can_update ||
         photo.permissions.can_resolve_provenance) && (

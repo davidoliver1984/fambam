@@ -4,6 +4,7 @@ namespace App\Queries;
 
 use App\Enums\FamilySpaceRole;
 use App\Enums\PhotoVisibility;
+use App\Models\FamilySpaceMembership;
 use App\Models\Photo;
 use App\Models\PhotoMetadataProposal;
 use App\Models\PhotoPerson;
@@ -21,6 +22,19 @@ class PhotoQuery
     /** @return Builder<Photo> */
     public function visibleTo(User $viewer): Builder
     {
+        return $this->visibleToMembership(
+            $viewer,
+            $this->tenantContext->membership(),
+            $this->tenantContext->familySpace()->id,
+        );
+    }
+
+    /** @return Builder<Photo> */
+    public function visibleToMembership(
+        User $viewer,
+        FamilySpaceMembership $membership,
+        string $familySpaceId,
+    ): Builder {
         $query = Photo::query()
             ->with([
                 'mediaUpload.uploader:id,name',
@@ -32,9 +46,8 @@ class PhotoQuery
                     ->where('status', 'approved')
                     ->with('person:id,preferred_name'),
             ])
-            ->where('family_space_id', $this->tenantContext->familySpace()->id);
+            ->where('family_space_id', $familySpaceId);
 
-        $membership = $this->tenantContext->membership();
         if ($membership->role === FamilySpaceRole::Guest) {
             $cutoff = now()->subDays((int) config('events.admission_lifetime_days'));
 

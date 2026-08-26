@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountSecurityController;
 use App\Http\Controllers\AlbumController;
 use App\Http\Controllers\CurrentUserController;
+use App\Http\Controllers\DuplicateHoldController;
 use App\Http\Controllers\EventAdmissionController;
 use App\Http\Controllers\EventExportController;
 use App\Http\Controllers\FamilyCircleController;
@@ -60,6 +61,8 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::post('/invitations/{invitation}/revoke', [InvitationController::class, 'revoke']);
         Route::post('/media-uploads', [MediaUploadController::class, 'store']);
         Route::get('/media-upload-batches/{uploadBatch}', [MediaUploadController::class, 'batch']);
+        Route::get('/media-upload-duplicate-holds', [DuplicateHoldController::class, 'index']);
+        Route::post('/media-upload-duplicate-holds/{hold}/resolve', [DuplicateHoldController::class, 'resolve']);
         Route::post('/media-uploads/{mediaUpload}/complete', [MediaUploadController::class, 'complete']);
         Route::post('/media-uploads/{mediaUpload}/retry-processing', [MediaUploadController::class, 'retryProcessing']);
         Route::get('/media-uploads/{mediaUpload}/canonical', [MediaUploadController::class, 'canonical']);

@@ -66,9 +66,13 @@ class EventGuestAccessTest extends TestCase
             ->assertOk();
         $this->actingAs($guest)->getJson("{$base}/media-uploads/{$visiblePhoto->media_upload_id}/original")
             ->assertOk();
-        $this->actingAs($guest)->postJson("{$base}/photos/{$visiblePhoto->id}/comments", ['body' => 'Lovely day'])
+        $this->actingAs($guest)->postJson("{$base}/photos/{$visiblePhoto->id}/comments", [
+            'body' => 'Lovely day', 'album_id' => $visibleAlbum->id,
+        ])
             ->assertCreated();
-        $this->actingAs($guest)->putJson("{$base}/photos/{$visiblePhoto->id}/reaction", ['reaction' => 'love'])
+        $this->actingAs($guest)->putJson("{$base}/photos/{$visiblePhoto->id}/reaction", [
+            'reaction' => 'love', 'album_id' => $visibleAlbum->id,
+        ])
             ->assertOk();
         $this->actingAs($guest)->postJson("{$base}/photos/{$visiblePhoto->id}/stories", ['body' => 'Not trusted narrative'])
             ->assertForbidden();
@@ -334,14 +338,19 @@ class EventGuestAccessTest extends TestCase
 
     private function assertGuestPhotoAccessDenied(User $guest, string $base, Photo $photo): void
     {
+        $albumId = $photo->albums()->value('albums.id');
         $this->actingAs($guest)->getJson("{$base}/photos/{$photo->id}")->assertNotFound();
         $this->actingAs($guest)->getJson("{$base}/media-uploads/{$photo->media_upload_id}/canonical")
             ->assertForbidden();
         $this->actingAs($guest)->getJson("{$base}/media-uploads/{$photo->media_upload_id}/original")
             ->assertForbidden();
-        $this->actingAs($guest)->postJson("{$base}/photos/{$photo->id}/comments", ['body' => 'Denied'])
+        $this->actingAs($guest)->postJson("{$base}/photos/{$photo->id}/comments", [
+            'body' => 'Denied', 'album_id' => $albumId,
+        ])
             ->assertNotFound();
-        $this->actingAs($guest)->putJson("{$base}/photos/{$photo->id}/reaction", ['reaction' => 'love'])
+        $this->actingAs($guest)->putJson("{$base}/photos/{$photo->id}/reaction", [
+            'reaction' => 'love', 'album_id' => $albumId,
+        ])
             ->assertNotFound();
     }
 

@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property PhotoReactionType $reaction
  * @property User $user
  */
-#[Fillable(['family_space_id', 'photo_id', 'user_id', 'reaction'])]
+#[Fillable(['family_space_id', 'photo_id', 'album_id', 'user_id', 'reaction'])]
 class PhotoReaction extends Model
 {
     use HasUlids;
@@ -27,6 +27,12 @@ class PhotoReaction extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** @return BelongsTo<Album, $this> */
+    public function album(): BelongsTo
+    {
+        return $this->belongsTo(Album::class);
     }
 
     protected function casts(): array

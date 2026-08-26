@@ -12,12 +12,14 @@ import type {
 export function PhotoConversationPanel({
   familySlug,
   photoId,
+  albumId,
 }: {
   familySlug: string;
   photoId: string;
+  albumId?: string;
 }) {
-  const conversation = usePhotoConversation(familySlug, photoId);
-  const mutations = usePhotoConversationMutations(familySlug, photoId);
+  const conversation = usePhotoConversation(familySlug, photoId, albumId);
+  const mutations = usePhotoConversationMutations(familySlug, photoId, albumId);
   const [story, setStory] = useState("");
   const [comment, setComment] = useState("");
   if (conversation.isPending)
@@ -32,6 +34,10 @@ export function PhotoConversationPanel({
     };
   return (
     <>
+      {conversation.data.conversation_scope === "legacy" &&
+        conversation.data.comments.length > 0 && (
+          <p>This older Photo conversation is preserved here as read-only.</p>
+        )}
       <h3>Stories</h3>
       <ContentList
         items={conversation.data.stories}

@@ -47,12 +47,13 @@ class PhotoRecordTest extends TestCase
                 'tags' => ['Holiday', '  Seaside  ', 'holiday'],
             ])
             ->assertCreated()
-            ->assertJsonPath('data.visibility', PhotoVisibility::FamilySpace->value)
-            ->assertJsonPath('data.media_upload.id', $ownUpload->id)
-            ->assertJsonPath('data.tags.0.label', 'Holiday')
-            ->assertJsonPath('data.tags.1.label', 'Seaside');
+            ->assertJsonPath('data.outcome', 'photo_created')
+            ->assertJsonPath('data.photo.visibility', PhotoVisibility::FamilySpace->value)
+            ->assertJsonPath('data.photo.media_upload.id', $ownUpload->id)
+            ->assertJsonPath('data.photo.tags.0.label', 'Holiday')
+            ->assertJsonPath('data.photo.tags.1.label', 'Seaside');
 
-        $photo = Photo::query()->findOrFail($response->json('data.id'));
+        $photo = Photo::query()->findOrFail($response->json('data.photo.id'));
         $this->assertSame($member->id, $photo->created_by);
         $this->assertSame('Green family album', $photo->archive_source_description);
         $this->assertDatabaseHas('audit_events', [
@@ -89,8 +90,8 @@ class PhotoRecordTest extends TestCase
                 'visibility' => 'private',
             ])
             ->assertCreated()
-            ->assertJsonPath('data.created_by', $owner->id)
-            ->assertJsonPath('data.visibility', 'private');
+            ->assertJsonPath('data.photo.created_by', $owner->id)
+            ->assertJsonPath('data.photo.visibility', 'private');
 
         $this->actingAs($owner)
             ->postJson('/api/families/owner-promotion/photos', ['media_upload_id' => $unready->id])
@@ -185,7 +186,7 @@ class PhotoRecordTest extends TestCase
             ->postJson('/api/families/source-separation/photos', [
                 'media_upload_id' => $upload->id,
                 'archive_source_description' => 'Box labelled Spain',
-            ])->assertCreated()->json('data.id');
+            ])->assertCreated()->json('data.photo.id');
 
         $this->actingAs($owner)
             ->postJson("/api/families/source-separation/photos/{$photoId}/provenance-proposals", [
