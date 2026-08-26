@@ -23,3 +23,7 @@ Schedule::command('fambam:dispatch-due-abandoned-media-uploads')
 Schedule::command('fambam:dispatch-due-event-exports')
     ->hourly()
     ->withoutOverlapping();
+
+Schedule::command('fambam:dispatch-missing-perceptual-hashes')
+    ->everyTenMinutes()
+    ->withoutOverlapping();

@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P15",
     "current_phase": "P08",
-    "current_stage": "FPA-P08-S03",
+    "current_stage": "FPA-P08-S04",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-26"
   },
@@ -590,16 +590,18 @@
         {
           "id": "FPA-P08-S03",
           "title": "Implement perceptual similarity analysis",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P08-S02"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-26: dhash-luma-64 processing version 1 with Hamming distance <= 18 produced 18 true positives, 0 false negatives, 0 false positives and 762 true negatives across the 40-asset representative local corpus. Versioned tenant-owned hashes, deterministic Laravel generation, PostgreSQL backfill discovery, exact/settled/deleted suppression, idempotent perceptual candidates, forced RLS and teardown were implemented and verified; persistent migration batch 31 and the existing-Photo backfill completed, and all private calibration copies were removed."
+          ]
         },
         {
           "id": "FPA-P08-S04",
           "title": "Implement duplicate review",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P08-S03"
           ],

@@ -35,6 +35,9 @@ return [
         'canonical_jpeg_quality' => (int) env('MEDIA_CANONICAL_JPEG_QUALITY', 90),
         'variant_processing_version' => (int) env('MEDIA_VARIANT_PROCESSING_VERSION', 1),
         'variant_webp_quality' => (int) env('MEDIA_VARIANT_WEBP_QUALITY', 82),
+        'perceptual_algorithm' => 'dhash-luma-64',
+        'perceptual_processing_version' => 1,
+        'perceptual_hamming_threshold' => 18,
         'integration_test_enabled' => env('RUN_MEDIA_PROCESSING_INTEGRATION', false),
     ],
 ];

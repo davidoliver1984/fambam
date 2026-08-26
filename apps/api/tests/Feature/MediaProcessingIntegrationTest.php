@@ -5,12 +5,41 @@ namespace Tests\Feature;
 use App\Enums\MediaVariantTransform;
 use App\Media\ExifToolMediaMetadataExtractor;
 use App\Media\ImageMagickCanonicalImageGenerator;
+use App\Media\ImageMagickDifferenceHasher;
 use App\Media\ImageMagickPresentationVariantGenerator;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 class MediaProcessingIntegrationTest extends TestCase
 {
+    public function test_real_perceptual_hashing_is_deterministic_and_uses_a_64_bit_lowercase_value(): void
+    {
+        $this->requireIntegrationEnvironment();
+        $source = $this->temporaryPath('png');
+
+        try {
+            $this->runProcess([
+                'magick',
+                '-size',
+                '90x80',
+                'gradient:red-blue',
+                '-fill',
+                'white',
+                '-draw',
+                'rectangle 10,10 40,50',
+                "png:{$source}",
+            ]);
+            $hasher = new ImageMagickDifferenceHasher;
+            $first = $hasher->hash($source);
+            $second = $hasher->hash($source);
+
+            $this->assertSame($first, $second);
+            $this->assertMatchesRegularExpression('/^[0-9a-f]{16}$/', $first);
+        } finally {
+            @unlink($source);
+        }
+    }
+
     public function test_real_processing_applies_orientation_extracts_private_metadata_and_strips_the_canonical(): void
     {
         $this->requireIntegrationEnvironment();

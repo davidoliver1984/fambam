@@ -2948,6 +2948,29 @@ measure false positives and false negatives, and document the selected
 threshold in this guide. This stage implements the calibrated choice; it
 does not select it.
 
+### Calibration record (2026-08-26)
+
+The gate was completed against 40 private canonical assets: the 38-image
+representative upload set supplied for this stage plus two existing canonical
+copies. The labelled evaluation contained 18 related pairs (format conversion,
+recompression, grayscale treatment, resizing/cropping and byte-identical
+copies) and 762 unrelated pairs. Private image bytes were used only in the
+local calibration environment and are not repository fixtures.
+
+ImageMagick's normalised channel PHASH was rejected: the threshold required to
+retain both crop examples produced 291 false positives, while a conservative
+threshold produced four false negatives. The selected algorithm is
+`dhash-luma-64`, processing version `1`: auto-orient the canonical asset,
+convert it to grayscale, resize it to exactly 9 by 8 pixels, and record the 64
+horizontal adjacent-pixel comparisons. Similarity is the Hamming distance
+between two hashes; a perceptual `DuplicateCandidate` is generated when the
+distance is **18 or lower**. On the labelled corpus the hardest related pair
+measured 18 and the nearest unrelated pair measured 19, giving 18 true
+positives, 0 false negatives, 0 false positives and 762 true negatives at the
+selected threshold. This is an advisory candidate threshold, not proof that
+two Photos are duplicates; later recalibration requires a new processing
+version rather than reinterpretation of stored version-1 hashes.
+
 Generate versioned perceptual hashes `(media_upload_id, algorithm,
 processing_version)` from the canonical asset (ADR-0007 §9), as a
 Laravel job (ADR-0007 §12) — not a Python/ML inference call. Perceptual
@@ -2955,6 +2978,40 @@ matches generate `DuplicateCandidate` rows exactly like exact matches,
 consulting `DuplicateDecision` first so an already-settled pair is never
 regenerated as a candidate. S03 owns perceptual candidate generation
 only; it never duplicates or extends S02's exact-match work.
+
+### Implementation record (2026-08-26)
+
+- Implemented calibrated `dhash-luma-64` version 1 generation from canonical
+  assets through a deterministic ImageMagick-backed Laravel worker, storing
+  one tenant-owned versioned hash per MediaUpload.
+- Added PostgreSQL discovery for eligible Photos missing the current hash and
+  scheduled idempotent dispatch every ten minutes; the queue job revalidates
+  tenant, Photo, ready-upload and canonical-checksum state before hashing.
+- Added Family-Space-scoped Hamming comparison at the calibrated distance of
+  18 or lower. Candidate generation skips exact-checksum pairs, soft-deleted
+  Photos and currently settled DuplicateDecisions, and writes idempotent
+  advisory `DuplicateCandidate` rows with algorithm, version and score.
+- Added deterministic hash/distance, threshold-boundary, idempotency,
+  settled-decision, exact-pair, stale/deleted-Photo, tenant-isolation, RLS and
+  Family Space teardown coverage. Persistent PostgreSQL migration batch 31
+  was applied and the existing Photo backfill completed; a second discovery
+  run dispatched zero jobs.
+- The complete API, frontend, Python, PostgreSQL 17.6, real ImageMagick,
+  infrastructure, documentation, contract, formatting, lint, type, security,
+  JSON and diff gates pass. Private calibration copies were removed from the
+  host and local containers after measurement; no family image is a repository
+  fixture.
+
+### Documentation updates
+
+- Recorded the completed calibration and selected version-1 threshold.
+- Completed FPA-P08-S03 and advanced `tasks.json` to FPA-P08-S04.
+
+### Commit boundary
+
+```text
+Implement perceptual duplicate detection
+```
 
 ## FPA-P08-S04 — Implement duplicate review
 

@@ -11,6 +11,7 @@ use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\MediaUpload;
 use App\Models\MediaVariant;
+use App\Models\PerceptualHash;
 use App\Models\Person;
 use App\Models\Photo;
 use App\Models\PhotoMetadataProposal;
@@ -134,6 +135,13 @@ class FamilySpaceDeletionTest extends TestCase
             'media_upload_id' => $upload->id,
             'created_by' => $owner->id,
         ]);
+        PerceptualHash::query()->create([
+            'family_space_id' => $familySpace->id,
+            'media_upload_id' => $upload->id,
+            'algorithm' => 'dhash-luma-64',
+            'processing_version' => 1,
+            'hash_value' => '0000000000000000',
+        ]);
         $tag = Tag::query()->create([
             'family_space_id' => $familySpace->id,
             'label' => 'Family',
@@ -191,6 +199,7 @@ class FamilySpaceDeletionTest extends TestCase
             ->count());
         $this->assertDatabaseMissing('media_uploads', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('media_variants', ['family_space_id' => $familySpace->id]);
+        $this->assertDatabaseMissing('perceptual_hashes', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('photos', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('photo_metadata_proposals', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('photo_people', ['family_space_id' => $familySpace->id]);

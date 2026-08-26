@@ -80,6 +80,12 @@ class MediaUpload extends Model
         return $this->hasMany(MediaVariant::class);
     }
 
+    /** @return HasMany<PerceptualHash, $this> */
+    public function perceptualHashes(): HasMany
+    {
+        return $this->hasMany(PerceptualHash::class);
+    }
+
     /** @return HasOne<Photo, $this> */
     public function photo(): HasOne
     {
