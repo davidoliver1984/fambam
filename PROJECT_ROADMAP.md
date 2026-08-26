@@ -53,6 +53,17 @@ recorded in `tasks.json`'s `adrs.planned` list (`roadmap_phase` /
 9. The project should ship useful family sharing before pursuing advanced AI features.
 10. The family must be able to export its photographs and metadata.
 
+## Frontend delivery principle
+
+Each functional phase continues to build sufficient frontend UI to navigate,
+exercise and verify its capability. The Family Product UI / UX Completion
+phase is a deliberate integration and product-design pass over those completed
+capabilities, not the first time they receive a UI.
+
+Functional development UI remains valuable throughout delivery, but it is not
+the same as final product UI/UX integration. “The capability exists” is not
+sufficient evidence that “a family member can naturally use the capability.”
+
 ---
 
 # Phase 0 — Product and Repository Foundation
@@ -521,7 +532,102 @@ Ensure the family can recover, move and preserve its archive independently of th
 
 ---
 
-# Phase 14 — Security, Privacy and Accessibility Hardening
+# Phase 14 — Family Product UI / UX Completion
+
+## Objective
+
+Turn the completed Family Space capabilities into one coherent, welcoming and
+navigable product experience for Owner, Administrator, Member, Contributor and
+Guest roles.
+
+## Scope
+
+- Global product navigation and Family Space switching/context.
+- Family homepage, Photo browsing and Photo detail.
+- Ready-upload discovery, Photo creation, progress, recovery and error journeys.
+- Albums, Events and the Event Guest experience.
+- People and Person pages, Photo tagging, face suggestions and confirmation.
+- Duplicate prompts and duplicate review.
+- Comments, reactions and stories.
+- Invitations, membership and role-appropriate collaboration.
+- Owner/Administrator Family Space controls as normal customer-facing product
+  functionality.
+- Search, discovery, memories and history surfaces.
+- Personal and Family Space export/portability journeys.
+- Mobile and responsive behaviour.
+- Consistent loading, empty, error and success states.
+- Visual consistency and accessibility across the complete product journey.
+
+Family Space Owner/Administrator is a customer role inside one Family Space;
+it is not the separate Platform Administrator role introduced in Phase 15.
+
+## Required decisions
+
+- ADR-0019: Family product UI/UX integration.
+
+## Exit criteria
+
+- A non-technical family user can complete the important fambam journeys
+  without knowledge of internal IDs, APIs, database records or developer
+  tooling.
+- Owner, Administrator, Member, Contributor and Guest are each tested through
+  their real, role-appropriate product experience.
+- Core journeys remain usable across supported mobile and desktop layouts.
+- Loading, empty, error and success states are coherent and accessible.
+- Family Space management is clearly distinguished from platform operations.
+
+---
+
+# Phase 15 — Platform Administration UI
+
+## Objective
+
+Provide a separate, least-privilege operational interface for trusted people
+who run the fambam service itself.
+
+## Scope
+
+- Dedicated Platform Administrator identity and authorization.
+- Users, accounts and Family Spaces needed for support and operations.
+- Account and support investigation workflows.
+- Storage and media-processing status.
+- Failed uploads, background jobs and bounded retry operations.
+- Face-analysis and duplicate-analysis processing health.
+- Platform-wide audit and system events.
+- Operational diagnostics.
+- Suspension, deactivation, deletion and retention operations only where the
+  completed system already supports them.
+- Platform configuration only where genuinely required by implemented
+  capabilities.
+
+This phase derives its surfaces from the completed system. It does not invent
+speculative enterprise-administration features merely to fill an interface.
+
+Family Space Owner/Administrator is a customer/product role scoped to one
+Family Space. Platform Administrator is a separate trusted service-operator
+role and gains no implicit Family Space membership or tenancy bypass.
+
+## Required decisions
+
+- ADR-0020: Platform administration authorization and operations.
+
+The ADR must define dedicated Platform Administrator authorization, strict
+separation from Family Space membership roles, least privilege, audited
+privileged operations, and deliberate support/debug access to family data.
+
+## Exit criteria
+
+- Platform operations require dedicated authorization independent of Family
+  Space membership roles.
+- Privileged operations are least-privilege and audited.
+- A Platform Administrator has no implicit membership in any Family Space.
+- Any support access to family data is explicit, bounded and reviewable.
+- Operators can diagnose and act on the implemented platform capabilities
+  without direct database or container access for ordinary workflows.
+
+---
+
+# Phase 16 — Security, Privacy and Accessibility Hardening
 
 ## Objective
 
@@ -558,7 +664,7 @@ Perform a dedicated production-readiness pass before inviting the wider family.
 
 ---
 
-# Phase 15 — Production Deployment and Family Pilot
+# Phase 17 — Production Deployment and Family Pilot
 
 ## Objective
 
@@ -591,7 +697,7 @@ Deploy the platform safely and validate it with a small real family cohort.
 
 ---
 
-# Phase 16 — Semantic Image Search
+# Phase 18 — Semantic Image Search
 
 ## Objective
 
@@ -628,7 +734,7 @@ Enable natural-language discovery of photographs after the core family-sharing p
 
 ---
 
-# Phase 17 — Advanced Archive Features
+# Phase 19 — Advanced Archive Features
 
 ## Objective
 
@@ -650,7 +756,7 @@ Extend the mature archive without compromising its original purpose.
 
 Every feature requires a separate scope review and should not be assumed part of V1.
 
-Phase 17 is intentionally unscoped and is therefore an exception to the default
+Phase 19 is intentionally unscoped and is therefore an exception to the default
 planned phase architecture ADR. It does not require a pre-planned ADR until an
 advanced archive feature is selected and given defined implementation scope.
 
@@ -658,9 +764,9 @@ advanced archive feature is selected and given defined implementation scope.
 
 # V1 release boundary
 
-V1 is considered complete after Phase 15.
+V1 is considered complete after Phase 17.
 
-Phase 16 and later are optional post-V1 enhancements.
+Phase 18 and later are optional post-V1 enhancements.
 
 The V1 family pilot must prioritise:
 
@@ -676,6 +782,8 @@ The V1 family pilot must prioritise:
 - useful search;
 - memories;
 - export and recovery;
+- coherent, role-appropriate family product journeys;
+- least-privilege, audited platform administration;
 - privacy, security and accessibility.
 
 The success metric is not feature count.

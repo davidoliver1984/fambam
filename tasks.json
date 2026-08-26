@@ -5,7 +5,7 @@
     "description": "A private, family-centred photo and memory platform for international relatives who want to share and preserve photographs without relying on mainstream social media.",
     "version": "0.1.0",
     "status": "in_progress",
-    "v1_release_phase": "P15",
+    "v1_release_phase": "P17",
     "current_phase": "P09",
     "current_stage": "FPA-P09-S01",
     "created_at": "2026-07-31",
@@ -909,12 +909,12 @@
     },
     {
       "id": "P14",
-      "name": "Security, Privacy and Accessibility Hardening",
+      "name": "Family Product UI / UX Completion",
       "status": "planned",
       "stages": [
         {
           "id": "FPA-P14-S01",
-          "title": "Accept security, privacy and accessibility ADR",
+          "title": "Accept family product UI/UX integration ADR",
           "status": "planned",
           "dependencies": [
             "FPA-P13-S06"
@@ -923,7 +923,7 @@
         },
         {
           "id": "FPA-P14-S02",
-          "title": "Produce threat model and privacy data map",
+          "title": "Implement the product shell and Family Space context",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S01"
@@ -932,7 +932,7 @@
         },
         {
           "id": "FPA-P14-S03",
-          "title": "Review biometric and child-data controls",
+          "title": "Integrate Photo, upload, Album and Event journeys",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S02"
@@ -941,7 +941,7 @@
         },
         {
           "id": "FPA-P14-S04",
-          "title": "Perform application security hardening",
+          "title": "Integrate People, recognition, duplicate and discovery journeys",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S03"
@@ -950,7 +950,7 @@
         },
         {
           "id": "FPA-P14-S05",
-          "title": "Perform accessibility audit",
+          "title": "Integrate collaboration and Family Space management journeys",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S04"
@@ -959,7 +959,7 @@
         },
         {
           "id": "FPA-P14-S06",
-          "title": "Conduct non-technical family usability test",
+          "title": "Complete responsive, visual and state integration",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S05"
@@ -968,7 +968,7 @@
         },
         {
           "id": "FPA-P14-S07",
-          "title": "Resolve production blockers",
+          "title": "Conduct role-based product journey acceptance",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S06"
@@ -979,12 +979,12 @@
     },
     {
       "id": "P15",
-      "name": "Production Deployment and Pilot",
+      "name": "Platform Administration UI",
       "status": "planned",
       "stages": [
         {
           "id": "FPA-P15-S01",
-          "title": "Accept production deployment and family pilot ADR",
+          "title": "Accept platform administration authorization and operations ADR",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S07"
@@ -993,7 +993,7 @@
         },
         {
           "id": "FPA-P15-S02",
-          "title": "Provision production infrastructure",
+          "title": "Implement platform administrator identity and audit foundation",
           "status": "planned",
           "dependencies": [
             "FPA-P15-S01"
@@ -1002,7 +1002,7 @@
         },
         {
           "id": "FPA-P15-S03",
-          "title": "Configure deployment, monitoring and rollback",
+          "title": "Implement account and Family Space operations",
           "status": "planned",
           "dependencies": [
             "FPA-P15-S02"
@@ -1011,7 +1011,7 @@
         },
         {
           "id": "FPA-P15-S04",
-          "title": "Import initial curated archive",
+          "title": "Implement media and background-processing operations",
           "status": "planned",
           "dependencies": [
             "FPA-P15-S03"
@@ -1020,7 +1020,7 @@
         },
         {
           "id": "FPA-P15-S05",
-          "title": "Invite pilot family members",
+          "title": "Implement diagnostics and supported lifecycle operations",
           "status": "planned",
           "dependencies": [
             "FPA-P15-S04"
@@ -1029,19 +1029,10 @@
         },
         {
           "id": "FPA-P15-S06",
-          "title": "Review pilot feedback and operating costs",
+          "title": "Verify privileged operational journeys",
           "status": "planned",
           "dependencies": [
             "FPA-P15-S05"
-          ],
-          "notes": []
-        },
-        {
-          "id": "FPA-P15-S07",
-          "title": "Declare V1 or create remediation stages",
-          "status": "planned",
-          "dependencies": [
-            "FPA-P15-S06"
           ],
           "notes": []
         }
@@ -1049,21 +1040,21 @@
     },
     {
       "id": "P16",
-      "name": "Semantic Image Search",
+      "name": "Security, Privacy and Accessibility Hardening",
       "status": "planned",
       "stages": [
         {
           "id": "FPA-P16-S01",
-          "title": "Build semantic-search benchmark",
+          "title": "Accept security, privacy and accessibility ADR",
           "status": "planned",
           "dependencies": [
-            "FPA-P15-S07"
+            "FPA-P15-S06"
           ],
           "notes": []
         },
         {
           "id": "FPA-P16-S02",
-          "title": "Accept semantic image search ADR",
+          "title": "Produce threat model and privacy data map",
           "status": "planned",
           "dependencies": [
             "FPA-P16-S01"
@@ -1072,7 +1063,7 @@
         },
         {
           "id": "FPA-P16-S03",
-          "title": "Implement semantic embedding provider",
+          "title": "Review biometric and child-data controls",
           "status": "planned",
           "dependencies": [
             "FPA-P16-S02"
@@ -1081,7 +1072,7 @@
         },
         {
           "id": "FPA-P16-S04",
-          "title": "Implement hybrid search",
+          "title": "Perform application security hardening",
           "status": "planned",
           "dependencies": [
             "FPA-P16-S03"
@@ -1090,10 +1081,28 @@
         },
         {
           "id": "FPA-P16-S05",
-          "title": "Add re-indexing and evaluation tooling",
+          "title": "Perform accessibility audit",
           "status": "planned",
           "dependencies": [
             "FPA-P16-S04"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P16-S06",
+          "title": "Conduct non-technical family usability test",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P16-S05"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P16-S07",
+          "title": "Resolve production blockers",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P16-S06"
           ],
           "notes": []
         }
@@ -1101,15 +1110,137 @@
     },
     {
       "id": "P17",
-      "name": "Advanced Archive Features",
+      "name": "Production Deployment and Pilot",
       "status": "planned",
       "stages": [
         {
           "id": "FPA-P17-S01",
+          "title": "Accept production deployment and family pilot ADR",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P16-S07"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P17-S02",
+          "title": "Provision production infrastructure",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P17-S01"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P17-S03",
+          "title": "Configure deployment, monitoring and rollback",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P17-S02"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P17-S04",
+          "title": "Import initial curated archive",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P17-S03"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P17-S05",
+          "title": "Invite pilot family members",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P17-S04"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P17-S06",
+          "title": "Review pilot feedback and operating costs",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P17-S05"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P17-S07",
+          "title": "Declare V1 or create remediation stages",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P17-S06"
+          ],
+          "notes": []
+        }
+      ]
+    },
+    {
+      "id": "P18",
+      "name": "Semantic Image Search",
+      "status": "planned",
+      "stages": [
+        {
+          "id": "FPA-P18-S01",
+          "title": "Build semantic-search benchmark",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P17-S07"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P18-S02",
+          "title": "Accept semantic image search ADR",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P18-S01"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P18-S03",
+          "title": "Implement semantic embedding provider",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P18-S02"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P18-S04",
+          "title": "Implement hybrid search",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P18-S03"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P18-S05",
+          "title": "Add re-indexing and evaluation tooling",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P18-S04"
+          ],
+          "notes": []
+        }
+      ]
+    },
+    {
+      "id": "P19",
+      "name": "Advanced Archive Features",
+      "status": "planned",
+      "stages": [
+        {
+          "id": "FPA-P19-S01",
           "title": "Select and scope one post-V1 archive feature",
           "status": "planned",
           "dependencies": [
-            "FPA-P16-S05"
+            "FPA-P18-S05"
           ],
           "notes": []
         }
@@ -1117,7 +1248,7 @@
     }
   ],
   "adrs": {
-    "next_number": 19,
+    "next_number": 21,
     "status_values": [
       "proposed",
       "accepted",
@@ -1235,34 +1366,50 @@
         "id": "ADR-0016",
         "title": "Security, privacy and accessibility hardening",
         "status": "planned",
-        "roadmap_phase": "P14",
-        "required_by_stage": "FPA-P14-S01"
+        "roadmap_phase": "P16",
+        "required_by_stage": "FPA-P16-S01"
       },
       {
         "id": "ADR-0017",
         "title": "Production deployment and family pilot",
         "status": "planned",
-        "roadmap_phase": "P15",
-        "required_by_stage": "FPA-P15-S01"
+        "roadmap_phase": "P17",
+        "required_by_stage": "FPA-P17-S01"
       },
       {
         "id": "ADR-0018",
         "title": "Semantic image search",
         "status": "planned",
-        "roadmap_phase": "P16",
-        "required_by_stage": "FPA-P16-S02"
+        "roadmap_phase": "P18",
+        "required_by_stage": "FPA-P18-S02"
+      },
+      {
+        "id": "ADR-0019",
+        "title": "Family product UI/UX integration",
+        "status": "planned",
+        "roadmap_phase": "P14",
+        "required_by_stage": "FPA-P14-S01"
+      },
+      {
+        "id": "ADR-0020",
+        "title": "Platform administration authorization and operations",
+        "status": "planned",
+        "roadmap_phase": "P15",
+        "required_by_stage": "FPA-P15-S01"
       }
     ]
   },
   "release_gates": {
     "v1": {
-      "phase": "P15",
+      "phase": "P17",
       "required": [
         "Invite-only authentication is production-ready.",
         "Family-space isolation has application and database-level tests.",
         "Original photo preservation and export are verified.",
         "Face recognition remains correctable, consent-aware and provider-replaceable.",
         "Backup restoration has been tested.",
+        "Non-technical family users can complete role-appropriate product journeys without internal identifiers or developer tooling.",
+        "Platform administration is least-privilege, audited and separate from Family Space membership roles.",
         "Security, privacy and accessibility blockers are resolved.",
         "A small family pilot has completed core workflows."
       ]

@@ -3217,23 +3217,141 @@ Measure detection coverage, false detections, execution time, memory and failure
 
 ---
 
-# Phase 14 — Security, Privacy and Accessibility Hardening
+# Phase 14 — Family Product UI / UX Completion
 
-## FPA-P14-S01 — Accept security, privacy and accessibility ADR (ADR-0016)
+This phase integrates the development UIs built throughout the functional
+phases into the final Family Space product experience. It is not permission to
+defer feature-level frontend work: every functional phase must still provide
+enough UI to navigate, exercise and verify its own capability.
+
+## FPA-P14-S01 — Accept family product UI/UX integration ADR (ADR-0019)
+
+Define the integrated information architecture, navigation model, visual and
+interaction foundations, supported responsive layouts, role-based journey
+matrix and product-level accessibility acceptance approach. Preserve existing
+domain authorization; this ADR integrates the product experience rather than
+redesigning domain permissions.
+
+## FPA-P14-S02 — Implement the product shell and Family Space context
+
+Integrate global navigation, Family Space switching/context and the family
+homepage into a consistent responsive shell with clear loading, empty, error
+and success states.
+
+## FPA-P14-S03 — Integrate Photo, upload, Album and Event journeys
+
+Make browsing, Photo detail, ready-upload selection and promotion, upload
+progress/recovery, Albums, Events and the Guest experience coherent without
+requiring internal IDs, API knowledge or developer tooling.
+
+## FPA-P14-S04 — Integrate People, recognition, duplicate and discovery journeys
+
+Connect People and Person pages, Photo tagging, face suggestions and human
+confirmation, duplicate prompts/review, search, discovery, memories and
+history surfaces into understandable family workflows.
+
+## FPA-P14-S05 — Integrate collaboration and Family Space management journeys
+
+Complete comments, reactions, stories, invitations, membership, personal and
+Family Space export/portability, and the normal Owner/Administrator Family
+Space controls. Keep these customer-facing controls strictly distinct from
+Phase 15 Platform Administration.
+
+## FPA-P14-S06 — Complete responsive, visual and state integration
+
+Reconcile mobile and desktop behaviour, visual consistency, keyboard and
+assistive-technology operation, and loading, empty, error and success states
+across all important journeys.
+
+## FPA-P14-S07 — Conduct role-based product journey acceptance
+
+Test Owner, Administrator, Member, Contributor and Guest through their real
+product experiences with non-technical participants where practical. Resolve
+journey blockers without using internal IDs, APIs, database records or
+developer tooling as user-facing workarounds.
+
+### Phase verification
+
+- Each role can complete its important permitted journeys and is clearly
+  refused where it lacks authority.
+- Core family journeys work on supported mobile and desktop layouts.
+- No normal product journey requires knowledge of internal identifiers or
+  developer interfaces.
+- Family Space management is clearly separated from platform operations.
+
+---
+
+# Phase 15 — Platform Administration UI
+
+This is a separate system-operator interface, not Family Space
+Owner/Administrator functionality. Its surfaces must be derived from
+capabilities that exist when the phase begins; do not add speculative
+enterprise administration features.
+
+## FPA-P15-S01 — Accept platform administration authorization and operations ADR (ADR-0020)
+
+Define dedicated Platform Administrator authorization, strict separation from
+Family Space roles, least privilege, audited privileged operations and the
+deliberate boundaries for support/debug access to family data. Platform
+administration must not become an implicit tenancy bypass and must never imply
+Family Space membership.
+
+## FPA-P15-S02 — Implement platform administrator identity and audit foundation
+
+Implement the dedicated authorization boundary, privileged-operation audit
+trail and fail-closed separation from Family Space membership and ordinary
+product routes.
+
+## FPA-P15-S03 — Implement account and Family Space operations
+
+Add only the user, account, Family Space, suspension/deactivation and support
+investigation surfaces justified by completed account and tenancy capabilities.
+
+## FPA-P15-S04 — Implement media and background-processing operations
+
+Expose storage/media status, failed uploads, background jobs and retries, and
+face/duplicate-analysis processing health using bounded, audited operations.
+
+## FPA-P15-S05 — Implement diagnostics and supported lifecycle operations
+
+Expose platform-wide audit/system events, operational diagnostics, supported
+deletion/retention operations and genuinely required configuration without
+inventing unsupported lifecycle semantics.
+
+## FPA-P15-S06 — Verify privileged operational journeys
+
+Test least privilege, separation from Family Space roles, absence of implicit
+membership, audit completeness, deliberate family-data support access and the
+operator journeys actually implemented.
+
+### Phase verification
+
+- Platform Administrator authority is dedicated and independent of Family
+  Space roles.
+- Privileged actions are least-privilege and auditable.
+- Support access to family data is explicit, bounded and reviewable.
+- Ordinary operational workflows do not require direct database or container
+  access.
+
+---
+
+# Phase 16 — Security, Privacy and Accessibility Hardening
+
+## FPA-P16-S01 — Accept security, privacy and accessibility ADR (ADR-0016)
 
 Resolve the consent and lawful-processing model, child and guardian controls, security incident and breach response, and the accessibility acceptance standard, in one ADR before the audits and hardening work below measure against it.
 
-## FPA-P14-S02 — Produce threat model and privacy data map
+## FPA-P16-S02 — Produce threat model and privacy data map
 
-## FPA-P14-S03 — Review biometric and child-data controls
+## FPA-P16-S03 — Review biometric and child-data controls
 
-## FPA-P14-S04 — Perform application security hardening
+## FPA-P16-S04 — Perform application security hardening
 
-## FPA-P14-S05 — Perform accessibility audit
+## FPA-P16-S05 — Perform accessibility audit
 
-## FPA-P14-S06 — Conduct non-technical family usability test
+## FPA-P16-S06 — Conduct non-technical family usability test
 
-## FPA-P14-S07 — Resolve production blockers
+## FPA-P16-S07 — Resolve production blockers
 
 ### Phase verification
 
@@ -3243,21 +3361,21 @@ Resolve the consent and lawful-processing model, child and guardian controls, se
 
 ---
 
-# Phase 15 — Production Deployment and Pilot
+# Phase 17 — Production Deployment and Pilot
 
-## FPA-P15-S01 — Accept production deployment and family pilot ADR (ADR-0017)
+## FPA-P17-S01 — Accept production deployment and family pilot ADR (ADR-0017)
 
-## FPA-P15-S02 — Provision production infrastructure
+## FPA-P17-S02 — Provision production infrastructure
 
-## FPA-P15-S03 — Configure deployment, monitoring and rollback
+## FPA-P17-S03 — Configure deployment, monitoring and rollback
 
-## FPA-P15-S04 — Import initial curated archive
+## FPA-P17-S04 — Import initial curated archive
 
-## FPA-P15-S05 — Invite pilot family members
+## FPA-P17-S05 — Invite pilot family members
 
-## FPA-P15-S06 — Review pilot feedback and operating costs
+## FPA-P17-S06 — Review pilot feedback and operating costs
 
-## FPA-P15-S07 — Declare V1 or create remediation stages
+## FPA-P17-S07 — Declare V1 or create remediation stages
 
 ### Phase verification
 
@@ -3268,23 +3386,23 @@ Resolve the consent and lawful-processing model, child and guardian controls, se
 
 ---
 
-# Phase 16 — Semantic Image Search
+# Phase 18 — Semantic Image Search
 
 This phase starts only after V1 unless explicitly promoted through roadmap review.
 
-## FPA-P16-S01 — Build semantic-search benchmark
+## FPA-P18-S01 — Build semantic-search benchmark
 
-## FPA-P16-S02 — Accept semantic image search ADR (ADR-0018)
+## FPA-P18-S02 — Accept semantic image search ADR (ADR-0018)
 
-## FPA-P16-S03 — Implement semantic embedding provider
+## FPA-P18-S03 — Implement semantic embedding provider
 
-## FPA-P16-S04 — Implement hybrid search
+## FPA-P18-S04 — Implement hybrid search
 
-## FPA-P16-S05 — Add re-indexing and evaluation tooling
+## FPA-P18-S05 — Add re-indexing and evaluation tooling
 
 ---
 
-# Phase 17 — Advanced Archive Features
+# Phase 19 — Advanced Archive Features
 
 Each advanced feature must receive its own scoped stages and ADR review. Do not create a single unbounded “advanced features” implementation branch.
 
