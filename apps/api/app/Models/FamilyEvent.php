@@ -63,6 +63,12 @@ class FamilyEvent extends Model
         return $this->hasMany(Invitation::class, 'event_id');
     }
 
+    /** @return HasMany<EventExport, $this> */
+    public function exports(): HasMany
+    {
+        return $this->hasMany(EventExport::class, 'event_id');
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {

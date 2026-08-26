@@ -270,6 +270,7 @@ class InvitationManager
                 $invitation->family_space_id,
                 authoritativeOperation: 'invitation_acceptance',
             );
+            $this->lockAcceptanceKey($invitation->family_space_id);
 
             if ($invitation->status !== InvitationStatus::Pending) {
                 return null;
@@ -308,8 +309,23 @@ class InvitationManager
                     'email_verified_at' => now(),
                     'can_create_family_spaces' => false,
                 ])->save();
-            } elseif ($request->user('sanctum')?->isNot($user) !== false) {
-                return null;
+            } else {
+                $requestUser = $request->user('sanctum');
+                $password = $attributes['password'] ?? null;
+                $mayReuseConcurrentAccount = $invitation->event_id !== null
+                    && $requestUser === null
+                    && is_string($password)
+                    && Hash::check($password, $user->password)
+                    && FamilySpaceMembership::query()
+                        ->where('family_space_id', $invitation->family_space_id)
+                        ->where('user_id', $user->id)
+                        ->where('role', FamilySpaceRole::Guest->value)
+                        ->where('state', MembershipState::Active->value)
+                        ->exists();
+
+                if (($requestUser === null || $requestUser->isNot($user)) && ! $mayReuseConcurrentAccount) {
+                    return null;
+                }
             }
 
             $this->databaseTenantContext->establishUser($user);
@@ -425,6 +441,13 @@ class InvitationManager
     private function hashToken(string $token): string
     {
         return hash('sha256', $token);
+    }
+
+    private function lockAcceptanceKey(string $familySpaceId): void
+    {
+        if (DB::getDriverName() === 'pgsql') {
+            DB::select('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [$familySpaceId]);
+        }
     }
 
     private function fail(string $message = 'This invitation cannot be accepted.'): never

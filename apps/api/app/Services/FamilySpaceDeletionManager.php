@@ -8,6 +8,8 @@ use App\Enums\MembershipState;
 use App\Media\FamilyMediaStorageCleaner;
 use App\Models\Album;
 use App\Models\EventAdmission;
+use App\Models\EventExport;
+use App\Models\EventNotificationDelivery;
 use App\Models\FamilyCircle;
 use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
@@ -136,6 +138,12 @@ class FamilySpaceDeletionManager
                 ->where('family_space_id', $familySpace->id)
                 ->delete();
             EventAdmission::query()
+                ->where('family_space_id', $familySpace->id)
+                ->delete();
+            EventNotificationDelivery::query()
+                ->where('family_space_id', $familySpace->id)
+                ->delete();
+            EventExport::query()
                 ->where('family_space_id', $familySpace->id)
                 ->delete();
             Invitation::query()

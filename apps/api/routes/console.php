@@ -19,3 +19,7 @@ Schedule::command('fambam:dispatch-due-media-quarantine-purges')
 Schedule::command('fambam:dispatch-due-abandoned-media-uploads')
     ->hourly()
     ->withoutOverlapping();
+
+Schedule::command('fambam:dispatch-due-event-exports')
+    ->hourly()
+    ->withoutOverlapping();

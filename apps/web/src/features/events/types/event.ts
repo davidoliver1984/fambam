@@ -14,6 +14,7 @@ export type FamilyEvent = {
     can_update: boolean;
     can_manage_admissions: boolean;
     can_review_duplicates: boolean;
+    can_manage_exports: boolean;
     can_delete: boolean;
     can_restore: boolean;
     can_create_album: boolean;
@@ -44,4 +45,25 @@ export type EventInput = {
   ends_on?: string | null;
   location?: string | null;
   status?: EventStatus;
+};
+
+export type EventExportState =
+  "pending" | "processing" | "ready" | "failed" | "expired";
+
+export type EventExport = {
+  id: string;
+  state: EventExportState;
+  requested_by: number;
+  requester: { id: number; name: string };
+  photo_count: number | null;
+  byte_size: number | null;
+  archive_sha256: string | null;
+  failure_reason: string | null;
+  expires_at: string | null;
+  created_at: string | null;
+};
+
+export type EventExportDownload = {
+  url: string;
+  expires_at: string;
 };

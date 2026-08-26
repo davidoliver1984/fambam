@@ -19,6 +19,7 @@ class AlbumContributionFinalizer
     public function __construct(
         private readonly AuditRecorder $audit,
         private readonly EventAccess $eventAccess,
+        private readonly EventContributionNotifier $eventNotifications,
     ) {}
 
     public function finalize(MediaUpload $upload, TenantOperationContext $context): void
@@ -47,6 +48,7 @@ class AlbumContributionFinalizer
             $link = AlbumPhoto::query()->create(['family_space_id' => $upload->family_space_id,
                 'album_id' => $album->id, 'photo_id' => $photo->id, 'position' => $position, 'added_by' => $upload->user_id]);
             $this->audit->record('album.photo_created', $link, operationContext: $context);
+            $this->eventNotifications->dispatch($album, $photo, $context);
         }
     }
 

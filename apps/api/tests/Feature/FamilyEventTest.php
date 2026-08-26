@@ -37,6 +37,15 @@ class FamilyEventTest extends TestCase
         $this->actingAs($member)->patchJson("/api/families/events-authority/events/{$eventId}", ['status' => 'active'])->assertOk();
         $this->actingAs($otherMember)->patchJson("/api/families/events-authority/events/{$eventId}", ['name' => 'No'])->assertForbidden();
         $this->actingAs($owner)->patchJson("/api/families/events-authority/events/{$eventId}", ['name' => 'Family picnic'])->assertOk();
+        $this->actingAs($owner)->patchJson("/api/families/events-authority/events/{$eventId}", [
+            'starts_on' => '2026-08-27', 'ends_on' => '2026-08-26',
+        ])->assertUnprocessable()->assertJsonValidationErrors('ends_on');
+        $this->actingAs($owner)->patchJson("/api/families/events-authority/events/{$eventId}", [
+            'starts_on' => '2026-08-27',
+        ])->assertUnprocessable()->assertJsonValidationErrors('ends_on');
+        $this->actingAs($owner)->patchJson("/api/families/events-authority/events/{$eventId}", [
+            'ends_on' => '2026-08-24',
+        ])->assertUnprocessable()->assertJsonValidationErrors('ends_on');
         $this->actingAs($contributor)->getJson('/api/families/events-authority/events')->assertForbidden();
         $this->actingAs($guest)->postJson('/api/families/events-authority/events', ['name' => 'No'])->assertForbidden();
     }

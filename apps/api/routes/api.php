@@ -4,6 +4,7 @@ use App\Http\Controllers\AccountSecurityController;
 use App\Http\Controllers\AlbumController;
 use App\Http\Controllers\CurrentUserController;
 use App\Http\Controllers\EventAdmissionController;
+use App\Http\Controllers\EventExportController;
 use App\Http\Controllers\FamilyCircleController;
 use App\Http\Controllers\FamilyEventController;
 use App\Http\Controllers\FamilySpaceController;
@@ -113,6 +114,9 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::get('/events/{event}/admissions', [EventAdmissionController::class, 'index']);
         Route::post('/events/{event}/admissions', [EventAdmissionController::class, 'store']);
         Route::delete('/events/{event}/admissions/{membership}', [EventAdmissionController::class, 'destroy']);
+        Route::get('/events/{event}/exports', [EventExportController::class, 'index']);
+        Route::post('/events/{event}/exports', [EventExportController::class, 'store']);
+        Route::get('/events/{event}/exports/{eventExport}/download', [EventExportController::class, 'download']);
         Route::get('/people', [PersonController::class, 'index']);
         Route::post('/people', [PersonController::class, 'store']);
         Route::get('/people/{person}', [PersonController::class, 'show']);

@@ -2711,12 +2711,98 @@ Implement restricted Event guest access
 
 ## FPA-P07-S05 — Implement event notifications and exports
 
+### Objective
+
+Notify the relevant Event cohort when a new contribution becomes available and
+provide a short-lived, curated Event archive containing preserved originals and
+a useful machine-readable metadata manifest.
+
+### Notification boundary
+
+- Dispatch one queued email notification when a newly uploaded Photo is first
+  finalised into an Event Album. Processing retries and idempotent finalisation
+  must not send duplicates; comments, reactions, metadata edits and attaching
+  an existing Photo do not generate Phase 7 notifications.
+- Persist one tenant-scoped delivery row per Event, Photo and recipient. Send
+  recipients individually and mark each row after successful delivery so a job
+  retry resumes only the unsent remainder of a partially delivered cohort.
+- Recipients are the Event creator, active Owner/Administrator memberships and
+  memberships with a currently valid Event admission. Deduplicate recipients,
+  exclude the uploader and exclude removed memberships, revoked accounts and
+  expired or revoked admissions. Admission validity is evaluated live using the
+  same configured lifetime as authorization.
+- The message identifies the Event and contributing user and links to the Event
+  page. It does not attach media or disclose wider Family Space content.
+- Notification preferences, digests, in-application notifications and
+  comment/reaction notifications remain later product work.
+
+### Curated archive boundary
+
+- Only an active Owner or Administrator may request, inspect or download an
+  Event archive. Member, Contributor and Guest are denied even where they may
+  view individual Event Albums; an archive combines content across all of the
+  Event's Albums and therefore uses the narrow management authority.
+- Build the archive asynchronously. Persist one `EventExport` row per request
+  with `pending`, `processing`, `ready`, `failed` or `expired` state and a
+  server-generated tenant/Event-scoped private object key. A request never
+  grants access to any other Event or Family Space.
+- Give generation a bounded 15-minute worker timeout and a per-export overlap
+  lock; the queue visibility timeout must exceed that bound so a large archive
+  cannot be processed concurrently after premature message redelivery.
+- The concrete format is a ZIP archive containing `manifest.json` plus one
+  untouched preserved original per distinct, non-deleted Photo reached through
+  an Event Album or `Photo.primary_event_id`. A Photo reached through both paths
+  appears once. Archive entry names are server-generated from the Photo ULID and
+  the detected format; client filenames are metadata only.
+- The UTF-8 JSON manifest is schema version 1 and records Event identity and
+  descriptive fields, generation time, requester identity and, per Photo,
+  Photo/media identifiers, archive entry, original filename, detected MIME
+  type, byte size, SHA-256, uploader and creator identities, caption,
+  description, historical date, location, tags and confirmed provenance
+  fields. Missing or checksum-invalid preserved originals fail the entire
+  archive rather than producing an apparently complete partial export.
+- A ready archive expires 24 hours after generation. Download authorization is
+  rechecked on every request and issues a five-minute signed URL. An hourly,
+  idempotent cleanup removes expired archive objects and marks their rows
+  `expired`; ordinary media objects are never touched. Family Space teardown
+  also removes Event exports through the existing tenant-prefix cleanup.
+- Audit archive request, successful generation, failure, download authorization
+  and expiry cleanup. Do not claim that Laravel observed the signed object-store
+  GET itself.
+
+### Frontend boundary
+
+- Extend the typed Event API module, Event query-key factory and TanStack Query
+  hooks with archive request/status/list operations.
+- Show archive controls only where the API reports export-management authority.
+  The page consumes hooks and never calls the shared HTTP client directly or
+  fetches server state through `useEffect`.
+
 ### Phase verification
 
 - Guest access cannot enumerate family members or unrelated photos.
 - Expired event links stop working.
 - Contributions retain uploader and source provenance.
 - Event exports include originals and a metadata manifest.
+- Notification recipient selection excludes the uploader and every stale,
+  revoked or unrelated admission, and processing retries do not duplicate mail.
+- Archive authorization, tenant isolation, distinct Photo selection, manifest
+  content, original checksum validation, signed-download authorization and
+  expiry cleanup are covered by feature and PostgreSQL tests.
+- Run the full API, PostgreSQL RLS, frontend, formatting, lint, type, security,
+  contracts, documentation and foundation gates, plus a production web build.
+
+### Documentation updates
+
+- Mark FPA-P07-S05 and Phase 7 complete in `tasks.json` only after the full
+  verification gate passes.
+- Record the bounded implementation in the session journal.
+
+### Commit boundary
+
+```text
+Implement Event notifications and exports
+```
 
 ---
 

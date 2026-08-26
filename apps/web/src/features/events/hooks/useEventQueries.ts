@@ -10,12 +10,15 @@ import {
   getDeletedEvents,
   getDuplicateEventCandidates,
   getEventAdmissions,
+  getEventExports,
   getEvent,
   getEvents,
   getPersonEvents,
   updateEvent,
   revokeEventAdmission,
   restoreEvent,
+  requestEventExport,
+  authorizeEventExportDownload,
 } from "../api/eventApi";
 import { eventKeys } from "../api/eventKeys";
 import type { EventInput } from "../types/event";
@@ -91,6 +94,43 @@ export function useEventAdmissionMutations(
       mutationFn: (membershipId: string) =>
         revokeEventAdmission(familySlug, eventId, membershipId),
       onSuccess: invalidate,
+    }),
+  };
+}
+
+export function useEventExportsQuery(
+  familySlug: string,
+  eventId: string,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: eventKeys.exports(familySlug, eventId),
+    queryFn: ({ signal }) => getEventExports(familySlug, eventId, signal),
+    enabled: enabled && familySlug !== "" && eventId !== "",
+    retry: false,
+    refetchInterval: (query) =>
+      query.state.data?.some((item) =>
+        ["pending", "processing"].includes(item.state),
+      )
+        ? 3_000
+        : false,
+  });
+}
+
+export function useEventExportMutations(familySlug: string, eventId: string) {
+  const client = useQueryClient();
+
+  return {
+    request: useMutation({
+      mutationFn: () => requestEventExport(familySlug, eventId),
+      onSuccess: () =>
+        client.invalidateQueries({
+          queryKey: eventKeys.exports(familySlug, eventId),
+        }),
+    }),
+    download: useMutation({
+      mutationFn: (eventExportId: string) =>
+        authorizeEventExportDownload(familySlug, eventId, eventExportId),
     }),
   };
 }

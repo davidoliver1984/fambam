@@ -6,10 +6,10 @@
     "version": "0.1.0",
     "status": "in_progress",
     "v1_release_phase": "P15",
-    "current_phase": "P07",
-    "current_stage": "FPA-P07-S05",
+    "current_phase": "P08",
+    "current_stage": "FPA-P08-S01",
     "created_at": "2026-07-31",
-    "updated_at": "2026-08-25"
+    "updated_at": "2026-08-26"
   },
   "conventions": {
     "phase_id_format": "P##",
@@ -501,7 +501,7 @@
     {
       "id": "P07",
       "name": "Events and Collaborative Sharing",
-      "status": "in_progress",
+      "status": "completed",
       "stages": [
         {
           "id": "FPA-P07-S01",
@@ -550,11 +550,13 @@
         {
           "id": "FPA-P07-S05",
           "title": "Implement event notifications and exports",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P07-S04"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-26: notifies the live Event cohort (creator, active Owner/Administrator, and memberships with a currently valid Event admission, deduplicated, uploader excluded) exactly once per Photo via a tenant-scoped per-recipient delivery ledger that resumes only unsent recipients after a partial failure. Owner/Administrator may request a bounded, overlap-protected, asynchronous curated Event archive (ZIP of untouched preserved originals plus a schema-versioned JSON manifest), with checksum-validated originals, five-minute signed downloads, 24-hour retention and hourly idempotent expiry cleanup integrated into Family Space teardown and audit. Also closed the independent Phase 7 review findings found before this stage's acceptance: Guest-created Photos no longer bypass live Event access via the Photo.created_by shortcut; concurrent new-account Event-invitation acceptance is serialized with a PostgreSQL advisory lock and deterministically reuses one account/membership; Album event detachment correctly resets guest_participation; Event updates reject every inverted date-range combination against the stored record, not only both-fields-in-one-request; event_admissions gained direct cross-tenant PostgreSQL RLS proof. No ADR-0009 correction was required."
+          ]
         }
       ]
     },
@@ -1618,6 +1620,22 @@
       "roadmap_stage": "FPA-P07-S04",
       "date": "2026-08-25",
       "description": "FPA-P07-S04 completed: restricted authenticated Guest access now composes an active Guest membership, a live EventAdmission and Album guest_participation or an Event-scoped individual grant; Event invitations reuse existing memberships without role mutation; Guests remain excluded from ordinary Family Space surfaces; uploads reuse the existing Album-targeted pipeline; original download remains participation-scoped; comments/reactions are separated from denied Guest Story authoring; and Event removal/restoration disables/resumes access without destroying references."
+    },
+    {
+      "git_tag": "phase-7-s05",
+      "type": "stage_completion",
+      "adr": "ADR-0009",
+      "roadmap_stage": "FPA-P07-S05",
+      "date": "2026-08-26",
+      "description": "FPA-P07-S05 completed: retry-safe, deduplicated Event-contribution notifications delivered through a tenant-scoped per-recipient ledger; bounded, overlap-protected curated Event archive generation with checksum-validated originals, a schema-versioned manifest, signed downloads, retention and idempotent expiry cleanup; and closure of the independent Phase 7 review findings (Guest-created-Photo authority tied to live Event access, race-safe concurrent Event-invitation acceptance, correct Album event-detachment guest_participation reset, consistent Event date-range validation against stored state, and direct event_admissions RLS proof), all verified with full API, PostgreSQL 17.6, frontend, security, infrastructure and observability gates."
+    },
+    {
+      "git_tag": "phase-7",
+      "type": "phase_completion",
+      "adr": null,
+      "roadmap_stage": "FPA-P07-S05",
+      "date": "2026-08-26",
+      "description": "Phase 7 completed: Events and Collaborative Sharing passed the complete repository, PostgreSQL 17.6, persistent migration, frontend, security, infrastructure and observability acceptance gates."
     }
   ]
 }
