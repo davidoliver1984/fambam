@@ -329,8 +329,9 @@ Reduce repeated uploads without risking automatic data loss.
 - Perceptual hashing.
 - Similar-image candidates.
 - Duplicate review interface.
-- Consolidation of metadata and album references.
-- No automatic deletion.
+- Explicit duplicate decision handling: reuse an existing Photo, or
+  create an independent new one.
+- No automatic deletion, merging or consolidation.
 
 ## Required decisions
 
@@ -340,8 +341,11 @@ Reduce repeated uploads without risking automatic data loss.
 
 - Exact duplicates are reliably detected.
 - Similar-image suggestions are explainable.
-- User decisions are reversible and audited.
-- Metadata is not lost during consolidation.
+- Duplicate decisions are auditable and may be explicitly reopened by an
+  authorized user; the system never silently forgets or automatically
+  re-raises a decision on its own.
+- No family data — metadata, provenance, stories, comments or reactions —
+  is lost or silently altered by any Phase 8 mechanism.
 
 ---
 
