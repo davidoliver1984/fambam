@@ -26,7 +26,7 @@ established.
 
 ## Decision
 
-1. **Frontend: React + TypeScript + Vite** (not Next.js). Fambam is
+1. **Frontend: React + TypeScript + Vite** (not Next.js). fambam is
    primarily an authenticated application; Laravel is the sole backend and
    business authority; there is currently no material SEO, SSR, ISR or
    React Server Components requirement. Next.js would add capabilities and

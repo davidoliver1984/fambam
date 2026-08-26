@@ -27,11 +27,11 @@ without risking automatic data loss."
 Before deciding any mechanism, one governing principle sits ahead of
 everything else in this ADR:
 
-**Duplicate detection is an assistant, not a gatekeeper.** Fambam
+**Duplicate detection is an assistant, not a gatekeeper.** fambam
 recognises repeated media and offers a simple, honest choice — it never
 assumes, infers, or acts as though repeated media represents the same
 family memory. **Repeated media does not necessarily represent repeated
-family memories.** Fambam cannot know from the bytes alone whether two
+family memories.** fambam cannot know from the bytes alone whether two
 uploads are "the same memory told twice" or two genuinely independent
 ones, so it never guesses. This is intentionally one of the simplest ADRs
 in this series: no workflow engine, no review queue, no duplicate-
@@ -133,7 +133,7 @@ computed** — it only adds a check at the moment a `ready` `MediaUpload`
 would otherwise become a Photo (§4 defines exactly where that moment is
 for each of fambam's two real creation paths).
 
-At that moment, Fambam looks for every other `ready` `MediaUpload` in the
+At that moment, fambam looks for every other `ready` `MediaUpload` in the
 **same Family Space** that carries the identical `original_sha256` **and**
 already backs a Photo. **Only Photos the current actor can already view
 are ever disclosed.** A checksum match backed by a Photo the actor cannot

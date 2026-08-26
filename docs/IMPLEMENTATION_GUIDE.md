@@ -1,6 +1,6 @@
 # fambam — Implementation Guide
 
-> **Purpose:** This is the durable build guide for the fambam.
+> **Purpose:** This is the durable build guide for fambam.
 >
 > `PROJECT_ROADMAP.md` defines what is built and in what order.
 > This document defines how each stage should be implemented, verified and committed.
@@ -528,7 +528,7 @@ endpoints and the Mailpit and LocalStack health surfaces responded successfully.
 ### Risks and edge cases
 
 - Common local development ports were already occupied by unrelated projects.
-  Fambam therefore defaults to a dedicated host-port range while retaining the
+  fambam therefore defaults to a dedicated host-port range while retaining the
   services' conventional internal ports; every host port remains overridable
   through the root environment template.
 - Compose defaults are development-only and contain no production credentials.

@@ -76,7 +76,7 @@ not rebuilding the framework.
 
 ### 2. Session authentication: Laravel Sanctum, SPA (cookie) mode — not API tokens
 
-Fambam is a first-party browser SPA. Laravel Sanctum's stateful
+fambam is a first-party browser SPA. Laravel Sanctum's stateful
 session-cookie mode is selected because it provides the natural
 CSRF-protected browser authentication model, centralised session
 management and server-side revocation required by this application.

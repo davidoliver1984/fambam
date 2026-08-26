@@ -3,7 +3,7 @@
 ## Purpose and audience
 
 This guide is for human contributors and AI-assisted engineering sessions working
-within the fambam's established architecture, engineering workflow
+within fambam's established architecture, engineering workflow
 and documentation system. It explains how to make a bounded, reviewable change
 without silently changing the platform's design or duplicating its existing
 documentation.
@@ -150,7 +150,7 @@ Examples:
 - Update implementation guide for Phase 12
 
 Do not use Conventional Commit prefixes (`feat:`, `fix:`, `docs:`, `chore:` etc.)
-unless the repository explicitly adopts that convention. Fambam has not.
+unless the repository explicitly adopts that convention. fambam has not.
 
 ### Architecture & Documentation
 
