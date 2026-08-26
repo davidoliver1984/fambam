@@ -64,6 +64,11 @@ class PhotoPolicy
         return $this->view($user, $photo) && $this->hasPhotoDirectoryAccess($user);
     }
 
+    public function flagDuplicate(User $user, Photo $photo): bool
+    {
+        return $this->view($user, $photo) && $this->hasPhotoDirectoryAccess($user);
+    }
+
     public function interact(User $user, Photo $photo): bool
     {
         if (! $this->view($user, $photo)) {

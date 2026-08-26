@@ -20,6 +20,7 @@ import { AlbumsPage } from "./features/albums/pages/AlbumsPage";
 import { EventsPage } from "./features/events/pages/EventsPage";
 import { EventPage } from "./features/events/pages/EventPage";
 import { AlbumPage } from "./features/albums/pages/AlbumPage";
+import { DuplicateReviewPage } from "./features/duplicates/pages/DuplicateReviewPage";
 
 function WelcomePage() {
   return (
@@ -66,6 +67,10 @@ export function App() {
           element={<MediaUploadPage />}
         />
         <Route path="/families/:familySlug/photos" element={<PhotosPage />} />
+        <Route
+          path="/families/:familySlug/duplicates"
+          element={<DuplicateReviewPage />}
+        />
         <Route path="/families/:familySlug/albums" element={<AlbumsPage />} />
         <Route
           path="/families/:familySlug/albums/:albumId"

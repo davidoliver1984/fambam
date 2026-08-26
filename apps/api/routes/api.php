@@ -4,6 +4,7 @@ use App\Http\Controllers\AccountSecurityController;
 use App\Http\Controllers\AlbumController;
 use App\Http\Controllers\CurrentUserController;
 use App\Http\Controllers\DuplicateHoldController;
+use App\Http\Controllers\DuplicateReviewController;
 use App\Http\Controllers\EventAdmissionController;
 use App\Http\Controllers\EventExportController;
 use App\Http\Controllers\FamilyCircleController;
@@ -63,6 +64,10 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::get('/media-upload-batches/{uploadBatch}', [MediaUploadController::class, 'batch']);
         Route::get('/media-upload-duplicate-holds', [DuplicateHoldController::class, 'index']);
         Route::post('/media-upload-duplicate-holds/{hold}/resolve', [DuplicateHoldController::class, 'resolve']);
+        Route::get('/duplicate-candidates', [DuplicateReviewController::class, 'index']);
+        Route::post('/duplicate-candidates/{candidate}/dismiss', [DuplicateReviewController::class, 'dismiss']);
+        Route::get('/duplicate-decisions', [DuplicateReviewController::class, 'decisions']);
+        Route::post('/duplicate-decisions/{decision}/reopen', [DuplicateReviewController::class, 'reopen']);
         Route::post('/media-uploads/{mediaUpload}/complete', [MediaUploadController::class, 'complete']);
         Route::post('/media-uploads/{mediaUpload}/retry-processing', [MediaUploadController::class, 'retryProcessing']);
         Route::get('/media-uploads/{mediaUpload}/canonical', [MediaUploadController::class, 'canonical']);
@@ -72,6 +77,7 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::get('/photos/deleted', [PhotoController::class, 'deleted']);
         Route::post('/photos', [PhotoController::class, 'store']);
         Route::get('/photos/{photo}', [PhotoController::class, 'show']);
+        Route::post('/photos/{photo}/duplicate-flags', [DuplicateReviewController::class, 'flag']);
         Route::delete('/photos/{photo}', [PhotoController::class, 'destroy']);
         Route::post('/photos/{photo}/restore', [PhotoController::class, 'restore']);
         Route::patch('/photos/{photo}', [PhotoController::class, 'update']);

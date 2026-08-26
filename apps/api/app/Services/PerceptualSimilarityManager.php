@@ -157,7 +157,7 @@ class PerceptualSimilarityManager
                     continue;
                 }
 
-                DuplicateCandidate::query()->insertOrIgnore([
+                DuplicateCandidate::query()->upsert([[
                     'id' => (string) Str::ulid(),
                     'family_space_id' => $context->familySpaceId,
                     'photo_id' => $low,
@@ -169,6 +169,12 @@ class PerceptualSimilarityManager
                     'score' => $score,
                     'created_at' => now(),
                     'updated_at' => now(),
+                ]], ['family_space_id', 'photo_id', 'candidate_photo_id', 'source'], [
+                    'status',
+                    'algorithm',
+                    'processing_version',
+                    'score',
+                    'updated_at',
                 ]);
             }
         });

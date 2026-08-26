@@ -12,3 +12,7 @@ export const apiClient = axios.create({
 export async function ensureCsrfCookie(): Promise<void> {
   await apiClient.get("/sanctum/csrf-cookie");
 }
+
+export function apiUrl(path: string): string {
+  return new URL(path, `${baseURL}/`).toString();
+}

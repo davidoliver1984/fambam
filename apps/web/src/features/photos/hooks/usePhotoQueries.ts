@@ -11,11 +11,15 @@ import {
 import { photoKeys } from "../api/photoKeys";
 import type { PhotoFilters } from "../types/photo";
 
-export function usePhotosQuery(familySlug: string, filters: PhotoFilters = {}) {
+export function usePhotosQuery(
+  familySlug: string,
+  filters: PhotoFilters = {},
+  enabled = true,
+) {
   return useQuery({
     queryKey: photoKeys.list(familySlug, filters),
     queryFn: ({ signal }) => getPhotos(familySlug, filters, signal),
-    enabled: familySlug !== "",
+    enabled: enabled && familySlug !== "",
     retry: false,
   });
 }

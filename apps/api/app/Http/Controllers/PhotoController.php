@@ -396,6 +396,7 @@ class PhotoController extends Controller
                 'can_propose_provenance' => Gate::allows('proposeProvenance', $photo),
                 'can_resolve_provenance' => Gate::allows('resolveProvenance', $photo),
                 'can_manage_tags' => Gate::allows('manageTags', $photo),
+                'can_flag_duplicate' => Gate::allows('flagDuplicate', $photo),
             ],
         ];
     }

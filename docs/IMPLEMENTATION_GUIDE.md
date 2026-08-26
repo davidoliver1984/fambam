@@ -3032,6 +3032,39 @@ automatic. Reopening makes the pair eligible for review again; it does
 not itself change anything about the Photos involved, and ordinary
 Photo soft-delete/restore never reopens a decision on its own.
 
+### Implementation record (2026-08-26)
+
+- Added an Owner/Administrator-only, archive-wide review API and typed
+  TanStack Query surface showing both canonical assets and the source, version
+  and score behind each advisory suggestion.
+- Implemented exactly the two approved review outcomes: leave a candidate
+  pending for later, or dismiss it as not a duplicate. Dismissal settles the
+  canonical pair, dismisses every pending source for that pair and records the
+  candidate and durable-decision audit events; it never changes either Photo.
+- Added the explicit audited Owner/Administrator reopen action on the same
+  `DuplicateDecision` row. Reopening creates no candidate itself, while a
+  later natural exact or perceptual run may re-pend the existing candidate.
+- Added Member (and manager) flagging between two Photos the actor can already
+  view. Contributor and Guest remain excluded, and a settled pair cannot be
+  flagged again unless first reopened.
+- Applied the frontend engineering standard in every touched file: endpoint
+  paths and envelope mapping live in the typed duplicate API module, query
+  keys and server state live in TanStack Query hooks, and pages/components
+  contain no direct transport calls or data-fetching effects.
+- Added authorization, visibility, pair canonicalisation, audit, duplicate-
+  source collapse, dismissal, reopening/regeneration, no-consolidation,
+  endpoint ownership and accessible two-action UI tests.
+
+### Documentation updates
+
+- Completed FPA-P08-S04 and Phase 8; advanced `tasks.json` to FPA-P09-S01.
+
+### Commit boundary
+
+```text
+Implement duplicate review
+```
+
 ### Phase verification
 
 - Exact duplicate detection is deterministic and family-scoped.

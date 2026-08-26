@@ -53,6 +53,7 @@ export type Photo = {
     can_propose_provenance: boolean;
     can_resolve_provenance: boolean;
     can_manage_tags: boolean;
+    can_flag_duplicate: boolean;
   };
 };
 

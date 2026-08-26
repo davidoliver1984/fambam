@@ -278,3 +278,36 @@
 .account-link-claim button {
   margin: 0;
 }
+
+.duplicate-card {
+  border: 1px solid #d9cdc4;
+  border-radius: 0.75rem;
+  margin: 1.5rem 0;
+  padding: 1rem;
+}
+
+.duplicate-comparison {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.duplicate-comparison figure {
+  margin: 0;
+}
+
+.duplicate-comparison img {
+  background: #f1eee8;
+  border-radius: 0.5rem;
+  max-height: 28rem;
+  object-fit: contain;
+  width: 100%;
+}
+
+.duplicate-actions,
+.duplicate-comparison figcaption {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  margin-top: 0.75rem;
+}

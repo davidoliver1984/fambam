@@ -105,7 +105,7 @@ class ExactDuplicateDetector
                 continue;
             }
 
-            DuplicateCandidate::query()->firstOrCreate([
+            DuplicateCandidate::query()->updateOrCreate([
                 'family_space_id' => $photo->family_space_id,
                 'photo_id' => $low,
                 'candidate_photo_id' => $high,
