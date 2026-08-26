@@ -2810,25 +2810,155 @@ Implement Event notifications and exports
 
 ## FPA-P08-S01 — Accept duplicate-detection ADR (ADR-0010)
 
-Resolve duplicate definitions, similarity thresholds and consolidation behaviour before implementation.
+### Objective
+
+Resolve duplicate definitions and the explicit duplicate-decision model
+before implementation. ADR-0010 fixes no consolidation, merge, redirect
+or aggregation mechanism of any kind — duplicate handling is the
+three-outcome choice (use existing Photo, create a new independent
+Photo, cancel) and nothing else. Perceptual-similarity algorithm and
+threshold selection are explicitly deferred to an empirical calibration
+gate immediately before FPA-P08-S03, not fixed by the ADR.
+
+### Verification
+
+- Exact matching uses the existing frozen SHA-256 and never crosses a Family
+  Space or discloses a Photo the actor cannot already view.
+- The three-outcome flow maps onto direct Photo creation and asynchronous
+  Album/Event contribution without changing existing promotion authority.
+- Existing Photo conversations are preserved honestly while new comments and
+  reactions become Album-scoped.
+- Duplicate decisions are durable, auditable, suppress automatic rediscovery
+  and may be explicitly reopened by Owner or Administrator.
+- Retrospective exact matching belongs to S02; perceptual hashing and its
+  empirical calibration gate belong to S03.
+
+ADR-0010 was accepted on 2026-08-26 after bounded pre-implementation
+reconciliation. The reconciliation made the settled product model buildable
+against the live repository without changing its three-outcome flow, strict
+one-to-one MediaUpload/Photo cardinality, no-consolidation rule or Phase 8
+stage boundaries. This stage's entire scope was accepting the ADR, so the
+acceptance commit is the stage-completion commit and receives the
+`phase-8-s01` tag directly.
+
+### Documentation updates
+
+- Accepted ADR-0010.
+- Reconciled the Phase 8 roadmap and implementation-stage wording.
+- Advanced `tasks.json` to FPA-P08-S02.
+
+### Commit boundary
+
+```text
+Accept ADR-0010: Duplicate detection
+```
 
 ## FPA-P08-S02 — Implement exact duplicate detection
 
-Use cryptographic hashes and family-aware duplicate policies.
+Use the existing frozen `MediaUpload.original_sha256` (ADR-0007 §6) and
+family-scoped comparison; introduce no new checksum mechanism. Only
+checksum matches visible to the current actor are disclosed; when more
+than one visible Photo matches, all are shown and the actor chooses —
+no canonical winner is invented.
+
+Implement the three-outcome choice on both real creation paths: direct
+Photo creation (synchronous — respond with visible candidates instead of
+creating anything when a match exists and no decision was supplied) and
+Album/Event contribution (asynchronous — `AlbumContributionFinalizer`
+must pause on a visible match rather than auto-creating the Photo,
+recording a small `MediaUploadDuplicateHold` resolvable only by the
+original uploader using their existing contribution authority; this is
+not a new `MediaUpload` lifecycle state).
+
+Re-scope `PhotoComment`/`PhotoReaction` to `(photo_id, album_id)`: add a
+nullable `album_id` column, leave every existing row untouched
+(`album_id = NULL`), and require every newly created row to set it.
+Legacy rows are exposed only on the Photo's own direct page, read-only,
+never inside an Album view. Removing a Photo from an Album must not
+delete its conversation for that Album — no cascade on `AlbumPhoto`
+removal, so re-adding the Photo restores it automatically.
+
+Implement `DuplicateDecision` (canonical, unordered `photo_low_id`/
+`photo_high_id` pair identity) so a pair the family has already resolved
+— by choosing "create a new Photo" despite a known match — is never
+re-surfaced. Choosing "create a new Photo" against more than one visible
+match writes one `DuplicateDecision` for every disclosed match, in the
+same transaction, idempotently — never against a match that was not
+disclosed on that decision screen, and never a single arbitrary pick.
+
+**Stage ownership is exact-only.** S02 owns interactive SHA-256 exact
+duplicate detection, visibility-filtered exact-match disclosure, the
+three-outcome duplicate decision flow, `DuplicateDecision`
+creation/suppression for exact matches, and `MediaUploadDuplicateHold`
+handling for the asynchronous Album/Event contribution path. S02 also
+owns **retrospective/backfill exact duplicate candidate generation** —
+finding checksum matches between Photos that already exist or were
+created concurrently, outside the interactive check above. This
+backfill is idempotent and consults `DuplicateDecision` first so an
+already-settled pair is never regenerated as a candidate. It is exact-
+checksum work and does not wait on S03's calibration gate below. S03
+owns perceptual candidate generation only, and nothing about exact
+matching.
 
 ## FPA-P08-S03 — Implement perceptual similarity analysis
 
-Generate versioned perceptual hashes and candidate scores.
+**Before this stage begins**, complete the calibration gate: choose a
+candidate algorithm, test it against representative fambam images,
+measure false positives and false negatives, and document the selected
+threshold in this guide. This stage implements the calibrated choice; it
+does not select it.
 
-## FPA-P08-S04 — Implement duplicate review and consolidation
+Generate versioned perceptual hashes `(media_upload_id, algorithm,
+processing_version)` from the canonical asset (ADR-0007 §9), as a
+Laravel job (ADR-0007 §12) — not a Python/ML inference call. Perceptual
+matches generate `DuplicateCandidate` rows exactly like exact matches,
+consulting `DuplicateDecision` first so an already-settled pair is never
+regenerated as a candidate. S03 owns perceptual candidate generation
+only; it never duplicates or extends S02's exact-match work.
 
-Never delete automatically. Preserve album, event, story and provenance associations.
+## FPA-P08-S04 — Implement duplicate review
+
+Never delete, merge or consolidate automatically. The review surface is
+exactly two actions — ignore (leave `pending`) or dismiss (`not a
+duplicate`, writing a `DuplicateDecision`) — with no third action. There
+is no consolidation to preserve associations against, because Phase 8
+never reassigns, redirects or aggregates a Photo's own metadata, Album
+membership, stories, comments or reactions; §7's Album-scoped
+conversation and the ordinary Photo/Album tools already established in
+Phase 6/7 are what a family uses if they want to change anything about
+an existing Photo.
+
+An Owner or Administrator may **reopen** a previously settled
+`DuplicateDecision`: an explicit, audited state transition on the same
+row (`reopened_by`/`reopened_at`), never a delete-and-recreate and never
+automatic. Reopening makes the pair eligible for review again; it does
+not itself change anything about the Photos involved, and ordinary
+Photo soft-delete/restore never reopens a decision on its own.
 
 ### Phase verification
 
-- Exact duplicate detection is deterministic.
-- Similar candidates can be dismissed.
-- Consolidation has audit records and safe conflict handling.
+- Exact duplicate detection is deterministic and family-scoped.
+- A checksum match invisible to the current actor behaves as no match.
+- Both creation paths (direct, and Album/Event contribution) offer the
+  same three outcomes; the asynchronous path's pending hold is
+  resolvable only by the original uploader.
+- The same Photo added to two different Albums carries independent,
+  empty-until-used comment/reaction threads; legacy Photo-scoped
+  conversation is preserved, never fabricated into an Album, never
+  duplicated, and never destroyed by removing a Photo from an Album.
+- A dismissed or resolved-as-separate pair is never presented again,
+  including after either Photo is soft-deleted and restored.
+- Choosing "create a new Photo" against multiple disclosed matches
+  writes one `DuplicateDecision` per disclosed match and nothing against
+  an undisclosed match; repeating the same choice is idempotent.
+- Retrospective/backfill exact-match candidate generation is owned by
+  S02, is idempotent, and never regenerates a pair already settled by
+  `DuplicateDecision`.
+- Similar candidates can be dismissed; no third action exists.
+- Reopening a settled `DuplicateDecision` is restricted to Owner/
+  Administrator, is recorded as an audited state transition on the same
+  row, and is never triggered automatically or by Photo soft-delete/
+  restore.
 
 ---
 
