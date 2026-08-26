@@ -79,7 +79,7 @@ removed.
 
 **`Photo.media_upload_id` is required and unique.** A `Photo` cannot exist
 without a trusted, `ready` (or later-equivalent) media asset behind it —
-this is the concrete meaning of "Fambam preserves the exact original
+this is the concrete meaning of "fambam preserves the exact original
 media... while deliberately controlling which derived representations...
 are exposed," applied to the Photo domain: there is no such thing as a
 Photo record floating free of the asset it presents. The reference remains
@@ -345,6 +345,11 @@ private       — directly visible only to the Photo's creator (§1) and to
                 Owner/Administrator
 ```
 
+The roadmap's “private by default” principle applies at the product and
+Family Space boundary: fambam is invite-only and no family content is public.
+It does not mean every Photo inside an authorised Family Space defaults to
+`private`.
+
 **A new Photo defaults to `family_space`.** Private is an explicit
 decision the creator (or Owner/Administrator) must make, not the starting
 state — consistent with this product's collaborative, family-archive
@@ -367,8 +372,8 @@ Photo?") and a real risk of them disagreeing.
 
 **Explicit Album widening.** A private Photo may later be added to an
 Album whose audience is broader than the Photo's own direct audience —
-this is the mechanism that realises "private by default, explicitly
-shared later" as a real, supported workflow rather than a dead end. Doing
+this is the mechanism that lets a private Photo be explicitly shared later
+as a real, supported workflow rather than a dead end. Doing
 so is an **explicit visibility-widening operation**, not an incidental
 side effect of ordinary Album curation, and the implementation must:
 

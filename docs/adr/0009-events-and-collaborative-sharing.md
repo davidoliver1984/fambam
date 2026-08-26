@@ -55,7 +55,7 @@ choice throughout this phase, and because it has now surfaced repeatedly
 enough across ADR-0006 through this ADR to be treated as a durable product
 principle rather than a one-off convenience:
 
-**Fambam should become richer naturally as a family uses it. It should
+**fambam should become richer naturally as a family uses it. It should
 never require a family to maintain duplicate state or complete complex
 structure before receiving value.** Where the system can reliably compute
 a fact from data it already treats as authoritative, it should compute it

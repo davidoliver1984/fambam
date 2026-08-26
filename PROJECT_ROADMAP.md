@@ -39,7 +39,11 @@ recorded in `tasks.json`'s `adrs.planned` list (`roadmap_phase` /
 ## Product principles
 
 1. Family-centred rather than user-centred.
-2. Private by default and invite-only.
+2. Private and invite-only at the product and Family Space boundary: no
+   family content is public. Within an authorised Family Space, ordinary
+   Photos default to `family_space` visibility; Contributor-scoped Photos are
+   the exception and default to `private`. “Private by default” describes the
+   platform boundary, not the default visibility of every Photo inside it.
 3. Accounts, people and relationships are separate concepts.
 4. Human-confirmed family knowledge outranks machine-generated suggestions.
 5. Original photographs and provenance must be preserved.

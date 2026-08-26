@@ -54,7 +54,7 @@ inherit, not their implementation.
 ### 1. Preservation and presentation are separate concerns — the governing principle
 
 **Preservation rights and presentation rights are separate concerns.
-Fambam preserves the exact original media and metadata as the archival
+fambam preserves the exact original media and metadata as the archival
 record, while deliberately controlling which derived representations and
 metadata are exposed through ordinary application surfaces.**
 
