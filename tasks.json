@@ -7,9 +7,9 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P09",
-    "current_stage": "FPA-P09-S01",
+    "current_stage": "FPA-P09-S02",
     "created_at": "2026-07-31",
-    "updated_at": "2026-08-26"
+    "updated_at": "2026-08-27"
   },
   "conventions": {
     "phase_id_format": "P##",
@@ -606,7 +606,8 @@
             "FPA-P08-S03"
           ],
           "notes": [
-            "Completed 2026-08-26: Owner/Administrator archive-wide review exposes exactly leave-pending or dismiss-as-not-duplicate; dismissal settles and audits the canonical pair without modifying either Photo, reopening is an audited transition on the same durable decision row, later natural detection can re-pend reopened pairs, and Members may flag only pairs of Photos they can already view. Typed feature API modules, TanStack Query hooks, accessible canonical-image comparison UI, strict Contributor/Guest exclusion and complete backend/frontend regression coverage were implemented with no merge, deletion, redirect, aggregation or consolidation mechanism."
+            "Completed 2026-08-26: Owner/Administrator archive-wide review exposes exactly leave-pending or dismiss-as-not-duplicate; dismissal settles and audits the canonical pair without modifying either Photo, reopening is an audited transition on the same durable decision row, later natural detection can re-pend reopened pairs, and Members may flag only pairs of Photos they can already view. Typed feature API modules, TanStack Query hooks, accessible canonical-image comparison UI, strict Contributor/Guest exclusion and complete backend/frontend regression coverage were implemented with no merge, deletion, redirect, aggregation or consolidation mechanism.",
+            "Post-completion review closed 2026-08-27: added real PostgreSQL advisory-lock and canonical-ordering proof, Guest Event/Album hold ownership and live-authority coverage across all three choices, asynchronous invisible-match and soft-delete/restore suppression regressions, and consistent required album_id validation for new comment/reaction writes. Reopening and perceptual-threshold behavior remain unchanged; the threshold now has an explicit materially-different-source recalibration trigger."
           ]
         }
       ]
@@ -619,20 +620,24 @@
         {
           "id": "FPA-P09-S01",
           "title": "Build representative local benchmark",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P08-S04"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-27: private, non-repository benchmark built under .local/benchmarks/face-analysis/ (anonymous B001-B038, manifest, annotations, checksum verification, contact sheets; never committed). 38 uploads inspected, all containing at least one visible face; 29 independent core scenes plus 9 repeated/format-conversion inputs; ~79 visible faces overall, 61 across the core set (10 single-face, 19 group, up to 4 faces/image). Core coverage recorded across frontal, angled/profile, small/distant, occlusion, lighting, blur, resolution, glasses, facial hair, age, grayscale and rotation conditions. Named gaps (age progression, sibling/parent resemblance, damaged scans, larger groups, heavier occlusion) are explicitly reserved for Phase 10 recognition calibration and do not block Phase 9 foundation work. Evidence reviewed and found sufficient for ADR-0011 architecture discussion; not a recognition-accuracy benchmark."
+          ]
         },
         {
           "id": "FPA-P09-S02",
           "title": "Accept local face analysis foundation ADR",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P09-S01"
           ],
-          "notes": []
+          "notes": [
+            "ADR-0011 drafted 2026-08-27 (docs/adr/0011-local-face-analysis-foundation.md, Status: Proposed) following an architecture discussion covering provider contract shape, Laravel/Python transport and service identity, canonical-asset delivery, FaceAnalysisRun/FaceObservation persistence and identity/idempotency, embedding-storage scope (engine selection explicitly deferred to ADR-0012/FPA-P10-S02), reprocessing and invalidation, dead-letter queueing, tenancy/biometric privacy, the audit-versus-telemetry boundary, benchmark-harness discipline, and the licensing record. Not yet accepted; pending adversarial implementation-readiness review before acceptance."
+          ]
         },
         {
           "id": "FPA-P09-S03",
@@ -1138,7 +1143,9 @@
           "dependencies": [
             "FPA-P17-S02"
           ],
-          "notes": []
+          "notes": [
+            "Future CI enforcement owner: expand the foundation-only GitHub Actions workflow to run the API, web, PostgreSQL integration/RLS and image-analysis test suites independently before production deployment. This planning assignment does not implement CI during the Phase 8 closeout."
+          ]
         },
         {
           "id": "FPA-P17-S04",

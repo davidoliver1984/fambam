@@ -10,9 +10,11 @@ use App\Jobs\PurgeMediaQuarantine;
 use App\Media\FamilyMediaStorageCleaner;
 use App\Models\Album;
 use App\Models\Invitation;
+use App\Models\MediaUpload;
 use App\Models\Photo;
 use App\Models\User;
 use App\Services\AlbumManager;
+use App\Services\ExactDuplicateDetector;
 use App\Services\FamilySpaceDeletionManager;
 use App\Services\FamilySpaceManager;
 use App\Services\InvitationManager;
@@ -1582,6 +1584,133 @@ SQL);
         $this->assertEqualsCanonicalizing(['ok:1', 'ok:2'], $outcomes);
         $this->assertSame([1, 2], $this->admin->table('album_photos')
             ->where('album_id', $albumId)->orderBy('position')->pluck('position')->all());
+    }
+
+    public function test_duplicate_decisions_are_serialized_and_canonically_ordered_under_concurrency(): void
+    {
+        if (! function_exists('pcntl_fork') || ! function_exists('stream_socket_pair')) {
+            $this->markTestSkipped('The PostgreSQL concurrency test requires pcntl and stream sockets.');
+        }
+
+        [$ownerId, $familySpaceId] = $this->createOwnedFamily('concurrent-duplicate-decisions');
+        $uploadIds = [(string) Str::ulid(), (string) Str::ulid()];
+        $photoIds = [(string) Str::ulid(), (string) Str::ulid()];
+        sort($photoIds);
+        $checksum = hash('sha256', 'concurrent-duplicate-source');
+        $now = now();
+        foreach ($uploadIds as $index => $uploadId) {
+            $this->admin->table('media_uploads')->insert([
+                'id' => $uploadId,
+                'family_space_id' => $familySpaceId,
+                'user_id' => $ownerId,
+                'state' => 'ready',
+                'staging_object_key' => "families/{$familySpaceId}/media-staging/{$uploadId}/original",
+                'original_sha256' => $checksum,
+                'client_filename' => "concurrent-duplicate-{$index}.jpg",
+                'client_mime_type' => 'image/jpeg',
+                'idempotency_key' => "concurrent-duplicate-{$index}",
+                'request_fingerprint' => hash('sha256', "concurrent-duplicate-{$index}"),
+                'correlation_id' => (string) Str::uuid(),
+                'traceparent' => TenantOperationContext::newTraceparent(),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+            $this->admin->table('photos')->insert([
+                'id' => $photoIds[$index],
+                'family_space_id' => $familySpaceId,
+                'media_upload_id' => $uploadId,
+                'created_by' => $ownerId,
+                'visibility' => 'family_space',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
+        DB::disconnect();
+        DB::disconnect('pgsql_admin');
+        $children = [];
+        foreach ([[$photoIds[0], $photoIds[1]], [$photoIds[1], $photoIds[0]]] as $pair) {
+            $sockets = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+            $this->assertNotFalse($sockets);
+            $pid = pcntl_fork();
+            $this->assertNotSame(-1, $pid);
+
+            if ($pid === 0) {
+                fclose($sockets[0]);
+                fread($sockets[1], 1);
+                DB::purge();
+                DB::purge('pgsql_admin');
+
+                try {
+                    $outcome = DB::transaction(function () use (
+                        $familySpaceId,
+                        $ownerId,
+                        $uploadIds,
+                        $pair,
+                    ): string {
+                        $context = app(DatabaseTenantContext::class);
+                        $context->establishUser($ownerId);
+                        $context->establishFamilySpace($familySpaceId);
+                        $detector = app(ExactDuplicateDetector::class);
+                        $detector->lock(MediaUpload::query()->findOrFail($uploadIds[0]));
+                        usleep(150_000);
+
+                        return $detector->recordSeparateDecision(
+                            Photo::query()->findOrFail($pair[0]),
+                            Photo::query()->findOrFail($pair[1]),
+                            User::query()->findOrFail($ownerId),
+                        )->id;
+                    });
+                } catch (\Throwable $exception) {
+                    $outcome = 'error:'.get_class($exception).':'.$exception->getMessage();
+                }
+
+                fwrite($sockets[1], $outcome);
+                fclose($sockets[1]);
+                exit(0);
+            }
+
+            fclose($sockets[1]);
+            $children[] = ['pid' => $pid, 'socket' => $sockets[0]];
+        }
+
+        foreach ($children as $child) {
+            fwrite($child['socket'], '1');
+        }
+
+        $outcomes = [];
+        foreach ($children as $child) {
+            $outcomes[] = stream_get_contents($child['socket']);
+            fclose($child['socket']);
+            pcntl_waitpid($child['pid'], $status);
+            $this->assertTrue(pcntl_wifexited($status));
+            $this->assertSame(0, pcntl_wexitstatus($status));
+        }
+
+        DB::purge();
+        DB::purge('pgsql_admin');
+        $this->admin = DB::connection('pgsql_admin');
+        $this->assertCount(1, array_unique($outcomes), implode("\n", $outcomes));
+        $decision = $this->admin->table('duplicate_decisions')->sole();
+        $this->assertSame($photoIds[0], trim($decision->photo_low_id));
+        $this->assertSame($photoIds[1], trim($decision->photo_high_id));
+
+        try {
+            $this->admin->table('duplicate_decisions')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $familySpaceId,
+                'photo_low_id' => $photoIds[1],
+                'photo_high_id' => $photoIds[0],
+                'source' => 'exact_creation_choice',
+                'decided_by' => $ownerId,
+                'decided_at' => $now,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+            $this->fail('PostgreSQL accepted a non-canonical DuplicateDecision pair.');
+        } catch (QueryException $exception) {
+            $this->assertSame('23514', $exception->errorInfo[0]);
+        }
     }
 
     public function test_due_deletion_dispatch_and_teardown_preserve_context_under_rls(): void

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\FamilySpaceRole;
+use App\Http\Requests\StorePhotoCommentRequest;
 use App\Http\Requests\StorePhotoReactionRequest;
 use App\Http\Requests\StorePhotoTextRequest;
 use App\Models\Album;
@@ -65,7 +66,7 @@ class PhotoConversationController extends Controller
         return response()->json(null, 204);
     }
 
-    public function storeComment(FamilySpace $familySpace, string $photo, StorePhotoTextRequest $request): JsonResponse
+    public function storeComment(FamilySpace $familySpace, string $photo, StorePhotoCommentRequest $request): JsonResponse
     {
         $target = $this->photo($request, $photo);
         $album = $this->albumForPhoto($request, $target, (string) $request->validated('album_id'));
