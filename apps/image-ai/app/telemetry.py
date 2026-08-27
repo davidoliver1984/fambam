@@ -24,7 +24,7 @@ class JsonFormatter(logging.Formatter):
         payload: dict[str, Any] = {
             "timestamp": datetime.now(UTC).isoformat(),
             "level": record.levelname.lower(),
-            "service": "fambam-image-ai",
+            "service": os.getenv("OTEL_SERVICE_NAME", "fambam-image-ai"),
             "message": record.getMessage(),
             "trace_id": f"{span_context.trace_id:032x}"
             if span_context.is_valid
@@ -43,7 +43,9 @@ class JsonFormatter(logging.Formatter):
 def configure_telemetry() -> None:
     """Configure OTLP traces, metrics and structured application logging."""
     endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-    resource = Resource.create({"service.name": "fambam-image-ai"})
+    resource = Resource.create(
+        {"service.name": os.getenv("OTEL_SERVICE_NAME", "fambam-image-ai")}
+    )
 
     if endpoint:
         tracer_provider = TracerProvider(resource=resource)

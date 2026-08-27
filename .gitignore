@@ -17,6 +17,9 @@ dist/
 build/
 coverage/
 
+# ONNX Runtime local telemetry session artifact
+:memory:.ses
+
 # Private local benchmark media and manifests -- never commit family photographs
 /.local/
 

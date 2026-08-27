@@ -3359,6 +3359,64 @@ Implement queued face-analysis pipeline
 
 Measure detection coverage, false detections, execution time, memory and failure rates. Owns the final end-to-end operational benchmark run and acceptance measurement, building on S04's provider-level evidence.
 
+### Implementation
+
+- The schema-version-2 private benchmark reports completion/failure rate,
+  exact-count results, conservative count-derived coverage and miss limits,
+  excess detections requiring review, confidence distribution, category
+  aggregates, dimensions, throughput, latency, memory and result size. Detailed
+  results remain gitignored and contain no committed family media.
+- The queued worker extracts the request trace context and SQS system receive
+  attributes. OpenTelemetry spans and metrics cover queue latency, end-to-end
+  analysis duration, receive attempt count, inference duration,
+  completed/failed outcomes, bounded failure category, detected/no-face counts,
+  canonical dimensions, provider/model/configuration/backend identity and peak
+  resident memory where measurable.
+- Operational telemetry excludes tenant/upload identifiers, media-derived
+  checksums, image bytes, signed URLs, bounds, landmarks, embeddings and
+  provider diagnostics. PostgreSQL and audit responsibilities remain exactly
+  as ADR-0011 section 20 defines them.
+
+### Measured acceptance
+
+- The final direct CPU run completed all 38 private images with zero provider
+  failures. It produced 93 detections against 79 visible-face count annotations
+  and 30 exact-count images. The count-only annotations establish a 75/79
+  matched upper bound, four-miss lower bound and 18 excess detections requiring
+  review; they cannot identify a specific false-positive location.
+- Hot inference measured 69.569 ms median, 132.495 ms p95 and 134.045 ms
+  maximum, with 13.068 sequential images/second, 973,864,960 bytes peak RSS and
+  a 67,869-byte maximum result. S05's 20-second timeout, 2 GiB worker memory and
+  4 MiB artifact ceiling retain substantial measured headroom.
+
+### Verification
+
+- Foundation, documentation, Compose, contract, formatting, lint, frontend,
+  PHPStan, strict mypy and dependency-security checks passed.
+- The complete frontend suite passed 86 tests; Laravel discovered 254 tests,
+  passing 214 with 40 environment-specific skips and 1,706 assertions; all 21
+  Python tests passed.
+- PostgreSQL 17.6 integration passed 30 tests and 309 assertions, retaining the
+  run-identity, retry, reprocessing and tenant-isolation guarantees.
+- The rebuilt production-shaped worker exported its trace-linked queue,
+  attempt, bounded-failure and memory signals through the real collector. The
+  non-family probe was explicitly deleted, both queues were empty afterward,
+  and the result consumer was restored.
+- Infrastructure passed nine tests and 44 assertions; trace propagation and
+  Grafana observability smoke passed; `git diff --check` passed.
+
+### Stage boundary
+
+The benchmark remains direct and private; it is never application data. No
+similarity query, observation comparison, clustering, identity suggestion,
+human review or `PhotoPerson` behavior is included. Those remain Phase 10.
+
+### Commit boundary
+
+```text
+Add face-analysis operational metrics
+```
+
 ### Phase verification
 
 - Local Apple Silicon development works using the documented runtime.
