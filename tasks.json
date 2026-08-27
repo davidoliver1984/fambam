@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P09",
-    "current_stage": "FPA-P09-S04",
+    "current_stage": "FPA-P09-S05",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-27"
   },
@@ -655,16 +655,18 @@
         {
           "id": "FPA-P09-S04",
           "title": "Implement local face-analysis provider",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P09-S03"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-27 (git tag phase-9-s04): pinned InsightFace 1.0.1, ONNX Runtime 1.29.0 and buffalo_l v0.7 with fail-closed full-pack checksum verification and a recorded non-commercial model-licence boundary; implemented contract-native local detection, five-point landmarks and 512-dimensional embeddings; calibrated threshold 0.6, a 4 MiB artifact ceiling and initial S05 transport settings from the private 38-image benchmark; verified CPU/CoreML parity and arm64 Docker inference without beginning the queued pipeline."
+          ]
         },
         {
           "id": "FPA-P09-S05",
           "title": "Implement queued analysis pipeline",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P09-S04"
           ],
@@ -1866,6 +1868,14 @@
       "roadmap_stage": "FPA-P09-S03",
       "date": "2026-08-27",
       "description": "FPA-P09-S03 completed: versioned language-neutral face-analysis transport and result contracts, a strict provider-neutral Python protocol, tenant-consistent run/attempt/observation persistence with forced RLS, bounded fail-closed Laravel result validation and explicit browser/service signing audiences were implemented and verified without beginning model inference or the queued analysis pipeline."
+    },
+    {
+      "git_tag": "phase-9-s04",
+      "type": "stage_completion",
+      "adr": "ADR-0011",
+      "roadmap_stage": "FPA-P09-S04",
+      "date": "2026-08-27",
+      "description": "FPA-P09-S04 completed: the checksum-pinned buffalo_l v0.7 provider now performs fail-closed local detection, five-point landmarks and 512-dimensional embeddings through InsightFace 1.0.1 and ONNX Runtime 1.29.0; the non-commercial weight-licence boundary is recorded; private benchmark and CPU/CoreML evidence calibrated threshold, artifact and S05 transport defaults; and native Apple Silicon plus arm64 Docker inference passed without beginning the queued pipeline."
     }
   ]
 }

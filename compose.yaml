@@ -281,6 +281,9 @@ services:
       SQS_ENDPOINT: http://localstack:4566
       SQS_PREFIX: http://localstack:4566/000000000000
       SQS_QUEUE: image-analysis-requested
+      FACE_ANALYSIS_ROOT: /opt/insightface
+    volumes:
+      - ./.local/models:/opt/insightface/models:ro
     depends_on:
       localstack-provision:
         condition: service_completed_successfully
