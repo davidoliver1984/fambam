@@ -21,13 +21,16 @@ class S3MediaObjectStorage implements MediaObjectStorage
         $base = [
             'version' => 'latest',
             'region' => (string) config('filesystems.disks.s3.region'),
-            'credentials' => [
-                'key' => (string) config('filesystems.disks.s3.key'),
-                'secret' => (string) config('filesystems.disks.s3.secret'),
-            ],
             'use_path_style_endpoint' => (bool) config('filesystems.disks.s3.use_path_style_endpoint'),
             'request_checksum_calculation' => 'when_required',
         ];
+        $key = config('filesystems.disks.s3.key');
+        if (is_string($key) && $key !== '') {
+            $base['credentials'] = [
+                'key' => $key,
+                'secret' => (string) config('filesystems.disks.s3.secret'),
+            ];
+        }
         $this->internalClient = new S3Client($this->withEndpoint(
             $base,
             config('filesystems.disks.s3.endpoint'),

@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P09",
-    "current_stage": "FPA-P09-S05",
+    "current_stage": "FPA-P09-S06",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-27"
   },
@@ -666,16 +666,18 @@
         {
           "id": "FPA-P09-S05",
           "title": "Implement queued analysis pipeline",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P09-S04"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-27: automatic canonical-asset dispatch now creates or reuses one logical FaceAnalysisRun and durably persists each attempt before raw SQS publication; the checksum-pinned Python worker uses service-audience signed GET and lifecycle-tagged write-once PUT authorities, independently verifies canonical bytes, enforces the 20-second/4 MiB bounds and emits reference-only completed/failed messages; Laravel's dedicated raw-SQS consumer resolves request_id through a SECURITY DEFINER trust bridge before tenant context, revalidates identity/current media state, checksum- and bounds-validates transient artifacts, persists immutable observations idempotently and deletes consumed artifacts. Three calibrated source queues have 30-second visibility, five-receive per-queue DLQs and least-privilege Terraform policies; scheduled five-minute staleness reconciliation retries with fresh attempts up to three; bounded reprocessing is audited; result artifacts have a one-day lifecycle backstop; and Family Space teardown includes face-analysis objects. Persistent PostgreSQL batch 33, a live ordinary-upload end-to-end proof, concurrent dispatch, poison-message, retry/redelivery, teardown, infrastructure and full repository gates passed without Phase 10 identity behavior."
+          ]
         },
         {
           "id": "FPA-P09-S06",
           "title": "Add benchmark and operational metrics",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P09-S05"
           ],
@@ -1876,6 +1878,14 @@
       "roadmap_stage": "FPA-P09-S04",
       "date": "2026-08-27",
       "description": "FPA-P09-S04 completed: the checksum-pinned buffalo_l v0.7 provider now performs fail-closed local detection, five-point landmarks and 512-dimensional embeddings through InsightFace 1.0.1 and ONNX Runtime 1.29.0; the non-commercial weight-licence boundary is recorded; private benchmark and CPU/CoreML evidence calibrated threshold, artifact and S05 transport defaults; and native Apple Silicon plus arm64 Docker inference passed without beginning the queued pipeline."
+    },
+    {
+      "git_tag": "phase-9-s05",
+      "type": "stage_completion",
+      "adr": "ADR-0011",
+      "roadmap_stage": "FPA-P09-S05",
+      "date": "2026-08-27",
+      "description": "FPA-P09-S05 completed: the calibrated production-shaped face-analysis pipeline now provides durable-before-dispatch run/attempt identity, service-audience signed canonical delivery, lifecycle-tagged write-once result artifacts, a checksum-verifying local worker, strict raw-SQS Laravel persistence, idempotent retries and late-message handling, per-queue DLQs/redrive, stale-attempt reconciliation, bounded audited reprocessing, least-privilege IAM definitions and explicit Family Space teardown coverage. Persistent PostgreSQL migration, concurrent dispatch, live end-to-end, infrastructure, observability and complete repository verification passed without Phase 10 identity behavior."
     }
   ]
 }

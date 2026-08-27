@@ -3285,6 +3285,76 @@ Implement local face-analysis provider
 
 Store provider, model, version, configuration hash, source checksum and processing status. Owns: production-shaped use of the dedicated request/completed/failed queues; the Laravel-side raw-SQS result adapter; worker-facing signed URL delivery in practice; the write-once result-artifact transport; durable dispatch-attempt creation before dispatch; idempotent, tenant-consistent Laravel persistence; IAM/service-identity plumbing; dead-letter queues and redrive policy for all three queues; stale-attempt timeout reconciliation; queue visibility/redrive settings informed by S04's measurements; the bounded, audited backend reprocessing trigger; and adding `face-analysis` to the existing Family Space teardown object-storage prefix list.
 
+### Objective
+
+Connect the accepted provider and persistence contracts through the real local
+SQS/S3 boundary with durable, tenant-safe and recoverable processing, without
+introducing face identity, matching, clustering or `PhotoPerson` behavior.
+
+### Implementation
+
+- Canonical completion dispatches a unique Laravel job. The pipeline inserts
+  or reuses one logical run identity, locks it, and creates the concrete
+  attempt and result key before publishing. A transport retry republishes the
+  same dispatched attempt; an analysis retry receives a fresh attempt and
+  write-once key under the same run.
+- The dedicated Python worker consumes raw requested messages, validates the
+  strict contract, verifies the downloaded canonical SHA-256, enforces the
+  calibrated 20-second inference and 4 MiB result limits, uploads a tagged
+  write-once result artifact and emits only its reference/checksum/count.
+- A dedicated Laravel raw-SQS consumer handles completed and failed messages.
+  It first resolves `request_id` through a narrowly granted PostgreSQL
+  `SECURITY DEFINER` function, establishes that trusted tenant context, then
+  cross-checks all echoed identity and current MediaUpload state. Completed
+  artifacts are size-inspected, downloaded, checksum-verified, contract-
+  validated and atomically persisted as immutable observations. Redelivery,
+  late outcomes and reconciliation races are guarded by the attempt lock and
+  single-use state transition.
+- All three source queues use 30-second visibility, five receives and their
+  own DLQ. The production Terraform module separates Laravel send/consume/S3
+  authority from the worker's SQS-only task role; the worker has no standing
+  S3 permissions. Local synthetic observability traffic uses its own queue.
+- A scheduled command reconciles attempts dispatched for more than five
+  minutes, retrying with fresh attempts up to the calibrated maximum of three.
+  A separate operator command requires one Family Space, optionally narrows
+  to explicit uploads, rejects platform-wide use and audits actual scope and
+  analysis identity.
+- Transient results carry an S3 lifecycle tag with a one-day expiry backstop
+  and are explicitly deleted after handling. Family Space teardown now also
+  walks the tenant's `face-analysis` prefix. AWS clients retain local explicit
+  credentials while allowing the production task-role credential chain.
+
+### Verification
+
+- Foundation, documentation, Compose, contract, formatting, lint, PHPStan,
+  strict mypy, frontend typecheck and dependency-security gates passed.
+- The complete frontend, Laravel and Python suites passed. Focused coverage
+  proves durable-before-publish ordering, logical reuse, fresh-attempt retry,
+  completion redelivery, checksum failure, strict poison handling, bounded
+  audited reprocessing and lifecycle-tagged write-once authority.
+- Disposable PostgreSQL 17.6 verification passed with direct concurrent
+  dispatch proving one run and one attempt, tenant-consistent RLS/foreign-key
+  coverage and raw-consumer rejection without deletion or process failure.
+- Persistent migration batch 33 is applied. The rebuilt stack completed one
+  disposable ordinary MediaUpload end to end on its first attempt; the raw
+  completion persisted a valid zero-face outcome and removed its transient
+  artifact. The fixture and canonical object were removed afterward.
+- LocalStack confirms empty source queues, 30-second visibility, five-receive
+  redrive to three distinct DLQs and the one-day tagged lifecycle rule.
+  Infrastructure and observability smoke checks passed.
+
+### Stage boundary
+
+S06 retains the final operational benchmark and telemetry acceptance work.
+No observation comparison, person identity, clustering, suggestion, human
+review or `PhotoPerson` behavior is present; those remain Phase 10.
+
+### Commit boundary
+
+```text
+Implement queued face-analysis pipeline
+```
+
 ## FPA-P09-S06 — Add benchmark and operational metrics
 
 Measure detection coverage, false detections, execution time, memory and failure rates. Owns the final end-to-end operational benchmark run and acceptance measurement, building on S04's provider-level evidence.

@@ -10,6 +10,8 @@ RUN apt-get update \
 
 WORKDIR /app
 
+ENV PYTHONPATH=/app
+
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 

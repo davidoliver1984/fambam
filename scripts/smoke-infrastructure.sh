@@ -3,20 +3,38 @@
 set -eu
 
 bucket="${AWS_BUCKET:-fambam-media}"
-queue="image-analysis-requested"
+queue="image-analysis-requested-dlq"
 object="smoke/infrastructure.txt"
 payload="fambam-infrastructure-smoke-$(date +%s)-$$"
 
 docker compose exec -T postgres pg_isready -U fambam -d fambam
 docker compose exec -T redis redis-cli ping
 
-for required_queue in fambam-jobs image-analysis-requested image-analysis-completed image-analysis-failed; do
+for required_queue in \
+    fambam-jobs \
+    image-analysis-synthetic \
+    image-analysis-requested image-analysis-requested-dlq \
+    image-analysis-completed image-analysis-completed-dlq \
+    image-analysis-failed image-analysis-failed-dlq; do
     docker compose exec -T localstack awslocal sqs get-queue-url \
         --queue-name "${required_queue}" >/dev/null
 done
 
+for source_queue in image-analysis-requested image-analysis-completed image-analysis-failed; do
+    queue_url="http://localhost:4566/000000000000/${source_queue}"
+    attributes="$(docker compose exec -T localstack awslocal sqs get-queue-attributes \
+        --queue-url "${queue_url}" \
+        --attribute-names VisibilityTimeout RedrivePolicy \
+        --output json)"
+    if [ "$(printf '%s' "${attributes}" | jq -r '.Attributes.VisibilityTimeout')" != "30" ] || \
+       [ "$(printf '%s' "${attributes}" | jq -r '.Attributes.RedrivePolicy | fromjson | .maxReceiveCount')" != "5" ]; then
+        echo "Face-analysis queue redrive settings are invalid: ${source_queue}" >&2
+        exit 1
+    fi
+done
+
 running_services="$(docker compose ps --status running --services)"
-for required_service in api queue-worker scheduler; do
+for required_service in api queue-worker scheduler api-image-analysis-results image-ai-worker; do
     if ! printf '%s\n' "${running_services}" | grep -qx "${required_service}"; then
         echo "Required service is not running: ${required_service}" >&2
         exit 1

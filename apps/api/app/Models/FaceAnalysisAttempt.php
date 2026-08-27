@@ -9,7 +9,12 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property FaceAnalysisAttemptStatus $status
+ * @property FaceAnalysisFailureCategory|null $failure_category
+ */
 #[Fillable([
+    'id',
     'family_space_id',
     'face_analysis_run_id',
     'expected_result_object_key',

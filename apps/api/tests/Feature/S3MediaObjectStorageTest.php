@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\FaceAnalysis\S3FaceAnalysisResultAuthority;
 use App\Media\MediaObjectCollision;
 use App\Media\MediaSigningAudience;
 use App\Media\S3FamilyMediaStorageCleaner;
@@ -76,6 +77,22 @@ class S3MediaObjectStorageTest extends TestCase
         $this->assertStringStartsWith('http://localstack:4566/fambam-media/', $read->url);
         $this->assertStringStartsWith('http://localstack:4566/fambam-media/', $write->url);
         $this->assertSame('*', $write->headers['If-None-Match']);
+    }
+
+    public function test_face_analysis_result_authority_is_write_once_and_lifecycle_tagged(): void
+    {
+        $this->configureStorage();
+        $key = 'families/01KTEST/face-analysis/01KATTEMPT/result.json';
+
+        $write = (new S3FaceAnalysisResultAuthority)->authorizeWrite($key, now()->addMinutes(60));
+
+        $this->assertStringStartsWith('http://localstack:4566/fambam-media/', $write->url);
+        $this->assertSame('*', $write->headers['If-None-Match']);
+        $this->assertSame(
+            'fambam-retention=face-analysis-transient',
+            $write->headers['x-amz-tagging'],
+        );
+        $this->assertStringContainsString('x-amz-tagging', strtolower($write->url));
     }
 
     public function test_real_signed_read_authority_supports_range_requests(): void
@@ -157,6 +174,7 @@ class S3MediaObjectStorageTest extends TestCase
             "families/{$familyId}/media/upload/variants/display.v1.webp",
             "families/{$familyId}/media/upload/variants/thumbnail.v1.webp",
             "families/{$familyId}/quarantine/upload/original.jpg",
+            "families/{$familyId}/face-analysis/attempt/result.json",
         ];
         $otherKey = "families/{$otherFamilyId}/media/upload/original.jpg";
         foreach ([...$familyKeys, $otherKey] as $key) {

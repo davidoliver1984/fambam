@@ -14,13 +14,16 @@ class S3FamilyMediaStorageCleaner implements FamilyMediaStorageCleaner
         $configuration = [
             'version' => 'latest',
             'region' => (string) config('filesystems.disks.s3.region'),
-            'credentials' => [
-                'key' => (string) config('filesystems.disks.s3.key'),
-                'secret' => (string) config('filesystems.disks.s3.secret'),
-            ],
             'use_path_style_endpoint' => (bool) config('filesystems.disks.s3.use_path_style_endpoint'),
             'request_checksum_calculation' => 'when_required',
         ];
+        $key = config('filesystems.disks.s3.key');
+        if (is_string($key) && $key !== '') {
+            $configuration['credentials'] = [
+                'key' => $key,
+                'secret' => (string) config('filesystems.disks.s3.secret'),
+            ];
+        }
         $endpoint = config('filesystems.disks.s3.endpoint');
         if (is_string($endpoint) && $endpoint !== '') {
             $configuration['endpoint'] = $endpoint;
@@ -31,7 +34,7 @@ class S3FamilyMediaStorageCleaner implements FamilyMediaStorageCleaner
 
     public function deleteFamilyMedia(string $familySpaceId): void
     {
-        foreach (['media-staging', 'media', 'quarantine', 'event-exports'] as $area) {
+        foreach (['media-staging', 'media', 'quarantine', 'event-exports', 'face-analysis'] as $area) {
             $this->deletePrefix(FamilyStorageKey::for($familySpaceId, $area).'/');
         }
     }

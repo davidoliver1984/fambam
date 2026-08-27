@@ -197,7 +197,7 @@ if (app()->environment(['local', 'testing'])) {
                     'secret' => config('queue.connections.sqs.secret'),
                 ],
             ]);
-            $queueUrl = config('queue.connections.sqs.prefix').'/'.config('image-analysis.queue');
+            $queueUrl = config('queue.connections.sqs.prefix').'/'.config('image-analysis.queues.synthetic');
             $messageAttributes = [];
 
             foreach ($carrier as $name => $value) {

@@ -23,6 +23,10 @@ awslocal --endpoint-url "${endpoint}" s3api put-public-access-block \
 
 for queue in \
     fambam-jobs \
+    image-analysis-synthetic \
+    image-analysis-requested-dlq \
+    image-analysis-completed-dlq \
+    image-analysis-failed-dlq \
     image-analysis-requested \
     image-analysis-completed \
     image-analysis-failed
@@ -31,6 +35,19 @@ do
         awslocal --endpoint-url "${endpoint}" sqs create-queue --queue-name "${queue}"
     fi
 done
+
+for queue in image-analysis-requested image-analysis-completed image-analysis-failed; do
+    queue_url="$(awslocal --endpoint-url "${endpoint}" sqs get-queue-url --queue-name "${queue}" --query QueueUrl --output text)"
+    dlq_arn="$(awslocal --endpoint-url "${endpoint}" sqs get-queue-attributes \
+        --queue-url "${queue_url}-dlq" --attribute-names QueueArn --query Attributes.QueueArn --output text)"
+    awslocal --endpoint-url "${endpoint}" sqs set-queue-attributes \
+        --queue-url "${queue_url}" \
+        --attributes "{\"VisibilityTimeout\":\"30\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"${dlq_arn}\\\",\\\"maxReceiveCount\\\":\\\"5\\\"}\"}"
+done
+
+awslocal --endpoint-url "${endpoint}" s3api put-bucket-lifecycle-configuration \
+    --bucket "${bucket}" \
+    --lifecycle-configuration '{"Rules":[{"ID":"expire-transient-face-analysis-results","Status":"Enabled","Filter":{"Tag":{"Key":"fambam-retention","Value":"face-analysis-transient"}},"Expiration":{"Days":1}}]}'
 
 jobs_queue_url="$(awslocal --endpoint-url "${endpoint}" sqs get-queue-url \
     --queue-name fambam-jobs --query QueueUrl --output text)"

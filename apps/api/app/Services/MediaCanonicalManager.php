@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\MediaUploadState;
+use App\Jobs\DispatchFaceAnalysis;
 use App\Jobs\GeneratePresentationMediaVariants;
 use App\Media\CanonicalImageGenerator;
 use App\Media\ExtractedMediaMetadata;
@@ -56,6 +57,11 @@ class MediaCanonicalManager
             );
             $this->storage->finalizeWriteOnce($canonical->path, $key, $canonical->sha256);
             if ($this->persist($context, $upload, $sourceSha256, $metadata, $canonical, $key)) {
+                DispatchFaceAnalysis::dispatch(
+                    $context->toArray(),
+                    $upload->id,
+                    $canonical->sha256,
+                );
                 GeneratePresentationMediaVariants::dispatch(
                     $context->toArray(),
                     $upload->id,

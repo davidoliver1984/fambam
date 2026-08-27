@@ -17,13 +17,16 @@ class S3MediaDeliveryUrlSigner implements MediaDeliveryUrlSigner
         $configuration = [
             'version' => 'latest',
             'region' => (string) config('filesystems.disks.s3.region'),
-            'credentials' => [
-                'key' => (string) config('filesystems.disks.s3.key'),
-                'secret' => (string) config('filesystems.disks.s3.secret'),
-            ],
             'use_path_style_endpoint' => (bool) config('filesystems.disks.s3.use_path_style_endpoint'),
             'request_checksum_calculation' => 'when_required',
         ];
+        $key = config('filesystems.disks.s3.key');
+        if (is_string($key) && $key !== '') {
+            $configuration['credentials'] = [
+                'key' => $key,
+                'secret' => (string) config('filesystems.disks.s3.secret'),
+            ];
+        }
         $this->browserClient = new S3Client($this->withEndpoint(
             $configuration,
             config('media.upload.public_endpoint'),

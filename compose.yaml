@@ -71,7 +71,9 @@ services:
       QUEUE_CONNECTION: sqs
       SQS_PREFIX: "http://localstack:4566/000000000000"
       SQS_QUEUE: fambam-jobs
-      IMAGE_ANALYSIS_QUEUE: image-analysis-requested
+      FACE_ANALYSIS_REQUESTED_QUEUE: image-analysis-requested
+      FACE_ANALYSIS_COMPLETED_QUEUE: image-analysis-completed
+      FACE_ANALYSIS_FAILED_QUEUE: image-analysis-failed
       SQS_ENDPOINT: "http://localstack:4566"
       FILESYSTEM_DISK: s3
       AWS_ACCESS_KEY_ID: test
@@ -92,7 +94,10 @@ services:
       MEDIA_PROCESSING_TIMEOUT_SECONDS: "${MEDIA_PROCESSING_TIMEOUT_SECONDS:-30}"
       MEDIA_METADATA_PROFILE_MAX_BYTES: "${MEDIA_METADATA_PROFILE_MAX_BYTES:-33554432}"
       MEDIA_CANONICAL_JPEG_QUALITY: "${MEDIA_CANONICAL_JPEG_QUALITY:-90}"
-      FACE_ANALYSIS_RESULT_MAX_BYTES: "${FACE_ANALYSIS_RESULT_MAX_BYTES:-8388608}"
+      FACE_ANALYSIS_RESULT_MAX_BYTES: "${FACE_ANALYSIS_RESULT_MAX_BYTES:-4194304}"
+      FACE_ANALYSIS_AUTHORITY_TTL_MINUTES: "${FACE_ANALYSIS_AUTHORITY_TTL_MINUTES:-60}"
+      FACE_ANALYSIS_ATTEMPT_STALE_MINUTES: "${FACE_ANALYSIS_ATTEMPT_STALE_MINUTES:-5}"
+      FACE_ANALYSIS_MAX_ATTEMPTS_PER_RUN: "${FACE_ANALYSIS_MAX_ATTEMPTS_PER_RUN:-3}"
       FACE_ANALYSIS_RESULT_MAX_FACES: "${FACE_ANALYSIS_RESULT_MAX_FACES:-256}"
       FACE_ANALYSIS_RESULT_MAX_JSON_DEPTH: "${FACE_ANALYSIS_RESULT_MAX_JSON_DEPTH:-8}"
       FACE_ANALYSIS_PROVIDER_DIAGNOSTICS_MAX_BYTES: "${FACE_ANALYSIS_PROVIDER_DIAGNOSTICS_MAX_BYTES:-16384}"
@@ -170,7 +175,13 @@ services:
       MEDIA_PROCESSING_TIMEOUT_SECONDS: "${MEDIA_PROCESSING_TIMEOUT_SECONDS:-30}"
       MEDIA_METADATA_PROFILE_MAX_BYTES: "${MEDIA_METADATA_PROFILE_MAX_BYTES:-33554432}"
       MEDIA_CANONICAL_JPEG_QUALITY: "${MEDIA_CANONICAL_JPEG_QUALITY:-90}"
-      FACE_ANALYSIS_RESULT_MAX_BYTES: "${FACE_ANALYSIS_RESULT_MAX_BYTES:-8388608}"
+      FACE_ANALYSIS_RESULT_MAX_BYTES: "${FACE_ANALYSIS_RESULT_MAX_BYTES:-4194304}"
+      FACE_ANALYSIS_REQUESTED_QUEUE: image-analysis-requested
+      FACE_ANALYSIS_COMPLETED_QUEUE: image-analysis-completed
+      FACE_ANALYSIS_FAILED_QUEUE: image-analysis-failed
+      FACE_ANALYSIS_AUTHORITY_TTL_MINUTES: "${FACE_ANALYSIS_AUTHORITY_TTL_MINUTES:-60}"
+      FACE_ANALYSIS_ATTEMPT_STALE_MINUTES: "${FACE_ANALYSIS_ATTEMPT_STALE_MINUTES:-5}"
+      FACE_ANALYSIS_MAX_ATTEMPTS_PER_RUN: "${FACE_ANALYSIS_MAX_ATTEMPTS_PER_RUN:-3}"
       FACE_ANALYSIS_RESULT_MAX_FACES: "${FACE_ANALYSIS_RESULT_MAX_FACES:-256}"
       FACE_ANALYSIS_RESULT_MAX_JSON_DEPTH: "${FACE_ANALYSIS_RESULT_MAX_JSON_DEPTH:-8}"
       FACE_ANALYSIS_PROVIDER_DIAGNOSTICS_MAX_BYTES: "${FACE_ANALYSIS_PROVIDER_DIAGNOSTICS_MAX_BYTES:-16384}"
@@ -234,6 +245,14 @@ services:
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
       AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-eu-west-2}"
+      AWS_BUCKET: "${AWS_BUCKET:-fambam-media}"
+      AWS_ENDPOINT: "http://localstack:4566"
+      AWS_USE_PATH_STYLE_ENDPOINT: "true"
+      FACE_ANALYSIS_REQUESTED_QUEUE: image-analysis-requested
+      FACE_ANALYSIS_COMPLETED_QUEUE: image-analysis-completed
+      FACE_ANALYSIS_FAILED_QUEUE: image-analysis-failed
+      FACE_ANALYSIS_ATTEMPT_STALE_MINUTES: "${FACE_ANALYSIS_ATTEMPT_STALE_MINUTES:-5}"
+      FACE_ANALYSIS_MAX_ATTEMPTS_PER_RUN: "${FACE_ANALYSIS_MAX_ATTEMPTS_PER_RUN:-3}"
       MEDIA_QUARANTINE_RETENTION_DAYS: "${MEDIA_QUARANTINE_RETENTION_DAYS:-7}"
     depends_on:
       api:
@@ -280,7 +299,7 @@ services:
       AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-eu-west-2}"
       SQS_ENDPOINT: http://localstack:4566
       SQS_PREFIX: http://localstack:4566/000000000000
-      SQS_QUEUE: image-analysis-requested
+      SQS_QUEUE: image-analysis-synthetic
       FACE_ANALYSIS_ROOT: /opt/insightface
     volumes:
       - ./.local/models:/opt/insightface/models:ro
@@ -300,6 +319,72 @@ services:
       interval: 5s
       timeout: 3s
       retries: 12
+    networks:
+      - fambam
+
+  image-ai-worker:
+    image: fambam-image-ai
+    command: .venv/bin/python scripts/run_face_analysis_worker.py
+    mem_limit: 2g
+    environment:
+      OTEL_SERVICE_NAME: fambam-image-ai-worker
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_PROPAGATORS: tracecontext,baggage
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-eu-west-2}"
+      AWS_BUCKET: "${AWS_BUCKET:-fambam-media}"
+      SQS_ENDPOINT: http://localstack:4566
+      SQS_PREFIX: http://localstack:4566/000000000000
+      FACE_ANALYSIS_REQUESTED_QUEUE: image-analysis-requested
+      FACE_ANALYSIS_COMPLETED_QUEUE: image-analysis-completed
+      FACE_ANALYSIS_FAILED_QUEUE: image-analysis-failed
+      FACE_ANALYSIS_INFERENCE_TIMEOUT_SECONDS: "${FACE_ANALYSIS_INFERENCE_TIMEOUT_SECONDS:-20}"
+      FACE_ANALYSIS_RESULT_MAX_BYTES: "${FACE_ANALYSIS_RESULT_MAX_BYTES:-4194304}"
+      MEDIA_UPLOAD_MAX_BYTES: "${MEDIA_UPLOAD_MAX_BYTES:-104857600}"
+      FACE_ANALYSIS_ROOT: /opt/insightface
+    volumes:
+      - ./.local/models:/opt/insightface/models:ro
+    depends_on:
+      localstack-provision:
+        condition: service_completed_successfully
+      otel-collector:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - fambam
+
+  api-image-analysis-results:
+    image: fambam-api
+    command: php artisan fambam:consume-face-analysis-results
+    environment:
+      APP_NAME: "fambam"
+      APP_ENV: local
+      APP_KEY: "${APP_KEY:-base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}"
+      LOG_CHANNEL: stderr
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: "${POSTGRES_DB:-fambam}"
+      DB_USERNAME: "${DB_RUNTIME_USERNAME:-fambam_app}"
+      DB_PASSWORD: "${DB_RUNTIME_PASSWORD:-fambam_app}"
+      DB_RUNTIME_USERNAME: "${DB_RUNTIME_USERNAME:-fambam_app}"
+      SQS_PREFIX: "http://localstack:4566/000000000000"
+      SQS_ENDPOINT: "http://localstack:4566"
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-eu-west-2}"
+      AWS_BUCKET: "${AWS_BUCKET:-fambam-media}"
+      AWS_ENDPOINT: "http://localstack:4566"
+      AWS_USE_PATH_STYLE_ENDPOINT: "true"
+      FACE_ANALYSIS_COMPLETED_QUEUE: image-analysis-completed
+      FACE_ANALYSIS_FAILED_QUEUE: image-analysis-failed
+      FACE_ANALYSIS_RESULT_MAX_BYTES: "${FACE_ANALYSIS_RESULT_MAX_BYTES:-4194304}"
+      FACE_ANALYSIS_MAX_ATTEMPTS_PER_RUN: "${FACE_ANALYSIS_MAX_ATTEMPTS_PER_RUN:-3}"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - fambam
 

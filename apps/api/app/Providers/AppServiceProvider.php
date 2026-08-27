@@ -2,6 +2,11 @@
 
 namespace App\Providers;
 
+use App\FaceAnalysis\FaceAnalysisRequestPublisher;
+use App\FaceAnalysis\FaceAnalysisResultAuthority;
+use App\FaceAnalysis\FaceAnalysisResultQueue;
+use App\FaceAnalysis\S3FaceAnalysisResultAuthority;
+use App\FaceAnalysis\SqsFaceAnalysisTransport;
 use App\Listeners\SecurityEventSubscriber;
 use App\Media\CanonicalImageGenerator;
 use App\Media\ClamAvMalwareScanner;
@@ -51,6 +56,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(CanonicalImageGenerator::class, ImageMagickCanonicalImageGenerator::class);
         $this->app->bind(PresentationVariantGenerator::class, ImageMagickPresentationVariantGenerator::class);
         $this->app->bind(PerceptualHasher::class, ImageMagickDifferenceHasher::class);
+        $this->app->singleton(SqsFaceAnalysisTransport::class);
+        $this->app->bind(FaceAnalysisRequestPublisher::class, SqsFaceAnalysisTransport::class);
+        $this->app->bind(FaceAnalysisResultQueue::class, SqsFaceAnalysisTransport::class);
+        $this->app->bind(FaceAnalysisResultAuthority::class, S3FaceAnalysisResultAuthority::class);
 
         $this->app->singleton(
             AuthenticateUser::class,
