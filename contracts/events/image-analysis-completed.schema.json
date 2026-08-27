@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fambam.local/contracts/events/image-analysis-completed.schema.json",
+  "title": "ImageAnalysisCompleted",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "request_id",
+    "family_space_id",
+    "media_upload_id",
+    "canonical_sha256",
+    "analysis_identity",
+    "result_object_key",
+    "result_sha256",
+    "detected_face_count"
+  ],
+  "properties": {
+    "contract_version": {"const": "1"},
+    "request_id": {"$ref": "face-analysis-common.schema.json#/$defs/ulid"},
+    "family_space_id": {"$ref": "face-analysis-common.schema.json#/$defs/ulid"},
+    "media_upload_id": {"$ref": "face-analysis-common.schema.json#/$defs/ulid"},
+    "canonical_sha256": {"$ref": "face-analysis-common.schema.json#/$defs/sha256"},
+    "analysis_identity": {"$ref": "face-analysis-common.schema.json#/$defs/analysisIdentity"},
+    "result_object_key": {"type": "string", "minLength": 1, "maxLength": 512},
+    "result_sha256": {"$ref": "face-analysis-common.schema.json#/$defs/sha256"},
+    "detected_face_count": {"type": "integer", "minimum": 0, "maximum": 256}
+  }
+}

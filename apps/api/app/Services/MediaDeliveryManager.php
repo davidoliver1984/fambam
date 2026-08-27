@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\MediaUploadState;
 use App\Media\MediaDeliveryAuthorization;
 use App\Media\MediaDeliveryUrlSigner;
+use App\Media\MediaSigningAudience;
 use App\Models\MediaUpload;
 use App\Models\MediaVariant;
 use App\Models\User;
@@ -82,6 +83,7 @@ class MediaDeliveryManager
             $key,
             $responseContentType,
             now()->addMinutes($ttlMinutes),
+            MediaSigningAudience::Browser,
         );
     }
 }

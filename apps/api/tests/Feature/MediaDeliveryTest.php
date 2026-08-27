@@ -7,6 +7,7 @@ use App\Enums\MediaUploadState;
 use App\Enums\MediaVariantTransform;
 use App\Media\MediaDeliveryAuthorization;
 use App\Media\MediaDeliveryUrlSigner;
+use App\Media\MediaSigningAudience;
 use App\Models\AuditEvent;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
@@ -197,6 +198,7 @@ class FakeMediaDeliveryUrlSigner implements MediaDeliveryUrlSigner
         string $key,
         string $responseContentType,
         DateTimeInterface $expiresAt,
+        MediaSigningAudience $audience,
     ): MediaDeliveryAuthorization {
         if ($this->fail) {
             throw new \RuntimeException('Signing failed.');

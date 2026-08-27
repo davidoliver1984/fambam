@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\MediaUploadState;
 use App\Media\MediaObjectStorage;
+use App\Media\MediaSigningAudience;
 use App\Media\StoredObject;
 use App\Media\UploadAuthorization;
 use App\Models\FamilySpace;
@@ -92,7 +93,7 @@ class QuarantineRetentionStorage implements MediaObjectStorage
     /** @var list<string> */
     public array $deletedKeys = [];
 
-    public function authorizeSingleWrite(string $key, DateTimeInterface $expiresAt): UploadAuthorization
+    public function authorizeSingleWrite(string $key, DateTimeInterface $expiresAt, MediaSigningAudience $audience): UploadAuthorization
     {
         throw new \LogicException('Not used by quarantine-retention tests.');
     }

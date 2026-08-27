@@ -12,6 +12,7 @@ use App\Jobs\SendEventContributionNotifications;
 use App\Media\MediaDeliveryAuthorization;
 use App\Media\MediaDeliveryUrlSigner;
 use App\Media\MediaObjectStorage;
+use App\Media\MediaSigningAudience;
 use App\Media\StoredObject;
 use App\Media\UploadAuthorization;
 use App\Models\Album;
@@ -327,7 +328,7 @@ class EventExportStorage implements MediaObjectStorage
     /** @var list<string> */
     public array $deleted = [];
 
-    public function authorizeSingleWrite(string $key, DateTimeInterface $expiresAt): UploadAuthorization
+    public function authorizeSingleWrite(string $key, DateTimeInterface $expiresAt, MediaSigningAudience $audience): UploadAuthorization
     {
         return new UploadAuthorization('https://storage.test/write', [], CarbonImmutable::instance($expiresAt));
     }
@@ -372,6 +373,7 @@ class EventExportUrlSigner implements MediaDeliveryUrlSigner
         string $key,
         string $responseContentType,
         DateTimeInterface $expiresAt,
+        MediaSigningAudience $audience,
     ): MediaDeliveryAuthorization {
         return new MediaDeliveryAuthorization("https://storage.test/{$key}", CarbonImmutable::instance($expiresAt));
     }

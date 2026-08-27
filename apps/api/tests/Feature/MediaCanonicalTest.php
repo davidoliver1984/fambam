@@ -10,6 +10,7 @@ use App\Media\GeneratedCanonical;
 use App\Media\MediaMetadataExtractor;
 use App\Media\MediaObjectCollision;
 use App\Media\MediaObjectStorage;
+use App\Media\MediaSigningAudience;
 use App\Media\StoredObject;
 use App\Media\UploadAuthorization;
 use App\Models\FamilySpace;
@@ -139,7 +140,7 @@ class CanonicalStorage implements MediaObjectStorage
     /** @var array<string, string> */
     public array $checksums = [];
 
-    public function authorizeSingleWrite(string $key, DateTimeInterface $expiresAt): UploadAuthorization
+    public function authorizeSingleWrite(string $key, DateTimeInterface $expiresAt, MediaSigningAudience $audience): UploadAuthorization
     {
         throw new \LogicException('Not used by canonical tests.');
     }

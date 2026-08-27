@@ -86,6 +86,12 @@ class MediaUpload extends Model
         return $this->hasMany(PerceptualHash::class);
     }
 
+    /** @return HasMany<FaceAnalysisRun, $this> */
+    public function faceAnalysisRuns(): HasMany
+    {
+        return $this->hasMany(FaceAnalysisRun::class);
+    }
+
     /** @return HasOne<Photo, $this> */
     public function photo(): HasOne
     {

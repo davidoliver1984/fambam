@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fambam.local/contracts/events/image-analysis-requested.schema.json",
+  "title": "ImageAnalysisRequested",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "request_id",
+    "family_space_id",
+    "media_upload_id",
+    "canonical_sha256",
+    "canonical_get_authority",
+    "result_put_authority",
+    "analysis_identity",
+    "correlation_id",
+    "traceparent"
+  ],
+  "properties": {
+    "contract_version": {"const": "1"},
+    "request_id": {"$ref": "face-analysis-common.schema.json#/$defs/ulid"},
+    "family_space_id": {"$ref": "face-analysis-common.schema.json#/$defs/ulid"},
+    "media_upload_id": {"$ref": "face-analysis-common.schema.json#/$defs/ulid"},
+    "canonical_sha256": {"$ref": "face-analysis-common.schema.json#/$defs/sha256"},
+    "canonical_get_authority": {"$ref": "face-analysis-common.schema.json#/$defs/signedAuthority"},
+    "result_put_authority": {"$ref": "face-analysis-common.schema.json#/$defs/signedAuthority"},
+    "analysis_identity": {"$ref": "face-analysis-common.schema.json#/$defs/analysisIdentity"},
+    "correlation_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "traceparent": {"type": "string", "pattern": "^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$"}
+  }
+}

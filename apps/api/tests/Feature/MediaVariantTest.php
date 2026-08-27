@@ -8,6 +8,7 @@ use App\Jobs\GeneratePresentationMediaVariants;
 use App\Media\GeneratedMediaVariant;
 use App\Media\MediaObjectCollision;
 use App\Media\MediaObjectStorage;
+use App\Media\MediaSigningAudience;
 use App\Media\PresentationVariantGenerator;
 use App\Media\StoredObject;
 use App\Media\UploadAuthorization;
@@ -168,7 +169,7 @@ class VariantStorage implements MediaObjectStorage
     /** @var array<string, string> */
     public array $checksums = [];
 
-    public function authorizeSingleWrite(string $key, DateTimeInterface $expiresAt): UploadAuthorization
+    public function authorizeSingleWrite(string $key, DateTimeInterface $expiresAt, MediaSigningAudience $audience): UploadAuthorization
     {
         throw new \LogicException('Not used by variant tests.');
     }

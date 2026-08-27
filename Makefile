@@ -41,8 +41,7 @@ docs-check: ## Validate JSON, Markdown formatting and local documentation links
 	@python3 scripts/check_foundation.py --docs-only
 
 contracts-check: ## Validate the current contract directory structure
-	@test -d contracts/events && test -d contracts/http
-	@echo "Contract directory structure is valid (contracts are introduced in later stages)."
+	@python3 scripts/check_contracts.py
 
 compose-check: ## Validate the Docker Compose configuration
 	@docker compose config --quiet

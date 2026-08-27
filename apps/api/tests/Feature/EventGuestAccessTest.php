@@ -7,6 +7,7 @@ use App\Enums\FamilySpaceRole;
 use App\Enums\GuestParticipation;
 use App\Media\MediaDeliveryAuthorization;
 use App\Media\MediaDeliveryUrlSigner;
+use App\Media\MediaSigningAudience;
 use App\Models\Album;
 use App\Models\EventAdmission;
 use App\Models\FamilyEvent;
@@ -386,6 +387,7 @@ class EventGuestMediaDeliveryUrlSigner implements MediaDeliveryUrlSigner
         string $key,
         string $responseContentType,
         DateTimeInterface $expiresAt,
+        MediaSigningAudience $audience,
     ): MediaDeliveryAuthorization {
         return new MediaDeliveryAuthorization(
             'https://storage.test/'.rawurlencode($key),

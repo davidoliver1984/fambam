@@ -3148,6 +3148,70 @@ Accept ADR-0011: Local face analysis foundation
 
 Provider and transport **contracts only** — not the full operational pipeline. Owns the Fambam-owned provider interface and result types; the `ImageAnalysisRequested`/`Completed`/`Failed` wire/event schemas, including `contract_version`; the result-artifact schema and its safety bounds (size, face-count, embedding dimension/dtype, landmark scheme, geometry and numeric validity), enforced against conservative placeholder defaults; the `FaceAnalysisRun`/`FaceAnalysisAttempt`/`FaceObservation` schema, including the tenant-consistent composite foreign keys; analysis identity/version semantics; and the signing-audience extension to the existing delivery/upload-authorization abstractions. The application contract should express detection and embedding capabilities without leaking one provider's schema. Does **not** require production-shaped queue infrastructure or calibrated queue/timeout settings.
 
+### Objective
+
+Establish the complete versioned provider/transport contract and tenant-safe
+persistence foundation required by ADR-0011 without loading a model, running
+inference or building the operational SQS pipeline.
+
+### Implementation
+
+- Added five language-neutral JSON Schema 2020-12 documents for the shared
+  face-analysis types, requested/completed/failed messages and bounded result
+  artifact. A repository contract checker verifies required schemas, unique
+  identifiers and local references.
+- Added strict, frozen Pydantic models and a directly callable
+  `FaceAnalysisProvider` protocol. Unknown fields, malformed hashes/ULIDs,
+  non-finite values and embedding-length disagreement fail closed without
+  coupling the interface to InsightFace or an HTTP route.
+- Added `FaceAnalysisRun`, `FaceAnalysisAttempt` and `FaceObservation` models
+  and migration batch 32. The logical run identity is unique; attempts have
+  independent write-once result keys; observations have stable per-run order;
+  and all three tables force Class C tenant RLS.
+- Added composite tenant foreign keys for attempt/observation to run and run to
+  MediaUpload. The existing `media_uploads` table receives only the supporting
+  additive `(id, family_space_id)` uniqueness constraint.
+- Added mandatory conservative result bounds and a Laravel validator that
+  checks byte size before parsing, contract version, face count, embedding
+  shape/dtype, landmark scheme, JSON depth, finite values, canonical-relative
+  geometry, diagnostics size and message/artifact count agreement.
+- Extended the existing read/write signing abstractions with explicit browser
+  and service audiences. Existing browser flows remain on
+  `AWS_PUBLIC_ENDPOINT`; worker authorities use Docker-reachable
+  `AWS_ENDPOINT`, with write-once `If-None-Match` preserved.
+
+### Verification
+
+- Foundation, documentation, Compose and contract checks passed.
+- Frontend formatting, lint, typecheck and the unchanged 37-file/86-test suite
+  passed.
+- PHP formatting and PHPStan passed; the complete API suite passed with 243
+  tests discovered, 205 passed, 38 environment-specific skips and 1,677
+  assertions.
+- Python Ruff, mypy and the complete eight-test image-analysis suite passed.
+- Disposable PostgreSQL 17.6 migration/RLS verification passed: 28 tests and
+  293 assertions, including direct database rejection for all three mismatched
+  tenant relationships.
+- Persistent PostgreSQL migration batch 32 is applied; migration status, forced
+  RLS on all three tables and the three composite constraints were verified.
+- npm and Composer security audits reported no vulnerabilities.
+- Infrastructure smoke passed after the stopped local Redis/API stack was
+  restarted; its real LocalStack storage suite passed eight tests and 39
+  assertions.
+- `git diff --check` passed.
+
+### Stage boundary
+
+No real provider, model weights, inference, queue/DLQ infrastructure, raw-SQS
+consumer, automatic dispatch, reprocessing command or Phase 10 identity work is
+included. Those remain S04, S05 and Phase 10 responsibilities respectively.
+
+### Commit boundary
+
+```text
+Implement face-analysis provider contract
+```
+
 ## FPA-P09-S04 — Implement local face-analysis provider
 
 Initial candidate: InsightFace-compatible provider (`buffalo_l`) through ONNX Runtime. Owns model loading and canonical inference; running the private benchmark harness directly against the provider to produce real latency, memory, and result-size evidence; calibrating S03's bound defaults and queue-timing values from that evidence; and completing ADR-0011's licensing record against the actual pinned package/weight files.

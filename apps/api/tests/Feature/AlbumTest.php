@@ -8,6 +8,7 @@ use App\Enums\MediaUploadState;
 use App\Enums\PhotoVisibility;
 use App\Media\MediaDeliveryAuthorization;
 use App\Media\MediaDeliveryUrlSigner;
+use App\Media\MediaSigningAudience;
 use App\Models\Album;
 use App\Models\AlbumGrant;
 use App\Models\FamilyEvent;
@@ -274,7 +275,7 @@ class AlbumTest extends TestCase
 
 class AlbumTestMediaDeliveryUrlSigner implements MediaDeliveryUrlSigner
 {
-    public function authorizeRead(string $key, string $responseContentType, DateTimeInterface $expiresAt): MediaDeliveryAuthorization
+    public function authorizeRead(string $key, string $responseContentType, DateTimeInterface $expiresAt, MediaSigningAudience $audience): MediaDeliveryAuthorization
     {
         return new MediaDeliveryAuthorization('https://storage.test/'.rawurlencode($key), CarbonImmutable::instance($expiresAt));
     }

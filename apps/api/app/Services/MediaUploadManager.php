@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\MediaUploadState;
 use App\Jobs\ValidateMediaUpload;
 use App\Media\MediaObjectStorage;
+use App\Media\MediaSigningAudience;
 use App\Media\MediaUploadInitiation;
 use App\Media\UploadAuthorization;
 use App\Models\FamilySpace;
@@ -155,6 +156,7 @@ class MediaUploadManager
         return $this->storage->authorizeSingleWrite(
             $upload->staging_object_key,
             now()->addMinutes((int) config('media.upload.authority_ttl_minutes')),
+            MediaSigningAudience::Browser,
         );
     }
 

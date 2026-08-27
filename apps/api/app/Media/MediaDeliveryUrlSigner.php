@@ -10,5 +10,6 @@ interface MediaDeliveryUrlSigner
         string $key,
         string $responseContentType,
         DateTimeInterface $expiresAt,
+        MediaSigningAudience $audience,
     ): MediaDeliveryAuthorization;
 }

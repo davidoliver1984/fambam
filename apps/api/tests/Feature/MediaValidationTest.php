@@ -9,6 +9,7 @@ use App\Media\ImageDecoderValidator;
 use App\Media\MalwareScanner;
 use App\Media\MediaObjectCollision;
 use App\Media\MediaObjectStorage;
+use App\Media\MediaSigningAudience;
 use App\Media\MediaValidationFailed;
 use App\Media\StoredObject;
 use App\Media\UploadAuthorization;
@@ -226,7 +227,7 @@ class ValidationStorage implements MediaObjectStorage
     /** @var list<string> */
     public array $downloadedKeys = [];
 
-    public function authorizeSingleWrite(string $key, DateTimeInterface $expiresAt): UploadAuthorization
+    public function authorizeSingleWrite(string $key, DateTimeInterface $expiresAt, MediaSigningAudience $audience): UploadAuthorization
     {
         throw new \LogicException('Not used by validation tests.');
     }

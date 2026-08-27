@@ -9,6 +9,7 @@ use App\Enums\PersonProposalStatus;
 use App\Enums\PhotoVisibility;
 use App\Media\MediaDeliveryAuthorization;
 use App\Media\MediaDeliveryUrlSigner;
+use App\Media\MediaSigningAudience;
 use App\Models\Album;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
@@ -371,6 +372,7 @@ class PhotoTestMediaDeliveryUrlSigner implements MediaDeliveryUrlSigner
         string $key,
         string $responseContentType,
         DateTimeInterface $expiresAt,
+        MediaSigningAudience $audience,
     ): MediaDeliveryAuthorization {
         return new MediaDeliveryAuthorization(
             'https://storage.test/'.rawurlencode($key),

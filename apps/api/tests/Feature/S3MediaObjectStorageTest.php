@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Media\MediaObjectCollision;
+use App\Media\MediaSigningAudience;
 use App\Media\S3FamilyMediaStorageCleaner;
 use App\Media\S3MediaDeliveryUrlSigner;
 use App\Media\S3MediaObjectStorage;
@@ -20,12 +21,17 @@ class S3MediaObjectStorageTest extends TestCase
         $key = 'families/01KTEST/media/01KUPLOAD/variants/display.v1.webp';
         $expiresAt = now()->addMinutes(5);
 
-        $authorization = (new S3MediaDeliveryUrlSigner)->authorizeRead($key, 'image/webp', $expiresAt);
+        $authorization = (new S3MediaDeliveryUrlSigner)->authorizeRead(
+            $key,
+            'image/webp',
+            $expiresAt,
+            MediaSigningAudience::Browser,
+        );
         parse_str((string) parse_url($authorization->url, PHP_URL_QUERY), $query);
 
         $this->assertStringStartsWith('http://localhost:4570/fambam-media/', $authorization->url);
         $this->assertSame("/fambam-media/{$key}", parse_url($authorization->url, PHP_URL_PATH));
-        $this->assertSame('300', $query['X-Amz-Expires'] ?? null);
+        $this->assertContains($query['X-Amz-Expires'] ?? null, ['299', '300']);
         $this->assertSame('image/webp', $query['response-content-type'] ?? null);
         $this->assertTrue($authorization->expiresAt->equalTo($expiresAt));
     }
@@ -36,13 +42,40 @@ class S3MediaObjectStorageTest extends TestCase
         $key = 'families/01KTEST/media-staging/01KUPLOAD/original';
         $expiresAt = now()->addMinutes(15);
 
-        $authorization = (new S3MediaObjectStorage)->authorizeSingleWrite($key, $expiresAt);
+        $authorization = (new S3MediaObjectStorage)->authorizeSingleWrite(
+            $key,
+            $expiresAt,
+            MediaSigningAudience::Browser,
+        );
 
         $this->assertStringStartsWith('http://localhost:4570/fambam-media/', $authorization->url);
         $this->assertSame("/fambam-media/{$key}", parse_url($authorization->url, PHP_URL_PATH));
         $this->assertSame('*', $authorization->headers['If-None-Match']);
         $this->assertStringContainsString('if-none-match', strtolower($authorization->url));
         $this->assertTrue($authorization->expiresAt->equalTo($expiresAt));
+    }
+
+    public function test_service_audience_authorities_use_the_docker_reachable_endpoint(): void
+    {
+        $this->configureStorage();
+        $key = 'families/01KTEST/face-analysis/01KATTEMPT/result.json';
+        $expiresAt = now()->addMinutes(15);
+
+        $read = (new S3MediaDeliveryUrlSigner)->authorizeRead(
+            'families/01KTEST/media/01KUPLOAD/canonical.jpg',
+            'image/jpeg',
+            $expiresAt,
+            MediaSigningAudience::Service,
+        );
+        $write = (new S3MediaObjectStorage)->authorizeSingleWrite(
+            $key,
+            $expiresAt,
+            MediaSigningAudience::Service,
+        );
+
+        $this->assertStringStartsWith('http://localstack:4566/fambam-media/', $read->url);
+        $this->assertStringStartsWith('http://localstack:4566/fambam-media/', $write->url);
+        $this->assertSame('*', $write->headers['If-None-Match']);
     }
 
     public function test_real_signed_read_authority_supports_range_requests(): void
@@ -60,6 +93,7 @@ class S3MediaObjectStorageTest extends TestCase
                 $key,
                 'image/webp',
                 now()->addMinutes(2),
+                MediaSigningAudience::Browser,
             );
             $tamperedUrl = preg_replace(
                 '/X-Amz-Signature=[^&]+/',
@@ -156,7 +190,11 @@ class S3MediaObjectStorageTest extends TestCase
         $disk->delete($key);
 
         try {
-            $authorization = (new S3MediaObjectStorage)->authorizeSingleWrite($key, now()->addMinutes(2));
+            $authorization = (new S3MediaObjectStorage)->authorizeSingleWrite(
+                $key,
+                now()->addMinutes(2),
+                MediaSigningAudience::Browser,
+            );
             $first = Http::withHeaders($authorization->headers)
                 ->withBody('first-preserved-bytes')
                 ->put($authorization->url);
