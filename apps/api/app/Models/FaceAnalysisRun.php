@@ -9,6 +9,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property FaceAnalysisRunStatus $status
+ * @property int $attempt_count
+ */
 #[Fillable([
     'family_space_id',
     'media_upload_id',

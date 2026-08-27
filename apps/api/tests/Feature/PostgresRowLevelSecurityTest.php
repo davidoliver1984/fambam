@@ -4,10 +4,18 @@ namespace Tests\Feature;
 
 use App\Enums\FamilySpaceRole;
 use App\Enums\MembershipState;
+use App\FaceAnalysis\FaceAnalysisRequestPublisher;
+use App\FaceAnalysis\FaceAnalysisResultAuthority;
+use App\FaceAnalysis\FaceAnalysisResultQueue;
+use App\FaceAnalysis\ReceivedFaceAnalysisMessage;
 use App\Jobs\AbandonMediaUpload;
 use App\Jobs\DeleteFamilySpace;
 use App\Jobs\PurgeMediaQuarantine;
 use App\Media\FamilyMediaStorageCleaner;
+use App\Media\MediaDeliveryAuthorization;
+use App\Media\MediaDeliveryUrlSigner;
+use App\Media\MediaSigningAudience;
+use App\Media\UploadAuthorization;
 use App\Models\Album;
 use App\Models\Invitation;
 use App\Models\MediaUpload;
@@ -15,12 +23,14 @@ use App\Models\Photo;
 use App\Models\User;
 use App\Services\AlbumManager;
 use App\Services\ExactDuplicateDetector;
+use App\Services\FaceAnalysisPipeline;
 use App\Services\FamilySpaceDeletionManager;
 use App\Services\FamilySpaceManager;
 use App\Services\InvitationManager;
 use App\Services\MembershipInvitationAcceptor;
 use App\Tenancy\DatabaseTenantContext;
 use App\Tenancy\TenantOperationContext;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -199,6 +209,95 @@ SQL);
         });
 
         $this->assertNotSame($firstRun, $secondRun);
+    }
+
+    public function test_concurrent_face_analysis_dispatch_reuses_one_run_and_attempt(): void
+    {
+        if (! function_exists('pcntl_fork') || ! function_exists('stream_socket_pair')) {
+            $this->markTestSkipped('The PostgreSQL concurrency test requires pcntl and stream sockets.');
+        }
+
+        [$ownerId, $familySpaceId] = $this->createOwnedFamily('concurrent-face-analysis');
+        $uploadId = (string) Str::ulid();
+        $checksum = hash('sha256', 'concurrent-face-analysis');
+        $this->admin->table('media_uploads')->insert([
+            'id' => $uploadId,
+            'family_space_id' => $familySpaceId,
+            'user_id' => $ownerId,
+            'state' => 'ready',
+            'staging_object_key' => "families/{$familySpaceId}/media-staging/{$uploadId}/original",
+            'canonical_object_key' => "families/{$familySpaceId}/media/{$uploadId}/canonical.jpg",
+            'canonical_mime_type' => 'image/jpeg',
+            'canonical_sha256' => $checksum,
+            'client_filename' => 'concurrent-face-analysis.jpg',
+            'idempotency_key' => 'concurrent-face-analysis',
+            'request_fingerprint' => hash('sha256', 'concurrent-face-analysis-request'),
+            'correlation_id' => (string) Str::uuid(),
+            'traceparent' => TenantOperationContext::newTraceparent(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $this->app->instance(FaceAnalysisRequestPublisher::class, new RlsFaceAnalysisPublisher);
+        $this->app->instance(FaceAnalysisResultAuthority::class, new RlsFaceAnalysisResultAuthority);
+        $this->app->instance(MediaDeliveryUrlSigner::class, new RlsFaceAnalysisDeliverySigner);
+
+        DB::disconnect();
+        DB::disconnect('pgsql_admin');
+        $children = [];
+        for ($index = 0; $index < 2; $index++) {
+            $sockets = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+            $this->assertNotFalse($sockets);
+            $pid = pcntl_fork();
+            $this->assertNotSame(-1, $pid);
+            if ($pid === 0) {
+                fclose($sockets[0]);
+                fread($sockets[1], 1);
+                DB::purge();
+                DB::purge('pgsql_admin');
+                try {
+                    app(FaceAnalysisPipeline::class)->dispatch(
+                        TenantOperationContext::forBackground($familySpaceId, $ownerId),
+                        $uploadId,
+                        $checksum,
+                    );
+                    $outcome = 'ok';
+                } catch (\Throwable $exception) {
+                    $outcome = 'error:'.$exception::class.':'.$exception->getMessage();
+                }
+                fwrite($sockets[1], $outcome);
+                fclose($sockets[1]);
+                exit(0);
+            }
+            fclose($sockets[1]);
+            $children[] = ['pid' => $pid, 'socket' => $sockets[0]];
+        }
+        foreach ($children as $child) {
+            fwrite($child['socket'], '1');
+        }
+        foreach ($children as $child) {
+            $this->assertSame('ok', stream_get_contents($child['socket']));
+            fclose($child['socket']);
+            pcntl_waitpid($child['pid'], $status);
+            $this->assertTrue(pcntl_wifexited($status));
+            $this->assertSame(0, pcntl_wexitstatus($status));
+        }
+
+        DB::purge();
+        DB::purge('pgsql_admin');
+        $this->admin = DB::connection('pgsql_admin');
+        $this->assertSame(1, $this->admin->table('face_analysis_runs')->where('media_upload_id', $uploadId)->count());
+        $this->assertSame(1, $this->admin->table('face_analysis_attempts')->count());
+    }
+
+    public function test_raw_face_analysis_consumer_rejects_invalid_contract_without_crashing_or_deleting(): void
+    {
+        $queue = new RlsFaceAnalysisResultQueue;
+        $this->app->instance(FaceAnalysisResultQueue::class, $queue);
+
+        $this->artisan('fambam:consume-face-analysis-results', ['--once' => true])
+            ->assertSuccessful();
+
+        $this->assertSame([], $queue->deleted);
     }
 
     public function test_events_are_tenant_isolated_and_database_constrained(): void
@@ -2148,4 +2247,48 @@ SQL, [config('database.runtime_role')]);
 class RlsFamilyMediaStorageCleaner implements FamilyMediaStorageCleaner
 {
     public function deleteFamilyMedia(string $familySpaceId): void {}
+}
+
+class RlsFaceAnalysisPublisher implements FaceAnalysisRequestPublisher
+{
+    public function publish(array $message): void {}
+}
+
+class RlsFaceAnalysisResultAuthority implements FaceAnalysisResultAuthority
+{
+    public function authorizeWrite(string $key, \DateTimeInterface $expiresAt): UploadAuthorization
+    {
+        return new UploadAuthorization($key, ['If-None-Match' => '*'], CarbonImmutable::instance($expiresAt));
+    }
+}
+
+class RlsFaceAnalysisDeliverySigner implements MediaDeliveryUrlSigner
+{
+    public function authorizeRead(string $key, string $responseContentType, \DateTimeInterface $expiresAt, MediaSigningAudience $audience): MediaDeliveryAuthorization
+    {
+        return new MediaDeliveryAuthorization('http://service/canonical', CarbonImmutable::instance($expiresAt));
+    }
+}
+
+class RlsFaceAnalysisResultQueue implements FaceAnalysisResultQueue
+{
+    /** @var list<string> */
+    public array $deleted = [];
+
+    private bool $deliveredInvalid = false;
+
+    public function receive(string $queue): array
+    {
+        if ($queue !== 'completed' || $this->deliveredInvalid) {
+            return [];
+        }
+        $this->deliveredInvalid = true;
+
+        return [new ReceivedFaceAnalysisMessage('{"request_id":"invalid"}', 'receipt')];
+    }
+
+    public function delete(string $queue, string $receiptHandle): void
+    {
+        $this->deleted[] = $receiptHandle;
+    }
 }

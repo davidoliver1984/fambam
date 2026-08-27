@@ -27,3 +27,7 @@ Schedule::command('fambam:dispatch-due-event-exports')
 Schedule::command('fambam:dispatch-missing-perceptual-hashes')
     ->everyTenMinutes()
     ->withoutOverlapping();
+
+Schedule::command('fambam:reconcile-stale-face-analysis-attempts')
+    ->everyMinute()
+    ->withoutOverlapping();
