@@ -3216,6 +3216,71 @@ Implement face-analysis provider contract
 
 Initial candidate: InsightFace-compatible provider (`buffalo_l`) through ONNX Runtime. Owns model loading and canonical inference; running the private benchmark harness directly against the provider to produce real latency, memory, and result-size evidence; calibrating S03's bound defaults and queue-timing values from that evidence; and completing ADR-0011's licensing record against the actual pinned package/weight files.
 
+### Objective
+
+Implement the pinned local provider behind S03's provider-neutral contract,
+prove it directly on the private S01 corpus, and turn measured evidence into
+explicit model-integrity, configuration and result-bound defaults without
+beginning the SQS pipeline.
+
+### Implementation
+
+- Pinned InsightFace 1.0.1 and ONNX Runtime 1.29.0. The official `buffalo_l`
+  v0.7 archive and every ONNX file in it are verified against recorded SHA-256
+  values before the model directory is scanned or loaded.
+- Recorded the directly inspected library and weight-licence position in
+  `docs/face-analysis/MODEL_LICENSING.md`. The official archive contains no
+  bundled licence file; upstream package metadata and the official Model Zoo
+  explicitly restrict the provided weights to non-commercial research.
+- Implemented a directly callable provider returning contract-native bounds,
+  five-point landmarks, confidence and L2-normalised 512-dimensional float32
+  embeddings. Invalid decode, shape, numeric, confidence, face-count or model-
+  integrity conditions fail closed without emitting biometric values.
+- Calibrated a 640 × 640 detector at threshold 0.6 from a private 0.5/0.6/0.7
+  sweep. Execution backend is excluded from `config_hash`; CPU/CoreML parity
+  evidence confirms the accepted assumption within recorded tolerances.
+- Added private direct-invocation benchmark and backend-parity tools. Their
+  output remains gitignored and carries aggregate/count/timing/delta evidence,
+  never image bytes, face crops, landmarks or embeddings.
+- Calibrated the result-artifact byte ceiling from 8 MiB to 4 MiB while keeping
+  the 256-face, 512-float32 and five-landmark structural bounds. S05 retains
+  ownership of applying the evidence-calibrated starting values: 30-second
+  visibility, five receives, 20-second inference timeout, five-minute attempt
+  staleness, three attempts, 60-minute authorities and a 2 GiB single-inference
+  worker.
+- Mounted the ignored local model directory read-only into the image-analysis
+  container and added the minimal native OpenCV runtime libraries required by
+  the slim Linux image.
+
+### Verification
+
+- The complete Python format, lint, strict-mypy and 14-test suite passes.
+- The 38-image private CPU benchmark detected 93 candidate faces against 79
+  annotated visible faces: 30 exact-count, two under-count and six over-count
+  images. Limitations are recorded rather than interpreted as identity truth.
+- Hot CPU inference measured 66.856 ms median, 132.988 ms p95 and 141.732 ms
+  maximum; model construction was 365.652 ms, first inference warm-up 173.802
+  ms, observed peak RSS 1,093,976,064 bytes and maximum result size 67,869
+  bytes.
+- CPU/CoreML parity passed on three representative private assets with equal
+  counts, identical logical configuration identity, sub-pixel geometry deltas
+  and minimum embedding cosine 0.9992794022265646.
+- The rebuilt arm64 Docker image loaded the checksum-verified model and
+  analyzed one read-only private benchmark asset successfully.
+
+### Stage boundary
+
+No queue consumer, SQS dispatch, Laravel result adapter, analysis persistence,
+DLQ/redrive configuration, stale-attempt reconciliation, automated Photo
+dispatch or Phase 10 identity behaviour is included. Those remain S05 or Phase
+10 work.
+
+### Commit boundary
+
+```text
+Implement local face-analysis provider
+```
+
 ## FPA-P09-S05 — Implement queued analysis pipeline
 
 Store provider, model, version, configuration hash, source checksum and processing status. Owns: production-shaped use of the dedicated request/completed/failed queues; the Laravel-side raw-SQS result adapter; worker-facing signed URL delivery in practice; the write-once result-artifact transport; durable dispatch-attempt creation before dispatch; idempotent, tenant-consistent Laravel persistence; IAM/service-identity plumbing; dead-letter queues and redrive policy for all three queues; stale-attempt timeout reconciliation; queue visibility/redrive settings informed by S04's measurements; the bounded, audited backend reprocessing trigger; and adding `face-analysis` to the existing Family Space teardown object-storage prefix list.

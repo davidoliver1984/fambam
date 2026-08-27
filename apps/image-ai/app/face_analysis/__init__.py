@@ -1,4 +1,11 @@
-"""Provider-neutral face-analysis contracts."""
+"""Provider-neutral contracts and the pinned local provider."""
+
+from app.face_analysis.insightface_provider import (
+    InsightFaceProvider,
+    InsightFaceSettings,
+)
+
+__all__ = ["InsightFaceProvider", "InsightFaceSettings"]
 
 from app.face_analysis.contracts import (
     AnalysisIdentity,
