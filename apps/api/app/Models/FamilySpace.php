@@ -59,6 +59,12 @@ class FamilySpace extends Model
         return $this->hasMany(FamilyEvent::class);
     }
 
+    /** @return HasMany<FaceAnalysisRun, $this> */
+    public function faceAnalysisRuns(): HasMany
+    {
+        return $this->hasMany(FaceAnalysisRun::class);
+    }
+
     /** @return HasMany<PersonAccountLink, $this> */
     public function personAccountLinks(): HasMany
     {

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fambam.local/contracts/events/face-analysis-result.schema.json",
+  "title": "FaceAnalysisResultArtifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "faces"],
+  "properties": {
+    "contract_version": {"const": "1"},
+    "faces": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {"$ref": "face-analysis-common.schema.json#/$defs/detectedFace"}
+    }
+  }
+}

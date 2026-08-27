@@ -6,7 +6,11 @@ use DateTimeInterface;
 
 interface MediaObjectStorage
 {
-    public function authorizeSingleWrite(string $key, DateTimeInterface $expiresAt): UploadAuthorization;
+    public function authorizeSingleWrite(
+        string $key,
+        DateTimeInterface $expiresAt,
+        MediaSigningAudience $audience,
+    ): UploadAuthorization;
 
     public function inspect(string $key): ?StoredObject;
 

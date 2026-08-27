@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fambam.local/contracts/events/image-analysis-failed.schema.json",
+  "title": "ImageAnalysisFailed",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "request_id",
+    "family_space_id",
+    "media_upload_id",
+    "canonical_sha256",
+    "analysis_identity",
+    "failure_category",
+    "failure_detail"
+  ],
+  "properties": {
+    "contract_version": {"const": "1"},
+    "request_id": {"$ref": "face-analysis-common.schema.json#/$defs/ulid"},
+    "family_space_id": {"$ref": "face-analysis-common.schema.json#/$defs/ulid"},
+    "media_upload_id": {"$ref": "face-analysis-common.schema.json#/$defs/ulid"},
+    "canonical_sha256": {"$ref": "face-analysis-common.schema.json#/$defs/sha256"},
+    "analysis_identity": {"$ref": "face-analysis-common.schema.json#/$defs/analysisIdentity"},
+    "failure_category": {
+      "type": "string",
+      "enum": [
+        "checksum_mismatch",
+        "canonical_unavailable",
+        "decode_error",
+        "inference_error",
+        "timeout",
+        "result_checksum_mismatch",
+        "result_artifact_invalid",
+        "result_artifact_oversized",
+        "attempt_timed_out"
+      ]
+    },
+    "failure_detail": {"type": "string", "maxLength": 512}
+  }
+}

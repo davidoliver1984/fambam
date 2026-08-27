@@ -6,6 +6,7 @@ use App\Enums\FamilySpaceRole;
 use App\Enums\MembershipState;
 use App\Media\MediaDeliveryAuthorization;
 use App\Media\MediaDeliveryUrlSigner;
+use App\Media\MediaSigningAudience;
 use App\Models\Album;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
@@ -99,7 +100,7 @@ class PhotoDeletionTest extends TestCase
 
 class PhotoDeletionUrlSigner implements MediaDeliveryUrlSigner
 {
-    public function authorizeRead(string $key, string $responseContentType, DateTimeInterface $expiresAt): MediaDeliveryAuthorization
+    public function authorizeRead(string $key, string $responseContentType, DateTimeInterface $expiresAt, MediaSigningAudience $audience): MediaDeliveryAuthorization
     {
         return new MediaDeliveryAuthorization('https://storage.test/'.rawurlencode($key), CarbonImmutable::instance($expiresAt));
     }

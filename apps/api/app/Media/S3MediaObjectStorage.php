@@ -38,9 +38,15 @@ class S3MediaObjectStorage implements MediaObjectStorage
         ));
     }
 
-    public function authorizeSingleWrite(string $key, DateTimeInterface $expiresAt): UploadAuthorization
-    {
-        $command = $this->signingClient->getCommand('PutObject', [
+    public function authorizeSingleWrite(
+        string $key,
+        DateTimeInterface $expiresAt,
+        MediaSigningAudience $audience,
+    ): UploadAuthorization {
+        $client = $audience === MediaSigningAudience::Service
+            ? $this->internalClient
+            : $this->signingClient;
+        $command = $client->getCommand('PutObject', [
             'Bucket' => (string) config('filesystems.disks.s3.bucket'),
             'Key' => $key,
         ]);
@@ -48,7 +54,7 @@ class S3MediaObjectStorage implements MediaObjectStorage
         $request = (new WriteOnceS3SignatureV4('s3', (string) config('filesystems.disks.s3.region')))
             ->presign(
                 $unsignedRequest,
-                $this->signingClient->getCredentials()->wait(),
+                $client->getCredentials()->wait(),
                 $expiresAt,
             );
         $headers = [];

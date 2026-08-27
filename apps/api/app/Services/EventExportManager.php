@@ -7,6 +7,7 @@ use App\Jobs\GenerateEventExport;
 use App\Media\MediaDeliveryAuthorization;
 use App\Media\MediaDeliveryUrlSigner;
 use App\Media\MediaObjectStorage;
+use App\Media\MediaSigningAudience;
 use App\Models\EventExport;
 use App\Models\FamilyEvent;
 use App\Models\Photo;
@@ -82,6 +83,7 @@ class EventExportManager
             $export->object_key,
             'application/zip',
             now()->addMinutes((int) config('events.export_download_ttl_minutes')),
+            MediaSigningAudience::Browser,
         );
         $this->audit->record('event_export.download_authorised', $export, $actor, $request, [
             'authorization_expires_at' => $authorization->expiresAt->toAtomString(),

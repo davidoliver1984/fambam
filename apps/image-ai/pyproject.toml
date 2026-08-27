@@ -10,6 +10,7 @@ dependencies = [
     "opentelemetry-distro>=0.65b0",
     "opentelemetry-exporter-otlp>=1.44.0",
     "opentelemetry-instrumentation-fastapi>=0.65b0",
+    "pydantic>=2.13.4",
     "uvicorn[standard]>=0.52.1",
 ]
 

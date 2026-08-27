@@ -45,7 +45,8 @@ class PostgresRowLevelSecurityTest extends TestCase
         $this->admin = DB::connection('pgsql_admin');
         $this->app->instance(FamilyMediaStorageCleaner::class, new RlsFamilyMediaStorageCleaner);
         $this->admin->unprepared(<<<'SQL'
-TRUNCATE TABLE perceptual_hashes, media_upload_duplicate_holds, duplicate_decisions, duplicate_candidates,
+TRUNCATE TABLE face_observations, face_analysis_attempts, face_analysis_runs,
+    perceptual_hashes, media_upload_duplicate_holds, duplicate_decisions, duplicate_candidates,
     photo_reactions, photo_comment_revisions, photo_comments, photo_story_revisions, photo_stories,
     event_notification_deliveries, event_exports, event_admissions, album_grants, album_photos, albums, events,
     photo_people, photo_metadata_proposals, photo_tag, tags, photo_provenance_proposals, photos,
@@ -109,16 +110,95 @@ WHERE relname IN (
     'event_notification_deliveries',
     'photo_stories', 'photo_story_revisions', 'photo_comments', 'photo_comment_revisions', 'photo_reactions',
     'duplicate_candidates', 'duplicate_decisions', 'media_upload_duplicate_holds', 'perceptual_hashes',
+    'face_analysis_runs', 'face_analysis_attempts', 'face_observations',
     'rls_test_records'
 )
 ORDER BY relname
 SQL);
 
-        $this->assertCount(38, $tables);
+        $this->assertCount(41, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
         }
+    }
+
+    public function test_face_analysis_relationships_and_reads_are_tenant_consistent(): void
+    {
+        [$firstOwner, $firstFamily] = $this->createOwnedFamily('first-face-analysis-family');
+        [$secondOwner, $secondFamily] = $this->createOwnedFamily('second-face-analysis-family');
+        $firstUpload = (string) Str::ulid();
+        $secondUpload = (string) Str::ulid();
+        foreach ([
+            [$firstUpload, $firstFamily, $firstOwner],
+            [$secondUpload, $secondFamily, $secondOwner],
+        ] as [$uploadId, $familyId, $ownerId]) {
+            $this->admin->table('media_uploads')->insert([
+                'id' => $uploadId,
+                'family_space_id' => $familyId,
+                'user_id' => $ownerId,
+                'state' => 'ready',
+                'staging_object_key' => "families/{$familyId}/media-staging/{$uploadId}/original",
+                'canonical_sha256' => str_repeat('a', 64),
+                'client_filename' => 'synthetic.jpg',
+                'idempotency_key' => "face-analysis-{$uploadId}",
+                'request_fingerprint' => str_repeat('b', 64),
+                'correlation_id' => (string) Str::uuid(),
+                'traceparent' => '00-'.str_repeat('1', 32).'-'.str_repeat('2', 16).'-01',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $firstRun = $this->insertFaceAnalysisRun($firstFamily, $firstUpload);
+        $secondRun = $this->insertFaceAnalysisRun($secondFamily, $secondUpload);
+
+        $visibleRuns = DB::transaction(function () use ($firstOwner, $firstFamily): array {
+            $context = app(DatabaseTenantContext::class);
+            $context->establishUser($firstOwner);
+            $context->establishFamilySpace($firstFamily);
+
+            return DB::table('face_analysis_runs')->pluck('family_space_id')->all();
+        });
+        $this->assertSame([$firstFamily], $visibleRuns);
+
+        $this->assertCompositeForeignKeyRejected(function () use ($firstFamily, $secondUpload): void {
+            $this->insertFaceAnalysisRun($firstFamily, $secondUpload);
+        });
+        $this->assertCompositeForeignKeyRejected(function () use ($firstFamily, $secondRun): void {
+            $this->admin->table('face_analysis_attempts')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $firstFamily,
+                'face_analysis_run_id' => $secondRun,
+                'expected_result_object_key' => "families/{$firstFamily}/face-analysis/wrong/result.json",
+                'status' => 'dispatched',
+                'dispatched_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+        $this->assertCompositeForeignKeyRejected(function () use ($firstFamily, $secondRun): void {
+            $this->admin->table('face_observations')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $firstFamily,
+                'face_analysis_run_id' => $secondRun,
+                'face_index' => 0,
+                'bounds_x' => 0,
+                'bounds_y' => 0,
+                'bounds_width' => 1,
+                'bounds_height' => 1,
+                'landmarks' => '[]',
+                'landmark_scheme' => '5-point',
+                'detection_confidence' => 1,
+                'embedding' => DB::raw("decode('00000000', 'hex')"),
+                'embedding_dimension' => 1,
+                'embedding_dtype' => 'float32',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        $this->assertNotSame($firstRun, $secondRun);
     }
 
     public function test_events_are_tenant_isolated_and_database_constrained(): void
@@ -1936,6 +2016,28 @@ SQL, [config('database.runtime_role')]);
         ]);
     }
 
+    private function insertFaceAnalysisRun(string $familySpaceId, string $mediaUploadId): string
+    {
+        $runId = (string) Str::ulid();
+        $this->admin->table('face_analysis_runs')->insert([
+            'id' => $runId,
+            'family_space_id' => $familySpaceId,
+            'media_upload_id' => $mediaUploadId,
+            'canonical_sha256' => str_repeat('a', 64),
+            'contract_version' => '1',
+            'provider' => 'synthetic',
+            'model_identifier' => 'synthetic-model',
+            'model_weight_checksum' => str_repeat('c', 64),
+            'config_hash' => str_repeat('d', 64),
+            'status' => 'pending',
+            'attempt_count' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return $runId;
+    }
+
     private function addMembership(string $familySpaceId, int $userId, FamilySpaceRole $role): string
     {
         $membershipId = (string) Str::ulid();
@@ -2021,6 +2123,17 @@ SQL, [config('database.runtime_role')]);
             $this->fail('PostgreSQL unexpectedly accepted a duplicate one-to-one association.');
         } catch (QueryException $exception) {
             $this->assertSame('23505', $exception->errorInfo[0]);
+        }
+    }
+
+    /** @param callable(): mixed $operation */
+    private function assertCompositeForeignKeyRejected(callable $operation): void
+    {
+        try {
+            $operation();
+            $this->fail('PostgreSQL unexpectedly accepted a cross-tenant relationship.');
+        } catch (QueryException $exception) {
+            $this->assertSame('23503', $exception->errorInfo[0]);
         }
     }
 

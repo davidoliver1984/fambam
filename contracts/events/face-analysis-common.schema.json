@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fambam.local/contracts/events/face-analysis-common.schema.json",
+  "title": "Fambam face-analysis shared definitions",
+  "$defs": {
+    "ulid": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "analysisIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "model_identifier",
+        "model_weight_checksum",
+        "config_hash"
+      ],
+      "properties": {
+        "provider": {"type": "string", "minLength": 1, "maxLength": 80},
+        "model_identifier": {"type": "string", "minLength": 1, "maxLength": 160},
+        "model_weight_checksum": {"$ref": "#/$defs/sha256"},
+        "config_hash": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "signedAuthority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "headers", "expires_at"],
+      "properties": {
+        "url": {"type": "string", "format": "uri", "maxLength": 4096},
+        "headers": {
+          "type": "object",
+          "maxProperties": 16,
+          "additionalProperties": {"type": "string", "maxLength": 2048}
+        },
+        "expires_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "x": {"type": "number"},
+        "y": {"type": "number"}
+      }
+    },
+    "bounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": {"type": "number", "minimum": 0},
+        "y": {"type": "number", "minimum": 0},
+        "width": {"type": "number", "exclusiveMinimum": 0},
+        "height": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "detectedFace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bounds",
+        "landmarks",
+        "landmark_scheme",
+        "detection_confidence",
+        "embedding",
+        "embedding_dimension",
+        "embedding_dtype"
+      ],
+      "properties": {
+        "bounds": {"$ref": "#/$defs/bounds"},
+        "landmarks": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {"$ref": "#/$defs/point"}
+        },
+        "landmark_scheme": {"type": "string", "minLength": 1, "maxLength": 40},
+        "detection_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "embedding": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {"type": "number"}
+        },
+        "embedding_dimension": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "embedding_dtype": {"type": "string", "enum": ["float32"]},
+        "quality_signals": {
+          "type": "object",
+          "maxProperties": 32,
+          "additionalProperties": {"type": ["number", "boolean", "null"]}
+        },
+        "provider_diagnostics": {
+          "type": ["object", "null"],
+          "maxProperties": 64
+        }
+      }
+    }
+  }
+}
