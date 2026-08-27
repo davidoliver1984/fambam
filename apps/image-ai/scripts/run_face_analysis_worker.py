@@ -6,21 +6,23 @@ from typing import cast
 
 import boto3
 
-from app.face_analysis.insightface_provider import (
-    InsightFaceProvider,
-    InsightFaceSettings,
-)
-from app.face_analysis.worker import (
-    FaceAnalysisWorker,
-    SqsClient,
-    UrllibObjectHttpClient,
-    run_forever,
-)
 from app.telemetry import configure_telemetry
 
 
 def main() -> None:
     configure_telemetry()
+    from app.face_analysis.insightface_provider import (
+        InsightFaceProvider,
+        InsightFaceSettings,
+    )
+    from app.face_analysis.worker import (
+        FaceAnalysisWorker,
+        SqsClient,
+        UrllibObjectHttpClient,
+        run_forever,
+    )
+
+    execution_providers = ("CPUExecutionProvider",)
     sqs = cast(
         SqsClient,
         boto3.client(
@@ -40,7 +42,10 @@ def main() -> None:
     worker = FaceAnalysisWorker(
         sqs,
         InsightFaceProvider(
-            InsightFaceSettings(insightface_root=Path(os.environ["FACE_ANALYSIS_ROOT"]))
+            InsightFaceSettings(
+                insightface_root=Path(os.environ["FACE_ANALYSIS_ROOT"]),
+                execution_providers=execution_providers,
+            )
         ),
         UrllibObjectHttpClient(),
         requested_queue_url=f"{prefix}/{requested_queue}",
@@ -55,6 +60,7 @@ def main() -> None:
         max_result_bytes=int(
             os.getenv("FACE_ANALYSIS_RESULT_MAX_BYTES", str(4 * 1024 * 1024))
         ),
+        execution_backend=",".join(execution_providers),
     )
     run_forever(worker)
 

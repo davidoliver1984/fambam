@@ -6,8 +6,8 @@
     "version": "0.1.0",
     "status": "in_progress",
     "v1_release_phase": "P17",
-    "current_phase": "P09",
-    "current_stage": "FPA-P09-S06",
+    "current_phase": "P10",
+    "current_stage": "FPA-P10-S01",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-27"
   },
@@ -615,7 +615,7 @@
     {
       "id": "P09",
       "name": "Local Face Analysis Foundation",
-      "status": "in_progress",
+      "status": "completed",
       "stages": [
         {
           "id": "FPA-P09-S01",
@@ -677,23 +677,25 @@
         {
           "id": "FPA-P09-S06",
           "title": "Add benchmark and operational metrics",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P09-S05"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-27: the final direct private benchmark completed all 38 images with zero provider failures, 93 detections against 79 visible-face count annotations, 30 exact-count images, a 75/79 count-derived matched upper bound, four count-derived misses and 18 excess detections requiring review; hot CPU inference measured 69.569 ms median, 132.495 ms p95, 134.045 ms maximum, 13.068 sequential images/second and 973,864,960 bytes peak RSS. The production worker now emits trace-context-linked, low-cardinality OpenTelemetry for queue and end-to-end analysis latency, inference duration, attempts, completed/failed outcomes, bounded failure categories, detected/no-face counts, canonical dimensions, provider/model/configuration/backend identity and measurable peak memory without tenant identifiers, signed authorities or biometric values. The rebuilt stack, a real worker telemetry probe, complete repository, PostgreSQL 17.6, security, infrastructure and observability gates passed; Phase 9 completed without Phase 10 similarity, clustering, identity or review behavior."
+          ]
         }
       ]
     },
     {
       "id": "P10",
       "name": "Face Clustering and Human Review",
-      "status": "planned",
+      "status": "in_progress",
       "stages": [
         {
           "id": "FPA-P10-S01",
           "title": "Accept face clustering and human identity review ADR",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P09-S06"
           ],
@@ -1886,6 +1888,22 @@
       "roadmap_stage": "FPA-P09-S05",
       "date": "2026-08-27",
       "description": "FPA-P09-S05 completed: the calibrated production-shaped face-analysis pipeline now provides durable-before-dispatch run/attempt identity, service-audience signed canonical delivery, lifecycle-tagged write-once result artifacts, a checksum-verifying local worker, strict raw-SQS Laravel persistence, idempotent retries and late-message handling, per-queue DLQs/redrive, stale-attempt reconciliation, bounded audited reprocessing, least-privilege IAM definitions and explicit Family Space teardown coverage. Persistent PostgreSQL migration, concurrent dispatch, live end-to-end, infrastructure, observability and complete repository verification passed without Phase 10 identity behavior."
+    },
+    {
+      "git_tag": "phase-9-s06",
+      "type": "stage_completion",
+      "adr": "ADR-0011",
+      "roadmap_stage": "FPA-P09-S06",
+      "date": "2026-08-27",
+      "description": "FPA-P09-S06 completed: the final private direct-provider benchmark measured count-derived detection coverage, excess detections, failures, latency, throughput, memory and result size across all 38 images; the worker now exports trace-linked, privacy-bounded operational telemetry for queue and analysis latency, inference, attempts, outcomes, canonical dimensions, provider identity and measurable memory; and the complete Phase 9 acceptance gate passed without beginning similarity, clustering, identity or human-review behavior."
+    },
+    {
+      "git_tag": "phase-9",
+      "type": "phase_completion",
+      "adr": null,
+      "roadmap_stage": "FPA-P09-S06",
+      "date": "2026-08-27",
+      "description": "Phase 9 completed: the replaceable local face-analysis foundation passed private benchmark, provider/model integrity and licensing, durable tenant-safe pipeline, retry/idempotency, PostgreSQL 17.6, operational telemetry, rebuilt infrastructure, observability, security and complete repository acceptance gates without introducing face identity behavior."
     }
   ]
 }

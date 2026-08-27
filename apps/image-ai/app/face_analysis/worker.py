@@ -5,8 +5,10 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import platform
 import signal
 import tempfile
+import time
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
@@ -14,6 +16,9 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Protocol
 
+from opentelemetry.trace import Span
+
+from app.face_analysis import observability
 from app.face_analysis.contracts import (
     FaceAnalysisResult,
     ImageAnalysisCompleted,
@@ -23,7 +28,7 @@ from app.face_analysis.contracts import (
 from app.face_analysis.insightface_provider import InsightFaceInferenceError
 from app.face_analysis.provider import FaceAnalysisProvider
 
-LOGGER = logging.getLogger("fambam.face_analysis.worker")
+LOGGER = logging.getLogger("fambam.image_ai.face_analysis.worker")
 
 
 class SqsClient(Protocol):
@@ -91,6 +96,7 @@ class FaceAnalysisWorker:
         inference_timeout_seconds: int = 20,
         max_canonical_bytes: int = 100 * 1024 * 1024,
         max_result_bytes: int = 4 * 1024 * 1024,
+        execution_backend: str = "unknown",
     ) -> None:
         self.sqs = sqs
         self.provider = provider
@@ -101,6 +107,7 @@ class FaceAnalysisWorker:
         self.inference_timeout_seconds = inference_timeout_seconds
         self.max_canonical_bytes = max_canonical_bytes
         self.max_result_bytes = max_result_bytes
+        self.execution_backend = execution_backend
 
     def process_one(self, wait_time_seconds: int = 10) -> bool:
         response = self.sqs.receive_message(
@@ -108,6 +115,7 @@ class FaceAnalysisWorker:
             MaxNumberOfMessages=1,
             WaitTimeSeconds=wait_time_seconds,
             VisibilityTimeout=30,
+            AttributeNames=["SentTimestamp", "ApproximateReceiveCount"],
         )
         messages = response.get("Messages", [])
         if not messages:
@@ -126,14 +134,25 @@ class FaceAnalysisWorker:
             )
             return True
 
-        terminal_sent = self._process(requested)
+        attributes = message.get("Attributes", {})
+        queue_latency_ms = _queue_latency_ms(attributes)
+        attempt_count = _positive_int(attributes.get("ApproximateReceiveCount"), 1)
+        with observability.observe_request(
+            requested.traceparent,
+            requested.analysis_identity,
+            self.execution_backend,
+            queue_latency_ms=queue_latency_ms,
+            attempt_count=attempt_count,
+        ) as span:
+            terminal_sent = self._process(requested, span)
         if terminal_sent:
             self.sqs.delete_message(
                 QueueUrl=self.requested_queue_url, ReceiptHandle=receipt
             )
         return True
 
-    def _process(self, requested: ImageAnalysisRequested) -> bool:
+    def _process(self, requested: ImageAnalysisRequested, span: Span) -> bool:
+        analysis_started = time.perf_counter()
         failure_category: str | None = None
         failure_detail = ""
         with tempfile.TemporaryDirectory(prefix="fambam-face-analysis-") as directory:
@@ -153,8 +172,21 @@ class FaceAnalysisWorker:
                     failure_category = "checksum_mismatch"
                     failure_detail = "Canonical checksum verification failed."
                 else:
-                    with _hard_timeout(self.inference_timeout_seconds):
-                        faces = self.provider.analyze(canonical_path)
+                    width, height = _canonical_dimensions(canonical_path)
+                    inference_started = time.perf_counter()
+                    try:
+                        with _hard_timeout(self.inference_timeout_seconds):
+                            faces = self.provider.analyze(canonical_path)
+                    finally:
+                        observability.record_inference(
+                            span,
+                            requested.analysis_identity,
+                            self.execution_backend,
+                            duration_ms=(time.perf_counter() - inference_started)
+                            * 1000,
+                            width=width,
+                            height=height,
+                        )
                     result = FaceAnalysisResult(contract_version="1", faces=list(faces))
                     artifact = result.model_dump_json().encode("utf-8")
                     if len(artifact) > self.max_result_bytes:
@@ -194,6 +226,14 @@ class FaceAnalysisWorker:
                                     requested.analysis_identity.model_identifier
                                 ),
                             },
+                        )
+                        observability.record_success(
+                            span,
+                            requested.analysis_identity,
+                            self.execution_backend,
+                            detected_face_count=len(faces),
+                            duration_ms=(time.perf_counter() - analysis_started) * 1000,
+                            memory_bytes=_resident_memory_bytes(),
                         )
                         return True
             except AnalysisTimeout:
@@ -236,6 +276,14 @@ class FaceAnalysisWorker:
             "face-analysis request failed",
             extra={"request_id": requested.request_id, "category": failure_category},
         )
+        observability.record_failure(
+            span,
+            requested.analysis_identity,
+            self.execution_backend,
+            category=failure_category,
+            duration_ms=(time.perf_counter() - analysis_started) * 1000,
+            memory_bytes=_resident_memory_bytes(),
+        )
         return True
 
 
@@ -275,3 +323,45 @@ def _result_key_from_url(url: str) -> str:
     bucket = os.getenv("AWS_BUCKET", "fambam-media")
     prefix = f"{bucket}/"
     return path[len(prefix) :] if path.startswith(prefix) else path
+
+
+def _queue_latency_ms(attributes: object) -> float | None:
+    if not isinstance(attributes, dict):
+        return None
+    sent_timestamp = attributes.get("SentTimestamp")
+    try:
+        sent_seconds = int(str(sent_timestamp)) / 1000
+    except (TypeError, ValueError):
+        return None
+    return max(0.0, (time.time() - sent_seconds) * 1000)
+
+
+def _positive_int(value: object, default: int) -> int:
+    try:
+        parsed = int(str(value))
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
+
+
+def _canonical_dimensions(path: Path) -> tuple[int, int]:
+    import cv2
+    import numpy as np
+
+    image = cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
+    if image is None or image.ndim < 2:
+        raise InsightFaceInferenceError("canonical asset could not be decoded")
+    height, width = image.shape[:2]
+    return int(width), int(height)
+
+
+def _resident_memory_bytes() -> int | None:
+    try:
+        import resource
+
+        maximum_rss = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+        if maximum_rss <= 0:
+            return None
+        return maximum_rss if platform.system() == "Darwin" else maximum_rss * 1024
+    except (ImportError, OSError, ValueError):
+        return None
