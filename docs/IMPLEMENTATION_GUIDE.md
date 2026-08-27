@@ -2969,7 +2969,11 @@ measured 18 and the nearest unrelated pair measured 19, giving 18 true
 positives, 0 false negatives, 0 false positives and 762 true negatives at the
 selected threshold. This is an advisory candidate threshold, not proof that
 two Photos are duplicates; later recalibration requires a new processing
-version rather than reinterpretation of stored version-1 hashes.
+version rather than reinterpretation of stored version-1 hashes. Treat the
+version-1 cutoff as provisional to this calibration corpus and recalibrate
+before relying on it for materially different sources, including old scans,
+new export pipelines, substantially different resolution/compression, or new
+image-processing paths.
 
 Generate versioned perceptual hashes `(media_upload_id, algorithm,
 processing_version)` from the canonical asset (ADR-0007 §9), as a
@@ -3058,6 +3062,24 @@ Photo soft-delete/restore never reopens a decision on its own.
 ### Documentation updates
 
 - Completed FPA-P08-S04 and Phase 8; advanced `tasks.json` to FPA-P09-S01.
+
+### Post-completion review closeout (2026-08-27)
+
+- Added real PostgreSQL proof that the checksum advisory lock serializes
+  concurrent reverse-order decision creation into one canonical
+  `DuplicateDecision`, and that PostgreSQL rejects a reversed pair.
+- Added explicit Guest Event/Album hold-resolution coverage for uploader
+  ownership, live contribution-authority rechecking, all three choices and
+  continued denial of general Photo-creation authority.
+- Added asynchronous visibility-before-existence proof for an invisible exact
+  match and full settled-decision soft-delete/restore/reopen regression proof.
+- Normalized new comment and reaction writes so missing/null `album_id` fails
+  validation consistently, while legacy null-Album rows remain unchanged.
+- Verified the accepted reopening behavior without changing it: reopening
+  removes suppression but creates no candidate itself; only later natural
+  detection may re-pend the pair.
+- Assigned substantive CI suite enforcement to FPA-P17-S03 without changing
+  the current foundation-only workflow.
 
 ### Commit boundary
 
@@ -3368,6 +3390,11 @@ Resolve the consent and lawful-processing model, child and guardian controls, se
 ## FPA-P17-S02 — Provision production infrastructure
 
 ## FPA-P17-S03 — Configure deployment, monitoring and rollback
+
+Expand GitHub Actions beyond the foundation-only workflow so CI enforces the
+API, web, PostgreSQL integration/RLS and image-analysis test suites before
+production deployment. Keep each application suite independently runnable and
+make the PostgreSQL job exercise the real database-specific paths.
 
 ## FPA-P17-S04 — Import initial curated archive
 

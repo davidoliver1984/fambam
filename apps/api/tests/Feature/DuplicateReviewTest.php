@@ -103,6 +103,68 @@ class DuplicateReviewTest extends TestCase
         $this->assertDatabaseHas('duplicate_candidates', ['id' => $candidate->id, 'status' => 'pending']);
     }
 
+    public function test_soft_delete_and_restore_preserve_settlement_until_explicit_reopening(): void
+    {
+        $family = FamilySpace::factory()->create(['slug' => 'duplicate-restore']);
+        $owner = $this->member($family, FamilySpaceRole::Owner);
+        $checksum = hash('sha256', 'restore-original');
+        $first = $this->photo($family, $owner, 'first', checksum: $checksum);
+        $second = $this->photo($family, $owner, 'second', checksum: $checksum);
+        $detector = app(ExactDuplicateDetector::class);
+        $detector->generateCandidatesFor($first);
+        $candidate = DuplicateCandidate::query()->sole();
+        $decisionId = $this->actingAs($owner)
+            ->postJson("/api/families/{$family->slug}/duplicate-candidates/{$candidate->id}/dismiss")
+            ->assertOk()->json('data.id');
+
+        $this->actingAs($owner)
+            ->deleteJson("/api/families/{$family->slug}/photos/{$second->id}")
+            ->assertNoContent();
+        $this->assertDatabaseHas('duplicate_decisions', [
+            'id' => $decisionId,
+            'reopened_at' => null,
+        ]);
+        $this->actingAs($owner)
+            ->getJson("/api/families/{$family->slug}/duplicate-candidates")
+            ->assertOk()->assertJsonCount(0, 'data');
+        $this->actingAs($owner)
+            ->getJson("/api/families/{$family->slug}/duplicate-decisions")
+            ->assertOk()->assertJsonCount(0, 'data');
+
+        $this->actingAs($owner)
+            ->postJson("/api/families/{$family->slug}/photos/{$second->id}/restore")
+            ->assertOk();
+        $this->assertDatabaseHas('duplicate_decisions', [
+            'id' => $decisionId,
+            'reopened_at' => null,
+        ]);
+        $this->assertDatabaseHas('duplicate_candidates', [
+            'id' => $candidate->id,
+            'status' => 'dismissed',
+        ]);
+        $detector->generateCandidatesFor($first);
+        $this->assertDatabaseHas('duplicate_candidates', [
+            'id' => $candidate->id,
+            'status' => 'dismissed',
+        ]);
+        $this->actingAs($owner)
+            ->getJson("/api/families/{$family->slug}/duplicate-candidates")
+            ->assertOk()->assertJsonCount(0, 'data');
+
+        $this->actingAs($owner)
+            ->postJson("/api/families/{$family->slug}/duplicate-decisions/{$decisionId}/reopen")
+            ->assertOk()->assertJsonPath('data.status', 'reopened');
+        $this->assertDatabaseHas('duplicate_candidates', [
+            'id' => $candidate->id,
+            'status' => 'dismissed',
+        ]);
+        $detector->generateCandidatesFor($first);
+        $this->assertDatabaseHas('duplicate_candidates', [
+            'id' => $candidate->id,
+            'status' => 'pending',
+        ]);
+    }
+
     public function test_member_can_flag_only_two_visible_photos_while_contributor_cannot_flag(): void
     {
         $family = FamilySpace::factory()->create(['slug' => 'duplicate-flag']);

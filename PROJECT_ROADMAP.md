@@ -676,6 +676,8 @@ Deploy the platform safely and validate it with a small real family cohort.
 - Domain and TLS.
 - Managed database and object storage.
 - Worker deployment.
+- CI enforcement for API, web, PostgreSQL integration/RLS and image-analysis
+  test suites.
 - Monitoring and alerts.
 - Cost budgets.
 - Pilot invitations.

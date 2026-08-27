@@ -71,6 +71,28 @@ class PhotoConversationTest extends TestCase
         $this->assertDatabaseCount('photo_reactions', 0);
     }
 
+    public function test_new_comments_and_reactions_require_an_album_scope(): void
+    {
+        $family = FamilySpace::factory()->create(['slug' => 'conversation-album-required']);
+        $member = $this->member($family, FamilySpaceRole::Member);
+        $photo = Photo::factory()->create(['family_space_id' => $family->id, 'created_by' => $member->id]);
+        $base = "/api/families/{$family->slug}/photos/{$photo->id}";
+
+        foreach ([[], ['album_id' => null]] as $scope) {
+            $this->actingAs($member)->postJson("{$base}/comments", [
+                'body' => 'Album context is required.',
+                ...$scope,
+            ])->assertUnprocessable()->assertJsonValidationErrors('album_id');
+            $this->actingAs($member)->putJson("{$base}/reaction", [
+                'reaction' => 'love',
+                ...$scope,
+            ])->assertUnprocessable()->assertJsonValidationErrors('album_id');
+        }
+
+        $this->assertDatabaseCount('photo_comments', 0);
+        $this->assertDatabaseCount('photo_reactions', 0);
+    }
+
     public function test_contributor_interactions_require_an_album_contribution_grant(): void
     {
         $family = FamilySpace::factory()->create(['slug' => 'contributor-interactions']);

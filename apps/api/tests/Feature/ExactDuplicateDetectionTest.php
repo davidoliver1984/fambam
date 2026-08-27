@@ -4,9 +4,12 @@ namespace Tests\Feature;
 
 use App\Enums\AlbumVisibility;
 use App\Enums\FamilySpaceRole;
+use App\Enums\GuestParticipation;
 use App\Enums\MediaUploadState;
 use App\Enums\PhotoVisibility;
 use App\Models\Album;
+use App\Models\EventAdmission;
+use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\MediaUpload;
@@ -195,6 +198,137 @@ class ExactDuplicateDetectionTest extends TestCase
         $this->assertNotNull($hold->refresh()->resolved_at);
     }
 
+    public function test_guest_resolves_only_their_authorised_event_album_holds_without_general_photo_creation(): void
+    {
+        [$family, $owner] = $this->family('guest-exact-hold', FamilySpaceRole::Owner);
+        $guest = $this->member($family, FamilySpaceRole::Guest);
+        $otherGuest = $this->member($family, FamilySpaceRole::Guest);
+        $membership = $this->membership($family, $guest);
+        $otherMembership = $this->membership($family, $otherGuest);
+        $event = $this->event($family, $owner, 'Guest contribution event');
+        $album = $this->eventAlbum($family, $owner, $event, GuestParticipation::Contribute);
+        $admission = $this->admit($family, $event, $membership);
+        $this->admit($family, $event, $otherMembership);
+        $checksum = hash('sha256', 'guest-held-original');
+        $existing = $this->photo($family, $owner, $checksum, 'Existing event Photo');
+        $album->photos()->attach($existing->id, [
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $family->id,
+            'position' => 1,
+            'added_by' => $owner->id,
+        ]);
+
+        $uploads = collect(['cancel', 'use_existing', 'create_new'])
+            ->mapWithKeys(function (string $resolution) use ($family, $guest, $checksum, $album): array {
+                $upload = $this->upload($family, $guest, $checksum, $album);
+                app(AlbumContributionFinalizer::class)->finalize($upload, new TenantOperationContext(
+                    $family->id,
+                    $guest->id,
+                    "guest-hold-{$resolution}",
+                    TenantOperationContext::newTraceparent(),
+                ));
+
+                return [$resolution => $upload];
+            });
+        $holds = MediaUploadDuplicateHold::query()->get()->keyBy('media_upload_id');
+        $createHold = $holds->get($uploads['create_new']->id);
+        $this->assertNotNull($createHold);
+
+        $this->actingAs($otherGuest)
+            ->postJson("/api/families/{$family->slug}/media-upload-duplicate-holds/{$createHold->id}/resolve", [
+                'resolution' => 'cancel',
+            ])->assertNotFound();
+        $this->actingAs($guest)->postJson("/api/families/{$family->slug}/photos", [
+            'media_upload_id' => $uploads['create_new']->id,
+        ])->assertForbidden();
+
+        $cancelHold = $holds->get($uploads['cancel']->id);
+        $this->actingAs($guest)
+            ->postJson("/api/families/{$family->slug}/media-upload-duplicate-holds/{$cancelHold->id}/resolve", [
+                'resolution' => 'cancel',
+            ])->assertOk()->assertJsonPath('data.outcome', 'cancel')->assertJsonPath('data.photo_id', null);
+        $this->assertDatabaseMissing('photos', ['media_upload_id' => $uploads['cancel']->id]);
+
+        $useExistingHold = $holds->get($uploads['use_existing']->id);
+        $this->actingAs($guest)
+            ->postJson("/api/families/{$family->slug}/media-upload-duplicate-holds/{$useExistingHold->id}/resolve", [
+                'resolution' => 'use_existing',
+                'existing_photo_id' => $existing->id,
+            ])->assertOk()->assertJsonPath('data.outcome', 'use_existing')
+            ->assertJsonPath('data.photo_id', $existing->id);
+        $this->assertDatabaseMissing('photos', ['media_upload_id' => $uploads['use_existing']->id]);
+
+        $admission->update(['revoked_at' => now(), 'revoked_by' => $owner->id]);
+        $this->actingAs($guest)
+            ->postJson("/api/families/{$family->slug}/media-upload-duplicate-holds/{$createHold->id}/resolve", [
+                'resolution' => 'create_new',
+                'disclosed_photo_ids' => [$existing->id],
+            ])->assertForbidden();
+        $this->assertNull($createHold->refresh()->resolved_at);
+        $this->assertDatabaseMissing('photos', ['media_upload_id' => $uploads['create_new']->id]);
+
+        $admission->update(['admitted_at' => now(), 'revoked_at' => null, 'revoked_by' => null]);
+        $createdId = $this->actingAs($guest)
+            ->postJson("/api/families/{$family->slug}/media-upload-duplicate-holds/{$createHold->id}/resolve", [
+                'resolution' => 'create_new',
+                'disclosed_photo_ids' => [$existing->id],
+            ])->assertOk()->assertJsonPath('data.outcome', 'create_new')->json('data.photo_id');
+        $this->assertDatabaseHas('photos', [
+            'id' => $createdId,
+            'media_upload_id' => $uploads['create_new']->id,
+            'created_by' => $guest->id,
+            'visibility' => PhotoVisibility::Private->value,
+        ]);
+        $this->assertDatabaseHas('album_photos', ['album_id' => $album->id, 'photo_id' => $createdId]);
+        [$low, $high] = $this->pair($createdId, $existing->id);
+        $this->assertDatabaseHas('duplicate_decisions', ['photo_low_id' => $low, 'photo_high_id' => $high]);
+    }
+
+    public function test_event_album_contribution_does_not_disclose_an_invisible_checksum_match(): void
+    {
+        [$family, $owner] = $this->family('guest-invisible-exact', FamilySpaceRole::Owner);
+        $guest = $this->member($family, FamilySpaceRole::Guest);
+        $membership = $this->membership($family, $guest);
+        $event = $this->event($family, $owner, 'Private duplicate event');
+        $album = $this->eventAlbum($family, $owner, $event, GuestParticipation::Contribute);
+        $this->admit($family, $event, $membership);
+        $checksum = hash('sha256', 'invisible-held-original');
+        $hidden = $this->photo(
+            $family,
+            $owner,
+            $checksum,
+            'Hidden exact match',
+            PhotoVisibility::Private,
+        );
+        $upload = $this->upload($family, $guest, $checksum, $album);
+
+        app(AlbumContributionFinalizer::class)->finalize($upload, new TenantOperationContext(
+            $family->id,
+            $guest->id,
+            'guest-invisible-exact',
+            TenantOperationContext::newTraceparent(),
+        ));
+
+        $created = Photo::query()->where('media_upload_id', $upload->id)->sole();
+        $this->assertDatabaseCount('media_upload_duplicate_holds', 0);
+        $this->assertDatabaseHas('album_photos', ['album_id' => $album->id, 'photo_id' => $created->id]);
+        [$low, $high] = $this->pair($created->id, $hidden->id);
+        $this->assertDatabaseHas('duplicate_candidates', [
+            'photo_id' => $low,
+            'candidate_photo_id' => $high,
+            'source' => 'exact',
+        ]);
+        $this->actingAs($guest)
+            ->getJson("/api/families/{$family->slug}/media-upload-duplicate-holds")
+            ->assertOk()->assertJsonCount(0, 'data')->assertJsonMissing(['id' => $hidden->id]);
+        $this->actingAs($guest)
+            ->getJson("/api/families/{$family->slug}/photos/{$created->id}")
+            ->assertOk()->assertJsonMissing(['id' => $hidden->id]);
+        $this->actingAs($guest)
+            ->getJson("/api/families/{$family->slug}/photos/{$hidden->id}")
+            ->assertNotFound();
+    }
+
     /** @return array{FamilySpace, User} */
     private function family(string $slug, FamilySpaceRole $role = FamilySpaceRole::Member): array
     {
@@ -213,6 +347,52 @@ class ExactDuplicateDetectionTest extends TestCase
         ]);
 
         return $user;
+    }
+
+    private function membership(FamilySpace $family, User $user): FamilySpaceMembership
+    {
+        return FamilySpaceMembership::query()
+            ->where('family_space_id', $family->id)
+            ->where('user_id', $user->id)
+            ->sole();
+    }
+
+    private function event(FamilySpace $family, User $creator, string $name): FamilyEvent
+    {
+        return FamilyEvent::query()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $creator->id,
+            'name' => $name,
+        ]);
+    }
+
+    private function eventAlbum(
+        FamilySpace $family,
+        User $creator,
+        FamilyEvent $event,
+        GuestParticipation $participation,
+    ): Album {
+        return Album::query()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $creator->id,
+            'name' => 'Event contributions',
+            'visibility' => AlbumVisibility::FamilySpace,
+            'event_id' => $event->id,
+            'guest_participation' => $participation,
+        ]);
+    }
+
+    private function admit(
+        FamilySpace $family,
+        FamilyEvent $event,
+        FamilySpaceMembership $membership,
+    ): EventAdmission {
+        return EventAdmission::query()->create([
+            'family_space_id' => $family->id,
+            'event_id' => $event->id,
+            'family_space_membership_id' => $membership->id,
+            'admitted_at' => now(),
+        ]);
     }
 
     private function upload(FamilySpace $family, User $user, string $checksum, ?Album $album = null): MediaUpload
