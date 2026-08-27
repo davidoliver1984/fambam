@@ -3122,23 +3122,43 @@ Create a private, non-repository benchmark manifest covering recent photos, age 
 
 ## FPA-P09-S02 — Accept local face analysis foundation ADR
 
-Resolve provider abstraction, initial local model and licensing, analysis data model and versioning, inference deployment and service identity, and the biometric-data threat model, in one ADR (ADR-0011). Do not implement a pretrained model until code and model-weight licensing are recorded within it.
+Resolve provider abstraction, initial local model and licensing, analysis data model and versioning, inference deployment and service identity, and the biometric-data threat model, in one ADR (ADR-0011). ADR-0011 names `buffalo_l` (InsightFace, ONNX Runtime) as the intended initial candidate and records the current private/non-commercial licensing assumption and commercialisation review trigger; direct confirmation of the pinned package/weight licence text and the weight checksum remains S04's job. Do not implement a pretrained model until code and model-weight licensing are recorded within it.
+
+ADR-0011 was accepted on 2026-08-27 after two adversarial
+implementation-readiness reviews reconciled its signing audience, result
+transport and bounds, run/attempt identity, stale-message and DLQ semantics,
+tenant-consistent relationships, teardown coverage, licensing gate and stage
+ownership against the live repository. This stage's entire scope was accepting
+the ADR, so the acceptance commit is the stage-completion commit and receives
+the `phase-9-s02` tag directly.
+
+### Documentation updates
+
+- Accepted ADR-0011.
+- Reconciled the Phase 9 implementation-stage boundaries.
+- Advanced `tasks.json` to FPA-P09-S03.
+
+### Commit boundary
+
+```text
+Accept ADR-0011: Local face analysis foundation
+```
 
 ## FPA-P09-S03 — Implement face-analysis provider contract
 
-The application contract should express detection and embedding capabilities without leaking one provider's schema.
+Provider and transport **contracts only** — not the full operational pipeline. Owns the Fambam-owned provider interface and result types; the `ImageAnalysisRequested`/`Completed`/`Failed` wire/event schemas, including `contract_version`; the result-artifact schema and its safety bounds (size, face-count, embedding dimension/dtype, landmark scheme, geometry and numeric validity), enforced against conservative placeholder defaults; the `FaceAnalysisRun`/`FaceAnalysisAttempt`/`FaceObservation` schema, including the tenant-consistent composite foreign keys; analysis identity/version semantics; and the signing-audience extension to the existing delivery/upload-authorization abstractions. The application contract should express detection and embedding capabilities without leaking one provider's schema. Does **not** require production-shaped queue infrastructure or calibrated queue/timeout settings.
 
 ## FPA-P09-S04 — Implement local face-analysis provider
 
-Initial candidate: InsightFace-compatible provider through ONNX Runtime.
+Initial candidate: InsightFace-compatible provider (`buffalo_l`) through ONNX Runtime. Owns model loading and canonical inference; running the private benchmark harness directly against the provider to produce real latency, memory, and result-size evidence; calibrating S03's bound defaults and queue-timing values from that evidence; and completing ADR-0011's licensing record against the actual pinned package/weight files.
 
 ## FPA-P09-S05 — Implement queued analysis pipeline
 
-Store provider, model, version, configuration hash, source checksum and processing status.
+Store provider, model, version, configuration hash, source checksum and processing status. Owns: production-shaped use of the dedicated request/completed/failed queues; the Laravel-side raw-SQS result adapter; worker-facing signed URL delivery in practice; the write-once result-artifact transport; durable dispatch-attempt creation before dispatch; idempotent, tenant-consistent Laravel persistence; IAM/service-identity plumbing; dead-letter queues and redrive policy for all three queues; stale-attempt timeout reconciliation; queue visibility/redrive settings informed by S04's measurements; the bounded, audited backend reprocessing trigger; and adding `face-analysis` to the existing Family Space teardown object-storage prefix list.
 
 ## FPA-P09-S06 — Add benchmark and operational metrics
 
-Measure detection coverage, false detections, execution time, memory and failure rates.
+Measure detection coverage, false detections, execution time, memory and failure rates. Owns the final end-to-end operational benchmark run and acceptance measurement, building on S04's provider-level evidence.
 
 ### Phase verification
 

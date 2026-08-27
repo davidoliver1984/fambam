@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P09",
-    "current_stage": "FPA-P09-S02",
+    "current_stage": "FPA-P09-S03",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-27"
   },
@@ -631,18 +631,20 @@
         {
           "id": "FPA-P09-S02",
           "title": "Accept local face analysis foundation ADR",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P09-S01"
           ],
           "notes": [
-            "ADR-0011 drafted 2026-08-27 (docs/adr/0011-local-face-analysis-foundation.md, Status: Proposed) following an architecture discussion covering provider contract shape, Laravel/Python transport and service identity, canonical-asset delivery, FaceAnalysisRun/FaceObservation persistence and identity/idempotency, embedding-storage scope (engine selection explicitly deferred to ADR-0012/FPA-P10-S02), reprocessing and invalidation, dead-letter queueing, tenancy/biometric privacy, the audit-versus-telemetry boundary, benchmark-harness discipline, and the licensing record. Not yet accepted; pending adversarial implementation-readiness review before acceptance."
+            "ADR-0011 drafted 2026-08-27 (docs/adr/0011-local-face-analysis-foundation.md, Status: Proposed) following an architecture discussion covering provider contract shape, Laravel/Python transport and service identity, canonical-asset delivery, FaceAnalysisRun/FaceObservation persistence and identity/idempotency, embedding-storage scope (engine selection explicitly deferred to ADR-0012/FPA-P10-S02), reprocessing and invalidation, dead-letter queueing, tenancy/biometric privacy, the audit-versus-telemetry boundary, benchmark-harness discipline, and the licensing record.",
+            "Reconciled 2026-08-27 against two Codex implementation-readiness reviews: added explicit browser/service signing audiences; narrowly superseded ADR-0001's inline-first completion assumption; bounded and validated result artifacts; separated durable FaceAnalysisRun and FaceAnalysisAttempt identity; defined stale/late message, DLQ and database-state reconciliation; aligned S03-S06 ownership; named buffalo_l and recorded the licensing gate; added tenant-consistent composite relationships through MediaUpload, and required face-analysis object cleanup during Family Space teardown.",
+            "ADR-0011 accepted 2026-08-27 (git tag phase-9-s02). Stage scope was solely ADR acceptance, so the ADR-acceptance commit is the stage-completion commit. Phase 9 remains provider-neutral and inference-only on the Python side; Laravel retains all tenancy and persistence authority; canonical assets are delivered through service-audience signed URLs; bounded results use write-once transient artifacts; durable run and attempt identities make retries and unordered result queues idempotent; every biometric relationship is tenant-consistent at the database level; and clustering, identity suggestion and human review remain Phase 10 concerns."
           ]
         },
         {
           "id": "FPA-P09-S03",
           "title": "Implement face-analysis provider contract",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P09-S02"
           ],
@@ -1337,7 +1339,7 @@
       {
         "id": "ADR-0011",
         "title": "Local face analysis foundation",
-        "status": "planned",
+        "status": "accepted",
         "roadmap_phase": "P09",
         "required_by_stage": "FPA-P09-S02"
       },
@@ -1838,6 +1840,22 @@
       "roadmap_stage": "FPA-P08-S04",
       "date": "2026-08-26",
       "description": "Phase 8 completed: exact and calibrated visual duplicate detection, three-outcome creation handling, durable suppression and audited reopening passed the complete repository, frontend, API, PostgreSQL 17.6 RLS, persistent migration, real media-processing, infrastructure, contracts and security acceptance gates without any consolidation mechanism."
+    },
+    {
+      "git_tag": "phase-9-s01",
+      "type": "stage_completion",
+      "adr": null,
+      "roadmap_stage": "FPA-P09-S01",
+      "date": "2026-08-27",
+      "description": "FPA-P09-S01 completed: a private, repository-ignored 38-upload benchmark corpus and anonymous manifest were assembled and checksum-verified; representative detection conditions, repeat inputs, aggregate face counts, provider-level measurements and explicit Phase 10 recognition-calibration gaps were documented without committing family media or changing application data."
+    },
+    {
+      "git_tag": "phase-9-s02",
+      "type": "stage_completion",
+      "adr": "ADR-0011",
+      "roadmap_stage": "FPA-P09-S02",
+      "date": "2026-08-27",
+      "description": "FPA-P09-S02 completed: ADR-0011 accepted. The provider-neutral local face-analysis foundation fixes service-audience signed delivery, bounded write-once result artifacts, durable run/attempt identity, idempotent raw-SQS persistence, DLQ and stale-attempt reconciliation, tenant-consistent biometric relationships, teardown coverage, the buffalo_l initial candidate and the S03-S06 implementation boundary while leaving clustering and human identity review to Phase 10."
     }
   ]
 }
