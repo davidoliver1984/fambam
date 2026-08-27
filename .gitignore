@@ -17,6 +17,9 @@ dist/
 build/
 coverage/
 
+# Private local benchmark media and manifests -- never commit family photographs
+/.local/
+
 # Local drafting notes -- not part of the repository's engineering record
 docs/local_drafts/
 
