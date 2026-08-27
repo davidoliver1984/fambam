@@ -3431,17 +3431,123 @@ Add face-analysis operational metrics
 
 ## FPA-P10-S01 — Accept face clustering and human identity review ADR (ADR-0012)
 
+ADR-0012 was accepted on 2026-08-28 after adversarial implementation-
+readiness review reconciled face-level assignment cardinality, deterministic
+`PhotoPerson` integration, disposable pgvector projection semantics,
+recognition consent and suppression, rebuildable cluster generations, Person
+merge and guarded reversal, calibration activation, authorization, audit and
+the S02-S07 implementation boundaries against the live repository. This
+stage's entire scope was accepting the ADR, so the acceptance commit is the
+stage-completion commit and receives the `phase-10-s01` tag directly.
+
+### Documentation updates
+
+- Accepted ADR-0012.
+- Reconciled the Phase 10 implementation-stage boundaries.
+- Advanced `tasks.json` to FPA-P10-S02.
+
+### Commit boundary
+
+```text
+Accept ADR-0012: Face clustering and human identity review
+```
+
 ## FPA-P10-S02 — Implement embedding storage and similarity queries
+
+Add the supporting additive `(id, family_space_id)` uniqueness constraints
+to `face_observations` and `people` (before any composite foreign key that
+depends on them, mirroring the existing `media_uploads` fix); provision the
+`pgvector` extension locally, in the Postgres-only regression-test path, and
+document the production requirement; add `face_embedding_projections` as a
+disposable, checksum-verified, deterministically rebuildable projection of
+`face_observations.embedding` — never a second representation on
+`FaceObservation` itself; implement the Fambam-owned similarity-search
+abstraction, scoped by Family Space and compatible embedding-space identity,
+with no pgvector-specific construct reachable from recognition-domain code.
 
 ## FPA-P10-S03 — Implement conservative face clustering
 
+Add `face_cluster_generations` → `face_clusters` → `face_cluster_members`,
+with an enforceable three-state cluster lifecycle
+(`active`/`retired`/`superseded`) and an enforceable generation lifecycle
+(`building`/`active`/`superseded`) — database-level partial-unique
+invariants, not prose. A rebuild's candidate population is every
+recognition-eligible, currently-unassigned `FaceObservation` within one
+compatible embedding space, **including observations currently held by
+the generation being replaced** — active membership in the generation
+being superseded never excludes an observation from a rebuild. The one
+population that *is* permanently excluded is any observation with
+membership history, of any generation, in a currently-`retired` cluster
+(human-resolved, protected) — distinct from mere membership in a
+`superseded` cluster (unprotected). A building generation's memberships
+are created `is_active = false` (non-operational: invisible to
+suggestion generation, review, and merge/split) and only become
+`is_active = true` as part of the six-step atomic activation transaction
+once the build succeeds: lock/validate the current active generation;
+deactivate its active memberships; supersede its active clusters (never
+touching anything already `retired`); activate the new generation;
+activate its memberships; supersede the old generation. A failed build
+never runs this transaction, so the active generation and its memberships
+are left completely untouched. Implement re-clustering without image
+inference. Runs only against the private benchmark corpus, isolated
+development fixtures, and direct service-level tests while
+`config('face_recognition.processing_enabled')` is `false`.
+
 ## FPA-P10-S04 — Implement identity suggestion and confirmation
+
+Add `face_identity_assignments` (`pending`/`approved`/`rejected`/`withdrawn`)
+and its integrity constraints; implement the four deterministic
+`PhotoPerson`-ensuring transitions; implement trusted-gallery derivation and
+confidence-banded candidate generation. Likewise gated by
+`processing_enabled` for real Family Space data.
 
 ## FPA-P10-S05 — Implement merge, split, reject and unknown workflows
 
+Add `FaceIdentitySuppression` and its reopen mechanism; implement cluster
+merge/split/naming (acting only on `active` clusters in the current
+generation). Extend `PersonMergeManager`'s existing `captureState()`/
+`restoreState()`/reconciliation methods to cover:
+
+- `face_identity_assignments` — `approved`/`rejected`/already-`withdrawn`
+  rows repoint unconditionally to the surviving Person (no collision is
+  possible at that grain); a still-`pending` row is instead transitioned
+  to `withdrawn` (non-judgmental administrative retirement, never
+  rejection) rather than repointed, because it represents a machine
+  opinion computed against the absorbed Person's own gallery, which no
+  longer independently exists after the merge — not because of any
+  uniqueness conflict;
+- `FaceIdentitySuppression` — repoints to the survivor where no collision
+  exists; where a survivor-side suppression already exists for the same
+  face, the absorbed-side row is **deleted from the live table**, never
+  left pointing at the absorbed Person, with its full pre-merge state
+  preserved only in the merge's existing before/after snapshot (the same
+  delete-then-reinsert-from-snapshot shape `PersonMergeManager` already
+  uses for `family_circle_people`/`person_account_links`), so guarded
+  reversal can restore it exactly.
+
+**No Phase 10 live structure may retain a foreign key to the absorbed
+Person once the merge transaction completes, without exception** — this
+is the ADR-0006 §12 Person-merge integration this stage owes, not a new
+merge mechanism.
+
 ## FPA-P10-S06 — Implement recognition consent and exclusion
 
+Add `people.recognition_allowed` (`NOT NULL DEFAULT false`, which backfills
+every existing Person automatically); implement exclusion's withdraw/
+remove-from-matching behaviour, transitioning dependent pending assignments
+to `withdrawn` (never `rejected`, never creating suppression) as part of one
+audited consent-change action.
+
 ## FPA-P10-S07 — Calibrate against the family benchmark
+
+Extend the private benchmark corpus to cover cross-age, sibling,
+parent/child, old-scan and appearance-change gaps; calibrate confidence-band
+cutoffs, minimum-reference behaviour, and clustering thresholds against it;
+record the result as a named `calibration_profile`; only then, as an
+explicit final step, set `config('face_recognition.processing_enabled')` to
+`true` so automatic Phase 10 processing begins against real Family Space
+data for the first time. Phase 9's `0.6` detection threshold must not be
+reused as a recognition threshold.
 
 ### Phase verification
 

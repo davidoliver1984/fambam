@@ -7,9 +7,9 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P10",
-    "current_stage": "FPA-P10-S01",
+    "current_stage": "FPA-P10-S02",
     "created_at": "2026-07-31",
-    "updated_at": "2026-08-27"
+    "updated_at": "2026-08-28"
   },
   "conventions": {
     "phase_id_format": "P##",
@@ -695,16 +695,18 @@
         {
           "id": "FPA-P10-S01",
           "title": "Accept face clustering and human identity review ADR",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P09-S06"
           ],
-          "notes": []
+          "notes": [
+            "ADR-0012 accepted 2026-08-28 (git tag phase-10-s01) after adversarial implementation-readiness reconciliation. The accepted architecture keeps PostgreSQL binary embeddings and provenance authoritative; uses checksum-verified, disposable pgvector projections behind a Fambam-owned tenant- and embedding-space-scoped abstraction; separates FaceIdentityAssignment from PhotoPerson with deterministic human-governed integration; provides durable suppression and recognition opt-out; keeps clusters identity-free, rebuildable and generation-scoped; integrates Person merge and guarded reversal; and gates automatic clustering and suggestions until S07 calibration acceptance. Stage scope was solely ADR acceptance, so the ADR-acceptance commit is the stage-completion commit."
+          ]
         },
         {
           "id": "FPA-P10-S02",
           "title": "Implement embedding storage and similarity queries",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P10-S01"
           ],
@@ -1354,7 +1356,7 @@
       {
         "id": "ADR-0012",
         "title": "Face clustering and human identity review",
-        "status": "planned",
+        "status": "accepted",
         "roadmap_phase": "P10",
         "required_by_stage": "FPA-P10-S01"
       },
@@ -1904,6 +1906,14 @@
       "roadmap_stage": "FPA-P09-S06",
       "date": "2026-08-27",
       "description": "Phase 9 completed: the replaceable local face-analysis foundation passed private benchmark, provider/model integrity and licensing, durable tenant-safe pipeline, retry/idempotency, PostgreSQL 17.6, operational telemetry, rebuilt infrastructure, observability, security and complete repository acceptance gates without introducing face identity behavior."
+    },
+    {
+      "git_tag": "phase-10-s01",
+      "type": "stage_completion",
+      "adr": "ADR-0012",
+      "roadmap_stage": "FPA-P10-S01",
+      "date": "2026-08-28",
+      "description": "FPA-P10-S01 completed: ADR-0012 accepted. PostgreSQL remains authoritative for immutable embeddings and provenance; pgvector is a disposable, checksum-verifiable projection behind a Fambam-owned tenant- and embedding-space-scoped abstraction; face-level identity claims remain distinct from PhotoPerson; recognition is human-governed and opt-in; suppressions and cluster generations are durable and correctable; Person merge and guarded reversal are integrated; and automatic clustering and suggestions remain gated until S07 calibration acceptance."
     }
   ]
 }
