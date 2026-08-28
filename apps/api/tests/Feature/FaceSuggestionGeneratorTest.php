@@ -28,8 +28,8 @@ class FaceSuggestionGeneratorTest extends TestCase
     public function test_single_reference_stays_ephemeral_but_multiple_unambiguous_references_create_pending_suggestion(): void
     {
         [$family, $owner, $run] = $this->facePhoto();
-        $person = Person::factory()->create(['family_space_id' => $family->id]);
-        $similarPerson = Person::factory()->create(['family_space_id' => $family->id]);
+        $person = Person::factory()->create(['family_space_id' => $family->id, 'recognition_allowed' => true]);
+        $similarPerson = Person::factory()->create(['family_space_id' => $family->id, 'recognition_allowed' => true]);
         $firstTarget = $this->observation($family, $run, 0);
         $secondTarget = $this->observation($family, $run, 1);
         $ambiguousTarget = $this->observation($family, $run, 2);
@@ -89,6 +89,28 @@ class FaceSuggestionGeneratorTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('remains disabled');
         $generator->generate(TenantOperationContext::forBackground($family->id, $owner->id), $target->id);
+    }
+
+    public function test_recognition_disabled_people_are_removed_from_live_candidates(): void
+    {
+        [$family, $owner, $run] = $this->facePhoto();
+        $disabled = Person::factory()->create(['family_space_id' => $family->id]);
+        $allowed = Person::factory()->create(['family_space_id' => $family->id, 'recognition_allowed' => true]);
+        $target = $this->observation($family, $run, 0);
+        $search = new FixtureSimilaritySearch([
+            new TrustedReferenceMatch('disabled-a', $disabled->id, 0.01),
+            new TrustedReferenceMatch('disabled-b', $disabled->id, 0.02),
+            new TrustedReferenceMatch('allowed-a', $allowed->id, 0.1),
+        ]);
+        $generator = $this->app->makeWith(FaceSuggestionGenerator::class, ['similarity' => $search]);
+        $this->enableFixtureThresholds();
+
+        $outcome = $generator->generate(TenantOperationContext::forBackground($family->id, $owner->id), $target->id);
+
+        $this->assertSame(FaceSuggestionBand::Shortlist, $outcome->band);
+        $this->assertCount(1, $outcome->candidates);
+        $this->assertSame($allowed->id, $outcome->candidates[0]->personId);
+        $this->assertDatabaseCount('face_identity_assignments', 0);
     }
 
     /** @return array{FamilySpace, User, FaceAnalysisRun} */

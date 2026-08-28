@@ -7,6 +7,7 @@ use App\Enums\FaceSuggestionBand;
 use App\Models\FaceIdentityAssignment;
 use App\Models\FaceIdentitySuppression;
 use App\Models\FaceObservation;
+use App\Models\Person;
 use App\Services\AuditRecorder;
 use App\Tenancy\DatabaseTenantContext;
 use App\Tenancy\TenantOperationContext;
@@ -56,6 +57,15 @@ final class FaceSuggestionGenerator
                 (int) config('face_recognition.similarity_max_results'),
             );
             $candidates = $this->aggregate($matches);
+            $allowedPersonIds = Person::query()
+                ->whereIn('id', array_map(fn (FaceCandidate $candidate): string => $candidate->personId, $candidates))
+                ->where('family_space_id', $context->familySpaceId)
+                ->where('recognition_allowed', true)
+                ->pluck('id')->all();
+            $candidates = array_values(array_filter(
+                $candidates,
+                fn (FaceCandidate $candidate): bool => in_array($candidate->personId, $allowedPersonIds, true),
+            ));
             $suppressedPersonIds = FaceIdentitySuppression::query()
                 ->where('face_observation_id', $observation->id)
                 ->whereNull('reopened_at')

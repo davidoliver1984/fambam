@@ -132,6 +132,7 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::get('/people/{person}', [PersonController::class, 'show']);
         Route::get('/people/{person}/events', [FamilyEventController::class, 'forPerson']);
         Route::patch('/people/{person}', [PersonController::class, 'update']);
+        Route::put('/people/{person}/recognition-consent', [PersonController::class, 'updateRecognitionConsent']);
         Route::get('/people/{person}/proposals', [PersonController::class, 'proposals']);
         Route::post('/people/{person}/proposals', [PersonController::class, 'propose']);
         Route::post('/people/{person}/proposals/{proposal}/approve', [PersonController::class, 'approveProposal']);

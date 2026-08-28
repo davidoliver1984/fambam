@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P10",
-    "current_stage": "FPA-P10-S06",
+    "current_stage": "FPA-P10-S07",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-28"
   },
@@ -750,16 +750,18 @@
         {
           "id": "FPA-P10-S06",
           "title": "Implement recognition consent and exclusion",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P10-S05"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-28: added schema-level recognition_allowed NOT NULL DEFAULT false with automatic existing-Person backfill; implemented a dedicated Owner/Administrator consent endpoint whose opt-out transaction bulk-withdraws pending assignments and records one bundled audit while preserving approved assignments, PhotoPerson, observations and suppressions; excluded opted-out People at both the provider-neutral candidate boundary and PostgreSQL trusted-gallery query; preserved manual proposal and prevented re-enabling from resurrecting withdrawn suggestions. Persistent migration batch 38, consent/authorization/preservation tests, PostgreSQL gallery regression and complete repository gates passed without accepting calibration thresholds or enabling automatic processing."
+          ]
         },
         {
           "id": "FPA-P10-S07",
           "title": "Calibrate against the family benchmark",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P10-S06"
           ],
@@ -1954,6 +1956,14 @@
       "roadmap_stage": "FPA-P10-S05",
       "date": "2026-08-28",
       "description": "FPA-P10-S05 completed: durable tenant-safe suppression and audited reopening, active-current-generation cluster merge/split/naming, ordinary assignment-based identity confirmation and full Person-merge snapshot/reconciliation/reversal support were implemented and verified. No live Phase 10 row retains an absorbed-Person foreign key; pending assignments are captured, withdrawn and only then repointed, with exact snapshot restoration. Recognition consent, numeric calibration and automatic processing remain later-stage work."
+    },
+    {
+      "git_tag": "phase-10-s06",
+      "type": "stage_completion",
+      "adr": "ADR-0012",
+      "roadmap_stage": "FPA-P10-S06",
+      "date": "2026-08-28",
+      "description": "FPA-P10-S06 completed: recognition is schema-default opt-out for every Person; Owner/Administrator consent changes atomically withdraw pending suggestions in one bundled audit; provider-neutral candidate generation and PostgreSQL trusted galleries exclude opted-out People; approved identity facts, PhotoPerson, observations, suppressions and manual proposals remain unchanged. Calibration and automatic processing remain gated to S07."
     }
   ]
 }
