@@ -3465,6 +3465,26 @@ disposable, checksum-verified, deterministically rebuildable projection of
 abstraction, scoped by Family Space and compatible embedding-space identity,
 with no pgvector-specific construct reachable from recognition-domain code.
 
+FPA-P10-S02 completed on 2026-08-28. The local and disposable PostgreSQL
+environments now use a pgvector-capable PostgreSQL 17 image; migration batch 34
+adds the two supporting tenant-consistent uniqueness constraints and the
+forced-RLS `face_embedding_projections` table. Immutable float32 bytea remains
+authoritative, while a tenant-bounded manager deterministically creates or
+rebuilds checksum-bound vector projections without touching
+`FaceObservation`. New analysis completion creates the projection in the same
+database transaction. The provider-neutral `SimilaritySearch` contract scopes
+every query by Family Space, projection version, dimension and the complete
+provider/model/weight/config identity; pgvector operators remain confined to
+its PostgreSQL adapter. Persistent migration, bounded backfill, drift repair,
+cross-tenant/composite-FK rejection, incompatible-model exclusion and the
+complete repository gates passed without beginning clustering.
+
+### Commit boundary
+
+```text
+Implement pgvector face similarity projections
+```
+
 ## FPA-P10-S03 — Implement conservative face clustering
 
 Add `face_cluster_generations` → `face_clusters` → `face_cluster_members`,

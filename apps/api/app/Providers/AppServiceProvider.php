@@ -7,6 +7,8 @@ use App\FaceAnalysis\FaceAnalysisResultAuthority;
 use App\FaceAnalysis\FaceAnalysisResultQueue;
 use App\FaceAnalysis\S3FaceAnalysisResultAuthority;
 use App\FaceAnalysis\SqsFaceAnalysisTransport;
+use App\FaceRecognition\PostgresSimilaritySearch;
+use App\FaceRecognition\SimilaritySearch;
 use App\Listeners\SecurityEventSubscriber;
 use App\Media\CanonicalImageGenerator;
 use App\Media\ClamAvMalwareScanner;
@@ -60,6 +62,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(FaceAnalysisRequestPublisher::class, SqsFaceAnalysisTransport::class);
         $this->app->bind(FaceAnalysisResultQueue::class, SqsFaceAnalysisTransport::class);
         $this->app->bind(FaceAnalysisResultAuthority::class, S3FaceAnalysisResultAuthority::class);
+        $this->app->bind(SimilaritySearch::class, PostgresSimilaritySearch::class);
 
         $this->app->singleton(
             AuthenticateUser::class,

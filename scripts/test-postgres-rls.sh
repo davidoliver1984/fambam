@@ -20,7 +20,7 @@ docker run --detach --name "$container_name" \
     --env POSTGRES_USER="$owner_name" \
     --env POSTGRES_PASSWORD="$owner_password" \
     --publish 127.0.0.1::5432 \
-    postgres:17.6-alpine >/dev/null
+    pgvector/pgvector:pg17 >/dev/null
 
 until docker exec "$container_name" pg_isready --username "$owner_name" --dbname "$database_name" >/dev/null 2>&1; do
     sleep 1
@@ -36,7 +36,7 @@ docker run --rm --network "container:$container_name" \
     --env DB_RUNTIME_USERNAME="$runtime_name" \
     --env DB_RUNTIME_PASSWORD="$runtime_password" \
     --volume "$(pwd)/infrastructure/docker/postgres/provision-runtime-role.sh:/opt/fambam/provision-runtime-role.sh:ro" \
-    postgres:17.6-alpine /opt/fambam/provision-runtime-role.sh >/dev/null
+    pgvector/pgvector:pg17 /opt/fambam/provision-runtime-role.sh >/dev/null
 
 (
     cd apps/api
@@ -61,5 +61,5 @@ docker run --rm --network "container:$container_name" \
     DB_ADMIN_DATABASE="$database_name" \
     DB_ADMIN_USERNAME="$owner_name" \
     DB_ADMIN_PASSWORD="$owner_password" \
-    php artisan test tests/Feature/PostgresRowLevelSecurityTest.php
+    php artisan test tests/Feature/PostgresRowLevelSecurityTest.php tests/Feature/FaceEmbeddingProjectionPostgresTest.php
 )

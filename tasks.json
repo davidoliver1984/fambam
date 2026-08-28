@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P10",
-    "current_stage": "FPA-P10-S02",
+    "current_stage": "FPA-P10-S03",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-28"
   },
@@ -706,16 +706,18 @@
         {
           "id": "FPA-P10-S02",
           "title": "Implement embedding storage and similarity queries",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P10-S01"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-28: provisioned pgvector-capable PostgreSQL 17 locally and in disposable regression infrastructure; added supporting tenant-consistent uniqueness for FaceObservation and Person plus the forced-RLS, checksum-bound, deterministically rebuildable face_embedding_projections table; projected new analysis results transactionally and existing observations through a tenant-bounded command without mutating authoritative bytea; introduced a Fambam-owned SimilaritySearch contract whose PostgreSQL adapter scopes by Family Space, projection version, dimension and full provider/model/weight/config identity. Persistent migration batch 34, bounded zero-row backfill, composite-FK/RLS, drift repair, incompatible-model, full repository, infrastructure, observability and security gates passed without beginning clustering."
+          ]
         },
         {
           "id": "FPA-P10-S03",
           "title": "Implement conservative face clustering",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P10-S02"
           ],
@@ -1914,6 +1916,14 @@
       "roadmap_stage": "FPA-P10-S01",
       "date": "2026-08-28",
       "description": "FPA-P10-S01 completed: ADR-0012 accepted. PostgreSQL remains authoritative for immutable embeddings and provenance; pgvector is a disposable, checksum-verifiable projection behind a Fambam-owned tenant- and embedding-space-scoped abstraction; face-level identity claims remain distinct from PhotoPerson; recognition is human-governed and opt-in; suppressions and cluster generations are durable and correctable; Person merge and guarded reversal are integrated; and automatic clustering and suggestions remain gated until S07 calibration acceptance."
+    },
+    {
+      "git_tag": "phase-10-s02",
+      "type": "stage_completion",
+      "adr": "ADR-0012",
+      "roadmap_stage": "FPA-P10-S02",
+      "date": "2026-08-28",
+      "description": "FPA-P10-S02 completed: pgvector-capable PostgreSQL, tenant-consistent projection schema, deterministic checksum-bound rebuilds, transactional projection creation and the Fambam-owned SimilaritySearch abstraction were implemented and verified. PostgreSQL bytea remains authoritative and immutable; every similarity query is restricted by Family Space, projection version, dimension and full embedding-space identity; no clustering or identity behavior began."
     }
   ]
 }

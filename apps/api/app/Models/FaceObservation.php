@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'family_space_id',
@@ -36,6 +37,12 @@ class FaceObservation extends Model
     public function run(): BelongsTo
     {
         return $this->belongsTo(FaceAnalysisRun::class, 'face_analysis_run_id');
+    }
+
+    /** @return HasOne<FaceEmbeddingProjection, $this> */
+    public function projection(): HasOne
+    {
+        return $this->hasOne(FaceEmbeddingProjection::class);
     }
 
     /** @return array<string, string> */

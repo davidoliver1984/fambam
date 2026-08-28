@@ -389,7 +389,7 @@ services:
       - fambam
 
   postgres:
-    image: postgres:17.6-alpine
+    image: pgvector/pgvector:pg17
     ports:
       - "${POSTGRES_PORT:-5434}:5432"
     environment:
@@ -407,7 +407,7 @@ services:
       - fambam
 
   postgres-provision:
-    image: postgres:17.6-alpine
+    image: pgvector/pgvector:pg17
     command: ["/opt/fambam/provision-runtime-role.sh"]
     environment:
       PGHOST: postgres
