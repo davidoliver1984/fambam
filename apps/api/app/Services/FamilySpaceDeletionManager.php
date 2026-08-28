@@ -10,6 +10,7 @@ use App\Models\Album;
 use App\Models\EventAdmission;
 use App\Models\EventExport;
 use App\Models\EventNotificationDelivery;
+use App\Models\FaceClusterGeneration;
 use App\Models\FamilyCircle;
 use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
@@ -160,6 +161,9 @@ class FamilySpaceDeletionManager
                 ->where('family_space_id', $familySpace->id)
                 ->forceDelete();
             Tag::query()
+                ->where('family_space_id', $familySpace->id)
+                ->delete();
+            FaceClusterGeneration::query()
                 ->where('family_space_id', $familySpace->id)
                 ->delete();
             MediaUpload::query()

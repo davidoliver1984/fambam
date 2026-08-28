@@ -25,7 +25,7 @@ class FaceEmbeddingProjectionManager
         $bytes = $this->binary($observation->getRawOriginal('embedding'));
         $embedding = $this->embeddings->decode($bytes, $observation->embedding_dimension);
         $vector = $this->embeddings->vectorLiteral($embedding);
-        $version = (string) config('face-recognition.projection_version');
+        $version = (string) config('face_recognition.projection_version');
         if ($version === '' || strlen($version) > 40) {
             throw new InvalidArgumentException('The face-recognition projection version must contain 1-40 characters.');
         }

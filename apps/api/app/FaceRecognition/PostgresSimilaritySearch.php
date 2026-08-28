@@ -18,7 +18,7 @@ class PostgresSimilaritySearch implements SimilaritySearch
         if (DB::getDriverName() !== 'pgsql') {
             throw new InvalidArgumentException('Face similarity search requires PostgreSQL.');
         }
-        $maximum = (int) config('face-recognition.similarity_max_results');
+        $maximum = (int) config('face_recognition.similarity_max_results');
         if ($limit < 1 || $limit > $maximum) {
             throw new InvalidArgumentException("Similarity result limit must be between 1 and {$maximum}.");
         }
@@ -48,7 +48,7 @@ LIMIT ?
 SQL, [
             $vector,
             $familySpaceId,
-            (string) config('face-recognition.projection_version'),
+            (string) config('face_recognition.projection_version'),
             count($embedding),
             $identity->provider,
             $identity->modelIdentifier,

@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P10",
-    "current_stage": "FPA-P10-S03",
+    "current_stage": "FPA-P10-S04",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-28"
   },
@@ -714,19 +714,21 @@
             "Completed 2026-08-28: provisioned pgvector-capable PostgreSQL 17 locally and in disposable regression infrastructure; added supporting tenant-consistent uniqueness for FaceObservation and Person plus the forced-RLS, checksum-bound, deterministically rebuildable face_embedding_projections table; projected new analysis results transactionally and existing observations through a tenant-bounded command without mutating authoritative bytea; introduced a Fambam-owned SimilaritySearch contract whose PostgreSQL adapter scopes by Family Space, projection version, dimension and full provider/model/weight/config identity. Persistent migration batch 34, bounded zero-row backfill, composite-FK/RLS, drift repair, incompatible-model, full repository, infrastructure, observability and security gates passed without beginning clustering."
           ]
         },
-        {
-          "id": "FPA-P10-S03",
-          "title": "Implement conservative face clustering",
-          "status": "ready",
+      {
+        "id": "FPA-P10-S03",
+        "title": "Implement conservative face clustering",
+        "status": "completed",
           "dependencies": [
             "FPA-P10-S02"
           ],
-          "notes": []
+        "notes": [
+          "Completed 2026-08-28: added forced-RLS, tenant-consistent face-cluster generation/cluster/member persistence with database-enforced single-active-generation and single-active-membership invariants; implemented deterministic complete-link conservative clustering through the provider-neutral SimilaritySearch boundary; made building memberships non-operational and activation atomic with concurrent-generation revalidation; permanently protected human-retired membership history while allowing machine groupings to be reconsidered; extended Family Space teardown; and kept automatic processing disabled with no accepted numeric threshold until S07 calibration. Persistent migration batch 35, PostgreSQL lifecycle/RLS/composite-FK/teardown regressions and complete repository gates passed without beginning identity suggestion."
+        ]
         },
-        {
-          "id": "FPA-P10-S04",
-          "title": "Implement identity suggestion and confirmation",
-          "status": "planned",
+      {
+        "id": "FPA-P10-S04",
+        "title": "Implement identity suggestion and confirmation",
+        "status": "ready",
           "dependencies": [
             "FPA-P10-S03"
           ],
@@ -1924,6 +1926,14 @@
       "roadmap_stage": "FPA-P10-S02",
       "date": "2026-08-28",
       "description": "FPA-P10-S02 completed: pgvector-capable PostgreSQL, tenant-consistent projection schema, deterministic checksum-bound rebuilds, transactional projection creation and the Fambam-owned SimilaritySearch abstraction were implemented and verified. PostgreSQL bytea remains authoritative and immutable; every similarity query is restricted by Family Space, projection version, dimension and full embedding-space identity; no clustering or identity behavior began."
+    },
+    {
+      "git_tag": "phase-10-s03",
+      "type": "stage_completion",
+      "adr": "ADR-0012",
+      "roadmap_stage": "FPA-P10-S03",
+      "date": "2026-08-28",
+      "description": "FPA-P10-S03 completed: identity-free cluster generations now use forced-RLS tenant-consistent persistence, conservative complete-link grouping and atomic activation with database-enforced single-active-generation and membership invariants. Rebuilds reconsider current machine groupings, permanently exclude human-retired history, require no image inference, clean up through Family Space teardown and remain operationally disabled with no accepted numeric threshold until S07 calibration."
     }
   ]
 }
