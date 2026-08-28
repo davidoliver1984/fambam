@@ -3513,6 +3513,24 @@ inference. Runs only against the private benchmark corpus, isolated
 development fixtures, and direct service-level tests while
 `config('face_recognition.processing_enabled')` is `false`.
 
+FPA-P10-S03 completed on 2026-08-28. Migration batch 35 adds the forced-RLS,
+tenant-consistent generation, cluster and membership hierarchy with partial
+unique indexes enforcing one active generation per Family Space and one active
+membership per FaceObservation. A deterministic complete-link clusterer uses
+only the Fambam-owned similarity abstraction and treats missing pair evidence
+conservatively. Rebuilds include current machine groupings, exclude every face
+with human-retired cluster history, create inert building memberships and
+atomically activate only after revalidating the generation being replaced.
+Family Space teardown removes the derived hierarchy. The operational command
+remains disabled and the numeric clustering threshold remains unset until S07
+calibration; direct fixture/service tests supply an isolated provisional value.
+
+### Commit boundary
+
+```text
+Implement conservative face clustering
+```
+
 ## FPA-P10-S04 — Implement identity suggestion and confirmation
 
 Add `face_identity_assignments` (`pending`/`approved`/`rejected`/`withdrawn`)

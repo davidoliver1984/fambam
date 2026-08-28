@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
@@ -43,6 +44,12 @@ class FaceObservation extends Model
     public function projection(): HasOne
     {
         return $this->hasOne(FaceEmbeddingProjection::class);
+    }
+
+    /** @return HasMany<FaceClusterMember, $this> */
+    public function clusterMemberships(): HasMany
+    {
+        return $this->hasMany(FaceClusterMember::class);
     }
 
     /** @return array<string, string> */
