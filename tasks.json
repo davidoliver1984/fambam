@@ -6,8 +6,8 @@
     "version": "0.1.0",
     "status": "in_progress",
     "v1_release_phase": "P17",
-    "current_phase": "P10",
-    "current_stage": "FPA-P10-S07",
+    "current_phase": "P11",
+    "current_stage": "FPA-P11-S01",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-28"
   },
@@ -690,7 +690,7 @@
     {
       "id": "P10",
       "name": "Face Clustering and Human Review",
-      "status": "in_progress",
+      "status": "completed",
       "stages": [
         {
           "id": "FPA-P10-S01",
@@ -761,23 +761,25 @@
         {
           "id": "FPA-P10-S07",
           "title": "Calibrate against the family benchmark",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P10-S06"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-28: expanded the private gitignored corpus to 79 images, 174 detected faces, 130 human-labelled faces, 20 anonymous identities and full ADR-0012 §16 coverage; added stable local annotation/import/validation and production-semantic leave-one-scene-out calibration tooling without persisting biometric values. Accepted profile buffalo-l-v0.7-private-family-v1 with clustering/strong cosine distance 0.350, shortlist 0.685, ambiguity margin 0.300 and two minimum strong references. Across 122 independent-scene trials it produced 33 correct and zero incorrect strong suggestions; complete-link clustering produced 26 correct and zero incorrect pairs. Thresholds are profile-bound and unknown profiles fail closed; the tracked processing default remains false, and the accepted profile was activated only through the separate private local operational setting. Phase 10 completed with recognition still opt-in and every identity decision human-confirmed."
+          ]
         }
       ]
     },
     {
       "id": "P11",
       "name": "Search and Discovery",
-      "status": "planned",
+      "status": "ready",
       "stages": [
         {
           "id": "FPA-P11-S01",
           "title": "Accept search and discovery ADR",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P10-S07"
           ],
@@ -1964,6 +1966,22 @@
       "roadmap_stage": "FPA-P10-S06",
       "date": "2026-08-28",
       "description": "FPA-P10-S06 completed: recognition is schema-default opt-out for every Person; Owner/Administrator consent changes atomically withdraw pending suggestions in one bundled audit; provider-neutral candidate generation and PostgreSQL trusted galleries exclude opted-out People; approved identity facts, PhotoPerson, observations, suppressions and manual proposals remain unchanged. Calibration and automatic processing remain gated to S07."
+    },
+    {
+      "git_tag": "phase-10-s07",
+      "type": "stage_completion",
+      "adr": "ADR-0012",
+      "roadmap_stage": "FPA-P10-S07",
+      "date": "2026-08-28",
+      "description": "FPA-P10-S07 completed: the fully reviewed private 79-image family benchmark calibrated named profile buffalo-l-v0.7-private-family-v1 through production-semantic, leave-one-scene-out evaluation. Strong suggestion and complete-link clustering thresholds retain a 0.025 empirical wrong-identity buffer and produced zero false strong suggestions and zero mixed clusters; cautious shortlist, ambiguity and two-reference settings are recorded. Unknown profiles fail closed, the tracked processing default remains false, and the accepted profile was activated only as a separate local operational step with Person recognition still opt-in."
+    },
+    {
+      "git_tag": "phase-10",
+      "type": "phase_completion",
+      "adr": "ADR-0012",
+      "roadmap_stage": "FPA-P10-S07",
+      "date": "2026-08-28",
+      "description": "Phase 10 completed: authoritative PostgreSQL embedding projections, conservative identity-free clustering, human-governed suggestions and confirmation, durable correction/suppression, merge/reversal integration, opt-in recognition consent and family-specific calibrated activation passed the Phase 10 acceptance boundary without automatic identity approval or cross-family matching."
     }
   ]
 }

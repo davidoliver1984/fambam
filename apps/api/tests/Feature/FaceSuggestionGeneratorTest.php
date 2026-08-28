@@ -91,6 +91,21 @@ class FaceSuggestionGeneratorTest extends TestCase
         $generator->generate(TenantOperationContext::forBackground($family->id, $owner->id), $target->id);
     }
 
+    public function test_automatic_generation_fails_closed_for_an_unaccepted_profile(): void
+    {
+        [$family, $owner, $run] = $this->facePhoto();
+        $target = $this->observation($family, $run, 0);
+        $this->enableFixtureThresholds();
+        config()->set('face_recognition.calibration_profile', 'not-accepted');
+        $generator = $this->app->makeWith(FaceSuggestionGenerator::class, [
+            'similarity' => new FixtureSimilaritySearch([]),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('not accepted');
+        $generator->generate(TenantOperationContext::forBackground($family->id, $owner->id), $target->id);
+    }
+
     public function test_recognition_disabled_people_are_removed_from_live_candidates(): void
     {
         [$family, $owner, $run] = $this->facePhoto();

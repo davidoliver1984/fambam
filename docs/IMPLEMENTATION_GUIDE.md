@@ -3645,6 +3645,47 @@ explicit final step, set `config('face_recognition.processing_enabled')` to
 data for the first time. Phase 9's `0.6` detection threshold must not be
 reused as a recognition threshold.
 
+### Implementation outcome
+
+- Extended the gitignored private corpus from 38 to 79 images through a
+  localhost-only annotation helper. The completed ground truth contains 174
+  detected faces, 130 human-labelled faces, 20 anonymous identities, 68
+  labelled scene groups and 78 unique asset hashes. Every detected face has an
+  intentional labelled, unknown or skipped decision, and the corpus now covers
+  all §16 gaps without storing family names in repository data.
+- Added a private calibration harness that re-runs only the checksum-pinned
+  local provider, verifies the stable face-index count, keeps embeddings in
+  memory, excludes same-scene references from each query, and mirrors the
+  production best-match-per-Person aggregation over the top 100 trusted
+  references. No image, embedding, per-face score or anonymous identity label
+  enters the repository.
+- Accepted profile `buffalo-l-v0.7-private-family-v1` with cosine-distance
+  settings: clustering `0.350`; strong suggestion `0.350`; shortlist `0.685`;
+  ambiguity margin `0.300`; minimum strong references `2`. Phase 9's `0.6`
+  remains solely the detection-confidence threshold and was not reused.
+- The 122 independent-scene suggestion trials produced 33 correct strong
+  suggestions and zero incorrect strong suggestions. Remaining cautious
+  outcomes contained the expected identity in 80 cases, contained only an
+  incorrect candidate in 2 cases, withheld a suggestion in 7 cases and
+  averaged 1.12 candidates. Strong and clustering thresholds retain a `0.025`
+  empirical buffer below the closest observed wrong-identity match.
+- Deterministic complete-link calibration produced 10 identity-pure clusters,
+  27 clustered samples, 26 correct clustered pairs and zero incorrect pairs.
+  The deliberately low 2.94% pair recall is accepted under Phase 10's fixed
+  precision-over-recall safety principle.
+- Bound all numeric settings to the named profile and made unknown profile
+  identifiers fail closed. The tracked default remains
+  `processing_enabled=false`; after accepting the profile, the separate local
+  operational step set `FACE_RECOGNITION_PROCESSING_ENABLED=true` with the
+  accepted profile. Person recognition consent remains `false` by default and
+  every strong identity suggestion remains pending human confirmation.
+
+### Commit boundary
+
+```text
+Calibrate and activate face recognition
+```
+
 ### Phase verification
 
 - Confirmed assignments are separate from machine results.
