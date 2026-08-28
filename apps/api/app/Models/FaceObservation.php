@@ -52,6 +52,12 @@ class FaceObservation extends Model
         return $this->hasMany(FaceClusterMember::class);
     }
 
+    /** @return HasMany<FaceIdentityAssignment, $this> */
+    public function identityAssignments(): HasMany
+    {
+        return $this->hasMany(FaceIdentityAssignment::class);
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {

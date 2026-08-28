@@ -91,6 +91,12 @@ class Person extends Model
         return $this->hasMany(PhotoPerson::class);
     }
 
+    /** @return HasMany<FaceIdentityAssignment, $this> */
+    public function faceIdentityAssignments(): HasMany
+    {
+        return $this->hasMany(FaceIdentityAssignment::class);
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {
