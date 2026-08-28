@@ -12,6 +12,7 @@ use App\FaceAnalysis\FaceAnalysisResultAuthority;
 use App\FaceAnalysis\FaceAnalysisResultValidator;
 use App\FaceAnalysis\InvalidFaceAnalysisMessage;
 use App\FaceAnalysis\InvalidFaceAnalysisResult;
+use App\FaceRecognition\FaceEmbeddingProjectionManager;
 use App\Media\MediaDeliveryUrlSigner;
 use App\Media\MediaObjectStorage;
 use App\Media\MediaSigningAudience;
@@ -35,6 +36,7 @@ class FaceAnalysisPipeline
         private readonly FaceAnalysisMessageValidator $messages,
         private readonly FaceAnalysisResultValidator $results,
         private readonly DatabaseTenantContext $databaseTenantContext,
+        private readonly FaceEmbeddingProjectionManager $embeddingProjections,
     ) {}
 
     public function dispatch(TenantOperationContext $context, string $mediaUploadId, string $canonicalSha256): void
@@ -215,7 +217,7 @@ class FaceAnalysisPipeline
                     return;
                 }
                 foreach ($validated->faces as $index => $face) {
-                    FaceObservation::query()->create([
+                    $observation = FaceObservation::query()->create([
                         'family_space_id' => $context->familySpaceId,
                         'face_analysis_run_id' => $run->id,
                         'face_index' => $index,
@@ -232,6 +234,7 @@ class FaceAnalysisPipeline
                         'quality_signals' => $face['quality_signals'] ?? [],
                         'provider_diagnostics' => $face['provider_diagnostics'] ?? null,
                     ]);
+                    $this->embeddingProjections->project($observation);
                 }
                 $locked->update(['status' => FaceAnalysisAttemptStatus::Succeeded, 'resolved_at' => now()]);
                 $run->update(['status' => FaceAnalysisRunStatus::Succeeded, 'succeeded_at' => now(), 'failed_at' => null]);
