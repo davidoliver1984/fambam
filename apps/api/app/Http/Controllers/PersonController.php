@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Enums\PersonProposalStatus;
+use App\FaceRecognition\RecognitionConsentManager;
 use App\Http\Requests\ProposePersonDetailsRequest;
 use App\Http\Requests\StorePersonRequest;
 use App\Http\Requests\UpdatePersonRequest;
+use App\Http\Requests\UpdateRecognitionConsentRequest;
 use App\Models\FamilySpace;
 use App\Models\Person;
 use App\Models\PersonAccountLink;
@@ -23,6 +25,7 @@ class PersonController extends Controller
     public function __construct(
         private readonly PersonQuery $people,
         private readonly PersonManager $personManager,
+        private readonly RecognitionConsentManager $recognitionConsent,
     ) {}
 
     public function index(FamilySpace $familySpace): JsonResponse
@@ -84,6 +87,24 @@ class PersonController extends Controller
         $proposal = $this->personManager->propose($target, $actor, $request->validated(), $request);
 
         return response()->json(['data' => $this->proposalPayload($proposal)], 201);
+    }
+
+    public function updateRecognitionConsent(
+        FamilySpace $familySpace,
+        string $person,
+        UpdateRecognitionConsentRequest $request,
+    ): JsonResponse {
+        $target = $this->people->findForCurrentFamilySpace($person);
+        Gate::authorize('update', $target);
+        /** @var User $actor */
+        $actor = $request->user();
+
+        return response()->json(['data' => $this->payload($this->recognitionConsent->set(
+            $target,
+            (bool) $request->validated('recognition_allowed'),
+            $actor,
+            $request,
+        ))]);
     }
 
     public function proposals(FamilySpace $familySpace, string $person): JsonResponse
@@ -155,6 +176,7 @@ class PersonController extends Controller
                 $person->death_date?->format('Y-m-d'),
             )->toPayload(),
             'biography' => $person->biography,
+            'recognition_allowed' => $person->recognition_allowed,
             'account_link' => $accountLink === null ? null : $this->accountLinkPayload($accountLink, $viewer),
             'created_at' => $person->created_at?->toAtomString(),
             'updated_at' => $person->updated_at?->toAtomString(),
@@ -168,6 +190,7 @@ class PersonController extends Controller
                 'can_manage_relationships' => Gate::allows('manageRelationship', $person),
                 'can_propose_merge' => Gate::allows('proposeMerge', $person),
                 'can_manage_merge' => Gate::allows('manageMerge', $person),
+                'can_manage_recognition' => Gate::allows('update', $person),
             ],
         ];
     }

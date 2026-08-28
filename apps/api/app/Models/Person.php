@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property CarbonImmutable|null $birth_date
  * @property DatePrecision $birth_date_precision
  * @property bool $is_deceased
+ * @property bool $recognition_allowed
  * @property CarbonImmutable|null $death_date
  * @property DatePrecision $death_date_precision
  * @property CarbonImmutable|null $confirmed_at
@@ -39,6 +40,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'created_by',
     'confirmed_by',
     'confirmed_at',
+    'recognition_allowed',
 ])]
 class Person extends Model
 {
@@ -48,6 +50,9 @@ class Person extends Model
     public $incrementing = false;
 
     protected $keyType = 'string';
+
+    /** @var array<string, mixed> */
+    protected $attributes = ['recognition_allowed' => false];
 
     /** @return BelongsTo<FamilySpace, $this> */
     public function familySpace(): BelongsTo
@@ -112,6 +117,7 @@ class Person extends Model
             'birth_date' => 'immutable_date',
             'birth_date_precision' => DatePrecision::class,
             'is_deceased' => 'boolean',
+            'recognition_allowed' => 'boolean',
             'death_date' => 'immutable_date',
             'death_date_precision' => DatePrecision::class,
             'confirmed_at' => 'immutable_datetime',

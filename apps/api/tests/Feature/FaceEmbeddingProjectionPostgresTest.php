@@ -91,6 +91,7 @@ SQL, [
 
         $person = $this->createPerson($familySpaceId, 'Trusted Person');
         $otherPerson = $this->createPerson($otherFamilySpaceId, 'Other Person');
+        $this->admin->table('people')->where('id', $person)->update(['recognition_allowed' => true]);
         foreach ([$exact, $near] as $observationId) {
             $this->admin->table('face_identity_assignments')->insert([
                 'id' => (string) Str::ulid(),
@@ -117,6 +118,21 @@ SQL, [
         });
         $this->assertSame([$exact, $near], array_map(fn ($match): string => $match->faceObservationId, $trusted));
         $this->assertSame([$person, $person], array_map(fn ($match): string => $match->personId, $trusted));
+
+        $this->admin->table('people')->where('id', $person)->update(['recognition_allowed' => false]);
+        $withoutConsent = DB::transaction(function () use ($ownerId, $familySpaceId): array {
+            $tenant = app(DatabaseTenantContext::class);
+            $tenant->establishUser($ownerId);
+            $tenant->establishFamilySpace($familySpaceId);
+
+            return app(SimilaritySearch::class)->nearestTrustedReferences(
+                $familySpaceId,
+                new EmbeddingSpaceIdentity('synthetic', 'model-a', str_repeat('c', 64), str_repeat('d', 64)),
+                [1.0, 0.0, 0.0],
+                10,
+            );
+        });
+        $this->assertSame([], $withoutConsent);
 
         try {
             $this->admin->table('face_identity_assignments')->insert([

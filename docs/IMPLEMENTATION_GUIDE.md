@@ -3616,6 +3616,24 @@ remove-from-matching behaviour, transitioning dependent pending assignments
 to `withdrawn` (never `rejected`, never creating suppression) as part of one
 audited consent-change action.
 
+FPA-P10-S06 completed on 2026-08-28. Migration batch 38 adds the schema-level
+opt-in default and backfills every existing Person to `false`. A dedicated
+Owner/Administrator endpoint changes consent transactionally; disabling
+recognition withdraws pending assignments in bulk and records their count in
+one audit event, while approved assignments, `PhotoPerson`, suppressions and
+observations remain untouched. Both the provider-neutral candidate boundary
+and PostgreSQL trusted-gallery query exclude opted-out People. Manual identity
+proposal remains available regardless of consent, and re-enabling recognition
+does not resurrect withdrawn suggestions. Persistent migration, PostgreSQL
+gallery exclusion and complete repository gates passed without accepting
+numeric thresholds or enabling automatic processing.
+
+### Commit boundary
+
+```text
+Implement face recognition consent controls
+```
+
 ## FPA-P10-S07 — Calibrate against the family benchmark
 
 Extend the private benchmark corpus to cover cross-age, sibling,

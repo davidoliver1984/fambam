@@ -94,6 +94,7 @@ JOIN people
   ON people.id = assignments.person_id
  AND people.family_space_id = assignments.family_space_id
  AND people.deleted_at IS NULL
+ AND people.recognition_allowed = true
 WHERE projections.family_space_id = ?
   AND projections.projection_version = ?
   AND projections.embedding_dimension = ?
