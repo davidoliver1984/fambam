@@ -3539,6 +3539,24 @@ and its integrity constraints; implement the four deterministic
 confidence-banded candidate generation. Likewise gated by
 `processing_enabled` for real Family Space data.
 
+FPA-P10-S04 completed on 2026-08-28. Migration batch 36 adds the forced-RLS,
+tenant-consistent assignment table and its partial unique active-claim index.
+The similarity abstraction now returns approved trusted-gallery references
+without exposing pgvector to recognition-domain code. Gated candidate
+generation produces strong, shortlist or no-suggestion outcomes, keeps a
+single reference cautious, prefers ambiguity over guessing, persists only a
+strong single candidate as pending and emits privacy-bounded telemetry. Member
+proposal and Owner/Administrator approval follow the existing authority model;
+approval atomically creates, reuses or resolves `PhotoPerson` while preserving
+rejected history. Numeric settings remain unset and automatic processing stays
+disabled until S07.
+
+### Commit boundary
+
+```text
+Implement face identity suggestions and confirmation
+```
+
 ## FPA-P10-S05 — Implement merge, split, reject and unknown workflows
 
 Add `FaceIdentitySuppression` and its reopen mechanism; implement cluster

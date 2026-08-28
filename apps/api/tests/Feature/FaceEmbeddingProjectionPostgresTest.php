@@ -89,6 +89,78 @@ SQL, [
         $this->assertNotContains($incompatible, array_map(fn ($match): string => $match->faceObservationId, $matches));
         $this->assertNotContains($otherTenant, array_map(fn ($match): string => $match->faceObservationId, $matches));
 
+        $person = $this->createPerson($familySpaceId, 'Trusted Person');
+        $otherPerson = $this->createPerson($otherFamilySpaceId, 'Other Person');
+        foreach ([$exact, $near] as $observationId) {
+            $this->admin->table('face_identity_assignments')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $familySpaceId,
+                'face_observation_id' => $observationId,
+                'person_id' => $person,
+                'proposal_source' => 'human',
+                'status' => 'approved',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+        $trusted = DB::transaction(function () use ($ownerId, $familySpaceId): array {
+            $tenant = app(DatabaseTenantContext::class);
+            $tenant->establishUser($ownerId);
+            $tenant->establishFamilySpace($familySpaceId);
+
+            return app(SimilaritySearch::class)->nearestTrustedReferences(
+                $familySpaceId,
+                new EmbeddingSpaceIdentity('synthetic', 'model-a', str_repeat('c', 64), str_repeat('d', 64)),
+                [1.0, 0.0, 0.0],
+                10,
+            );
+        });
+        $this->assertSame([$exact, $near], array_map(fn ($match): string => $match->faceObservationId, $trusted));
+        $this->assertSame([$person, $person], array_map(fn ($match): string => $match->personId, $trusted));
+
+        try {
+            $this->admin->table('face_identity_assignments')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $familySpaceId,
+                'face_observation_id' => $incompatible,
+                'person_id' => $otherPerson,
+                'proposal_source' => 'human',
+                'status' => 'pending',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $this->fail('A cross-tenant Person assignment unexpectedly satisfied its composite foreign key.');
+        } catch (QueryException) {
+        }
+        try {
+            $this->admin->table('face_identity_assignments')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $familySpaceId,
+                'face_observation_id' => $exact,
+                'person_id' => $person,
+                'proposal_source' => 'human',
+                'status' => 'pending',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $this->fail('A second active identity claim unexpectedly bypassed the partial unique index.');
+        } catch (QueryException) {
+        }
+        $this->admin->table('face_identity_assignments')->where('face_observation_id', $exact)
+            ->update(['status' => 'rejected', 'updated_at' => now()]);
+        $this->admin->table('face_identity_assignments')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $familySpaceId,
+            'face_observation_id' => $exact,
+            'person_id' => $person,
+            'proposal_source' => 'human',
+            'status' => 'pending',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $this->assertSame(2, $this->admin->table('face_identity_assignments')
+            ->where('face_observation_id', $exact)->count());
+
         $this->admin->table('face_embedding_projections')->where('face_observation_id', $exact)->update([
             'source_checksum' => str_repeat('0', 64),
         ]);
@@ -189,6 +261,24 @@ SQL, [
         ]);
 
         return $runId;
+    }
+
+    private function createPerson(string $familySpaceId, string $name): string
+    {
+        $id = (string) Str::ulid();
+        $this->admin->table('people')->insert([
+            'id' => $id,
+            'family_space_id' => $familySpaceId,
+            'preferred_name' => $name,
+            'identity_status' => 'confirmed',
+            'birth_date_precision' => 'unknown',
+            'is_deceased' => false,
+            'death_date_precision' => 'unknown',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return $id;
     }
 
     /** @param list<float> $embedding */

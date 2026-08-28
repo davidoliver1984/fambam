@@ -55,7 +55,7 @@ class PostgresRowLevelSecurityTest extends TestCase
         $this->admin = DB::connection('pgsql_admin');
         $this->app->instance(FamilyMediaStorageCleaner::class, new RlsFamilyMediaStorageCleaner);
         $this->admin->unprepared(<<<'SQL'
-TRUNCATE TABLE face_cluster_members, face_clusters, face_cluster_generations,
+TRUNCATE TABLE face_identity_assignments, face_cluster_members, face_clusters, face_cluster_generations,
     face_embedding_projections, face_observations, face_analysis_attempts, face_analysis_runs,
     perceptual_hashes, media_upload_duplicate_holds, duplicate_decisions, duplicate_candidates,
     photo_reactions, photo_comment_revisions, photo_comments, photo_story_revisions, photo_stories,
@@ -122,13 +122,13 @@ WHERE relname IN (
     'photo_stories', 'photo_story_revisions', 'photo_comments', 'photo_comment_revisions', 'photo_reactions',
     'duplicate_candidates', 'duplicate_decisions', 'media_upload_duplicate_holds', 'perceptual_hashes',
     'face_analysis_runs', 'face_analysis_attempts', 'face_observations', 'face_embedding_projections',
-    'face_cluster_generations', 'face_clusters', 'face_cluster_members',
+    'face_cluster_generations', 'face_clusters', 'face_cluster_members', 'face_identity_assignments',
     'rls_test_records'
 )
 ORDER BY relname
 SQL);
 
-        $this->assertCount(45, $tables);
+        $this->assertCount(46, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
