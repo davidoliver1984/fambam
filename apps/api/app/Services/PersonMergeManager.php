@@ -2,11 +2,14 @@
 
 namespace App\Services;
 
+use App\Enums\FaceIdentityAssignmentStatus;
 use App\Enums\PersonMergeProposalStatus;
 use App\Enums\PersonMergeStatus;
 use App\Enums\PersonProposalStatus;
 use App\Enums\RelationshipProposalStatus;
 use App\Enums\RelationshipType;
+use App\Models\FaceIdentityAssignment;
+use App\Models\FaceIdentitySuppression;
 use App\Models\FamilyCirclePerson;
 use App\Models\Person;
 use App\Models\PersonAccountLink;
@@ -88,6 +91,7 @@ class PersonMergeManager
                 $accountLinkResolution,
             );
             $this->reconcilePhotoProvenance($lockedAbsorbed, $lockedSurvivor, $actor);
+            $this->reconcileFaceIdentity($lockedAbsorbed, $lockedSurvivor, $actor);
             $lockedAbsorbed->delete();
 
             $merge = PersonMerge::query()->create([
@@ -493,6 +497,36 @@ class PersonMergeManager
         }
     }
 
+    private function reconcileFaceIdentity(Person $absorbed, Person $survivor, User $actor): void
+    {
+        $assignments = FaceIdentityAssignment::query()
+            ->where('person_id', $absorbed->id)->orderBy('id')->lockForUpdate()->get();
+        foreach ($assignments as $assignment) {
+            if ($assignment->status === FaceIdentityAssignmentStatus::Pending) {
+                $assignment->update([
+                    'status' => FaceIdentityAssignmentStatus::Withdrawn,
+                    'resolved_by' => $actor->id,
+                    'resolved_at' => now(),
+                ]);
+            }
+            $assignment->update(['person_id' => $survivor->id]);
+        }
+
+        $suppressions = FaceIdentitySuppression::query()
+            ->where('person_id', $absorbed->id)->orderBy('id')->lockForUpdate()->get();
+        foreach ($suppressions as $suppression) {
+            $collision = FaceIdentitySuppression::query()
+                ->where('face_observation_id', $suppression->face_observation_id)
+                ->where('person_id', $survivor->id)
+                ->lockForUpdate()->exists();
+            if ($collision) {
+                $suppression->delete();
+            } else {
+                $suppression->update(['person_id' => $survivor->id]);
+            }
+        }
+    }
+
     /** @return array<string, mixed> */
     private function captureState(string $absorbedId, string $survivorId, bool $lock = false): array
     {
@@ -530,6 +564,8 @@ class PersonMergeManager
             ->whereIn('person_id', $personIds)
             ->orderBy('id');
         $photoPersonQuery = PhotoPerson::query()->whereIn('person_id', $personIds)->orderBy('id');
+        $faceAssignmentQuery = FaceIdentityAssignment::query()->whereIn('person_id', $personIds)->orderBy('id');
+        $faceSuppressionQuery = FaceIdentitySuppression::query()->whereIn('person_id', $personIds)->orderBy('id');
         if ($lock) {
             $proposalQuery->lockForUpdate();
             $circleQuery->lockForUpdate();
@@ -537,6 +573,8 @@ class PersonMergeManager
             $photoQuery->lockForUpdate();
             $photoProposalQuery->lockForUpdate();
             $photoPersonQuery->lockForUpdate();
+            $faceAssignmentQuery->lockForUpdate();
+            $faceSuppressionQuery->lockForUpdate();
         }
 
         return [
@@ -548,6 +586,10 @@ class PersonMergeManager
             'photo_provenance_proposals' => $photoProposalQuery->get()
                 ->map($this->photoProvenanceProposalSnapshot(...))->values()->all(),
             'photo_people' => $photoPersonQuery->get()->map($this->photoPersonSnapshot(...))->values()->all(),
+            'face_identity_assignments' => $faceAssignmentQuery->get()
+                ->map($this->faceIdentityAssignmentSnapshot(...))->values()->all(),
+            'face_identity_suppressions' => $faceSuppressionQuery->get()
+                ->map($this->faceIdentitySuppressionSnapshot(...))->values()->all(),
         ];
     }
 
@@ -647,6 +689,40 @@ class PersonMergeManager
         ];
     }
 
+    /** @return array<string, mixed> */
+    private function faceIdentityAssignmentSnapshot(FaceIdentityAssignment $assignment): array
+    {
+        return [
+            'id' => $assignment->id,
+            'family_space_id' => $assignment->family_space_id,
+            'face_observation_id' => $assignment->face_observation_id,
+            'person_id' => $assignment->person_id,
+            'proposal_source' => $assignment->proposal_source,
+            'status' => $assignment->status->value,
+            'proposed_by' => $assignment->proposed_by,
+            'resolved_by' => $assignment->resolved_by,
+            'resolved_at' => $assignment->getRawOriginal('resolved_at'),
+            'created_at' => $assignment->getRawOriginal('created_at'),
+            'updated_at' => $assignment->getRawOriginal('updated_at'),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function faceIdentitySuppressionSnapshot(FaceIdentitySuppression $suppression): array
+    {
+        return [
+            'id' => $suppression->id,
+            'family_space_id' => $suppression->family_space_id,
+            'face_observation_id' => $suppression->face_observation_id,
+            'person_id' => $suppression->person_id,
+            'decided_by' => $suppression->decided_by,
+            'decided_at' => $suppression->getRawOriginal('decided_at'),
+            'reopened_by' => $suppression->reopened_by,
+            'reopened_at' => $suppression->getRawOriginal('reopened_at'),
+            'created_at' => $suppression->getRawOriginal('created_at'),
+        ];
+    }
+
     /**
      * @param  array<string, mixed>  $expected
      * @param  array<string, mixed>  $actual
@@ -743,6 +819,21 @@ class PersonMergeManager
             $id = $row['id'];
             unset($row['id']);
             DB::table('photo_people')->where('id', $id)->update($row);
+        }
+
+        /** @var list<array<string, mixed>> $faceAssignments */
+        $faceAssignments = $before['face_identity_assignments'] ?? [];
+        foreach ($faceAssignments as $row) {
+            $id = $row['id'];
+            unset($row['id']);
+            DB::table('face_identity_assignments')->where('id', $id)->update($row);
+        }
+
+        FaceIdentitySuppression::query()->whereIn('person_id', $personIds)->delete();
+        /** @var list<array<string, mixed>> $faceSuppressions */
+        $faceSuppressions = $before['face_identity_suppressions'] ?? [];
+        foreach ($faceSuppressions as $row) {
+            DB::table('face_identity_suppressions')->insert($row);
         }
     }
 

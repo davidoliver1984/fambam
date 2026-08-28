@@ -3566,12 +3566,14 @@ generation). Extend `PersonMergeManager`'s existing `captureState()`/
 
 - `face_identity_assignments` — `approved`/`rejected`/already-`withdrawn`
   rows repoint unconditionally to the surviving Person (no collision is
-  possible at that grain); a still-`pending` row is instead transitioned
+  possible at that grain); a still-`pending` row has its original
+  `person_id` and status captured in the merge snapshot, is transitioned
   to `withdrawn` (non-judgmental administrative retirement, never
-  rejection) rather than repointed, because it represents a machine
-  opinion computed against the absorbed Person's own gallery, which no
-  longer independently exists after the merge — not because of any
-  uniqueness conflict;
+  rejection), and only then has its foreign key repointed to the survivor
+  for relational integrity. The withdrawn row is never read or reactivated
+  as a suggestion for the survivor. Guarded reversal restores its original
+  `person_id` and `pending` status from the snapshot, never by inference
+  from the reconciled row;
 - `FaceIdentitySuppression` — repoints to the survivor where no collision
   exists; where a survivor-side suppression already exists for the same
   face, the absorbed-side row is **deleted from the live table**, never
@@ -3585,6 +3587,26 @@ generation). Extend `PersonMergeManager`'s existing `captureState()`/
 Person once the merge transaction completes, without exception** — this
 is the ADR-0006 §12 Person-merge integration this stage owes, not a new
 merge mechanism.
+
+FPA-P10-S05 completed on 2026-08-28. A durable, one-row-per-face/Person
+suppression records rejection and audited reopening without erasing history;
+active suppressions block both automatic rediscovery and manual reproposal.
+Owner/Administrator cluster merge and split preserve inactive membership
+history, while Member naming proposals and Owner/Administrator confirmation
+resolve through ordinary `FaceIdentityAssignment` and `PhotoPerson` rules.
+Person merge now snapshots and reconciles assignments and suppressions with no
+live reference to the absorbed Person, including the ordered pending-to-
+withdrawn-then-repoint transition and exact guarded reversal. All cluster
+review operations are restricted to active clusters in the current tenant's
+active generation. Persistent migration, PostgreSQL RLS and integrity tests,
+merge/reversal regressions and the complete repository gates passed without
+beginning recognition consent.
+
+### Commit boundary
+
+```text
+Implement face identity correction workflows
+```
 
 ## FPA-P10-S06 — Implement recognition consent and exclusion
 

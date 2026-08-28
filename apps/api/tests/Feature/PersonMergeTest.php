@@ -2,8 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Enums\FaceAnalysisRunStatus;
 use App\Enums\FamilySpaceRole;
 use App\Enums\MediaUploadState;
+use App\Models\FaceAnalysisRun;
+use App\Models\FaceIdentityAssignment;
+use App\Models\FaceIdentitySuppression;
+use App\Models\FaceObservation;
 use App\Models\FamilyCircle;
 use App\Models\FamilyCirclePerson;
 use App\Models\FamilySpace;
@@ -351,6 +356,102 @@ class PersonMergeTest extends TestCase
         $this->assertDatabaseHas('audit_events', ['action' => 'person.merge_manual_correction_required']);
     }
 
+    public function test_merge_and_guarded_reversal_reconcile_face_identity_state_from_snapshot(): void
+    {
+        [$family, $owner] = $this->familyWithRole(FamilySpaceRole::Owner, 'face-identity-merge');
+        $survivor = $this->person($family, 'Survivor');
+        $absorbed = $this->person($family, 'Duplicate');
+        $upload = MediaUpload::factory()->create([
+            'family_space_id' => $family->id,
+            'user_id' => $owner->id,
+            'state' => MediaUploadState::Ready,
+        ]);
+        $identity = config('image-analysis.identity');
+        $run = FaceAnalysisRun::query()->create([
+            'family_space_id' => $family->id,
+            'media_upload_id' => $upload->id,
+            'canonical_sha256' => str_repeat('a', 64),
+            'contract_version' => '1',
+            'provider' => $identity['provider'],
+            'model_identifier' => $identity['model_identifier'],
+            'model_weight_checksum' => $identity['model_weight_checksum'],
+            'config_hash' => $identity['config_hash'],
+            'status' => FaceAnalysisRunStatus::Succeeded,
+            'attempt_count' => 1,
+            'succeeded_at' => now(),
+        ]);
+        $pendingFace = $this->faceObservation($family, $run, 0);
+        $approvedFace = $this->faceObservation($family, $run, 1);
+        $pending = FaceIdentityAssignment::query()->create([
+            'family_space_id' => $family->id,
+            'face_observation_id' => $pendingFace->id,
+            'person_id' => $absorbed->id,
+            'proposal_source' => 'automatic_suggestion',
+            'status' => 'pending',
+        ]);
+        $approved = FaceIdentityAssignment::query()->create([
+            'family_space_id' => $family->id,
+            'face_observation_id' => $approvedFace->id,
+            'person_id' => $absorbed->id,
+            'proposal_source' => 'human',
+            'status' => 'approved',
+            'proposed_by' => $owner->id,
+            'resolved_by' => $owner->id,
+            'resolved_at' => now(),
+        ]);
+        foreach ([
+            [$pendingFace, $absorbed],
+            [$pendingFace, $survivor],
+            [$approvedFace, $absorbed],
+        ] as [$face, $person]) {
+            FaceIdentitySuppression::query()->create([
+                'family_space_id' => $family->id,
+                'face_observation_id' => $face->id,
+                'person_id' => $person->id,
+                'decided_by' => $owner->id,
+                'decided_at' => now(),
+            ]);
+        }
+
+        $mergeId = $this->actingAs($owner)
+            ->postJson("/api/families/face-identity-merge/people/{$absorbed->id}/merge", [
+                'survivor_person_id' => $survivor->id,
+            ])->assertCreated()->json('data.id');
+        $this->assertDatabaseHas('face_identity_assignments', [
+            'id' => $pending->id, 'person_id' => $survivor->id, 'status' => 'withdrawn',
+        ]);
+        $this->assertDatabaseHas('face_identity_assignments', [
+            'id' => $approved->id, 'person_id' => $survivor->id, 'status' => 'approved',
+        ]);
+        $this->assertDatabaseMissing('face_identity_assignments', ['person_id' => $absorbed->id]);
+        $this->assertDatabaseMissing('face_identity_suppressions', ['person_id' => $absorbed->id]);
+        $this->assertDatabaseCount('face_identity_suppressions', 2);
+        $before = PersonMerge::query()->findOrFail($mergeId)->provenance['before'];
+        $this->assertIsArray($before);
+        $snapshots = $before['face_identity_assignments'] ?? [];
+        $this->assertIsArray($snapshots);
+        $pendingSnapshot = null;
+        foreach ($snapshots as $snapshot) {
+            if (is_array($snapshot) && ($snapshot['id'] ?? null) === $pending->id) {
+                $pendingSnapshot = $snapshot;
+            }
+        }
+        $this->assertIsArray($pendingSnapshot);
+        $this->assertSame($absorbed->id, $pendingSnapshot['person_id']);
+        $this->assertSame('pending', $pendingSnapshot['status']);
+
+        $this->actingAs($owner)
+            ->postJson("/api/families/face-identity-merge/person-merges/{$mergeId}/reverse")
+            ->assertOk();
+        $this->assertDatabaseHas('face_identity_assignments', [
+            'id' => $pending->id, 'person_id' => $absorbed->id, 'status' => 'pending',
+        ]);
+        $this->assertDatabaseHas('face_identity_assignments', [
+            'id' => $approved->id, 'person_id' => $absorbed->id, 'status' => 'approved',
+        ]);
+        $this->assertDatabaseCount('face_identity_suppressions', 3);
+    }
+
     public function test_merge_identifiers_fail_closed_across_family_spaces(): void
     {
         [$first, $owner] = $this->familyWithRole(FamilySpaceRole::Owner, 'first-merge');
@@ -413,6 +514,25 @@ class PersonMergeTest extends TestCase
     private function person(FamilySpace $family, string $name): Person
     {
         return Person::factory()->create(['family_space_id' => $family->id, 'preferred_name' => $name]);
+    }
+
+    private function faceObservation(FamilySpace $family, FaceAnalysisRun $run, int $index): FaceObservation
+    {
+        return FaceObservation::query()->create([
+            'family_space_id' => $family->id,
+            'face_analysis_run_id' => $run->id,
+            'face_index' => $index,
+            'bounds_x' => 0,
+            'bounds_y' => 0,
+            'bounds_width' => 1,
+            'bounds_height' => 1,
+            'landmarks' => [],
+            'landmark_scheme' => '5-point',
+            'detection_confidence' => 1,
+            'embedding' => pack('g*', 1.0, 0.0, 0.0),
+            'embedding_dimension' => 3,
+            'embedding_dtype' => 'float32',
+        ]);
     }
 
     private function relationship(

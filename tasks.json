@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P10",
-    "current_stage": "FPA-P10-S05",
+    "current_stage": "FPA-P10-S06",
     "created_at": "2026-07-31",
     "updated_at": "2026-08-28"
   },
@@ -739,16 +739,18 @@
       {
         "id": "FPA-P10-S05",
         "title": "Implement merge, split, reject and unknown workflows",
-        "status": "ready",
+        "status": "completed",
           "dependencies": [
             "FPA-P10-S04"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-08-28: added forced-RLS, tenant-consistent durable FaceIdentitySuppression with audited reopening and filtering from automatic/manual reproposal; implemented active-current-generation cluster merge, split, Member naming proposal and Owner/Administrator confirmation while preserving inactive human-correction history and resolving identity only through FaceIdentityAssignment/PhotoPerson; extended Person merge snapshots, reconciliation and guarded reversal across assignments and suppressions, including capture, pending-to-withdrawn, then survivor-FK repointing with exact snapshot restoration. Persistent migration batch 37, focused correction/merge tests, PostgreSQL RLS/integrity regressions and complete repository gates passed without beginning recognition consent."
+          ]
         },
         {
           "id": "FPA-P10-S06",
           "title": "Implement recognition consent and exclusion",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P10-S05"
           ],
@@ -1944,6 +1946,14 @@
       "roadmap_stage": "FPA-P10-S04",
       "date": "2026-08-28",
       "description": "FPA-P10-S04 completed: tenant-safe FaceIdentityAssignment persistence and active-claim integrity, approved trusted galleries, conservative confidence-banded suggestions, Member proposals, authoritative Owner/Administrator confirmation and all four deterministic PhotoPerson transitions were implemented and verified. Recognition thresholds remain unset and automatic processing remains disabled until S07; suppression, cluster editing, consent and polished UI were not begun."
+    },
+    {
+      "git_tag": "phase-10-s05",
+      "type": "stage_completion",
+      "adr": "ADR-0012",
+      "roadmap_stage": "FPA-P10-S05",
+      "date": "2026-08-28",
+      "description": "FPA-P10-S05 completed: durable tenant-safe suppression and audited reopening, active-current-generation cluster merge/split/naming, ordinary assignment-based identity confirmation and full Person-merge snapshot/reconciliation/reversal support were implemented and verified. No live Phase 10 row retains an absorbed-Person foreign key; pending assignments are captured, withdrawn and only then repointed, with exact snapshot restoration. Recognition consent, numeric calibration and automatic processing remain later-stage work."
     }
   ]
 }
