@@ -6,6 +6,7 @@ use App\Enums\FaceIdentityAssignmentStatus;
 use App\Enums\FamilySpaceRole;
 use App\Enums\PersonProposalStatus;
 use App\Models\FaceIdentityAssignment;
+use App\Models\FaceIdentitySuppression;
 use App\Models\FaceObservation;
 use App\Models\Person;
 use App\Models\Photo;
@@ -52,6 +53,14 @@ final class FaceIdentityAssignmentManager
                 ])->exists()) {
                 throw ValidationException::withMessages([
                     'face_observation' => ['This face already has an active identity claim.'],
+                ]);
+            }
+            if (FaceIdentitySuppression::query()
+                ->where('face_observation_id', $lockedObservation->id)
+                ->where('person_id', $lockedPerson->id)
+                ->whereNull('reopened_at')->exists()) {
+                throw ValidationException::withMessages([
+                    'person' => ['This face and Person pair remains suppressed until an Administrator reopens it.'],
                 ]);
             }
 

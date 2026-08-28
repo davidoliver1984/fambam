@@ -7,6 +7,7 @@ use App\Enums\FamilySpaceRole;
 use App\Enums\MembershipState;
 use App\Enums\PersonProposalStatus;
 use App\FaceRecognition\FaceIdentityAssignmentManager;
+use App\FaceRecognition\FaceIdentitySuppressionManager;
 use App\Models\FaceAnalysisRun;
 use App\Models\FaceObservation;
 use App\Models\FamilySpace;
@@ -20,6 +21,7 @@ use App\Tenancy\TenantContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class FaceIdentityAssignmentTest extends TestCase
@@ -98,6 +100,33 @@ class FaceIdentityAssignmentTest extends TestCase
                 $this->assertSame($historical->id, $active->first()->id);
             }
         }
+    }
+
+    public function test_rejection_reuses_durable_suppression_and_reopening_allows_later_proposal(): void
+    {
+        [$family, $owner, $membership, , $observation] = $this->facePhoto();
+        app(TenantContext::class)->establish($family, $membership, $owner);
+        $person = Person::factory()->create(['family_space_id' => $family->id]);
+        $request = Request::create('/face-identity', 'POST');
+        $assignments = app(FaceIdentityAssignmentManager::class);
+        $suppressions = app(FaceIdentitySuppressionManager::class);
+        $assignment = $assignments->propose($observation, $person, $owner, $request);
+
+        $suppression = $suppressions->rejectAssignment($assignment, $owner, $request);
+        $this->assertSame('rejected', $assignment->refresh()->status->value);
+        try {
+            $assignments->propose($observation, $person, $owner, $request);
+            $this->fail('An active suppression unexpectedly allowed the pair to be proposed again.');
+        } catch (ValidationException) {
+            $this->addToAssertionCount(1);
+        }
+
+        $suppressions->reopen($suppression, $owner, $request);
+        $later = $assignments->propose($observation, $person, $owner, $request);
+        $this->assertSame('pending', $later->status->value);
+        $this->assertDatabaseCount('face_identity_suppressions', 1);
+        $this->assertDatabaseHas('audit_events', ['action' => 'face_identity_assignment.rejected']);
+        $this->assertDatabaseHas('audit_events', ['action' => 'face_identity_suppression.reopened']);
     }
 
     /** @return array{FamilySpace, User, FamilySpaceMembership, Photo, FaceObservation, FaceAnalysisRun} */

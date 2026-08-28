@@ -58,6 +58,12 @@ class FaceObservation extends Model
         return $this->hasMany(FaceIdentityAssignment::class);
     }
 
+    /** @return HasMany<FaceIdentitySuppression, $this> */
+    public function identitySuppressions(): HasMany
+    {
+        return $this->hasMany(FaceIdentitySuppression::class);
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {

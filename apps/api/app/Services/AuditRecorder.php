@@ -8,7 +8,9 @@ use App\Models\AlbumPhoto;
 use App\Models\AuditEvent;
 use App\Models\EventAdmission;
 use App\Models\EventExport;
+use App\Models\FaceCluster;
 use App\Models\FaceIdentityAssignment;
+use App\Models\FaceIdentitySuppression;
 use App\Models\FamilyCircle;
 use App\Models\FamilyCirclePerson;
 use App\Models\FamilyEvent;
@@ -117,7 +119,9 @@ class AuditRecorder
             || $subject instanceof FamilyEvent
             || $subject instanceof EventAdmission
             || $subject instanceof EventExport
-            || $subject instanceof FaceIdentityAssignment) {
+            || $subject instanceof FaceIdentityAssignment
+            || $subject instanceof FaceIdentitySuppression
+            || $subject instanceof FaceCluster) {
             return $subject->family_space_id;
         }
 
