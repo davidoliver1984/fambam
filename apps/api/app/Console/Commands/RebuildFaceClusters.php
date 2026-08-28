@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\FaceRecognition\FaceClusterGenerationManager;
+use App\FaceRecognition\FaceRecognitionCalibration;
 use App\Tenancy\TenantOperationContext;
 use Illuminate\Console\Command;
 
@@ -14,10 +15,19 @@ class RebuildFaceClusters extends Command
 
     protected $description = 'Build and atomically activate conservative unknown-face clusters for one Family Space';
 
-    public function handle(FaceClusterGenerationManager $clusters): int
-    {
+    public function handle(
+        FaceClusterGenerationManager $clusters,
+        FaceRecognitionCalibration $calibration,
+    ): int {
         if (! config('face_recognition.processing_enabled')) {
             $this->components->error('Automatic face-recognition processing remains disabled until FPA-P10-S07 calibration.');
+
+            return self::FAILURE;
+        }
+        try {
+            $calibration->assertAccepted();
+        } catch (\RuntimeException $exception) {
+            $this->components->error($exception->getMessage());
 
             return self::FAILURE;
         }

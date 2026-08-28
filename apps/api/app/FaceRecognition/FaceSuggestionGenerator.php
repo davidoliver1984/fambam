@@ -22,6 +22,7 @@ final class FaceSuggestionGenerator
         private readonly Float32Embedding $embeddings,
         private readonly DatabaseTenantContext $tenant,
         private readonly AuditRecorder $audit,
+        private readonly FaceRecognitionCalibration $calibration,
     ) {}
 
     public function generate(TenantOperationContext $context, string $faceObservationId): FaceSuggestionOutcome
@@ -29,6 +30,7 @@ final class FaceSuggestionGenerator
         if (! config('face_recognition.processing_enabled')) {
             throw new RuntimeException('Automatic face-recognition processing remains disabled until calibration.');
         }
+        $this->calibration->assertAccepted();
         $thresholds = $this->thresholds();
         $startedAt = hrtime(true);
 

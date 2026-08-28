@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Private face benchmark annotation</title>
+    <style>
+      :root { color-scheme: dark; font: 15px/1.45 system-ui, sans-serif; background: #101318; color: #edf2f7; }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      header { position: sticky; top: 0; z-index: 5; padding: 12px 18px; background: #171b22; border-bottom: 1px solid #303743; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+      h1 { font-size: 17px; margin: 0; }
+      #progress { color: #b9c2cf; }
+      main { display: grid; grid-template-columns: minmax(420px, 1.4fr) minmax(360px, 1fr); gap: 18px; padding: 18px; }
+      .panel { background: #171b22; border: 1px solid #303743; border-radius: 10px; padding: 14px; }
+      .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+      button, select, input, textarea { font: inherit; color: inherit; background: #232934; border: 1px solid #465064; border-radius: 6px; padding: 7px 9px; }
+      button { cursor: pointer; }
+      button.primary { background: #1967d2; border-color: #3981e6; }
+      button:disabled { opacity: .45; cursor: default; }
+      #stage { position: relative; display: inline-block; max-width: 100%; }
+      #photo { display: block; max-width: 100%; max-height: calc(100vh - 190px); width: auto; height: auto; }
+      .face-box { position: absolute; border: 3px solid #55e6a5; box-shadow: 0 0 0 1px #07120d; pointer-events: none; }
+      .face-index { position: absolute; left: -3px; top: -27px; background: #55e6a5; color: #06130d; font-weight: 800; padding: 2px 7px; border-radius: 4px; }
+      #faces { display: grid; gap: 12px; }
+      .face-card { border: 1px solid #394254; border-radius: 8px; padding: 12px; }
+      .face-card h3 { margin: 0 0 10px; }
+      label { display: grid; gap: 4px; margin: 8px 0; color: #cbd4e0; }
+      .flags { display: flex; gap: 7px 12px; flex-wrap: wrap; margin-top: 8px; }
+      .flags label { display: flex; gap: 5px; margin: 0; font-size: 13px; }
+      textarea { min-height: 54px; resize: vertical; }
+      .new-id { display: none; }
+      .notice { color: #f2ca72; }
+      .error { color: #ff8080; white-space: pre-wrap; }
+      .meta { color: #9eabbc; font-size: 13px; margin: 8px 0 14px; }
+      @media (max-width: 900px) { main { grid-template-columns: 1fr; } #photo { max-height: 70vh; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Private face benchmark annotation</h1>
+      <span id="progress">Loading…</span>
+      <span class="notice">Anonymous person-* labels only. Localhost and private files only.</span>
+    </header>
+    <main>
+      <section class="panel">
+        <div class="toolbar">
+          <button id="previous">← Previous</button>
+          <select id="image-picker" aria-label="Benchmark image"></select>
+          <button id="next">Next →</button>
+        </div>
+        <div id="meta" class="meta"></div>
+        <div id="stage"><img id="photo" alt="Private benchmark image" /></div>
+      </section>
+      <section class="panel">
+        <div class="toolbar">
+          <button id="save" class="primary">Save and next</button>
+          <button id="save-stay">Save</button>
+          <span id="status"></span>
+        </div>
+        <div id="faces"></div>
+        <p id="error" class="error"></p>
+      </section>
+    </main>
+    <script>
+      const token = "__LOCAL_SESSION_TOKEN__";
+      const flags = ["old-scan", "damaged-scan", "glasses", "facial-hair", "hairstyle-change", "sibling-resemblance", "parent-child-resemblance", "poor-quality", "extreme-profile", "occlusion"];
+      const ageBands = ["unknown", "child", "teen", "adult-20s-30s", "adult-40s-50s", "adult-60-plus"];
+      let state;
+      let image;
+      let current = 0;
+
+      async function json(url, options = {}) {
+        const response = await fetch(url, { cache: "no-store", ...options });
+        if (!response.ok) throw new Error(await response.text());
+        return response.json();
+      }
+
+      function option(value, label, selected = false) {
+        const node = document.createElement("option");
+        node.value = value; node.textContent = label; node.selected = selected; return node;
+      }
+
+      async function loadState() {
+        state = await json("/api/state");
+        const picker = document.querySelector("#image-picker");
+        picker.replaceChildren(...state.images.map((item) => option(item.benchmark_id, `${item.complete ? "✓" : "○"} ${item.benchmark_id} (${item.decided_count}/${item.face_count})`)));
+        renderProgress();
+      }
+
+      function renderProgress() {
+        const summary = state.summary;
+        const completed = state.images.filter((item) => item.complete).length;
+        document.querySelector("#progress").textContent = `${completed}/${summary.total_images} images complete · ${summary.annotated_faces}/${summary.total_detected_faces} labelled · ${summary.unique_anonymous_identities} identities · ${summary.remaining_unlabelled_faces} remaining`;
+      }
+
+      async function loadImage(index) {
+        current = Math.max(0, Math.min(index, state.images.length - 1));
+        const id = state.images[current].benchmark_id;
+        image = await json(`/api/images/${id}`);
+        document.querySelector("#image-picker").value = id;
+        document.querySelector("#previous").disabled = current === 0;
+        document.querySelector("#next").disabled = current === state.images.length - 1;
+        document.querySelector("#meta").textContent = `${id} · ${image.categories.join(", ")} · ${image.difficulty_notes}`;
+        const photo = document.querySelector("#photo");
+        photo.onload = renderBoxes;
+        photo.src = `${image.asset_url}?v=${Date.now()}`;
+        renderFaces();
+        document.querySelector("#status").textContent = "";
+        document.querySelector("#error").textContent = "";
+      }
+
+      function renderBoxes() {
+        document.querySelectorAll(".face-box").forEach((box) => box.remove());
+        for (const region of image.regions) {
+          const bounds = region.bounds;
+          const box = document.createElement("div");
+          box.className = "face-box";
+          box.style.left = `${bounds.x / image.image_width * 100}%`;
+          box.style.top = `${bounds.y / image.image_height * 100}%`;
+          box.style.width = `${bounds.width / image.image_width * 100}%`;
+          box.style.height = `${bounds.height / image.image_height * 100}%`;
+          const badge = document.createElement("span"); badge.className = "face-index"; badge.textContent = `face ${region.face_index}`;
+          box.append(badge); document.querySelector("#stage").append(box);
+        }
+      }
+
+      function renderFaces() {
+        const cards = image.assignments.map((assignment) => {
+          const card = document.createElement("article"); card.className = "face-card"; card.dataset.index = assignment.face_index;
+          const heading = document.createElement("h3"); heading.textContent = `Face ${assignment.face_index}`; card.append(heading);
+          const statusLabel = document.createElement("label"); statusLabel.textContent = "Decision";
+          const status = document.createElement("select"); status.className = "decision";
+          [["unlabelled", "Unlabelled"], ["labelled", "Anonymous identity"], ["unknown", "Unknown"], ["skipped", "Skip"]].forEach(([value, label]) => status.append(option(value, label, assignment.status === value)));
+          statusLabel.append(status); card.append(statusLabel);
+          const identityLabel = document.createElement("label"); identityLabel.className = "identity-label"; identityLabel.textContent = "Anonymous identity";
+          const identity = document.createElement("select"); identity.className = "identity";
+          identity.append(option("", "Choose identity…")); image.identities.forEach((id) => identity.append(option(id, id, assignment.identity_id === id))); identity.append(option("__new__", "Create new identity…")); identityLabel.append(identity);
+          const newId = document.createElement("input"); newId.className = "new-id"; newId.placeholder = "person-a"; newId.pattern = "person-[a-z0-9]+(?:-[a-z0-9]+)*"; identityLabel.append(newId); card.append(identityLabel);
+          const ageLabel = document.createElement("label"); ageLabel.textContent = "Approximate age band";
+          const age = document.createElement("select"); age.className = "age-band"; ageBands.forEach((value) => age.append(option(value, value, assignment.age_band === value))); ageLabel.append(age); card.append(ageLabel);
+          const flagWrap = document.createElement("div"); flagWrap.className = "flags";
+          flags.forEach((value) => { const label = document.createElement("label"); const checkbox = document.createElement("input"); checkbox.type = "checkbox"; checkbox.value = value; checkbox.checked = assignment.note_flags.includes(value); label.append(checkbox, document.createTextNode(value)); flagWrap.append(label); }); card.append(flagWrap);
+          const noteLabel = document.createElement("label"); noteLabel.textContent = "Private note (optional)"; const note = document.createElement("textarea"); note.className = "private-note"; note.value = assignment.private_note; noteLabel.append(note); card.append(noteLabel);
+          function toggleIdentity() { identityLabel.style.display = status.value === "labelled" ? "grid" : "none"; }
+          status.addEventListener("change", toggleIdentity); identity.addEventListener("change", () => { newId.style.display = identity.value === "__new__" ? "block" : "none"; }); toggleIdentity();
+          return card;
+        });
+        const faces = document.querySelector("#faces"); faces.replaceChildren(...cards);
+        if (!cards.length) faces.textContent = "No faces detected in this benchmark image.";
+      }
+
+      function collect() {
+        return [...document.querySelectorAll(".face-card")].map((card) => {
+          const status = card.querySelector(".decision").value;
+          const identity = card.querySelector(".identity");
+          let identityId = status === "labelled" ? identity.value : null;
+          if (identityId === "__new__") identityId = card.querySelector(".new-id").value.trim();
+          if (status === "labelled" && !/^person-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(identityId || "")) throw new Error(`Face ${card.dataset.index}: choose or create a valid person-* identity.`);
+          return { face_index: Number(card.dataset.index), status, identity_id: identityId || null, age_band: card.querySelector(".age-band").value, note_flags: [...card.querySelectorAll('.flags input:checked')].map((input) => input.value), private_note: card.querySelector(".private-note").value };
+        });
+      }
+
+      async function save(moveNext) {
+        try {
+          document.querySelector("#error").textContent = "";
+          await json(`/api/images/${image.benchmark_id}`, { method: "PUT", headers: { "Content-Type": "application/json", "X-Local-Session": token }, body: JSON.stringify({ assignments: collect() }) });
+          document.querySelector("#status").textContent = "Saved";
+          await loadState();
+          await loadImage(moveNext && current < state.images.length - 1 ? current + 1 : current);
+        } catch (error) { document.querySelector("#error").textContent = error.message; }
+      }
+
+      document.querySelector("#previous").addEventListener("click", () => loadImage(current - 1));
+      document.querySelector("#next").addEventListener("click", () => loadImage(current + 1));
+      document.querySelector("#image-picker").addEventListener("change", (event) => loadImage(state.images.findIndex((item) => item.benchmark_id === event.target.value)));
+      document.querySelector("#save").addEventListener("click", () => save(true));
+      document.querySelector("#save-stay").addEventListener("click", () => save(false));
+      loadState().then(() => {
+        const firstIncomplete = state.images.findIndex((item) => !item.complete);
+        return loadImage(firstIncomplete >= 0 ? firstIncomplete : 0);
+      }).catch((error) => document.querySelector("#error").textContent = error.message);
+    </script>
+  </body>
+</html>
