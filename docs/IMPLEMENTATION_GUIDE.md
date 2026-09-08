@@ -3883,6 +3883,21 @@ shipped fully authorized.
 - Person merge leaves no saved search referencing an absorbed Person.
 - Search remains usable with the projected pilot library size.
 
+FPA-P11-S05 completed on 2026-09-08. Regression evidence now covers every
+historical-date precision, fixed match-class ordering, stable cursor
+continuation when an anchor is deleted or becomes inaccessible, operational-log
+privacy, Contributor/Guest People-axis omission and authorization-safe search,
+autocomplete and Discovery traversal. PostgreSQL verification proved generated
+metadata boundaries, relational-only tag indexing and use of the planned GIN
+search index against a representative 2,500-Photo Family Space. Phase 11 is
+complete and FPA-P12-S01 is ready.
+
+### Commit boundary
+
+```text
+Add search performance and permission regressions
+```
+
 ---
 
 # Phase 12 — Memories and Homepage

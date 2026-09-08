@@ -14,6 +14,8 @@ use App\Models\FamilySpaceMembership;
 use App\Models\MediaUpload;
 use App\Models\Person;
 use App\Models\Photo;
+use App\Models\PhotoComment;
+use App\Models\PhotoReaction;
 use App\Models\PhotoStory;
 use App\Models\Tag;
 use App\Models\User;
@@ -27,7 +29,7 @@ class SearchRelationshipHttpTest extends TestCase
 
     public function test_people_search_is_not_invoked_or_disclosed_without_directory_access(): void
     {
-        [$family, $owner, , $contributor] = $this->family();
+        [$family, $owner, , $contributor, $guest] = $this->family();
         $person = Person::factory()->create([
             'family_space_id' => $family->id,
             'preferred_name' => 'David Archive',
@@ -46,6 +48,13 @@ class SearchRelationshipHttpTest extends TestCase
         $this->actingAs($contributor)
             ->getJson("/api/families/{$family->slug}/search?q=dave&group=people")
             ->assertForbidden();
+        $guestDefault = $this->actingAs($guest)
+            ->getJson("/api/families/{$family->slug}/search?q=dave")
+            ->assertOk();
+        $this->assertArrayNotHasKey('people', $guestDefault->json('data'));
+        $this->actingAs($guest)
+            ->getJson("/api/families/{$family->slug}/search?q=dave&group=people")
+            ->assertForbidden();
     }
 
     public function test_guest_event_search_uses_only_current_admissions(): void
@@ -53,11 +62,27 @@ class SearchRelationshipHttpTest extends TestCase
         [$family, $owner, , , $guest, $guestMembership] = $this->family();
         $visible = $this->event($family, $owner, 'Summer gathering');
         $hidden = $this->event($family, $owner, 'Summer secret');
+        $expired = $this->event($family, $owner, 'Summer expired');
+        $revoked = $this->event($family, $owner, 'Summer revoked');
         EventAdmission::query()->create([
             'family_space_id' => $family->id,
             'event_id' => $visible->id,
             'family_space_membership_id' => $guestMembership->id,
             'admitted_at' => now(),
+        ]);
+        EventAdmission::query()->create([
+            'family_space_id' => $family->id,
+            'event_id' => $expired->id,
+            'family_space_membership_id' => $guestMembership->id,
+            'admitted_at' => now()->subDays((int) config('events.admission_lifetime_days') + 1),
+        ]);
+        EventAdmission::query()->create([
+            'family_space_id' => $family->id,
+            'event_id' => $revoked->id,
+            'family_space_membership_id' => $guestMembership->id,
+            'admitted_at' => now(),
+            'revoked_at' => now(),
+            'revoked_by' => $owner->id,
         ]);
 
         $response = $this->actingAs($guest)
@@ -126,10 +151,21 @@ class SearchRelationshipHttpTest extends TestCase
         $companion = Person::factory()->create(['family_space_id' => $family->id, 'preferred_name' => 'Susan']);
         $visible = $this->photo($family, $owner, 'Beach photograph', '1990-01-01', 'exact', $event->id);
         $hidden = $this->photo($family, $owner, 'Private photograph', '1990-01-01', 'exact', null, PhotoVisibility::Private);
+        $hidden->update(['primary_event_id' => $event->id]);
         $owner->update(['name' => 'Beach Uploader']);
         $hiddenUploader = User::factory()->create(['name' => 'Secret Uploader']);
         MediaUpload::query()->whereKey($hidden->media_upload_id)->update(['user_id' => $hiddenUploader->id]);
         $album->photos()->attach($visible->id, [
+            'id' => (string) Str::ulid(), 'family_space_id' => $family->id, 'position' => 1, 'added_by' => $owner->id,
+        ]);
+        $hiddenAlbum = Album::query()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $owner->id,
+            'name' => 'Secret album',
+            'visibility' => AlbumVisibility::Selected,
+            'event_id' => $event->id,
+        ]);
+        $hiddenAlbum->photos()->attach($visible->id, [
             'id' => (string) Str::ulid(), 'family_space_id' => $family->id, 'position' => 1, 'added_by' => $owner->id,
         ]);
         $this->associate($visible, $person, $owner, 'approved');
@@ -138,6 +174,18 @@ class SearchRelationshipHttpTest extends TestCase
         PhotoStory::query()->create([
             'family_space_id' => $family->id, 'photo_id' => $visible->id,
             'author_id' => $owner->id, 'body' => 'A beach story.',
+        ]);
+        $hiddenStory = PhotoStory::query()->create([
+            'family_space_id' => $family->id, 'photo_id' => $hidden->id,
+            'author_id' => $owner->id, 'body' => 'Disclosure needle in a private Story.',
+        ]);
+        $comment = PhotoComment::query()->create([
+            'family_space_id' => $family->id, 'photo_id' => $visible->id,
+            'author_id' => $owner->id, 'body' => 'Comment-only disclosure needle.',
+        ]);
+        $reaction = PhotoReaction::query()->create([
+            'family_space_id' => $family->id, 'photo_id' => $visible->id,
+            'user_id' => $owner->id, 'reaction' => 'love',
         ]);
         $visibleTag = Tag::query()->create([
             'family_space_id' => $family->id, 'label' => 'Beach', 'normalized_label' => 'beach',
@@ -169,6 +217,12 @@ class SearchRelationshipHttpTest extends TestCase
         $this->actingAs($contributor)
             ->getJson("/api/families/{$family->slug}/search/suggestions?type=people&prefix=Dav")
             ->assertForbidden();
+        $search = $this->actingAs($member)
+            ->getJson("/api/families/{$family->slug}/search?q=disclosure")
+            ->assertOk()->assertJsonCount(0, 'data.stories.items');
+        $this->assertStringNotContainsString($hiddenStory->id, $search->getContent());
+        $this->assertStringNotContainsString($comment->id, $search->getContent());
+        $this->assertStringNotContainsString($reaction->id, $search->getContent());
 
         $discovery = $this->actingAs($member)
             ->getJson("/api/families/{$family->slug}/discover/people/{$person->id}")
@@ -181,7 +235,8 @@ class SearchRelationshipHttpTest extends TestCase
         $this->actingAs($member)
             ->getJson("/api/families/{$family->slug}/discover/photos/{$visible->id}")
             ->assertOk()
-            ->assertJsonPath('data.related.albums.0.id', $album->id);
+            ->assertJsonPath('data.related.albums.0.id', $album->id)
+            ->assertJsonCount(1, 'data.related.albums');
         $this->actingAs($member)
             ->getJson("/api/families/{$family->slug}/discover/albums/{$album->id}")
             ->assertOk()
@@ -189,7 +244,9 @@ class SearchRelationshipHttpTest extends TestCase
         $this->actingAs($member)
             ->getJson("/api/families/{$family->slug}/discover/events/{$event->id}")
             ->assertOk()
-            ->assertJsonPath('data.related.photos.0.id', $visible->id);
+            ->assertJsonPath('data.related.photos.0.id', $visible->id)
+            ->assertJsonCount(1, 'data.related.photos')
+            ->assertJsonCount(1, 'data.related.albums');
         $this->actingAs($contributor)
             ->getJson("/api/families/{$family->slug}/discover/people/{$person->id}")
             ->assertForbidden();

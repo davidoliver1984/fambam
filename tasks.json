@@ -6,8 +6,8 @@
     "version": "0.1.0",
     "status": "in_progress",
     "v1_release_phase": "P17",
-    "current_phase": "P11",
-    "current_stage": "FPA-P11-S05",
+    "current_phase": "P12",
+    "current_stage": "FPA-P12-S01",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-08"
   },
@@ -774,7 +774,7 @@
     {
       "id": "P11",
       "name": "Search and Discovery",
-      "status": "in_progress",
+      "status": "completed",
       "stages": [
         {
           "id": "FPA-P11-S01",
@@ -823,23 +823,25 @@
         {
           "id": "FPA-P11-S05",
           "title": "Add performance and permission tests",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P11-S04"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-08 (git tags phase-11-s05 and phase-11). Added calendar-safe historical-date coverage for every precision, deterministic ranking precedence and continuation after a cursor anchor is deleted or becomes inaccessible, broad authorization-leak regressions across search/autocomplete/Discovery, operational-log privacy proof, generated-vector relational-tag isolation, and PostgreSQL index-plan evidence against a representative 2,500-Photo Family Space. Full local and PostgreSQL verification passed."
+          ]
         }
       ]
     },
     {
       "id": "P12",
       "name": "Memories and Homepage",
-      "status": "planned",
+      "status": "in_progress",
       "stages": [
         {
           "id": "FPA-P12-S01",
           "title": "Accept memories and family homepage ADR",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P11-S05"
           ],
@@ -2022,6 +2024,22 @@
       "roadmap_stage": "FPA-P11-S04",
       "date": "2026-09-08",
       "description": "FPA-P11-S04 completed: combined authorized filters and creator-private saved searches now use versioned normalized state, relational Person references, execution-time authorization revalidation, forced-RLS tenant-consistent persistence, explicit Family Space teardown and atomic Person merge/reversal integration. Functional typed TanStack Query CRUD UI and complete local and PostgreSQL verification passed."
+    },
+    {
+      "git_tag": "phase-11-s05",
+      "type": "stage_completion",
+      "adr": "ADR-0013",
+      "roadmap_stage": "FPA-P11-S05",
+      "date": "2026-09-08",
+      "description": "FPA-P11-S05 completed: performance, ranking, stable-cursor and broad authorization-leak regression evidence now covers every implemented search surface and Discovery traversal. PostgreSQL verified generated metadata, relational-tag isolation, fixed precedence and GIN index use against a representative 2,500-Photo Family Space; the complete repository suite passed."
+    },
+    {
+      "git_tag": "phase-11",
+      "type": "phase_completion",
+      "adr": "ADR-0013",
+      "roadmap_stage": "FPA-P11-S05",
+      "date": "2026-09-08",
+      "description": "Phase 11 completed: tenant-authorized PostgreSQL search, calendar-safe historical dates, relationship-aware filters, visibility-safe Discovery, creator-private saved views, deterministic continuation and projected-library performance evidence satisfy ADR-0013 without leaking inaccessible content or search text."
     }
   ]
 }

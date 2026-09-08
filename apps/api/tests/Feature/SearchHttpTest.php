@@ -15,8 +15,13 @@ use App\Models\Photo;
 use App\Models\PhotoStory;
 use App\Models\Tag;
 use App\Models\User;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Log\Logger as IlluminateLogger;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger as MonologLogger;
 use Tests\TestCase;
 
 class SearchHttpTest extends TestCase
@@ -123,6 +128,41 @@ class SearchHttpTest extends TestCase
             ->assertJsonPath('data.photos.items.0.historical_date.value', '1980s');
     }
 
+    public function test_every_historical_precision_uses_calendar_safe_overlap_semantics(): void
+    {
+        [$family, $owner, $member] = $this->family();
+        $exact = $this->photo($family, $owner, 'Exact', PhotoVisibility::FamilySpace, '2024-02-29', 'exact');
+        $approximate = $this->photo($family, $owner, 'Approximate', PhotoVisibility::FamilySpace, '2024-02-29', 'approximate');
+        $month = $this->photo($family, $owner, 'Month', PhotoVisibility::FamilySpace, '2024-02-01', 'month');
+        $year = $this->photo($family, $owner, 'Year', PhotoVisibility::FamilySpace, '2024-01-01', 'year');
+        $december = $this->photo($family, $owner, 'December', PhotoVisibility::FamilySpace, '2023-12-01', 'month');
+        $unknown = $this->photo($family, $owner, 'Unknown', PhotoVisibility::FamilySpace, null, 'unknown');
+
+        $leapDay = $this->actingAs($member)->getJson(
+            "/api/families/{$family->slug}/search?date_from=2024-02-29&date_to=2024-02-29&group=photos&limit=20",
+        )->assertOk();
+        $leapItems = $leapDay->json('data.photos.items');
+        $this->assertIsArray($leapItems);
+        $leapIds = array_column($leapItems, 'id');
+        $this->assertEqualsCanonicalizing([$exact->id, $approximate->id, $month->id, $year->id], $leapIds);
+
+        $dayAfter = $this->actingAs($member)->getJson(
+            "/api/families/{$family->slug}/search?date_from=2024-03-01&date_to=2024-03-01&group=photos&limit=20",
+        )->assertOk();
+        $dayAfterItems = $dayAfter->json('data.photos.items');
+        $this->assertIsArray($dayAfterItems);
+        $dayAfterIds = array_column($dayAfterItems, 'id');
+        $this->assertContains($year->id, $dayAfterIds);
+        $this->assertNotContains($exact->id, $dayAfterIds);
+        $this->assertNotContains($approximate->id, $dayAfterIds);
+        $this->assertNotContains($month->id, $dayAfterIds);
+        $this->assertNotContains($unknown->id, $dayAfterIds);
+
+        $this->actingAs($member)->getJson(
+            "/api/families/{$family->slug}/search?date_from=2023-12-31&date_to=2023-12-31&group=photos",
+        )->assertOk()->assertJsonPath('data.photos.items.0.id', $december->id);
+    }
+
     public function test_each_group_has_stable_opaque_cursor_pagination_and_rejects_invalid_tokens(): void
     {
         [$family, $owner, $member] = $this->family();
@@ -143,6 +183,58 @@ class SearchHttpTest extends TestCase
 
         $this->actingAs($member)->getJson($base.'&cursor=not-a-valid-cursor')
             ->assertUnprocessable()->assertJsonValidationErrors('cursor');
+    }
+
+    public function test_photo_cursor_resumes_when_its_anchor_is_deleted_or_becomes_inaccessible(): void
+    {
+        [$family, $owner, $member] = $this->family();
+        foreach (range(1, 4) as $sequence) {
+            $this->photo($family, $owner, "Stable archive {$sequence}", PhotoVisibility::FamilySpace, '2000-01-01', 'exact');
+        }
+        $base = "/api/families/{$family->slug}/search?q=stable&group=photos&limit=1";
+        $all = $this->actingAs($member)
+            ->getJson("/api/families/{$family->slug}/search?q=stable&group=photos&limit=10")
+            ->assertOk()->json('data.photos.items');
+
+        $first = $this->actingAs($member)->getJson($base)->assertOk();
+        $anchorId = $first->json('data.photos.items.0.id');
+        $cursor = $first->json('data.photos.next_cursor');
+        Photo::query()->findOrFail($anchorId)->delete();
+        $this->actingAs($member)->getJson($base.'&cursor='.urlencode($cursor))
+            ->assertOk()->assertJsonPath('data.photos.items.0.id', $all[1]['id']);
+
+        $this->assertIsArray($all);
+        $visible = array_values(array_slice($all, 1));
+        $nextAnchorId = $visible[0]['id'];
+        $nextFirst = $this->actingAs($member)->getJson($base)->assertOk();
+        $this->assertSame($nextAnchorId, $nextFirst->json('data.photos.items.0.id'));
+        Photo::query()->findOrFail($nextAnchorId)->update(['visibility' => PhotoVisibility::Private]);
+        $this->actingAs($member)
+            ->getJson($base.'&cursor='.urlencode($nextFirst->json('data.photos.next_cursor')))
+            ->assertOk()->assertJsonPath('data.photos.items.0.id', $visible[1]['id']);
+    }
+
+    public function test_search_content_never_enters_operational_logs(): void
+    {
+        [$family, $owner, $member] = $this->family();
+        $secret = 'private-family-query-needle';
+        $this->photo($family, $owner, $secret, PhotoVisibility::FamilySpace);
+        $handler = new TestHandler;
+        Log::swap(new IlluminateLogger(
+            new MonologLogger('search-test', [$handler]),
+            $this->app->make(Dispatcher::class),
+        ));
+
+        $this->actingAs($member)
+            ->getJson("/api/families/{$family->slug}/search?q={$secret}&group=photos")
+            ->assertOk()->assertJsonCount(1, 'data.photos.items');
+
+        $records = $handler->getRecords();
+        $this->assertCount(1, $records);
+        $this->assertStringNotContainsString(
+            $secret,
+            json_encode($records, JSON_THROW_ON_ERROR),
+        );
     }
 
     /** @return array{FamilySpace, User, User} */
