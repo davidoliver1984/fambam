@@ -23,6 +23,7 @@ import { AlbumPage } from "./features/albums/pages/AlbumPage";
 import { DuplicateReviewPage } from "./features/duplicates/pages/DuplicateReviewPage";
 import { FaceClustersPage } from "./features/face-recognition/pages/FaceClustersPage";
 import { FaceRecognitionReviewPage } from "./features/face-recognition/pages/FaceRecognitionReviewPage";
+import { SearchPage } from "./features/search/pages/SearchPage";
 
 function WelcomePage() {
   return (
@@ -69,6 +70,7 @@ export function App() {
           element={<MediaUploadPage />}
         />
         <Route path="/families/:familySlug/photos" element={<PhotosPage />} />
+        <Route path="/families/:familySlug/search" element={<SearchPage />} />
         <Route
           path="/families/:familySlug/duplicates"
           element={<DuplicateReviewPage />}

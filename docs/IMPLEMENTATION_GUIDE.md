@@ -3748,6 +3748,23 @@ within-class score, then a domain tie-breaker, then entity id) and
 independent per-group pagination. Tag text is a relational filter/ranking
 signal only and must never be copied into `photos.search_vector`.
 
+FPA-P11-S02 completed on 2026-09-08. PostgreSQL now owns generated search
+vectors and calendar-safe Photo date-window ends, with `pg_trgm`, GIN and
+supporting indexes. The first search endpoint composes the existing Photo and
+Album visibility queries and derives Stories only from visible Photos; tag
+matching remains relational. Results use dedicated typed summaries and
+signed, opaque, independently paginated cursors. The feature-oriented React
+UI uses TanStack Query and exposes word/date search without beginning People,
+Event, autocomplete or Discovery behaviour. The persistent migration and
+PostgreSQL search path were verified alongside the complete application
+suite.
+
+### Commit boundary
+
+```text
+Implement authorized metadata search
+```
+
 ## FPA-P11-S03 — Implement person, event, combined filters, and Discovery traversal
 
 Add the People search axis, gated by

@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P11",
-    "current_stage": "FPA-P11-S02",
+    "current_stage": "FPA-P11-S03",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-08"
   },
@@ -790,16 +790,18 @@
         {
           "id": "FPA-P11-S02",
           "title": "Implement metadata search",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P11-S01"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-08 (git tag phase-11-s02). Added PostgreSQL-generated search vectors and calendar-safe historical date windows, pg_trgm/GIN support, bounded typed summaries, authorization-first Photo/Album/PhotoStory search, relational-only tag matching, deterministic opaque cursor continuation, and a feature-oriented TanStack Query search UI. SQLite, PostgreSQL and full repository tests passed; the persistent local migration was applied. The external dependency audit remained unavailable because registry metadata disclosure was not authorized, with no dependency changes in this stage."
+          ]
         },
         {
           "id": "FPA-P11-S03",
           "title": "Implement person and relationship-aware search",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P11-S02"
           ],
@@ -1992,6 +1994,14 @@
       "roadmap_stage": "FPA-P11-S01",
       "date": "2026-09-08",
       "description": "FPA-P11-S01 completed: ADR-0013 accepted. PostgreSQL-native search remains grounded in live authorized domain queries; generated vectors use same-row text while tags remain relational; historical dates use calendar-safe interval overlap; results are bounded typed summaries with deterministic search-local cursor pagination; Discovery is authorized at every traversal hop; and saved searches are creator-private, tenant-consistent, merge-safe and explicitly removed during Family Space teardown."
+    },
+    {
+      "git_tag": "phase-11-s02",
+      "type": "stage_completion",
+      "adr": "ADR-0013",
+      "roadmap_stage": "FPA-P11-S02",
+      "date": "2026-09-08",
+      "description": "FPA-P11-S02 completed: PostgreSQL-generated search vectors and calendar-safe historical-date windows, pg_trgm/GIN support, typed bounded summaries, authorization-first Photo/Album/PhotoStory search, relational-only tag matching and deterministic opaque per-group continuation were implemented. A feature-oriented TanStack Query UI exposes the capability without direct page-level transport access. Persistent migration, PostgreSQL search-path tests and the complete local application suite passed without beginning People, Event or Discovery traversal behavior."
     }
   ]
 }

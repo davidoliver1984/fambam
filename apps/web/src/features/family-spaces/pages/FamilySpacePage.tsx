@@ -55,6 +55,13 @@ export function FamilySpacePage() {
         <>
           <p>
             <Link
+              to={`/families/${encodeURIComponent(familySpace.slug)}/search`}
+            >
+              Search the archive
+            </Link>
+          </p>
+          <p>
+            <Link
               to={`/families/${encodeURIComponent(familySpace.slug)}/events`}
             >
               Open events
