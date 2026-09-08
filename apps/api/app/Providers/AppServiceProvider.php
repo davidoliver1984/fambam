@@ -28,7 +28,9 @@ use App\Media\PresentationVariantGenerator;
 use App\Media\S3FamilyMediaStorageCleaner;
 use App\Media\S3MediaDeliveryUrlSigner;
 use App\Media\S3MediaObjectStorage;
+use App\Search\DatabaseDiscoveryService;
 use App\Search\DatabaseSearchService;
+use App\Search\DiscoveryService;
 use App\Search\SearchService;
 use App\Services\AuthenticateUser;
 use App\Services\PwnedPasswordVerifier;
@@ -66,6 +68,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(FaceAnalysisResultAuthority::class, S3FaceAnalysisResultAuthority::class);
         $this->app->bind(SimilaritySearch::class, PostgresSimilaritySearch::class);
         $this->app->bind(SearchService::class, DatabaseSearchService::class);
+        $this->app->bind(DiscoveryService::class, DatabaseDiscoveryService::class);
 
         $this->app->singleton(
             AuthenticateUser::class,

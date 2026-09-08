@@ -2,8 +2,10 @@
 
 namespace App\Queries;
 
+use App\Enums\FamilySpaceRole;
 use App\Models\FamilyEvent;
 use App\Models\Person;
+use App\Models\User;
 use App\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -13,6 +15,40 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 class FamilyEventQuery
 {
     public function __construct(private readonly TenantContext $tenantContext) {}
+
+    /** @return Builder<FamilyEvent> */
+    public function visibleTo(User $viewer): Builder
+    {
+        $membership = $this->tenantContext->membership();
+        $query = FamilyEvent::query()
+            ->where('family_space_id', $this->tenantContext->familySpace()->id);
+
+        if ($membership->user_id !== $viewer->id) {
+            return $query->whereRaw('1 = 0');
+        }
+        if (in_array($membership->role, [
+            FamilySpaceRole::Owner,
+            FamilySpaceRole::Administrator,
+            FamilySpaceRole::Member,
+        ], true)) {
+            return $query;
+        }
+        if ($membership->role !== FamilySpaceRole::Guest) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        $cutoff = now()->subDays((int) config('events.admission_lifetime_days'));
+
+        return $query->whereHas('admissions', fn (Builder $admissions) => $admissions
+            ->where('family_space_membership_id', $membership->id)
+            ->whereNull('revoked_at')
+            ->where('admitted_at', '>', $cutoff));
+    }
+
+    public function findVisibleTo(User $viewer, string $id): FamilyEvent
+    {
+        return $this->visibleTo($viewer)->find($id) ?? throw new NotFoundHttpException;
+    }
 
     /** @return Collection<int, FamilyEvent> */
     public function all(): Collection

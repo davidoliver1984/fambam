@@ -1,17 +1,57 @@
-import { useState, type SyntheticEvent } from "react";
+import { useState, type ReactNode, type SyntheticEvent } from "react";
 import { Link, useParams } from "react-router";
 
-import { useArchiveSearchQuery } from "../hooks/useArchiveSearchQuery";
-import type { SearchCriteria } from "../types/search";
+import { useFamilySpaceQuery } from "@/features/family-spaces/hooks/useFamilySpaceQuery";
+
+import {
+  useArchiveSearchQuery,
+  useSearchSuggestionsQuery,
+} from "../hooks/useArchiveSearchQuery";
+import type { SearchCriteria, SearchSuggestion } from "../types/search";
 
 export function SearchPage() {
   const { familySlug = "" } = useParams();
+  const family = useFamilySpaceQuery(familySlug);
+  const role = family.data?.role;
+  const canSearchPeople =
+    role === "owner" || role === "administrator" || role === "member";
+  const canSearchEvents = canSearchPeople || role === "guest";
   const [term, setTerm] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [personPrefix, setPersonPrefix] = useState("");
+  const [eventPrefix, setEventPrefix] = useState("");
+  const [selectedPeople, setSelectedPeople] = useState<SearchSuggestion[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<SearchSuggestion | null>(
+    null,
+  );
   const [criteria, setCriteria] = useState<SearchCriteria | null>(null);
+  const peopleSuggestions = useSearchSuggestionsQuery(
+    familySlug,
+    "people",
+    personPrefix,
+    canSearchPeople,
+  );
+  const eventSuggestions = useSearchSuggestionsQuery(
+    familySlug,
+    "events",
+    eventPrefix,
+    canSearchEvents,
+  );
+  const people = useArchiveSearchQuery(
+    familySlug,
+    "people",
+    criteria,
+    canSearchPeople,
+  );
   const photos = useArchiveSearchQuery(familySlug, "photos", criteria);
   const albums = useArchiveSearchQuery(familySlug, "albums", criteria);
+  const events = useArchiveSearchQuery(
+    familySlug,
+    "events",
+    criteria,
+    canSearchEvents,
+  );
   const stories = useArchiveSearchQuery(familySlug, "stories", criteria);
 
   function submit(event: SyntheticEvent<HTMLFormElement>) {
@@ -20,15 +60,39 @@ export function SearchPage() {
       ...(term.trim() === "" ? {} : { q: term.trim() }),
       ...(dateFrom === "" ? {} : { date_from: dateFrom }),
       ...(dateTo === "" ? {} : { date_to: dateTo }),
+      ...(selectedPeople.length === 0
+        ? {}
+        : { person_ids: selectedPeople.map((person) => person.id) }),
+      ...(selectedEvent === null ? {} : { event_id: selectedEvent.id }),
     };
     if (Object.keys(next).length > 0) setCriteria(next);
   }
 
+  const peopleItems = people.data?.pages.flatMap((page) => page.items) ?? [];
   const photoItems = photos.data?.pages.flatMap((page) => page.items) ?? [];
   const albumItems = albums.data?.pages.flatMap((page) => page.items) ?? [];
+  const eventItems = events.data?.pages.flatMap((page) => page.items) ?? [];
   const storyItems = stories.data?.pages.flatMap((page) => page.items) ?? [];
-  const loading = photos.isPending || albums.isPending || stories.isPending;
-  const failed = photos.isError || albums.isError || stories.isError;
+  const loading =
+    photos.isPending ||
+    albums.isPending ||
+    stories.isPending ||
+    (canSearchPeople && people.isPending) ||
+    (canSearchEvents && events.isPending);
+  const failed =
+    photos.isError ||
+    albums.isError ||
+    stories.isError ||
+    (canSearchPeople && people.isError) ||
+    (canSearchEvents && events.isError);
+  const hasCriteria =
+    term.trim() !== "" ||
+    dateFrom !== "" ||
+    dateTo !== "" ||
+    selectedPeople.length > 0 ||
+    selectedEvent !== null;
+  const discover = (type: string, id: string) =>
+    `/families/${encodeURIComponent(familySlug)}/discover/${type}/${encodeURIComponent(id)}`;
 
   return (
     <main className="auth people" aria-labelledby="search-title">
@@ -44,6 +108,101 @@ export function SearchPage() {
             setTerm(event.target.value);
           }}
         />
+        {canSearchPeople && (
+          <fieldset>
+            <legend>People in every matching Photo</legend>
+            <label htmlFor="search-people">Find a Person</label>
+            <input
+              id="search-people"
+              value={personPrefix}
+              onChange={(event) => {
+                setPersonPrefix(event.target.value);
+              }}
+            />
+            {peopleSuggestions.data && peopleSuggestions.data.length > 0 && (
+              <ul aria-label="Person suggestions">
+                {peopleSuggestions.data
+                  .filter(
+                    (candidate) =>
+                      !selectedPeople.some(
+                        (selected) => selected.id === candidate.id,
+                      ),
+                  )
+                  .map((candidate) => (
+                    <li key={candidate.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPeople((current) => [
+                            ...current,
+                            candidate,
+                          ]);
+                          setPersonPrefix("");
+                        }}
+                      >
+                        Add {candidate.label}
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            )}
+            {selectedPeople.map((person) => (
+              <button
+                key={person.id}
+                type="button"
+                onClick={() => {
+                  setSelectedPeople((current) =>
+                    current.filter((item) => item.id !== person.id),
+                  );
+                }}
+              >
+                Remove {person.label}
+              </button>
+            ))}
+          </fieldset>
+        )}
+        {canSearchEvents && (
+          <fieldset>
+            <legend>Event</legend>
+            <label htmlFor="search-event">Find an Event</label>
+            <input
+              id="search-event"
+              value={eventPrefix}
+              onChange={(event) => {
+                setEventPrefix(event.target.value);
+              }}
+            />
+            {selectedEvent === null &&
+              eventSuggestions.data &&
+              eventSuggestions.data.length > 0 && (
+                <ul aria-label="Event suggestions">
+                  {eventSuggestions.data.map((candidate) => (
+                    <li key={candidate.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedEvent(candidate);
+                          setEventPrefix("");
+                        }}
+                      >
+                        Select {candidate.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            {selectedEvent && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedEvent(null);
+                }}
+              >
+                Remove {selectedEvent.label}
+              </button>
+            )}
+          </fieldset>
+        )}
         <label htmlFor="search-date-from">From</label>
         <input
           id="search-date-from"
@@ -63,121 +222,175 @@ export function SearchPage() {
             setDateTo(event.target.value);
           }}
         />
-        <button
-          type="submit"
-          disabled={term.trim() === "" && dateFrom === "" && dateTo === ""}
-        >
+        <button type="submit" disabled={!hasCriteria}>
           Search archive
         </button>
       </form>
 
-      {criteria === null && <p>Enter words, a date range, or both.</p>}
+      {criteria === null && <p>Enter words, filters, a date range, or both.</p>}
       {criteria !== null && loading && <p role="status">Searching…</p>}
       {criteria !== null && failed && (
         <p role="alert">The archive search could not be completed.</p>
       )}
       {criteria !== null && !loading && !failed && (
         <>
-          <section aria-labelledby="search-photos-title">
-            <h2 id="search-photos-title">Photos</h2>
-            {photoItems.length === 0 ? (
-              <p>No matching Photos.</p>
-            ) : (
-              <ul>
-                {photoItems.map((photo) => (
-                  <li key={photo.id}>
-                    <Link
-                      to={`/families/${encodeURIComponent(familySlug)}/photos/${photo.id}`}
-                    >
-                      {photo.caption ?? "Untitled Photo"}
-                    </Link>
-                    {photo.historical_date?.value && (
-                      <small>{photo.historical_date.value}</small>
-                    )}
-                    {photo.people.length > 0 && (
-                      <small>
-                        {photo.people
-                          .map((person) => person.preferred_name)
-                          .join(", ")}
-                      </small>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {photos.hasNextPage && (
-              <button
-                type="button"
-                disabled={photos.isFetchingNextPage}
-                onClick={() => void photos.fetchNextPage()}
-              >
-                More Photos
-              </button>
-            )}
-          </section>
+          {canSearchPeople && (
+            <ResultSection
+              title="People"
+              empty={peopleItems.length === 0}
+              more={<MoreButton label="People" query={people} />}
+            >
+              {peopleItems.map((person) => (
+                <li key={person.id}>
+                  <Link
+                    to={`/families/${encodeURIComponent(familySlug)}/people/${person.id}`}
+                  >
+                    {person.preferred_name}
+                  </Link>{" "}
+                  <Link to={discover("people", person.id)}>
+                    Explore related
+                  </Link>
+                </li>
+              ))}
+            </ResultSection>
+          )}
 
-          <section aria-labelledby="search-albums-title">
-            <h2 id="search-albums-title">Albums</h2>
-            {albumItems.length === 0 ? (
-              <p>No matching Albums.</p>
-            ) : (
-              <ul>
-                {albumItems.map((album) => (
-                  <li key={album.id}>
-                    <Link
-                      to={`/families/${encodeURIComponent(familySlug)}/albums/${album.id}`}
-                    >
-                      {album.name}
-                    </Link>
-                    {album.description && <small>{album.description}</small>}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {albums.hasNextPage && (
-              <button
-                type="button"
-                disabled={albums.isFetchingNextPage}
-                onClick={() => void albums.fetchNextPage()}
-              >
-                More Albums
-              </button>
-            )}
-          </section>
+          <ResultSection
+            title="Photos"
+            empty={photoItems.length === 0}
+            more={<MoreButton label="Photos" query={photos} />}
+          >
+            {photoItems.map((photo) => (
+              <li key={photo.id}>
+                <Link
+                  to={`/families/${encodeURIComponent(familySlug)}/photos/${photo.id}`}
+                >
+                  {photo.caption ?? "Untitled Photo"}
+                </Link>{" "}
+                <Link to={discover("photos", photo.id)}>Explore related</Link>
+                {photo.historical_date?.value && (
+                  <small>{photo.historical_date.value}</small>
+                )}
+                {photo.people.length > 0 && (
+                  <small>
+                    {photo.people
+                      .map((person) => person.preferred_name)
+                      .join(", ")}
+                  </small>
+                )}
+              </li>
+            ))}
+          </ResultSection>
 
-          <section aria-labelledby="search-stories-title">
-            <h2 id="search-stories-title">Stories</h2>
-            {storyItems.length === 0 ? (
-              <p>No matching Stories.</p>
-            ) : (
-              <ul>
-                {storyItems.map((story) => (
-                  <li key={story.id}>
-                    <Link
-                      to={`/families/${encodeURIComponent(familySlug)}/photos/${story.photo_id}`}
-                    >
-                      {story.photo_caption ?? "Story on an untitled Photo"}
-                    </Link>
-                    <p>{story.excerpt}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {stories.hasNextPage && (
-              <button
-                type="button"
-                disabled={stories.isFetchingNextPage}
-                onClick={() => void stories.fetchNextPage()}
-              >
-                More Stories
-              </button>
-            )}
-          </section>
+          <ResultSection
+            title="Albums"
+            empty={albumItems.length === 0}
+            more={<MoreButton label="Albums" query={albums} />}
+          >
+            {albumItems.map((album) => (
+              <li key={album.id}>
+                <Link
+                  to={`/families/${encodeURIComponent(familySlug)}/albums/${album.id}`}
+                >
+                  {album.name}
+                </Link>{" "}
+                <Link to={discover("albums", album.id)}>Explore related</Link>
+                {album.description && <small>{album.description}</small>}
+              </li>
+            ))}
+          </ResultSection>
+
+          {canSearchEvents && (
+            <ResultSection
+              title="Events"
+              empty={eventItems.length === 0}
+              more={<MoreButton label="Events" query={events} />}
+            >
+              {eventItems.map((familyEvent) => (
+                <li key={familyEvent.id}>
+                  <Link
+                    to={`/families/${encodeURIComponent(familySlug)}/events/${familyEvent.id}`}
+                  >
+                    {familyEvent.name}
+                  </Link>{" "}
+                  <Link to={discover("events", familyEvent.id)}>
+                    Explore related
+                  </Link>
+                  {familyEvent.location && (
+                    <small>{familyEvent.location}</small>
+                  )}
+                </li>
+              ))}
+            </ResultSection>
+          )}
+
+          <ResultSection
+            title="Stories"
+            empty={storyItems.length === 0}
+            more={<MoreButton label="Stories" query={stories} />}
+          >
+            {storyItems.map((story) => (
+              <li key={story.id}>
+                <Link
+                  to={`/families/${encodeURIComponent(familySlug)}/photos/${story.photo_id}`}
+                >
+                  {story.photo_caption ?? "Story on an untitled Photo"}
+                </Link>
+                <p>{story.excerpt}</p>
+              </li>
+            ))}
+          </ResultSection>
         </>
       )}
       <Link to={`/families/${encodeURIComponent(familySlug)}`}>
         Back to Family Space
       </Link>
     </main>
+  );
+}
+
+function ResultSection({
+  title,
+  empty,
+  more,
+  children,
+}: {
+  title: string;
+  empty: boolean;
+  more: ReactNode;
+  children: ReactNode;
+}) {
+  const id = `search-${title.toLowerCase()}-title`;
+
+  return (
+    <section aria-labelledby={id}>
+      <h2 id={id}>{title}</h2>
+      {empty ? <p>No matching {title}.</p> : <ul>{children}</ul>}
+      {more}
+    </section>
+  );
+}
+
+function MoreButton({
+  label,
+  query,
+}: {
+  label: string;
+  query: {
+    hasNextPage: boolean;
+    isFetchingNextPage: boolean;
+    fetchNextPage: () => Promise<unknown>;
+  };
+}) {
+  if (!query.hasNextPage) return null;
+
+  return (
+    <button
+      type="button"
+      disabled={query.isFetchingNextPage}
+      onClick={() => void query.fetchNextPage()}
+    >
+      More {label}
+    </button>
   );
 }

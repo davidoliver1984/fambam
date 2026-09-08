@@ -24,6 +24,7 @@ import { DuplicateReviewPage } from "./features/duplicates/pages/DuplicateReview
 import { FaceClustersPage } from "./features/face-recognition/pages/FaceClustersPage";
 import { FaceRecognitionReviewPage } from "./features/face-recognition/pages/FaceRecognitionReviewPage";
 import { SearchPage } from "./features/search/pages/SearchPage";
+import { DiscoveryPage } from "./features/search/pages/DiscoveryPage";
 
 function WelcomePage() {
   return (
@@ -71,6 +72,10 @@ export function App() {
         />
         <Route path="/families/:familySlug/photos" element={<PhotosPage />} />
         <Route path="/families/:familySlug/search" element={<SearchPage />} />
+        <Route
+          path="/families/:familySlug/discover/:type/:id"
+          element={<DiscoveryPage />}
+        />
         <Route
           path="/families/:familySlug/duplicates"
           element={<DuplicateReviewPage />}

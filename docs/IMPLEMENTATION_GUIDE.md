@@ -3795,6 +3795,23 @@ axis and every Discovery traversal added in this stage ships fully
 authorized from its first commit — none of this authorization work, nor
 Discovery's, is deferred to FPA-P11-S05.
 
+FPA-P11-S03 completed on 2026-09-08. People search now requires the
+existing directory gate; Event search and suggestions use an actor-aware,
+set-level visibility query; and combined Photo/Story filtering intersects
+only approved Person associations with Event and historical-date criteria.
+Autocomplete derives People, Albums, Events and tags from their authorized
+query boundaries. Functional Person, Photo, Album and Event Discovery
+endpoints traverse only independently visible related entities at every hop.
+The feature-owned React API and TanStack Query layer exposes Person/Event
+selection and related-memory navigation without raw identifier entry. Full
+local and PostgreSQL verification passed.
+
+### Commit boundary
+
+```text
+Implement relationship-aware search and discovery
+```
+
 ## FPA-P11-S04 — Implement saved searches with full integrity and Person-merge integration
 
 Add `saved_searches` and `saved_search_people` as ordinary Class C

@@ -16,11 +16,14 @@ class SearchArchiveRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'q' => ['nullable', 'string', 'max:200', 'required_without_all:date_from,date_to,tag_id'],
+            'q' => ['nullable', 'string', 'max:200', 'required_without_all:date_from,date_to,tag_id,person_ids,event_id'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
             'tag_id' => ['nullable', 'string', 'size:26'],
-            'group' => ['nullable', 'string', 'in:photos,albums,stories'],
+            'person_ids' => ['nullable', 'array', 'max:20'],
+            'person_ids.*' => ['string', 'size:26', 'distinct'],
+            'event_id' => ['nullable', 'string', 'size:26'],
+            'group' => ['nullable', 'string', 'in:people,photos,albums,events,stories'],
             'cursor' => [
                 'nullable',
                 'string',

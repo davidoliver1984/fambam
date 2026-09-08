@@ -5,10 +5,25 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router";
 
-import { searchArchive } from "../api/searchApi";
+import { getSearchSuggestions, searchArchive } from "../api/searchApi";
 import { SearchPage } from "./SearchPage";
 
-vi.mock("../api/searchApi", () => ({ searchArchive: vi.fn() }));
+vi.mock("@/features/family-spaces/hooks/useFamilySpaceQuery", () => ({
+  useFamilySpaceQuery: () => ({
+    data: {
+      id: "family-1",
+      slug: "family-archive",
+      name: "Family archive",
+      status: "active",
+      role: "owner",
+    },
+  }),
+}));
+vi.mock("../api/searchApi", () => ({
+  searchArchive: vi.fn(),
+  getSearchSuggestions: vi.fn(),
+  getDiscovery: vi.fn(),
+}));
 
 afterEach(() => {
   cleanup();
@@ -16,8 +31,21 @@ afterEach(() => {
 });
 
 describe("SearchPage", () => {
-  it("searches each result group through the feature query and renders typed links", async () => {
+  it("applies selected Person and Event filters and renders every typed group", async () => {
+    vi.mocked(getSearchSuggestions).mockImplementation((_family, type) =>
+      Promise.resolve(
+        type === "people"
+          ? [{ id: "person-1", label: "David" }]
+          : [{ id: "event-1", label: "Beach holiday" }],
+      ),
+    );
     vi.mocked(searchArchive).mockImplementation((_family, group) => {
+      if (group === "people") {
+        return Promise.resolve({
+          items: [{ id: "person-1", preferred_name: "David" }],
+          next_cursor: null,
+        });
+      }
       if (group === "photos") {
         return Promise.resolve({
           items: [
@@ -42,7 +70,22 @@ describe("SearchPage", () => {
               name: "Beach days",
               description: null,
               visibility: "family_space",
-              event_id: null,
+              event_id: "event-1",
+            },
+          ],
+          next_cursor: null,
+        });
+      }
+      if (group === "events") {
+        return Promise.resolve({
+          items: [
+            {
+              id: "event-1",
+              name: "Beach holiday",
+              description: null,
+              location: "Cornwall",
+              starts_on: "2026-08-01",
+              ends_on: "2026-08-08",
             },
           ],
           next_cursor: null,
@@ -76,7 +119,12 @@ describe("SearchPage", () => {
     );
 
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText("Words or names"), "beach");
+    await user.type(screen.getByLabelText("Find a Person"), "Dav");
+    await user.click(await screen.findByRole("button", { name: "Add David" }));
+    await user.type(screen.getByLabelText("Find an Event"), "Beach");
+    await user.click(
+      await screen.findByRole("button", { name: "Select Beach holiday" }),
+    );
     await user.click(screen.getByRole("button", { name: "Search archive" }));
 
     expect(
@@ -86,7 +134,22 @@ describe("SearchPage", () => {
       "href",
       "/families/family-archive/albums/album-1",
     );
+    expect(screen.getByRole("link", { name: "David" })).toHaveAttribute(
+      "href",
+      "/families/family-archive/people/person-1",
+    );
+    expect(screen.getByRole("link", { name: "Beach holiday" })).toHaveAttribute(
+      "href",
+      "/families/family-archive/events/event-1",
+    );
     expect(screen.getByText("A day by the sea")).toBeInTheDocument();
-    expect(searchArchive).toHaveBeenCalledTimes(3);
+    expect(searchArchive).toHaveBeenCalledTimes(5);
+    expect(searchArchive).toHaveBeenCalledWith(
+      "family-archive",
+      "photos",
+      { person_ids: ["person-1"], event_id: "event-1" },
+      null,
+      expect.any(AbortSignal),
+    );
   });
 });

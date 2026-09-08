@@ -2,13 +2,19 @@
 
 namespace App\Search;
 
+use App\Models\Photo;
 use App\Models\PhotoStory;
 use App\Models\User;
 use App\Queries\AlbumQuery;
+use App\Queries\FamilyEventQuery;
+use App\Queries\PersonQuery;
 use App\Queries\PhotoQuery;
 use App\Search\Summaries\AlbumSearchSummary;
+use App\Search\Summaries\EventSearchSummary;
+use App\Search\Summaries\PersonSearchSummary;
 use App\Search\Summaries\PhotoSearchSummary;
 use App\Search\Summaries\PhotoStorySearchSummary;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -18,8 +24,33 @@ final class DatabaseSearchService implements SearchService
     public function __construct(
         private readonly PhotoQuery $photos,
         private readonly AlbumQuery $albums,
+        private readonly PersonQuery $people,
+        private readonly FamilyEventQuery $events,
         private readonly SearchCursorCodec $cursors,
     ) {}
+
+    public function people(SearchQuery $query, User $actor): SearchPage
+    {
+        $term = $this->term($query->term);
+        if ($term === null) {
+            return new SearchPage([], null);
+        }
+        $base = $this->people->forCurrentFamilySpace()->setEagerLoads([])->select([
+            'people.id', 'people.preferred_name', 'people.alternate_names', 'people.identity_status',
+        ]);
+        [$matchClass, $classBindings, $score, $scoreBindings, $matches, $matchBindings] =
+            $this->simpleExpressions('people', ['preferred_name', 'alternate_names'], 'preferred_name', $term);
+        $base->whereRaw($matches, $matchBindings)
+            ->selectRaw("{$matchClass} AS match_class", $classBindings)
+            ->selectRaw("{$score} AS match_score", $scoreBindings)
+            ->selectRaw('LOWER(people.preferred_name) AS sort_tie');
+        $page = $this->page('people', $base->toBase(), $query, 'sort_tie', 'asc');
+
+        return new SearchPage(array_map(fn (array $row): PersonSearchSummary => new PersonSearchSummary(
+            $row['id'],
+            $row['preferred_name'],
+        ), $page['rows']), $page['next_cursor']);
+    }
 
     public function photos(SearchQuery $query, User $actor): SearchPage
     {
@@ -28,31 +59,7 @@ final class DatabaseSearchService implements SearchService
             'photos.id', 'photos.media_upload_id', 'photos.caption', 'photos.description',
             'photos.location_description', 'photos.historical_date', 'photos.historical_date_precision',
         ]);
-        if ($query->tagId !== null) {
-            $base->whereHas('tags', fn ($tags) => $tags->where('tags.id', $query->tagId));
-        }
-        if ($query->dateFrom !== null || $query->dateTo !== null) {
-            $base->whereNotNull('photos.historical_date')->whereNotIn(
-                'photos.historical_date_precision',
-                ['unknown'],
-            );
-            if (DB::getDriverName() === 'pgsql') {
-                if ($query->dateFrom !== null) {
-                    $base->whereDate('photos.historical_date_window_end', '>=', $query->dateFrom);
-                }
-                if ($query->dateTo !== null) {
-                    $base->whereDate('photos.historical_date', '<=', $query->dateTo);
-                }
-            } else {
-                $windowEnd = $this->sqliteWindowEnd();
-                if ($query->dateFrom !== null) {
-                    $base->whereRaw("{$windowEnd} >= ?", [$query->dateFrom]);
-                }
-                if ($query->dateTo !== null) {
-                    $base->whereDate('photos.historical_date', '<=', $query->dateTo);
-                }
-            }
-        }
+        $this->applyPhotoFilters($base, $query);
 
         [$matchClass, $classBindings, $score, $scoreBindings, $matches, $matchBindings] =
             $this->photoExpressions($term);
@@ -83,16 +90,27 @@ final class DatabaseSearchService implements SearchService
     public function albums(SearchQuery $query, User $actor): SearchPage
     {
         $term = $this->term($query->term);
-        if ($term === null) {
+        if ($term === null && $query->eventId === null && $query->personIds === []) {
             return new SearchPage([], null);
         }
         $base = $this->albums->visibleTo($actor)->setEagerLoads([])->select([
             'albums.id', 'albums.name', 'albums.description', 'albums.visibility', 'albums.event_id',
         ]);
+        if ($query->eventId !== null) {
+            $base->where('albums.event_id', $query->eventId);
+        }
+        foreach ($query->personIds as $personId) {
+            $base->whereHas('photos.photoPeople', fn (EloquentBuilder $people) => $people
+                ->where('person_id', $personId)->where('status', 'approved'));
+        }
         [$matchClass, $classBindings, $score, $scoreBindings, $matches, $matchBindings] =
-            $this->simpleExpressions('albums', ['name', 'description'], 'name', $term);
-        $base->whereRaw($matches, $matchBindings)
-            ->selectRaw("{$matchClass} AS match_class", $classBindings)
+            $this->simpleExpressions('albums', ['name', 'description'], 'name', $term ?? '');
+        if ($term !== null) {
+            $base->whereRaw($matches, $matchBindings);
+        } else {
+            [$matchClass, $classBindings, $score, $scoreBindings] = ['0', [], '0', []];
+        }
+        $base->selectRaw("{$matchClass} AS match_class", $classBindings)
             ->selectRaw("{$score} AS match_score", $scoreBindings)
             ->selectRaw('LOWER(albums.name) AS sort_tie');
         $page = $this->page('albums', $base->toBase(), $query, 'sort_tie', 'asc');
@@ -109,10 +127,13 @@ final class DatabaseSearchService implements SearchService
     public function stories(SearchQuery $query, User $actor): SearchPage
     {
         $term = $this->term($query->term);
-        if ($term === null) {
+        if ($term === null && $query->tagId === null && $query->personIds === []
+            && $query->eventId === null && $query->dateFrom === null && $query->dateTo === null) {
             return new SearchPage([], null);
         }
-        $visiblePhotoIds = $this->photos->visibleTo($actor)->setEagerLoads([])->select('photos.id');
+        $visiblePhotos = $this->photos->visibleTo($actor)->setEagerLoads([]);
+        $this->applyPhotoFilters($visiblePhotos, $query);
+        $visiblePhotoIds = $visiblePhotos->select('photos.id');
         $base = PhotoStory::query()
             ->whereIn('photo_stories.photo_id', $visiblePhotoIds)
             ->join('photos', function ($join): void {
@@ -124,9 +145,13 @@ final class DatabaseSearchService implements SearchService
                 'photo_stories.created_at', 'photos.media_upload_id', 'photos.caption as photo_caption',
             ]);
         [$matchClass, $classBindings, $score, $scoreBindings, $matches, $matchBindings] =
-            $this->simpleExpressions('photo_stories', ['body'], null, $term);
-        $base->whereRaw($matches, $matchBindings)
-            ->selectRaw("{$matchClass} AS match_class", $classBindings)
+            $this->simpleExpressions('photo_stories', ['body'], null, $term ?? '');
+        if ($term !== null) {
+            $base->whereRaw($matches, $matchBindings);
+        } else {
+            [$matchClass, $classBindings, $score, $scoreBindings] = ['0', [], '0', []];
+        }
+        $base->selectRaw("{$matchClass} AS match_class", $classBindings)
             ->selectRaw("{$score} AS match_score", $scoreBindings)
             ->selectRaw($this->storyTieBreaker().' AS sort_tie');
         $page = $this->page('stories', $base->toBase(), $query, 'sort_tie', 'desc');
@@ -139,6 +164,119 @@ final class DatabaseSearchService implements SearchService
             Str::limit(trim((string) $row['body']), 240),
             (string) $row['created_at'],
         ), $page['rows']), $page['next_cursor']);
+    }
+
+    public function events(SearchQuery $query, User $actor): SearchPage
+    {
+        $term = $this->term($query->term);
+        $base = $this->events->visibleTo($actor)->select([
+            'events.id', 'events.name', 'events.description', 'events.location', 'events.starts_on', 'events.ends_on',
+        ]);
+        if ($query->eventId !== null) {
+            $base->where('events.id', $query->eventId);
+        }
+        foreach ($query->personIds as $personId) {
+            $base->where(function (EloquentBuilder $event) use ($personId): void {
+                $event->whereHas('primaryPhotos.photoPeople', fn (EloquentBuilder $people) => $people
+                    ->where('person_id', $personId)->where('status', 'approved'))
+                    ->orWhereHas('albums.photos.photoPeople', fn (EloquentBuilder $people) => $people
+                        ->where('person_id', $personId)->where('status', 'approved'));
+            });
+        }
+        if ($query->dateFrom !== null) {
+            $base->where(function (EloquentBuilder $events) use ($query): void {
+                $events->whereDate('events.ends_on', '>=', $query->dateFrom)
+                    ->orWhere(function (EloquentBuilder $singleDay) use ($query): void {
+                        $singleDay->whereNull('ends_on')->whereDate('events.starts_on', '>=', $query->dateFrom);
+                    });
+            });
+        }
+        if ($query->dateTo !== null) {
+            $base->whereDate('events.starts_on', '<=', $query->dateTo);
+        }
+        [$matchClass, $classBindings, $score, $scoreBindings, $matches, $matchBindings] =
+            $this->simpleExpressions('events', ['name', 'description', 'location'], 'name', $term ?? '');
+        if ($term !== null) {
+            $base->whereRaw($matches, $matchBindings);
+        } else {
+            [$matchClass, $classBindings, $score, $scoreBindings] = ['0', [], '0', []];
+        }
+        $base->selectRaw("{$matchClass} AS match_class", $classBindings)
+            ->selectRaw("{$score} AS match_score", $scoreBindings)
+            ->selectRaw($this->eventTieBreaker().' AS sort_tie');
+        $page = $this->page('events', $base->toBase(), $query, 'sort_tie', 'asc');
+
+        return new SearchPage(array_map(fn (array $row): EventSearchSummary => new EventSearchSummary(
+            $row['id'],
+            $row['name'],
+            $row['description'],
+            $row['location'],
+            $row['starts_on'] === null ? null : substr((string) $row['starts_on'], 0, 10),
+            $row['ends_on'] === null ? null : substr((string) $row['ends_on'], 0, 10),
+        ), $page['rows']), $page['next_cursor']);
+    }
+
+    public function suggest(string $type, string $prefix, User $actor): array
+    {
+        $prefix = mb_strtolower(trim($prefix)).'%';
+        $query = match ($type) {
+            'people' => $this->people->forCurrentFamilySpace()->setEagerLoads([])
+                ->whereRaw('LOWER(preferred_name) LIKE ?', [$prefix])
+                ->select(['id', 'preferred_name as label']),
+            'albums' => $this->albums->visibleTo($actor)->setEagerLoads([])
+                ->whereRaw('LOWER(name) LIKE ?', [$prefix])->select(['id', 'name as label']),
+            'events' => $this->events->visibleTo($actor)
+                ->whereRaw('LOWER(name) LIKE ?', [$prefix])->select(['id', 'name as label']),
+            'tags' => DB::table('tags')->whereIn('id', $this->visibleTagIds($actor))
+                ->whereRaw('LOWER(label) LIKE ?', [$prefix])->select(['id', 'label']),
+            default => throw new \InvalidArgumentException('Unsupported search suggestion type.'),
+        };
+
+        return $query->orderBy('label')->orderBy('id')->limit(8)->get()
+            ->map(fn ($row): array => ['id' => (string) $row->id, 'label' => (string) $row->label])
+            ->all();
+    }
+
+    /** @param EloquentBuilder<Photo> $base */
+    private function applyPhotoFilters(EloquentBuilder $base, SearchQuery $query): void
+    {
+        if ($query->tagId !== null) {
+            $base->whereHas('tags', fn (EloquentBuilder $tags) => $tags->where('tags.id', $query->tagId));
+        }
+        foreach ($query->personIds as $personId) {
+            $base->whereHas('photoPeople', fn (EloquentBuilder $people) => $people
+                ->where('person_id', $personId)->where('status', 'approved'));
+        }
+        if ($query->eventId !== null) {
+            $base->where(function (EloquentBuilder $photos) use ($query): void {
+                $photos->where('primary_event_id', $query->eventId)
+                    ->orWhereHas('albums', fn (EloquentBuilder $albums) => $albums
+                        ->where('albums.event_id', $query->eventId));
+            });
+        }
+        if ($query->dateFrom === null && $query->dateTo === null) {
+            return;
+        }
+        $base->whereNotNull('photos.historical_date')
+            ->whereNotIn('photos.historical_date_precision', ['unknown']);
+        if (DB::getDriverName() === 'pgsql') {
+            if ($query->dateFrom !== null) {
+                $base->whereDate('photos.historical_date_window_end', '>=', $query->dateFrom);
+            }
+        } elseif ($query->dateFrom !== null) {
+            $base->whereRaw($this->sqliteWindowEnd().' >= ?', [$query->dateFrom]);
+        }
+        if ($query->dateTo !== null) {
+            $base->whereDate('photos.historical_date', '<=', $query->dateTo);
+        }
+    }
+
+    private function visibleTagIds(User $actor): Builder
+    {
+        return DB::table('photo_tag')->whereIn(
+            'photo_id',
+            $this->photos->visibleTo($actor)->setEagerLoads([])->select('photos.id'),
+        )->select('tag_id');
     }
 
     /**
@@ -312,6 +450,13 @@ final class DatabaseSearchService implements SearchService
         return DB::getDriverName() === 'pgsql'
             ? "COALESCE(photo_stories.created_at::text, '0001-01-01')"
             : "COALESCE(photo_stories.created_at, '0001-01-01')";
+    }
+
+    private function eventTieBreaker(): string
+    {
+        return DB::getDriverName() === 'pgsql'
+            ? "COALESCE(events.starts_on::text, '9999-12-31')"
+            : "COALESCE(events.starts_on, '9999-12-31')";
     }
 
     private function dateValue(string $date, ?string $precision): ?string
