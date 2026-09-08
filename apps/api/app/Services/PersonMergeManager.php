@@ -92,6 +92,7 @@ class PersonMergeManager
             );
             $this->reconcilePhotoProvenance($lockedAbsorbed, $lockedSurvivor, $actor);
             $this->reconcileFaceIdentity($lockedAbsorbed, $lockedSurvivor, $actor);
+            $this->reconcileSavedSearchPeople($lockedAbsorbed, $lockedSurvivor);
             $lockedAbsorbed->delete();
 
             $merge = PersonMerge::query()->create([
@@ -527,6 +528,28 @@ class PersonMergeManager
         }
     }
 
+    private function reconcileSavedSearchPeople(Person $absorbed, Person $survivor): void
+    {
+        $references = DB::table('saved_search_people')
+            ->where('person_id', $absorbed->id)->orderBy('saved_search_id')->lockForUpdate()->get();
+        foreach ($references as $reference) {
+            $collision = DB::table('saved_search_people')
+                ->where('saved_search_id', $reference->saved_search_id)
+                ->where('person_id', $survivor->id)
+                ->lockForUpdate()->exists();
+            if ($collision) {
+                DB::table('saved_search_people')
+                    ->where('saved_search_id', $reference->saved_search_id)
+                    ->where('person_id', $absorbed->id)->delete();
+            } else {
+                DB::table('saved_search_people')
+                    ->where('saved_search_id', $reference->saved_search_id)
+                    ->where('person_id', $absorbed->id)
+                    ->update(['person_id' => $survivor->id]);
+            }
+        }
+    }
+
     /** @return array<string, mixed> */
     private function captureState(string $absorbedId, string $survivorId, bool $lock = false): array
     {
@@ -566,6 +589,8 @@ class PersonMergeManager
         $photoPersonQuery = PhotoPerson::query()->whereIn('person_id', $personIds)->orderBy('id');
         $faceAssignmentQuery = FaceIdentityAssignment::query()->whereIn('person_id', $personIds)->orderBy('id');
         $faceSuppressionQuery = FaceIdentitySuppression::query()->whereIn('person_id', $personIds)->orderBy('id');
+        $savedSearchPeopleQuery = DB::table('saved_search_people')
+            ->whereIn('person_id', $personIds)->orderBy('saved_search_id')->orderBy('person_id');
         if ($lock) {
             $proposalQuery->lockForUpdate();
             $circleQuery->lockForUpdate();
@@ -575,6 +600,7 @@ class PersonMergeManager
             $photoPersonQuery->lockForUpdate();
             $faceAssignmentQuery->lockForUpdate();
             $faceSuppressionQuery->lockForUpdate();
+            $savedSearchPeopleQuery->lockForUpdate();
         }
 
         return [
@@ -590,6 +616,8 @@ class PersonMergeManager
                 ->map($this->faceIdentityAssignmentSnapshot(...))->values()->all(),
             'face_identity_suppressions' => $faceSuppressionQuery->get()
                 ->map($this->faceIdentitySuppressionSnapshot(...))->values()->all(),
+            'saved_search_people' => $savedSearchPeopleQuery->get()
+                ->map(fn ($row): array => (array) $row)->values()->all(),
         ];
     }
 
@@ -834,6 +862,13 @@ class PersonMergeManager
         $faceSuppressions = $before['face_identity_suppressions'] ?? [];
         foreach ($faceSuppressions as $row) {
             DB::table('face_identity_suppressions')->insert($row);
+        }
+
+        DB::table('saved_search_people')->whereIn('person_id', $personIds)->delete();
+        /** @var list<array<string, mixed>> $savedSearchPeople */
+        $savedSearchPeople = $before['saved_search_people'] ?? [];
+        foreach ($savedSearchPeople as $row) {
+            DB::table('saved_search_people')->insert($row);
         }
     }
 

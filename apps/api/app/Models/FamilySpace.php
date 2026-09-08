@@ -83,6 +83,12 @@ class FamilySpace extends Model
         return $this->hasMany(FamilyCircle::class);
     }
 
+    /** @return HasMany<SavedSearch, $this> */
+    public function savedSearches(): HasMany
+    {
+        return $this->hasMany(SavedSearch::class);
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {

@@ -23,6 +23,11 @@ vi.mock("../api/searchApi", () => ({
   searchArchive: vi.fn(),
   getSearchSuggestions: vi.fn(),
   getDiscovery: vi.fn(),
+  getSavedSearches: vi.fn().mockResolvedValue([]),
+  createSavedSearch: vi.fn(),
+  updateSavedSearch: vi.fn(),
+  deleteSavedSearch: vi.fn(),
+  runSavedSearch: vi.fn(),
 }));
 
 afterEach(() => {
@@ -34,9 +39,13 @@ describe("SearchPage", () => {
   it("applies selected Person and Event filters and renders every typed group", async () => {
     vi.mocked(getSearchSuggestions).mockImplementation((_family, type) =>
       Promise.resolve(
-        type === "people"
-          ? [{ id: "person-1", label: "David" }]
-          : [{ id: "event-1", label: "Beach holiday" }],
+        {
+          people: [{ id: "person-1", label: "David" }],
+          events: [{ id: "event-1", label: "Beach holiday" }],
+          albums: [{ id: "album-1", label: "Beach days" }],
+          tags: [{ id: "tag-1", label: "Summer" }],
+          uploaders: [{ id: "42", label: "Alex" }],
+        }[type],
       ),
     );
     vi.mocked(searchArchive).mockImplementation((_family, group) => {
@@ -125,6 +134,19 @@ describe("SearchPage", () => {
     await user.click(
       await screen.findByRole("button", { name: "Select Beach holiday" }),
     );
+    await user.type(screen.getByLabelText("Find an Album"), "Beach");
+    await user.click(
+      await screen.findByRole("button", { name: "Select Beach days" }),
+    );
+    await user.type(screen.getByLabelText("Find a tag"), "Sum");
+    await user.click(
+      await screen.findByRole("button", { name: "Select Summer" }),
+    );
+    await user.type(screen.getByLabelText("Find an uploader"), "Ale");
+    await user.click(
+      await screen.findByRole("button", { name: "Select Alex" }),
+    );
+    await user.selectOptions(screen.getByLabelText("Visibility"), "selected");
     await user.click(screen.getByRole("button", { name: "Search archive" }));
 
     expect(
@@ -147,7 +169,14 @@ describe("SearchPage", () => {
     expect(searchArchive).toHaveBeenCalledWith(
       "family-archive",
       "photos",
-      { person_ids: ["person-1"], event_id: "event-1" },
+      {
+        person_ids: ["person-1"],
+        event_id: "event-1",
+        album_id: "album-1",
+        tag_id: "tag-1",
+        uploaded_by: 42,
+        visibility: "selected",
+      },
       null,
       expect.any(AbortSignal),
     );

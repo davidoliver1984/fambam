@@ -3833,6 +3833,23 @@ already references both the absorbed and surviving Person — this
 integration ships atomically with `saved_search_people`, never deferred
 to FPA-P11-S05.
 
+FPA-P11-S04 completed on 2026-09-08. Search now supports authorized Album,
+tag, uploader and visibility filters alongside the existing Person, Event and
+historical-date criteria. Creator-private saved searches persist a versioned,
+normalized filter shape while keeping Person references relational; every run
+revalidates current access. The new forced-RLS tables use tenant-consistent
+composite relationships, participate in explicit Family Space teardown, and
+are captured and reconciled atomically by Person merge and guarded reversal.
+The feature-owned React API and TanStack Query layer provides functional save,
+run, replace and delete controls. Persistent and disposable PostgreSQL
+migrations and the complete verification suite passed.
+
+### Commit boundary
+
+```text
+Implement combined filters and saved views
+```
+
 ## FPA-P11-S05 — Add performance, ranking, and authorization-leak regression tests
 
 Add indexing/performance evidence against the projected pilot library

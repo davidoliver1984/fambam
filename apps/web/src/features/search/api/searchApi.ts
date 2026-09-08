@@ -1,4 +1,4 @@
-import { apiClient } from "@/api/client";
+import { apiClient, ensureCsrfCookie } from "@/api/client";
 import { type ApiEnvelope, unwrap } from "@/api/envelope";
 
 import type {
@@ -8,6 +8,8 @@ import type {
   SearchPage,
   SearchSuggestion,
   SearchSuggestionType,
+  SavedSearch,
+  SavedSearchInput,
 } from "../types/search";
 
 type SearchResponse<Group extends SearchGroup> = {
@@ -63,4 +65,80 @@ export async function getDiscovery(
       { signal },
     ),
   );
+}
+
+export async function getSavedSearches(
+  familySlug: string,
+  signal?: AbortSignal,
+): Promise<SavedSearch[]> {
+  return unwrap(
+    await apiClient.get<ApiEnvelope<SavedSearch[]>>(
+      `/api/families/${encodeURIComponent(familySlug)}/saved-searches`,
+      { signal },
+    ),
+  );
+}
+
+export async function createSavedSearch(
+  familySlug: string,
+  input: SavedSearchInput,
+): Promise<SavedSearch> {
+  await ensureCsrfCookie();
+
+  return unwrap(
+    await apiClient.post<ApiEnvelope<SavedSearch>>(
+      `/api/families/${encodeURIComponent(familySlug)}/saved-searches`,
+      input,
+    ),
+  );
+}
+
+export async function updateSavedSearch(
+  familySlug: string,
+  id: string,
+  input: SavedSearchInput,
+): Promise<SavedSearch> {
+  await ensureCsrfCookie();
+
+  return unwrap(
+    await apiClient.put<ApiEnvelope<SavedSearch>>(
+      `/api/families/${encodeURIComponent(familySlug)}/saved-searches/${encodeURIComponent(id)}`,
+      input,
+    ),
+  );
+}
+
+export async function deleteSavedSearch(
+  familySlug: string,
+  id: string,
+): Promise<void> {
+  await ensureCsrfCookie();
+
+  await apiClient.delete(
+    `/api/families/${encodeURIComponent(familySlug)}/saved-searches/${encodeURIComponent(id)}`,
+  );
+}
+
+export async function runSavedSearch<Group extends SearchGroup>(
+  familySlug: string,
+  id: string,
+  group: Group,
+  cursor: string | null,
+  signal?: AbortSignal,
+): Promise<SearchPage<Group>> {
+  const response = unwrap(
+    await apiClient.get<ApiEnvelope<SearchResponse<Group>>>(
+      `/api/families/${encodeURIComponent(familySlug)}/saved-searches/${encodeURIComponent(id)}/results`,
+      {
+        params: {
+          group,
+          limit: 12,
+          ...(cursor === null ? {} : { cursor }),
+        },
+        signal,
+      },
+    ),
+  );
+
+  return response[group];
 }

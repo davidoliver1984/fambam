@@ -16,6 +16,7 @@ use App\Models\Person;
 use App\Models\Photo;
 use App\Models\PhotoMetadataProposal;
 use App\Models\PhotoPerson;
+use App\Models\SavedSearch;
 use App\Models\Tag;
 use App\Models\User;
 use App\Services\FamilySpaceDeletionManager;
@@ -154,6 +155,12 @@ class FamilySpaceDeletionTest extends TestCase
             'created_at' => now(),
         ]);
         $person = Person::factory()->create(['family_space_id' => $familySpace->id]);
+        SavedSearch::query()->create([
+            'family_space_id' => $familySpace->id,
+            'created_by' => $owner->id,
+            'name' => 'Family memories',
+            'filters' => ['schema_version' => 1, 'q' => 'family'],
+        ])->people()->attach($person->id, ['family_space_id' => $familySpace->id]);
         PhotoMetadataProposal::query()->create([
             'family_space_id' => $familySpace->id,
             'photo_id' => $photo->id,
@@ -204,6 +211,8 @@ class FamilySpaceDeletionTest extends TestCase
         $this->assertDatabaseMissing('photo_metadata_proposals', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('photo_people', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('tags', ['family_space_id' => $familySpace->id]);
+        $this->assertDatabaseMissing('saved_searches', ['family_space_id' => $familySpace->id]);
+        $this->assertDatabaseMissing('saved_search_people', ['family_space_id' => $familySpace->id]);
         $this->assertSame([$familySpace->id], $this->mediaCleaner->familySpaceIds);
         $this->assertDatabaseHas('audit_events', [
             'family_space_id' => $familySpace->id,

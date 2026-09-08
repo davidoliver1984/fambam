@@ -98,6 +98,13 @@ class SearchHttpTest extends TestCase
             ->assertJsonPath('data.photos.items.0.id', $photo->id)
             ->assertJsonPath('data.photos.items.0.people.0.id', $person->id)
             ->assertJsonPath('data.photos.items.0.people.0.preferred_name', 'David Archive');
+
+        $this->actingAs($member)
+            ->getJson("/api/families/{$family->slug}/search?tag_id={$tag->id}")
+            ->assertOk()
+            ->assertJsonPath('data.photos.items.0.id', $photo->id)
+            ->assertJsonCount(0, 'data.albums.items')
+            ->assertJsonCount(0, 'data.events.items');
     }
 
     public function test_historical_windows_overlap_and_unknown_dates_never_use_created_at(): void

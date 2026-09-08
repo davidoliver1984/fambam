@@ -126,6 +126,9 @@ class SearchRelationshipHttpTest extends TestCase
         $companion = Person::factory()->create(['family_space_id' => $family->id, 'preferred_name' => 'Susan']);
         $visible = $this->photo($family, $owner, 'Beach photograph', '1990-01-01', 'exact', $event->id);
         $hidden = $this->photo($family, $owner, 'Private photograph', '1990-01-01', 'exact', null, PhotoVisibility::Private);
+        $owner->update(['name' => 'Beach Uploader']);
+        $hiddenUploader = User::factory()->create(['name' => 'Secret Uploader']);
+        MediaUpload::query()->whereKey($hidden->media_upload_id)->update(['user_id' => $hiddenUploader->id]);
         $album->photos()->attach($visible->id, [
             'id' => (string) Str::ulid(), 'family_space_id' => $family->id, 'position' => 1, 'added_by' => $owner->id,
         ]);
@@ -157,6 +160,12 @@ class SearchRelationshipHttpTest extends TestCase
         $this->actingAs($member)
             ->getJson("/api/families/{$family->slug}/search/suggestions?type=events&prefix=Bea")
             ->assertOk()->assertJsonPath('data.0.id', $event->id);
+        $this->actingAs($member)
+            ->getJson("/api/families/{$family->slug}/search/suggestions?type=uploaders&prefix=Bea")
+            ->assertOk()->assertJsonPath('data.0.id', (string) $owner->id);
+        $this->actingAs($member)
+            ->getJson("/api/families/{$family->slug}/search/suggestions?type=uploaders&prefix=Sec")
+            ->assertOk()->assertJsonCount(0, 'data');
         $this->actingAs($contributor)
             ->getJson("/api/families/{$family->slug}/search/suggestions?type=people&prefix=Dav")
             ->assertForbidden();

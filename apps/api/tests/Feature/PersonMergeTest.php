@@ -23,6 +23,7 @@ use App\Models\Photo;
 use App\Models\PhotoPerson;
 use App\Models\PhotoProvenanceProposal;
 use App\Models\RelationshipProposal;
+use App\Models\SavedSearch;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,6 +32,48 @@ use Tests\TestCase;
 class PersonMergeTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_merge_and_guarded_reversal_reconcile_saved_search_person_collisions(): void
+    {
+        [$family, $owner] = $this->familyWithRole(FamilySpaceRole::Owner, 'saved-search-merge');
+        $survivor = $this->person($family, 'Survivor');
+        $absorbed = $this->person($family, 'Duplicate');
+        $single = SavedSearch::query()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $owner->id,
+            'name' => 'Single reference',
+            'filters' => ['schema_version' => 1, 'q' => 'family'],
+        ]);
+        $collision = SavedSearch::query()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $owner->id,
+            'name' => 'Both references',
+            'filters' => ['schema_version' => 1, 'q' => 'family'],
+        ]);
+        $single->people()->attach($absorbed->id, ['family_space_id' => $family->id]);
+        $collision->people()->attach($absorbed->id, ['family_space_id' => $family->id]);
+        $collision->people()->attach($survivor->id, ['family_space_id' => $family->id]);
+
+        $mergeId = $this->actingAs($owner)
+            ->postJson("/api/families/{$family->slug}/people/{$absorbed->id}/merge", [
+                'survivor_person_id' => $survivor->id,
+            ])->assertCreated()->json('data.id');
+
+        $this->assertDatabaseMissing('saved_search_people', ['person_id' => $absorbed->id]);
+        $this->assertSame(1, $this->getConnection()->table('saved_search_people')
+            ->where('saved_search_id', $collision->id)->count());
+        $before = PersonMerge::query()->findOrFail($mergeId)->provenance['before'];
+        $this->assertCount(3, $before['saved_search_people']);
+
+        $this->actingAs($owner)
+            ->postJson("/api/families/{$family->slug}/person-merges/{$mergeId}/reverse")
+            ->assertOk();
+        $this->assertDatabaseHas('saved_search_people', [
+            'saved_search_id' => $single->id, 'person_id' => $absorbed->id,
+        ]);
+        $this->assertSame(2, $this->getConnection()->table('saved_search_people')
+            ->where('saved_search_id', $collision->id)->count());
+    }
 
     public function test_merge_keeps_a_tombstone_and_atomically_reconciles_phase_four_references(): void
     {

@@ -19,6 +19,7 @@ use App\Models\Invitation;
 use App\Models\MediaUpload;
 use App\Models\Person;
 use App\Models\Photo;
+use App\Models\SavedSearch;
 use App\Models\Tag;
 use App\Models\User;
 use App\Tenancy\DatabaseTenantContext;
@@ -164,6 +165,9 @@ class FamilySpaceDeletionManager
                 ->where('family_space_id', $familySpace->id)
                 ->delete();
             FaceClusterGeneration::query()
+                ->where('family_space_id', $familySpace->id)
+                ->delete();
+            SavedSearch::query()
                 ->where('family_space_id', $familySpace->id)
                 ->delete();
             MediaUpload::query()

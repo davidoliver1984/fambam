@@ -24,6 +24,7 @@ use App\Http\Controllers\PersonMergeController;
 use App\Http\Controllers\PhotoController;
 use App\Http\Controllers\PhotoConversationController;
 use App\Http\Controllers\RelationshipController;
+use App\Http\Controllers\SavedSearchController;
 use App\Http\Controllers\SearchController;
 use Aws\Sqs\SqsClient;
 use Illuminate\Http\JsonResponse;
@@ -56,6 +57,11 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::get('/', [FamilySpaceController::class, 'show']);
         Route::get('/search', [SearchController::class, 'index']);
         Route::get('/search/suggestions', [SearchController::class, 'suggestions']);
+        Route::get('/saved-searches', [SavedSearchController::class, 'index']);
+        Route::post('/saved-searches', [SavedSearchController::class, 'store']);
+        Route::put('/saved-searches/{savedSearch}', [SavedSearchController::class, 'update']);
+        Route::delete('/saved-searches/{savedSearch}', [SavedSearchController::class, 'destroy']);
+        Route::get('/saved-searches/{savedSearch}/results', [SavedSearchController::class, 'run']);
         Route::get('/discover/{type}/{id}', [DiscoveryController::class, 'show'])
             ->whereIn('type', ['people', 'photos', 'albums', 'events']);
         Route::post('/deletion', [FamilySpaceController::class, 'requestDeletion']);

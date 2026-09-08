@@ -90,7 +90,8 @@ final class DatabaseSearchService implements SearchService
     public function albums(SearchQuery $query, User $actor): SearchPage
     {
         $term = $this->term($query->term);
-        if ($term === null && $query->eventId === null && $query->personIds === []) {
+        if ($term === null && $query->eventId === null && $query->albumId === null
+            && $query->personIds === [] && $query->visibility === null) {
             return new SearchPage([], null);
         }
         $base = $this->albums->visibleTo($actor)->setEagerLoads([])->select([
@@ -98,6 +99,12 @@ final class DatabaseSearchService implements SearchService
         ]);
         if ($query->eventId !== null) {
             $base->where('albums.event_id', $query->eventId);
+        }
+        if ($query->albumId !== null) {
+            $base->where('albums.id', $query->albumId);
+        }
+        if ($query->visibility !== null) {
+            $base->where('albums.visibility', $query->visibility);
         }
         foreach ($query->personIds as $personId) {
             $base->whereHas('photos.photoPeople', fn (EloquentBuilder $people) => $people
@@ -128,7 +135,8 @@ final class DatabaseSearchService implements SearchService
     {
         $term = $this->term($query->term);
         if ($term === null && $query->tagId === null && $query->personIds === []
-            && $query->eventId === null && $query->dateFrom === null && $query->dateTo === null) {
+            && $query->eventId === null && $query->albumId === null && $query->uploadedBy === null
+            && $query->visibility === null && $query->dateFrom === null && $query->dateTo === null) {
             return new SearchPage([], null);
         }
         $visiblePhotos = $this->photos->visibleTo($actor)->setEagerLoads([]);
@@ -169,11 +177,19 @@ final class DatabaseSearchService implements SearchService
     public function events(SearchQuery $query, User $actor): SearchPage
     {
         $term = $this->term($query->term);
+        if ($term === null && $query->eventId === null && $query->albumId === null
+            && $query->personIds === [] && $query->dateFrom === null && $query->dateTo === null) {
+            return new SearchPage([], null);
+        }
         $base = $this->events->visibleTo($actor)->select([
             'events.id', 'events.name', 'events.description', 'events.location', 'events.starts_on', 'events.ends_on',
         ]);
         if ($query->eventId !== null) {
             $base->where('events.id', $query->eventId);
+        }
+        if ($query->albumId !== null) {
+            $base->whereHas('albums', fn (EloquentBuilder $albums) => $albums
+                ->where('albums.id', $query->albumId));
         }
         foreach ($query->personIds as $personId) {
             $base->where(function (EloquentBuilder $event) use ($personId): void {
@@ -229,6 +245,14 @@ final class DatabaseSearchService implements SearchService
                 ->whereRaw('LOWER(name) LIKE ?', [$prefix])->select(['id', 'name as label']),
             'tags' => DB::table('tags')->whereIn('id', $this->visibleTagIds($actor))
                 ->whereRaw('LOWER(label) LIKE ?', [$prefix])->select(['id', 'label']),
+            'uploaders' => DB::table('users')->whereIn(
+                'id',
+                DB::table('media_uploads')->whereIn(
+                    'id',
+                    $this->photos->visibleTo($actor)->setEagerLoads([])
+                        ->select('photos.media_upload_id'),
+                )->select('user_id'),
+            )->whereRaw('LOWER(name) LIKE ?', [$prefix])->select(['id', 'name as label']),
             default => throw new \InvalidArgumentException('Unsupported search suggestion type.'),
         };
 
@@ -253,6 +277,17 @@ final class DatabaseSearchService implements SearchService
                     ->orWhereHas('albums', fn (EloquentBuilder $albums) => $albums
                         ->where('albums.event_id', $query->eventId));
             });
+        }
+        if ($query->albumId !== null) {
+            $base->whereHas('albums', fn (EloquentBuilder $albums) => $albums
+                ->where('albums.id', $query->albumId));
+        }
+        if ($query->uploadedBy !== null) {
+            $base->whereHas('mediaUpload', fn (EloquentBuilder $uploads) => $uploads
+                ->where('media_uploads.user_id', $query->uploadedBy));
+        }
+        if ($query->visibility !== null) {
+            $base->where('photos.visibility', $query->visibility);
         }
         if ($query->dateFrom === null && $query->dateTo === null) {
             return;

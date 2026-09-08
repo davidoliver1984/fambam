@@ -55,7 +55,8 @@ class PostgresRowLevelSecurityTest extends TestCase
         $this->admin = DB::connection('pgsql_admin');
         $this->app->instance(FamilyMediaStorageCleaner::class, new RlsFamilyMediaStorageCleaner);
         $this->admin->unprepared(<<<'SQL'
-TRUNCATE TABLE face_identity_suppressions, face_identity_assignments,
+TRUNCATE TABLE saved_search_people, saved_searches,
+    face_identity_suppressions, face_identity_assignments,
     face_cluster_members, face_clusters, face_cluster_generations,
     face_embedding_projections, face_observations, face_analysis_attempts, face_analysis_runs,
     perceptual_hashes, media_upload_duplicate_holds, duplicate_decisions, duplicate_candidates,
@@ -124,17 +125,70 @@ WHERE relname IN (
     'duplicate_candidates', 'duplicate_decisions', 'media_upload_duplicate_holds', 'perceptual_hashes',
     'face_analysis_runs', 'face_analysis_attempts', 'face_observations', 'face_embedding_projections',
     'face_cluster_generations', 'face_clusters', 'face_cluster_members', 'face_identity_assignments',
-    'face_identity_suppressions',
+    'face_identity_suppressions', 'saved_searches', 'saved_search_people',
     'rls_test_records'
 )
 ORDER BY relname
 SQL);
 
-        $this->assertCount(47, $tables);
+        $this->assertCount(49, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
         }
+    }
+
+    public function test_saved_searches_are_tenant_isolated_and_relationships_are_tenant_consistent(): void
+    {
+        [$firstOwner, $firstFamily] = $this->createOwnedFamily('first-saved-search-family');
+        [$secondOwner, $secondFamily] = $this->createOwnedFamily('second-saved-search-family');
+        $firstPerson = $this->createPerson($firstFamily, 'First Person');
+        $secondPerson = $this->createPerson($secondFamily, 'Second Person');
+        $firstSearch = (string) Str::ulid();
+        $secondSearch = (string) Str::ulid();
+        foreach ([
+            [$firstSearch, $firstFamily, $firstOwner],
+            [$secondSearch, $secondFamily, $secondOwner],
+        ] as [$searchId, $familyId, $ownerId]) {
+            $this->admin->table('saved_searches')->insert([
+                'id' => $searchId,
+                'family_space_id' => $familyId,
+                'created_by' => $ownerId,
+                'name' => 'Private search',
+                'filters' => json_encode(['schema_version' => 1, 'q' => 'family'], JSON_THROW_ON_ERROR),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+        $this->admin->table('saved_search_people')->insert([
+            'saved_search_id' => $firstSearch,
+            'family_space_id' => $firstFamily,
+            'person_id' => $firstPerson,
+        ]);
+
+        $visible = DB::transaction(function () use ($firstOwner, $firstFamily): array {
+            $context = app(DatabaseTenantContext::class);
+            $context->establishUser($firstOwner);
+            $context->establishFamilySpace($firstFamily);
+
+            return DB::table('saved_searches')->pluck('family_space_id')->all();
+        });
+        $this->assertSame([$firstFamily], $visible);
+
+        $this->assertCompositeForeignKeyRejected(function () use ($firstSearch, $firstFamily, $secondPerson): void {
+            $this->admin->table('saved_search_people')->insert([
+                'saved_search_id' => $firstSearch,
+                'family_space_id' => $firstFamily,
+                'person_id' => $secondPerson,
+            ]);
+        });
+        $this->assertCompositeForeignKeyRejected(function () use ($secondSearch, $firstFamily, $firstPerson): void {
+            $this->admin->table('saved_search_people')->insert([
+                'saved_search_id' => $secondSearch,
+                'family_space_id' => $firstFamily,
+                'person_id' => $firstPerson,
+            ]);
+        });
     }
 
     public function test_face_analysis_relationships_and_reads_are_tenant_consistent(): void

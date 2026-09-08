@@ -14,5 +14,8 @@ final readonly class SearchQuery
         public ?string $cursor,
         public array $personIds = [],
         public ?string $eventId = null,
+        public ?string $albumId = null,
+        public ?int $uploadedBy = null,
+        public ?string $visibility = null,
     ) {}
 }

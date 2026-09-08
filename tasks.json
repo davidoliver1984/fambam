@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P11",
-    "current_stage": "FPA-P11-S04",
+    "current_stage": "FPA-P11-S05",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-08"
   },
@@ -812,16 +812,18 @@
         {
         "id": "FPA-P11-S04",
         "title": "Implement combined filters and saved views",
-        "status": "ready",
+        "status": "completed",
           "dependencies": [
             "FPA-P11-S03"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-08 (git tag phase-11-s04). Added authorized Album, tag, uploader and visibility filters; creator-private saved searches with versioned JSON and relational Person references; execution-time reference revalidation; tenant-consistent forced-RLS persistence; Family Space teardown; atomic Person merge/collision/reversal handling; and functional typed TanStack Query CRUD UI. Persistent and disposable PostgreSQL migrations, full local verification and security checks passed."
+          ]
         },
         {
           "id": "FPA-P11-S05",
           "title": "Add performance and permission tests",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P11-S04"
           ],
@@ -2012,6 +2014,14 @@
       "roadmap_stage": "FPA-P11-S03",
       "date": "2026-09-08",
       "description": "FPA-P11-S03 completed: Gate-protected People search, actor-aware Event visibility, approved multi-Person intersection, combined Person/Event/date filtering, visibility-scoped autocomplete and every accepted wiki-style Discovery traversal were implemented through the existing authorization boundaries. Typed frontend filters and related-memory navigation expose the capability without raw identifier entry; complete local and PostgreSQL verification passed."
+    },
+    {
+      "git_tag": "phase-11-s04",
+      "type": "stage_completion",
+      "adr": "ADR-0013",
+      "roadmap_stage": "FPA-P11-S04",
+      "date": "2026-09-08",
+      "description": "FPA-P11-S04 completed: combined authorized filters and creator-private saved searches now use versioned normalized state, relational Person references, execution-time authorization revalidation, forced-RLS tenant-consistent persistence, explicit Family Space teardown and atomic Person merge/reversal integration. Functional typed TanStack Query CRUD UI and complete local and PostgreSQL verification passed."
     }
   ]
 }

@@ -7,6 +7,9 @@ export type SearchCriteria = {
   tag_id?: string;
   person_ids?: string[];
   event_id?: string;
+  album_id?: string;
+  uploaded_by?: number;
+  visibility?: "family_space" | "selected" | "private";
 };
 
 export type SearchPersonSummary = {
@@ -65,7 +68,8 @@ export type SearchPage<Group extends SearchGroup> = {
   next_cursor: string | null;
 };
 
-export type SearchSuggestionType = "people" | "albums" | "events" | "tags";
+export type SearchSuggestionType =
+  "people" | "albums" | "events" | "tags" | "uploaders";
 export type SearchSuggestion = { id: string; label: string };
 
 export type DiscoveryResponse = {
@@ -80,4 +84,18 @@ export type DiscoveryResponse = {
     events: EventSearchSummary[];
     stories: StorySearchSummary[];
   }>;
+};
+
+export type SavedSearchFilters = SearchCriteria & { schema_version: 1 };
+
+export type SavedSearch = {
+  id: string;
+  name: string;
+  filters: SavedSearchFilters;
+  people: PersonSearchSummary[];
+};
+
+export type SavedSearchInput = {
+  name: string;
+  filters: SearchCriteria;
 };

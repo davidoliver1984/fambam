@@ -3,10 +3,12 @@ import { Link, useParams } from "react-router";
 
 import { useFamilySpaceQuery } from "@/features/family-spaces/hooks/useFamilySpaceQuery";
 
+import { SavedSearchPanel } from "../components/SavedSearchPanel";
 import {
   useArchiveSearchQuery,
   useSearchSuggestionsQuery,
 } from "../hooks/useArchiveSearchQuery";
+import { useSavedSearchResultsQuery } from "../hooks/useSavedSearches";
 import type { SearchCriteria, SearchSuggestion } from "../types/search";
 
 export function SearchPage() {
@@ -21,11 +23,26 @@ export function SearchPage() {
   const [dateTo, setDateTo] = useState("");
   const [personPrefix, setPersonPrefix] = useState("");
   const [eventPrefix, setEventPrefix] = useState("");
+  const [albumPrefix, setAlbumPrefix] = useState("");
+  const [tagPrefix, setTagPrefix] = useState("");
+  const [uploaderPrefix, setUploaderPrefix] = useState("");
   const [selectedPeople, setSelectedPeople] = useState<SearchSuggestion[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<SearchSuggestion | null>(
     null,
   );
+  const [selectedAlbum, setSelectedAlbum] = useState<SearchSuggestion | null>(
+    null,
+  );
+  const [selectedTag, setSelectedTag] = useState<SearchSuggestion | null>(null);
+  const [selectedUploader, setSelectedUploader] =
+    useState<SearchSuggestion | null>(null);
+  const [visibility, setVisibility] = useState<
+    "" | "family_space" | "selected" | "private"
+  >("");
   const [criteria, setCriteria] = useState<SearchCriteria | null>(null);
+  const [activeSavedSearch, setActiveSavedSearch] = useState<string | null>(
+    null,
+  );
   const peopleSuggestions = useSearchSuggestionsQuery(
     familySlug,
     "people",
@@ -38,21 +55,86 @@ export function SearchPage() {
     eventPrefix,
     canSearchEvents,
   );
+  const albumSuggestions = useSearchSuggestionsQuery(
+    familySlug,
+    "albums",
+    albumPrefix,
+    true,
+  );
+  const tagSuggestions = useSearchSuggestionsQuery(
+    familySlug,
+    "tags",
+    tagPrefix,
+    true,
+  );
+  const uploaderSuggestions = useSearchSuggestionsQuery(
+    familySlug,
+    "uploaders",
+    uploaderPrefix,
+    true,
+  );
   const people = useArchiveSearchQuery(
     familySlug,
     "people",
     criteria,
-    canSearchPeople,
+    canSearchPeople && activeSavedSearch === null,
   );
-  const photos = useArchiveSearchQuery(familySlug, "photos", criteria);
-  const albums = useArchiveSearchQuery(familySlug, "albums", criteria);
+  const photos = useArchiveSearchQuery(
+    familySlug,
+    "photos",
+    criteria,
+    activeSavedSearch === null,
+  );
+  const albums = useArchiveSearchQuery(
+    familySlug,
+    "albums",
+    criteria,
+    activeSavedSearch === null,
+  );
   const events = useArchiveSearchQuery(
     familySlug,
     "events",
     criteria,
+    canSearchEvents && activeSavedSearch === null,
+  );
+  const stories = useArchiveSearchQuery(
+    familySlug,
+    "stories",
+    criteria,
+    activeSavedSearch === null,
+  );
+  const savedPeople = useSavedSearchResultsQuery(
+    familySlug,
+    activeSavedSearch,
+    "people",
+    canSearchPeople,
+  );
+  const savedPhotos = useSavedSearchResultsQuery(
+    familySlug,
+    activeSavedSearch,
+    "photos",
+  );
+  const savedAlbums = useSavedSearchResultsQuery(
+    familySlug,
+    activeSavedSearch,
+    "albums",
+  );
+  const savedEvents = useSavedSearchResultsQuery(
+    familySlug,
+    activeSavedSearch,
+    "events",
     canSearchEvents,
   );
-  const stories = useArchiveSearchQuery(familySlug, "stories", criteria);
+  const savedStories = useSavedSearchResultsQuery(
+    familySlug,
+    activeSavedSearch,
+    "stories",
+  );
+  const peopleResults = activeSavedSearch === null ? people : savedPeople;
+  const photoResults = activeSavedSearch === null ? photos : savedPhotos;
+  const albumResults = activeSavedSearch === null ? albums : savedAlbums;
+  const eventResults = activeSavedSearch === null ? events : savedEvents;
+  const storyResults = activeSavedSearch === null ? stories : savedStories;
 
   function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -64,35 +146,54 @@ export function SearchPage() {
         ? {}
         : { person_ids: selectedPeople.map((person) => person.id) }),
       ...(selectedEvent === null ? {} : { event_id: selectedEvent.id }),
+      ...(selectedAlbum === null ? {} : { album_id: selectedAlbum.id }),
+      ...(selectedTag === null ? {} : { tag_id: selectedTag.id }),
+      ...(selectedUploader === null
+        ? {}
+        : { uploaded_by: Number(selectedUploader.id) }),
+      ...(visibility === "" ? {} : { visibility }),
     };
-    if (Object.keys(next).length > 0) setCriteria(next);
+    if (Object.keys(next).length > 0) {
+      setActiveSavedSearch(null);
+      setCriteria(next);
+    }
   }
 
-  const peopleItems = people.data?.pages.flatMap((page) => page.items) ?? [];
-  const photoItems = photos.data?.pages.flatMap((page) => page.items) ?? [];
-  const albumItems = albums.data?.pages.flatMap((page) => page.items) ?? [];
-  const eventItems = events.data?.pages.flatMap((page) => page.items) ?? [];
-  const storyItems = stories.data?.pages.flatMap((page) => page.items) ?? [];
+  const peopleItems =
+    peopleResults.data?.pages.flatMap((page) => page.items) ?? [];
+  const photoItems =
+    photoResults.data?.pages.flatMap((page) => page.items) ?? [];
+  const albumItems =
+    albumResults.data?.pages.flatMap((page) => page.items) ?? [];
+  const eventItems =
+    eventResults.data?.pages.flatMap((page) => page.items) ?? [];
+  const storyItems =
+    storyResults.data?.pages.flatMap((page) => page.items) ?? [];
   const loading =
-    photos.isPending ||
-    albums.isPending ||
-    stories.isPending ||
-    (canSearchPeople && people.isPending) ||
-    (canSearchEvents && events.isPending);
+    photoResults.isPending ||
+    albumResults.isPending ||
+    storyResults.isPending ||
+    (canSearchPeople && peopleResults.isPending) ||
+    (canSearchEvents && eventResults.isPending);
   const failed =
-    photos.isError ||
-    albums.isError ||
-    stories.isError ||
-    (canSearchPeople && people.isError) ||
-    (canSearchEvents && events.isError);
+    photoResults.isError ||
+    albumResults.isError ||
+    storyResults.isError ||
+    (canSearchPeople && peopleResults.isError) ||
+    (canSearchEvents && eventResults.isError);
   const hasCriteria =
     term.trim() !== "" ||
     dateFrom !== "" ||
     dateTo !== "" ||
     selectedPeople.length > 0 ||
-    selectedEvent !== null;
+    selectedEvent !== null ||
+    selectedAlbum !== null ||
+    selectedTag !== null ||
+    selectedUploader !== null ||
+    visibility !== "";
   const discover = (type: string, id: string) =>
     `/families/${encodeURIComponent(familySlug)}/discover/${type}/${encodeURIComponent(id)}`;
+  const hasActiveResults = criteria !== null || activeSavedSearch !== null;
 
   return (
     <main className="auth people" aria-labelledby="search-title">
@@ -203,6 +304,142 @@ export function SearchPage() {
             )}
           </fieldset>
         )}
+        <fieldset>
+          <legend>Album</legend>
+          <label htmlFor="search-album">Find an Album</label>
+          <input
+            id="search-album"
+            value={albumPrefix}
+            onChange={(event) => {
+              setAlbumPrefix(event.target.value);
+            }}
+          />
+          {selectedAlbum === null &&
+            albumSuggestions.data &&
+            albumSuggestions.data.length > 0 && (
+              <ul aria-label="Album suggestions">
+                {albumSuggestions.data.map((candidate) => (
+                  <li key={candidate.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedAlbum(candidate);
+                        setAlbumPrefix("");
+                      }}
+                    >
+                      Select {candidate.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          {selectedAlbum && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedAlbum(null);
+              }}
+            >
+              Remove {selectedAlbum.label}
+            </button>
+          )}
+        </fieldset>
+        <fieldset>
+          <legend>Tag</legend>
+          <label htmlFor="search-tag">Find a tag</label>
+          <input
+            id="search-tag"
+            value={tagPrefix}
+            onChange={(event) => {
+              setTagPrefix(event.target.value);
+            }}
+          />
+          {selectedTag === null &&
+            tagSuggestions.data &&
+            tagSuggestions.data.length > 0 && (
+              <ul aria-label="Tag suggestions">
+                {tagSuggestions.data.map((candidate) => (
+                  <li key={candidate.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedTag(candidate);
+                        setTagPrefix("");
+                      }}
+                    >
+                      Select {candidate.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          {selectedTag && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedTag(null);
+              }}
+            >
+              Remove {selectedTag.label}
+            </button>
+          )}
+        </fieldset>
+        <fieldset>
+          <legend>Uploader</legend>
+          <label htmlFor="search-uploader">Find an uploader</label>
+          <input
+            id="search-uploader"
+            value={uploaderPrefix}
+            onChange={(event) => {
+              setUploaderPrefix(event.target.value);
+            }}
+          />
+          {selectedUploader === null &&
+            uploaderSuggestions.data &&
+            uploaderSuggestions.data.length > 0 && (
+              <ul aria-label="Uploader suggestions">
+                {uploaderSuggestions.data.map((candidate) => (
+                  <li key={candidate.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedUploader(candidate);
+                        setUploaderPrefix("");
+                      }}
+                    >
+                      Select {candidate.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          {selectedUploader && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedUploader(null);
+              }}
+            >
+              Remove {selectedUploader.label}
+            </button>
+          )}
+        </fieldset>
+        <label htmlFor="search-visibility">Visibility</label>
+        <select
+          id="search-visibility"
+          value={visibility}
+          onChange={(event) => {
+            setVisibility(
+              event.target.value as
+                "" | "family_space" | "selected" | "private",
+            );
+          }}
+        >
+          <option value="">Any visibility I can access</option>
+          <option value="family_space">Family Space</option>
+          <option value="selected">Selected people</option>
+          <option value="private">Private</option>
+        </select>
         <label htmlFor="search-date-from">From</label>
         <input
           id="search-date-from"
@@ -226,19 +463,24 @@ export function SearchPage() {
           Search archive
         </button>
       </form>
+      <SavedSearchPanel
+        familySlug={familySlug}
+        criteria={criteria}
+        onRun={setActiveSavedSearch}
+      />
 
-      {criteria === null && <p>Enter words, filters, a date range, or both.</p>}
-      {criteria !== null && loading && <p role="status">Searching…</p>}
-      {criteria !== null && failed && (
+      {!hasActiveResults && <p>Enter words, filters, a date range, or both.</p>}
+      {hasActiveResults && loading && <p role="status">Searching…</p>}
+      {hasActiveResults && failed && (
         <p role="alert">The archive search could not be completed.</p>
       )}
-      {criteria !== null && !loading && !failed && (
+      {hasActiveResults && !loading && !failed && (
         <>
           {canSearchPeople && (
             <ResultSection
               title="People"
               empty={peopleItems.length === 0}
-              more={<MoreButton label="People" query={people} />}
+              more={<MoreButton label="People" query={peopleResults} />}
             >
               {peopleItems.map((person) => (
                 <li key={person.id}>
@@ -258,7 +500,7 @@ export function SearchPage() {
           <ResultSection
             title="Photos"
             empty={photoItems.length === 0}
-            more={<MoreButton label="Photos" query={photos} />}
+            more={<MoreButton label="Photos" query={photoResults} />}
           >
             {photoItems.map((photo) => (
               <li key={photo.id}>
@@ -285,7 +527,7 @@ export function SearchPage() {
           <ResultSection
             title="Albums"
             empty={albumItems.length === 0}
-            more={<MoreButton label="Albums" query={albums} />}
+            more={<MoreButton label="Albums" query={albumResults} />}
           >
             {albumItems.map((album) => (
               <li key={album.id}>
@@ -304,7 +546,7 @@ export function SearchPage() {
             <ResultSection
               title="Events"
               empty={eventItems.length === 0}
-              more={<MoreButton label="Events" query={events} />}
+              more={<MoreButton label="Events" query={eventResults} />}
             >
               {eventItems.map((familyEvent) => (
                 <li key={familyEvent.id}>
@@ -327,7 +569,7 @@ export function SearchPage() {
           <ResultSection
             title="Stories"
             empty={storyItems.length === 0}
-            more={<MoreButton label="Stories" query={stories} />}
+            more={<MoreButton label="Stories" query={storyResults} />}
           >
             {storyItems.map((story) => (
               <li key={story.id}>
