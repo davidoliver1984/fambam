@@ -3699,18 +3699,137 @@ Calibrate and activate face recognition
 
 ## FPA-P11-S01 — Accept search and discovery ADR (ADR-0013)
 
-## FPA-P11-S02 — Implement metadata search
+ADR-0013 reconciles the PostgreSQL-first, live-domain-table search
+direction against the live repository's actual authorization primitives:
+`PhotoQuery::visibleTo()` and `AlbumQuery::visibleTo()` are reused as-is;
+`FamilyEventQuery` has no actor-aware visibility method today and one must
+be added before Event search ships; `PersonPolicy::hasDirectoryAccess()`
+is private and is never called directly, `PersonPolicy::viewAny()` is the
+real boundary; `PhotoStory` has no independent view policy and is always
+searched via its owning Photo. It also fixes calendar-safe historical-date
+window arithmetic, replaces literal endpoint-payload reuse with bounded
+typed search summaries, defines deterministic precedence-class ranking and
+per-group pagination, and specifies full saved-search integrity,
+execution-time revalidation, Family Space teardown, and Person-merge
+integration. This stage's entire scope is accepting the ADR, so the
+acceptance commit is the stage-completion commit and receives the
+`phase-11-s01` tag directly.
 
-## FPA-P11-S03 — Implement person and relationship-aware search
+### Documentation updates
 
-## FPA-P11-S04 — Implement combined filters and saved views
+- Accepted ADR-0013.
+- Reconciled the Phase 11 implementation-stage boundaries below against
+  the live repository's authorization primitives.
+- Advanced `tasks.json` to FPA-P11-S02.
 
-## FPA-P11-S05 — Add performance and permission tests
+### Commit boundary
+
+```text
+Accept ADR-0013: Search and discovery
+```
+
+## FPA-P11-S02 — Implement metadata search with authorization from the start
+
+Add the generated `search_vector` columns on `photos`, `people`, `albums`,
+`events`, and `photo_stories`, and the generated
+`historical_date_window_end` column on `photos`, using calendar-safe
+`(start + N unit) - 1 day` arithmetic; provision `pg_trgm` and the
+supporting GIN indexes. Implement the narrow `SearchService` abstraction
+and bounded typed summary shapes (`PersonSearchSummary`,
+`PhotoSearchSummary`, `AlbumSearchSummary`, `EventSearchSummary`,
+`PhotoStorySearchSummary`) — never a literal reuse of existing controller
+`payload()` methods. Ship Photo, Album, and PhotoStory search fully
+authorized from the first commit: Photo and Album search compose
+`PhotoQuery::visibleTo()`/`AlbumQuery::visibleTo()` directly; PhotoStory
+search always begins from the actor's visible Photo set and joins Stories
+onto it, since `PhotoStoryPolicy` defines no independent `view` check.
+Implement deterministic precedence-class ranking (match-class, then
+within-class score, then a domain tie-breaker, then entity id) and
+independent per-group pagination. Tag text is a relational filter/ranking
+signal only and must never be copied into `photos.search_vector`.
+
+## FPA-P11-S03 — Implement person, event, combined filters, and Discovery traversal
+
+Add the People search axis, gated by
+`Gate::denies('viewAny', Person::class)` — never the private
+`PersonPolicy::hasDirectoryAccess()` helper — matching only `approved`
+`PhotoPerson` rows, never `pending` proposals or any
+`FaceIdentityAssignment` status. Add the new actor-aware Event-visibility
+query this phase requires (`FamilyEventQuery` has no such method today):
+ordinary members see the tenant-scoped Event set, a Guest sees only
+Events they hold a currently-valid `EventAdmission` for, expressed as a
+set-level predicate rather than a per-row check. Add multi-Person
+intersection and combined Person/Event/date filtering. Add autocomplete
+for People, Albums, Events, and tags, each gated by the same entry point
+as its full-search counterpart, so an actor without directory access
+receives no Person suggestions because that sub-suggestion is never
+invoked for them.
+
+Because it depends on exactly these same domain relationships, this
+stage also implements the functional Discovery endpoints/services for
+every explicit wiki-style traversal ADR-0013 §16 defines:
+Person→Photos→Albums→Events→Stories→other approved People;
+Photo→People→Albums→Event→Stories; Album→Photos→People→Event;
+Event→Albums→Photos→People. Every Discovery traversal composes the same
+authorized entry points as full search — a related entity, count,
+thumbnail, or Person reference the actor is not independently authorized
+to see is omitted exactly as if it did not exist, at every hop. Every
+axis and every Discovery traversal added in this stage ships fully
+authorized from its first commit — none of this authorization work, nor
+Discovery's, is deferred to FPA-P11-S05.
+
+## FPA-P11-S04 — Implement saved searches with full integrity and Person-merge integration
+
+Add `saved_searches` and `saved_search_people` as ordinary Class C
+tenant-owned tables (RLS, tenant isolation policy, an additive
+`UNIQUE(id, family_space_id)` on `saved_searches`, tenant-consistent
+composite foreign keys on `saved_search_people`); Person references live
+only in `saved_search_people`, never inside the versioned filter JSON.
+Enforce creator-privacy as an application-layer predicate on top of RLS.
+Implement execution-time revalidation so a saved search always re-derives
+the actor's current authorized universe and silently drops any
+now-inaccessible reference rather than erroring or re-granting stale
+access. Add `saved_searches`/`saved_search_people` to
+`FamilySpaceDeletionManager::teardown()`'s explicit per-table delete list,
+since `ON DELETE CASCADE` from `family_spaces` never fires. In the same
+stage, extend `PersonMergeManager`'s existing capture/reconcile/
+guarded-reversal transaction to `saved_search_people`, including the
+detect-and-delete-with-snapshot rule for the case where one saved search
+already references both the absorbed and surviving Person — this
+integration ships atomically with `saved_search_people`, never deferred
+to FPA-P11-S05.
+
+## FPA-P11-S05 — Add performance, ranking, and authorization-leak regression tests
+
+Add indexing/performance evidence against the projected pilot library
+size, ranking and pagination stability tests (no row repeated or skipped
+across pages under the fixed precedence-class ordering, including when
+the anchor row behind a cursor is deleted or becomes inaccessible between
+requests), and broad authorization-leak regression coverage across every
+search surface (results, counts, facets, autocomplete) and every
+Discovery traversal for Photos, Albums, Events, People, and Stories —
+including the new Event-visibility query and the Contributor/Guest
+omission of the People axis entirely. This stage adds breadth and
+evidence only; it never establishes correctness or security behaviour for
+the first time, since every prior stage — Discovery included — already
+shipped fully authorized.
 
 ### Phase verification
 
-- Search queries are tenant-scoped.
-- Approximate dates produce documented results.
+- Search queries are tenant-scoped and authorized from each domain's real
+  entry point, including the new Event-visibility query.
+- Approximate and imprecise historical dates produce documented,
+  calendar-correct results via interval-overlap matching.
+- Contributor and Guest search responses omit the People axis entirely
+  rather than returning it empty.
+- Discovery traversals never surface a related entity, count, thumbnail,
+  or Person reference the actor is not independently authorized to see.
+- Search result pagination uses this phase's new opaque, sort-key-encoded
+  cursor convention — no repository-wide `paginate()` convention is
+  assumed to exist or is retrofitted onto other endpoints.
+- Saved searches revalidate authorization at execution time and are fully
+  removed on Family Space teardown.
+- Person merge leaves no saved search referencing an absorbed Person.
 - Search remains usable with the projected pilot library size.
 
 ---
