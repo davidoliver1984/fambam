@@ -102,6 +102,35 @@ class FaceIdentityAssignmentTest extends TestCase
         }
     }
 
+    public function test_two_faces_of_one_person_in_one_photo_keep_independent_assignments_and_one_photo_person(): void
+    {
+        [$family, $owner, $membership, $photo, $first, $run] = $this->facePhoto();
+        $second = $this->observation($family, $run, 1);
+        $person = Person::factory()->create(['family_space_id' => $family->id]);
+        app(TenantContext::class)->establish($family, $membership, $owner);
+        $manager = app(FaceIdentityAssignmentManager::class);
+        $request = Request::create('/face-identity', 'POST');
+
+        $firstAssignment = $manager->propose($first, $person, $owner, $request);
+        $secondAssignment = $manager->propose($second, $person, $owner, $request);
+        $manager->approve($firstAssignment, $owner, $request);
+        $manager->approve($secondAssignment, $owner, $request);
+
+        $this->assertNotSame($firstAssignment->id, $secondAssignment->id);
+        $this->assertDatabaseHas('face_identity_assignments', [
+            'face_observation_id' => $first->id,
+            'person_id' => $person->id,
+            'status' => 'approved',
+        ]);
+        $this->assertDatabaseHas('face_identity_assignments', [
+            'face_observation_id' => $second->id,
+            'person_id' => $person->id,
+            'status' => 'approved',
+        ]);
+        $this->assertSame(1, PhotoPerson::query()->where('photo_id', $photo->id)
+            ->where('person_id', $person->id)->where('status', PersonProposalStatus::Approved)->count());
+    }
+
     public function test_rejection_reuses_durable_suppression_and_reopening_allows_later_proposal(): void
     {
         [$family, $owner, $membership, , $observation] = $this->facePhoto();
@@ -127,6 +156,28 @@ class FaceIdentityAssignmentTest extends TestCase
         $this->assertDatabaseCount('face_identity_suppressions', 1);
         $this->assertDatabaseHas('audit_events', ['action' => 'face_identity_assignment.rejected']);
         $this->assertDatabaseHas('audit_events', ['action' => 'face_identity_suppression.reopened']);
+    }
+
+    public function test_member_cannot_reopen_a_face_identity_suppression(): void
+    {
+        [$family, $owner, $ownerMembership, , $observation] = $this->facePhoto();
+        $member = User::factory()->create();
+        $memberMembership = FamilySpaceMembership::factory()->create([
+            'family_space_id' => $family->id,
+            'user_id' => $member->id,
+            'role' => FamilySpaceRole::Member,
+            'state' => MembershipState::Active,
+        ]);
+        $person = Person::factory()->create(['family_space_id' => $family->id]);
+        $request = Request::create('/face-identity', 'POST');
+        $tenant = app(TenantContext::class);
+        $tenant->establish($family, $ownerMembership, $owner);
+        $assignment = app(FaceIdentityAssignmentManager::class)->propose($observation, $person, $owner, $request);
+        $suppression = app(FaceIdentitySuppressionManager::class)->rejectAssignment($assignment, $owner, $request);
+        $tenant->establish($family, $memberMembership, $member);
+
+        $this->expectException(AuthorizationException::class);
+        app(FaceIdentitySuppressionManager::class)->reopen($suppression, $member, $request);
     }
 
     /** @return array{FamilySpace, User, FamilySpaceMembership, Photo, FaceObservation, FaceAnalysisRun} */

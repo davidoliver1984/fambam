@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Enums\FaceClusterGenerationStatus;
 use App\Enums\FaceClusterStatus;
 use App\Enums\FamilySpaceStatus;
+use App\FaceRecognition\EmbeddingSpaceIdentity;
 use App\FaceRecognition\FaceClusterGenerationManager;
 use App\FaceRecognition\FaceEmbeddingProjectionManager;
+use App\FaceRecognition\SimilaritySearch;
 use App\Media\FamilyMediaStorageCleaner;
 use App\Services\FamilySpaceDeletionManager;
 use App\Tenancy\TenantOperationContext;
@@ -14,6 +16,7 @@ use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Tests\TestCase;
 
 class FaceClusteringPostgresTest extends TestCase
@@ -80,6 +83,7 @@ class FaceClusteringPostgresTest extends TestCase
             ->whereIn('face_observation_id', [$third, $fourth])->where('is_active', true)->count());
         $this->assertSame(1, $this->admin->table('face_clusters')
             ->where('clustering_generation_id', $secondGeneration->id)->count());
+        $this->assertSame(0, $this->admin->table('audit_events')->count());
 
         [$otherOwnerId, $otherFamilySpaceId] = $this->createOwnedFamily('other-clustering-family');
         try {
@@ -111,6 +115,78 @@ class FaceClusteringPostgresTest extends TestCase
         $this->assertSame(0, $this->admin->table('face_clusters')->where('family_space_id', $familySpaceId)->count());
         $this->assertSame(0, $this->admin->table('face_cluster_members')->where('family_space_id', $familySpaceId)->count());
         $this->assertNotSame($ownerId, $otherOwnerId);
+    }
+
+    public function test_failed_build_leaves_active_generation_and_memberships_untouched(): void
+    {
+        [$ownerId, $familySpaceId] = $this->createOwnedFamily('failed-clustering-family');
+        $runId = $this->createRun($familySpaceId, $ownerId);
+        $this->createObservation($familySpaceId, $runId, [1.0, 0.0, 0.0]);
+        $this->createObservation($familySpaceId, $runId, [0.99, 0.01, 0.0]);
+        $context = TenantOperationContext::forBackground($familySpaceId, $ownerId);
+        app(FaceEmbeddingProjectionManager::class)->rebuild($context);
+        $active = app(FaceClusterGenerationManager::class)->rebuild($context);
+        $activeMemberships = $this->admin->table('face_cluster_members')->where('is_active', true)
+            ->orderBy('id')->pluck('id')->all();
+
+        $this->app->instance(SimilaritySearch::class, new FailingClusteringSimilaritySearch);
+        try {
+            app(FaceClusterGenerationManager::class)->rebuild($context);
+            $this->fail('The deliberately failing cluster build unexpectedly completed.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Synthetic similarity failure.', $exception->getMessage());
+        }
+
+        $this->assertSame($active->id, $this->admin->table('face_cluster_generations')
+            ->where('status', FaceClusterGenerationStatus::Active->value)->value('id'));
+        $this->assertSame($activeMemberships, $this->admin->table('face_cluster_members')
+            ->where('is_active', true)->orderBy('id')->pluck('id')->all());
+        $this->assertSame(1, $this->admin->table('face_cluster_generations')->count());
+        $this->assertSame(0, $this->admin->table('audit_events')->count());
+    }
+
+    public function test_database_rejects_two_active_cluster_memberships_for_one_observation(): void
+    {
+        [$ownerId, $familySpaceId] = $this->createOwnedFamily('membership-race-family');
+        $runId = $this->createRun($familySpaceId, $ownerId);
+        $observationId = $this->createObservation($familySpaceId, $runId, [1.0, 0.0, 0.0]);
+        $generationId = (string) Str::ulid();
+        $this->admin->table('face_cluster_generations')->insert([
+            'id' => $generationId,
+            'family_space_id' => $familySpaceId,
+            'status' => FaceClusterGenerationStatus::Active->value,
+            'activated_at' => now(),
+            'created_at' => now(),
+        ]);
+        $clusterIds = [(string) Str::ulid(), (string) Str::ulid()];
+        foreach ($clusterIds as $clusterId) {
+            $this->admin->table('face_clusters')->insert([
+                'id' => $clusterId,
+                'family_space_id' => $familySpaceId,
+                'clustering_generation_id' => $generationId,
+                'status' => FaceClusterStatus::Active->value,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+        $this->admin->table('face_cluster_members')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $familySpaceId,
+            'face_cluster_id' => $clusterIds[0],
+            'face_observation_id' => $observationId,
+            'is_active' => true,
+            'created_at' => now(),
+        ]);
+
+        $this->expectException(QueryException::class);
+        $this->admin->table('face_cluster_members')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $familySpaceId,
+            'face_cluster_id' => $clusterIds[1],
+            'face_observation_id' => $observationId,
+            'is_active' => true,
+            'created_at' => now(),
+        ]);
     }
 
     /** @return array{int, string} */
@@ -218,4 +294,25 @@ class FaceClusteringPostgresTest extends TestCase
 class FaceClusteringNoopStorageCleaner implements FamilyMediaStorageCleaner
 {
     public function deleteFamilyMedia(string $familySpaceId): void {}
+}
+
+class FailingClusteringSimilaritySearch implements SimilaritySearch
+{
+    public function nearest(
+        string $familySpaceId,
+        EmbeddingSpaceIdentity $identity,
+        array $embedding,
+        int $limit,
+    ): array {
+        throw new RuntimeException('Synthetic similarity failure.');
+    }
+
+    public function nearestTrustedReferences(
+        string $familySpaceId,
+        EmbeddingSpaceIdentity $identity,
+        array $embedding,
+        int $limit,
+    ): array {
+        return [];
+    }
 }

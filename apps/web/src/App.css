@@ -311,3 +311,24 @@
   justify-content: space-between;
   margin-top: 0.75rem;
 }
+
+.face-observation-preview {
+  margin: 0.75rem 0;
+}
+
+.face-observation-preview img {
+  background: #f1eee8;
+  border-radius: 0.5rem;
+  display: block;
+  width: 100%;
+}
+
+.face-observation-image {
+  position: relative;
+}
+
+.face-observation-image span {
+  border: 3px solid #187a5b;
+  box-sizing: border-box;
+  position: absolute;
+}

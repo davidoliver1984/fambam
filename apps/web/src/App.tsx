@@ -21,6 +21,8 @@ import { EventsPage } from "./features/events/pages/EventsPage";
 import { EventPage } from "./features/events/pages/EventPage";
 import { AlbumPage } from "./features/albums/pages/AlbumPage";
 import { DuplicateReviewPage } from "./features/duplicates/pages/DuplicateReviewPage";
+import { FaceClustersPage } from "./features/face-recognition/pages/FaceClustersPage";
+import { FaceRecognitionReviewPage } from "./features/face-recognition/pages/FaceRecognitionReviewPage";
 
 function WelcomePage() {
   return (
@@ -70,6 +72,14 @@ export function App() {
         <Route
           path="/families/:familySlug/duplicates"
           element={<DuplicateReviewPage />}
+        />
+        <Route
+          path="/families/:familySlug/face-recognition"
+          element={<FaceRecognitionReviewPage />}
+        />
+        <Route
+          path="/families/:familySlug/face-clusters"
+          element={<FaceClustersPage />}
         />
         <Route path="/families/:familySlug/albums" element={<AlbumsPage />} />
         <Route

@@ -14,7 +14,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use OpenTelemetry\API\Globals;
 use RuntimeException;
+use Throwable;
 
 final class FaceClusterGenerationManager
 {
@@ -26,6 +28,30 @@ final class FaceClusterGenerationManager
     ) {}
 
     public function rebuild(TenantOperationContext $context): FaceClusterGeneration
+    {
+        $startedAt = hrtime(true);
+        try {
+            [$generation, $candidateCount, $clusterCount, $supersededCount, $retiredCount] = $this->build($context);
+            $this->recordMetrics(
+                'succeeded',
+                $startedAt,
+                $candidateCount,
+                $clusterCount,
+                $supersededCount,
+                $retiredCount,
+                $generation->id,
+            );
+
+            return $generation;
+        } catch (Throwable $exception) {
+            $this->recordMetrics('failed', $startedAt, 0, 0, 0, 0);
+
+            throw $exception;
+        }
+    }
+
+    /** @return array{FaceClusterGeneration, int, int, int, int} */
+    private function build(TenantOperationContext $context): array
     {
         if (DB::getDriverName() !== 'pgsql') {
             throw new RuntimeException('Face clustering requires PostgreSQL similarity projections.');
@@ -113,13 +139,28 @@ final class FaceClusterGenerationManager
             return $generation;
         });
 
+        [$supersededCount, $retiredCount] = DB::transaction(function () use ($context, $expectedActiveGenerationId): array {
+            $this->establishTenant($context);
+            if ($expectedActiveGenerationId === null) {
+                return [0, 0];
+            }
+
+            return [
+                FaceCluster::query()->where('clustering_generation_id', $expectedActiveGenerationId)
+                    ->where('status', FaceClusterStatus::Active)->count(),
+                FaceCluster::query()->where('clustering_generation_id', $expectedActiveGenerationId)
+                    ->where('status', FaceClusterStatus::Retired)->count(),
+            ];
+        });
         $this->activate($context, $generation->id, $expectedActiveGenerationId);
 
-        return DB::transaction(function () use ($context, $generation): FaceClusterGeneration {
+        $activated = DB::transaction(function () use ($context, $generation): FaceClusterGeneration {
             $this->establishTenant($context);
 
             return FaceClusterGeneration::query()->findOrFail($generation->id);
         });
+
+        return [$activated, count($eligibleIds), count($groups), $supersededCount, $retiredCount];
     }
 
     private function activate(
@@ -256,5 +297,30 @@ SQL, [
         }
 
         return $value;
+    }
+
+    private function recordMetrics(
+        string $outcome,
+        int $startedAt,
+        int $candidateCount,
+        int $clusterCount,
+        int $supersededCount,
+        int $retiredCount,
+        ?string $generationId = null,
+    ): void {
+        $meter = Globals::meterProvider()->getMeter('fambam-api');
+        $attributes = ['face.cluster.activation.outcome' => $outcome];
+        if ($generationId !== null) {
+            $attributes['face.cluster.generation_id'] = $generationId;
+        }
+        $meter->createHistogram('face.cluster.build.duration')->record(
+            (hrtime(true) - $startedAt) / 1_000_000_000,
+            $attributes,
+        );
+        $meter->createHistogram('face.cluster.candidate_population_size')->record($candidateCount, $attributes);
+        $meter->createCounter('face.cluster.clusters_created')->add($clusterCount, $attributes);
+        $meter->createCounter('face.cluster.clusters_superseded')->add($supersededCount, $attributes);
+        $meter->createCounter('face.cluster.retired_clusters_untouched')->add($retiredCount, $attributes);
+        $meter->createCounter('face.cluster.generation_activations')->add(1, $attributes);
     }
 }

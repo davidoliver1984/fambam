@@ -23,6 +23,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class FaceClusterReviewTest extends TestCase
@@ -86,6 +87,38 @@ class FaceClusterReviewTest extends TestCase
         $this->assertSame(FaceClusterStatus::Retired, $cluster->refresh()->status);
         $this->assertDatabaseCount('photo_people', 1);
         $this->assertDatabaseHas('audit_events', ['action' => 'face_cluster.named_and_retired']);
+    }
+
+    public function test_retired_or_superseded_clusters_cannot_be_merged_split_or_named(): void
+    {
+        [$family, $owner, $membership, $generation, $observations] = $this->fixture(3);
+        app(TenantContext::class)->establish($family, $membership, $owner);
+        $retired = $this->cluster($family, $generation, [$observations[0]->id]);
+        $superseded = $this->cluster($family, $generation, [$observations[1]->id]);
+        $active = $this->cluster($family, $generation, [$observations[2]->id]);
+        DB::table('face_cluster_members')->whereIn('face_cluster_id', [$retired->id, $superseded->id])
+            ->update(['is_active' => false]);
+        $retired->update(['status' => FaceClusterStatus::Retired]);
+        $superseded->update(['status' => FaceClusterStatus::Superseded]);
+        $person = Person::factory()->create(['family_space_id' => $family->id]);
+        $manager = app(FaceClusterReviewManager::class);
+        $request = Request::create('/face-clusters', 'POST');
+
+        foreach ([
+            fn () => $manager->merge([$retired, $active], $owner, $request),
+            fn () => $manager->split($retired, [[$observations[0]->id], [$observations[2]->id]], $owner, $request),
+            fn () => $manager->confirmName($superseded, $person, $owner, $request),
+        ] as $operation) {
+            try {
+                $operation();
+                $this->fail('A retired or superseded cluster unexpectedly accepted a review operation.');
+            } catch (ValidationException $exception) {
+                $this->assertSame(
+                    'Cluster review may act only on active clusters in the current generation.',
+                    $exception->errors()['face_cluster'][0],
+                );
+            }
+        }
     }
 
     /** @return array{FamilySpace, User, FamilySpaceMembership, FaceClusterGeneration, list<FaceObservation>} */

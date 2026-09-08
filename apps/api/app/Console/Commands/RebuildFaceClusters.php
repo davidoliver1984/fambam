@@ -6,6 +6,8 @@ use App\FaceRecognition\FaceClusterGenerationManager;
 use App\FaceRecognition\FaceRecognitionCalibration;
 use App\Tenancy\TenantOperationContext;
 use Illuminate\Console\Command;
+use OpenTelemetry\API\Globals;
+use Throwable;
 
 class RebuildFaceClusters extends Command
 {
@@ -40,11 +42,32 @@ class RebuildFaceClusters extends Command
             return self::INVALID;
         }
 
-        $generation = $clusters->rebuild(
-            TenantOperationContext::forBackground($familySpaceId, (int) $actorId),
-        );
+        $startedAt = hrtime(true);
+        try {
+            $generation = $clusters->rebuild(
+                TenantOperationContext::forBackground($familySpaceId, (int) $actorId),
+            );
+        } catch (Throwable $exception) {
+            $this->recordInvocation('failed', $startedAt);
+            throw $exception;
+        }
+        $this->recordInvocation('succeeded', $startedAt, $generation->id);
         $this->components->info("Activated face-cluster generation {$generation->id}.");
 
         return self::SUCCESS;
+    }
+
+    private function recordInvocation(string $outcome, int $startedAt, ?string $generationId = null): void
+    {
+        $attributes = ['face.cluster.command.outcome' => $outcome];
+        if ($generationId !== null) {
+            $attributes['face.cluster.generation_id'] = $generationId;
+        }
+        $meter = Globals::meterProvider()->getMeter('fambam-api');
+        $meter->createCounter('face.cluster.command.invocations')->add(1, $attributes);
+        $meter->createHistogram('face.cluster.command.duration')->record(
+            (hrtime(true) - $startedAt) / 1_000_000_000,
+            $attributes,
+        );
     }
 }
