@@ -1,8 +1,9 @@
 import { Link, useParams } from "react-router";
 
 import { toAppError } from "@/api/errors";
-import { InvitationManagement } from "@/features/invitations/pages/InvitationManagement";
 import { RecentFamilyActivity } from "@/features/activities/components/RecentFamilyActivity";
+import { InvitationManagement } from "@/features/invitations/pages/InvitationManagement";
+import { DateMemories } from "@/features/memories/components/DateMemories";
 
 import { useFamilySpaceQuery } from "../hooks/useFamilySpaceQuery";
 
@@ -46,7 +47,10 @@ export function FamilySpacePage() {
       <h1 id="family-space-title">{familySpace.name}</h1>
       <p>Your role: {familySpace.role}</p>
       {familySpace.role !== "guest" && (
-        <RecentFamilyActivity familySlug={familySpace.slug} />
+        <>
+          <RecentFamilyActivity familySlug={familySpace.slug} />
+          <DateMemories familySlug={familySpace.slug} />
+        </>
       )}
       {canAccessPeople && (
         <p>

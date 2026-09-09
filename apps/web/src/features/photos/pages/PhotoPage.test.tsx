@@ -78,6 +78,7 @@ const photo: Photo = {
   archive_source_description: "Green family album",
   historical_date: { precision: "decade", value: "1980s" },
   location_description: "Blackpool",
+  do_not_resurface: false,
   provenance: {
     photographer: { person: null, description: "Unknown studio" },
     scanner: { person: null, description: null },

@@ -19,6 +19,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property PhotoVisibility $visibility
  * @property DatePrecision|null $historical_date_precision
  * @property CarbonImmutable|null $historical_date
+ * @property CarbonImmutable|null $historical_date_window_end
+ * @property bool $do_not_resurface
  * @property CarbonImmutable|null $deleted_at
  */
 #[Fillable([
@@ -37,6 +39,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'physical_source_description',
     'historical_date_precision',
     'historical_date',
+    'do_not_resurface',
     'location_description',
     'deleted_by',
     'primary_event_id',
@@ -155,6 +158,8 @@ class Photo extends Model
             'visibility' => PhotoVisibility::class,
             'historical_date_precision' => DatePrecision::class,
             'historical_date' => 'immutable_date',
+            'historical_date_window_end' => 'immutable_date',
+            'do_not_resurface' => 'boolean',
         ];
     }
 }

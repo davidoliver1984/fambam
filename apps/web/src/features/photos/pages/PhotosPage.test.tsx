@@ -43,6 +43,7 @@ const photo: Photo = {
   archive_source_description: null,
   historical_date: null,
   location_description: null,
+  do_not_resurface: false,
   provenance: {
     photographer: { person: null, description: null },
     scanner: { person: null, description: null },

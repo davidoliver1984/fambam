@@ -30,7 +30,14 @@ use Illuminate\Validation\ValidationException;
 
 class PhotoManager
 {
-    private const CONTENT_FIELDS = ['caption', 'description', 'archive_source_description', 'visibility', 'primary_event_id'];
+    private const CONTENT_FIELDS = [
+        'caption',
+        'description',
+        'archive_source_description',
+        'visibility',
+        'primary_event_id',
+        'do_not_resurface',
+    ];
 
     public function __construct(
         private readonly AuditRecorder $audit,

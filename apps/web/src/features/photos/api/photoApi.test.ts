@@ -37,6 +37,7 @@ const photo: Photo = {
   archive_source_description: "Green album",
   historical_date: { precision: "decade", value: "1980s" },
   location_description: "Blackpool",
+  do_not_resurface: false,
   provenance: {
     photographer: { person: null, description: null },
     scanner: { person: null, description: null },

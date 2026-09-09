@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountSecurityController;
 use App\Http\Controllers\AlbumController;
 use App\Http\Controllers\CurrentUserController;
+use App\Http\Controllers\DateMemoryController;
 use App\Http\Controllers\DiscoveryController;
 use App\Http\Controllers\DuplicateHoldController;
 use App\Http\Controllers\DuplicateReviewController;
@@ -57,6 +58,7 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
     Route::prefix('/families/{familySpace}')->middleware('family-space')->group(function (): void {
         Route::get('/', [FamilySpaceController::class, 'show']);
         Route::get('/activities/recent', [FamilyActivityController::class, 'index']);
+        Route::get('/memories/date-based', [DateMemoryController::class, 'index']);
         Route::get('/search', [SearchController::class, 'index']);
         Route::get('/search/suggestions', [SearchController::class, 'suggestions']);
         Route::get('/saved-searches', [SavedSearchController::class, 'index']);

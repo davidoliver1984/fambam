@@ -45,6 +45,7 @@ export type Photo = {
   primary_event?: { id: string; name: string; starts_on: string | null } | null;
   historical_date: UncertainDate | null;
   location_description: string | null;
+  do_not_resurface: boolean;
   provenance: {
     photographer: PhotoClaim;
     scanner: PhotoClaim;
@@ -111,7 +112,7 @@ export type ResolveDuplicateHoldInput = {
 export type UpdatePhotoInput = Omit<
   CreatePhotoInput,
   "media_upload_id" | "tags"
-> & { primary_event_id?: string | null };
+> & { primary_event_id?: string | null; do_not_resurface?: boolean };
 
 export type PhotoProvenanceInput = {
   role: PhotoProvenanceRole;

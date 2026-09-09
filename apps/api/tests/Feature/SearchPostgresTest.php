@@ -84,11 +84,12 @@ INSERT INTO photos (
     id, family_space_id, media_upload_id, created_by, visibility, caption,
     historical_date, historical_date_precision, created_at, updated_at
 ) VALUES (?, ?, ?, ?, 'family_space', 'Winter archive', DATE '1980-01-01', 'decade', now(), now())
-RETURNING search_vector::text AS vector, historical_date_window_end::text AS window_end
+RETURNING search_vector::text AS vector, historical_date_window_end::text AS window_end, do_not_resurface
 SQL, [$photoId, $familySpaceId, $uploadId, $ownerId]);
         $this->assertNotNull($row);
         $this->assertStringContainsString('winter', $row->vector);
         $this->assertSame('1989-12-31', $row->window_end);
+        $this->assertFalse($row->do_not_resurface);
         $tagId = (string) Str::ulid();
         $this->admin->table('tags')->insert([
             'id' => $tagId,
@@ -122,6 +123,11 @@ SQL, [$photoId, $familySpaceId, $uploadId, $ownerId]);
             ->getJson('/api/families/search-metadata/search?q=winter&group=photos')
             ->assertOk()
             ->assertJsonPath('data.photos.items.0.id', $photoId);
+        $this->actingAs($owner)
+            ->getJson('/api/families/search-metadata/memories/date-based')
+            ->assertOk()
+            ->assertJsonPath('data.0.photo_id', $photoId)
+            ->assertJsonPath('data.0.reason', 'From the 1980s');
     }
 
     public function test_search_indexes_support_a_representative_multi_thousand_photo_family(): void
@@ -132,7 +138,7 @@ SQL, [$photoId, $familySpaceId, $uploadId, $ownerId]);
             'people_preferred_name_trgm_gin', 'people_search_vector_gin',
             'photo_stories_search_vector_gin', 'photos_caption_trgm_gin',
             'photos_historical_date_window_idx', 'photos_location_description_trgm_gin',
-            'photos_search_vector_gin', 'tags_label_trgm_gin',
+            'photos_resurfacing_date_index', 'photos_search_vector_gin', 'tags_label_trgm_gin',
         ];
         $indexes = $this->admin->table('pg_indexes')->where('schemaname', 'public')
             ->whereIn('indexname', $expectedIndexes)->pluck('indexname')->sort()->values()->all();

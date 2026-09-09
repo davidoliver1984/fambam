@@ -395,6 +395,7 @@ class PhotoController extends Controller
                 $photo->historical_date?->format('Y-m-d'),
             )->toPayload(),
             'location_description' => $photo->location_description,
+            'do_not_resurface' => $photo->do_not_resurface,
             'provenance' => [
                 'photographer' => $this->claimPayload($photo->photographer, $photo->photographer_description),
                 'scanner' => $this->claimPayload($photo->scanner, $photo->scanner_description),

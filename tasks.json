@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P12",
-    "current_stage": "FPA-P12-S03",
+    "current_stage": "FPA-P12-S04",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-09"
   },
@@ -863,16 +863,18 @@
         {
           "id": "FPA-P12-S03",
           "title": "Implement date-based memories",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P12-S02"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-09. Added the Photo-level do_not_resurface field with a false default, indexed PostgreSQL storage and the existing Photo update authority; implemented a bounded, deterministic, currently-authorized date-memory query over historical-date precision and interval data with honest exact/month/year/decade/approximate wording, no unknown-date or created_at fallback, and a functional TanStack Query homepage section. PostgreSQL and frontend regressions prove exclusion affects resurfacing only while ordinary Photo visibility and search remain unchanged."
+          ]
         },
         {
           "id": "FPA-P12-S04",
           "title": "Implement person-centred memories",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P12-S03"
           ],
