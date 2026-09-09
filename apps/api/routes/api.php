@@ -17,6 +17,7 @@ use App\Http\Controllers\FamilyCircleController;
 use App\Http\Controllers\FamilyEventController;
 use App\Http\Controllers\FamilySpaceController;
 use App\Http\Controllers\FamilySpaceMembershipController;
+use App\Http\Controllers\HomepageMemoryController;
 use App\Http\Controllers\InvitationAcceptanceController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\MediaUploadController;
@@ -59,6 +60,7 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::get('/', [FamilySpaceController::class, 'show']);
         Route::get('/activities/recent', [FamilyActivityController::class, 'index']);
         Route::get('/memories/date-based', [DateMemoryController::class, 'index']);
+        Route::get('/memories/homepage', [HomepageMemoryController::class, 'index']);
         Route::get('/search', [SearchController::class, 'index']);
         Route::get('/search/suggestions', [SearchController::class, 'suggestions']);
         Route::get('/saved-searches', [SavedSearchController::class, 'index']);

@@ -4,6 +4,7 @@ import { toAppError } from "@/api/errors";
 import { RecentFamilyActivity } from "@/features/activities/components/RecentFamilyActivity";
 import { InvitationManagement } from "@/features/invitations/pages/InvitationManagement";
 import { DateMemories } from "@/features/memories/components/DateMemories";
+import { PersonAndStoryMemories } from "@/features/memories/components/PersonAndStoryMemories";
 
 import { useFamilySpaceQuery } from "../hooks/useFamilySpaceQuery";
 
@@ -50,6 +51,7 @@ export function FamilySpacePage() {
         <>
           <RecentFamilyActivity familySlug={familySpace.slug} />
           <DateMemories familySlug={familySpace.slug} />
+          <PersonAndStoryMemories familySlug={familySpace.slug} />
         </>
       )}
       {canAccessPeople && (

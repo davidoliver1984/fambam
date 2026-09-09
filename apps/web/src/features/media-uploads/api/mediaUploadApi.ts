@@ -3,14 +3,30 @@ import { type ApiEnvelope, unwrap } from "@/api/envelope";
 import { toAppError } from "@/api/errors";
 
 import type {
+  MediaDelivery,
   MediaUpload,
   MediaUploadBatchInput,
   MediaUploadBatchResult,
   MediaUploadBatchStatus,
+  MediaVariantTransform,
 } from "../types/mediaUpload";
 
 function mediaUploadsPath(familySlug: string): string {
   return `/api/families/${encodeURIComponent(familySlug)}/media-uploads`;
+}
+
+export async function getMediaVariantDelivery(
+  familySlug: string,
+  mediaUploadId: string,
+  transform: MediaVariantTransform,
+  signal?: AbortSignal,
+): Promise<MediaDelivery> {
+  return unwrap(
+    await apiClient.get<ApiEnvelope<MediaDelivery>>(
+      `${mediaUploadsPath(familySlug)}/${encodeURIComponent(mediaUploadId)}/variants/${encodeURIComponent(transform)}`,
+      { signal },
+    ),
+  );
 }
 
 export async function initiateMediaUpload(

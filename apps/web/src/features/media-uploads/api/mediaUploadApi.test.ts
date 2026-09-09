@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { server } from "@/test/msw/server";
 
 import {
+  getMediaVariantDelivery,
   getMediaUploadBatch,
   uploadMediaBatch,
   uploadMediaFile,
@@ -14,6 +15,40 @@ const apiBaseUrl = "http://localhost:8082";
 afterEach(() => vi.restoreAllMocks());
 
 describe("mediaUploadApi", () => {
+  it("requests an authorised presentation variant and unwraps its delivery authority", async () => {
+    server.use(
+      http.get(
+        `${apiBaseUrl}/api/families/oliver-family/media-uploads/01KUPLOAD00000000000000000/variants/thumbnail`,
+        () =>
+          HttpResponse.json({
+            data: {
+              asset: "variant",
+              transform_name: "thumbnail",
+              processing_version: 1,
+              url: "https://storage.test/signed-thumbnail",
+              method: "GET",
+              expires_at: "2026-08-10T12:05:00+00:00",
+            },
+          }),
+      ),
+    );
+
+    await expect(
+      getMediaVariantDelivery(
+        "oliver-family",
+        "01KUPLOAD00000000000000000",
+        "thumbnail",
+      ),
+    ).resolves.toEqual({
+      asset: "variant",
+      transform_name: "thumbnail",
+      processing_version: 1,
+      url: "https://storage.test/signed-thumbnail",
+      method: "GET",
+      expires_at: "2026-08-10T12:05:00+00:00",
+    });
+  });
+
   it("uploads directly with bounded headers before signalling completion", async () => {
     const calls: string[] = [];
     server.use(

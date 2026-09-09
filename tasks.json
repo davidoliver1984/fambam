@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P12",
-    "current_stage": "FPA-P12-S04",
+    "current_stage": "FPA-P12-S05",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-09"
   },
@@ -874,16 +874,18 @@
         {
           "id": "FPA-P12-S04",
           "title": "Implement person-centred memories",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P12-S03"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-09. Added a bounded, fully derived People with new memories listing over approved PhotoPerson, recent Stories and recent Album/Event associations, always intersected with the viewer's currently authorized and resurfacing-eligible Photos; reused the existing Person Discovery traversal directly. Added typed Recent Story cards with author, Story and owning Photo identity, authorized People/Album/Event context and secured thumbnail delivery, while keeping comments and reactions excluded. SQLite, PostgreSQL and frontend regression coverage verifies authorization-before-disclosure, do_not_resurface, approval state, recent-window and role restrictions."
+          ]
         },
         {
           "id": "FPA-P12-S05",
           "title": "Implement user controls and exclusions",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P12-S04"
           ],

@@ -9,6 +9,17 @@ export type MediaUploadState =
   | "abandoned"
   | "degraded";
 
+export type MediaVariantTransform = "thumbnail" | "card" | "display";
+
+export type MediaDelivery = {
+  asset: "variant";
+  transform_name: MediaVariantTransform;
+  processing_version: number;
+  url: string;
+  method: "GET";
+  expires_at: string;
+};
+
 export type UploadAuthorization = {
   url: string;
   method: "PUT";
