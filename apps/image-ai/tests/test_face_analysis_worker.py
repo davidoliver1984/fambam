@@ -121,6 +121,10 @@ def test_worker_publishes_bounded_reference_then_deletes_request(
     assert http.uploaded == b'{"contract_version":"1","faces":[]}'
     assert sqs.deleted
     assert sqs.sent[0]["QueueUrl"] == "completed"
+    assert sqs.sent[0]["MessageAttributes"]["traceparent"] == {
+        "DataType": "String",
+        "StringValue": "00-" + "1" * 32 + "-" + "2" * 16 + "-01",
+    }
     completed = json.loads(sqs.sent[0]["MessageBody"])
     assert completed["detected_face_count"] == 0
     assert "faces" not in completed
@@ -157,6 +161,9 @@ def test_checksum_mismatch_fails_without_inference(
     assert sqs.deleted
     failed = json.loads(sqs.sent[0]["MessageBody"])
     assert failed["failure_category"] == "checksum_mismatch"
+    assert sqs.sent[0]["MessageAttributes"]["traceparent"]["StringValue"] == (
+        "00-" + "1" * 32 + "-" + "2" * 16 + "-01"
+    )
     assert failure["category"] == "checksum_mismatch"
     assert failure["duration_ms"] >= 0
     assert set(failure) == {"category", "duration_ms", "memory_bytes"}

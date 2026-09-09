@@ -115,6 +115,32 @@ def observe_request(
         yield span
 
 
+@contextmanager
+def observe_result_publish(
+    outcome: str,
+    fallback_traceparent: str,
+) -> Iterator[dict[str, dict[str, str]]]:
+    """Create a producer span and return bounded SQS propagation attributes."""
+    with TRACER.start_as_current_span(
+        "face-analysis.result publish",
+        kind=SpanKind.PRODUCER,
+        attributes={
+            "messaging.system": "aws_sqs",
+            "messaging.operation.name": "publish",
+            "face_analysis.outcome": outcome,
+        },
+    ):
+        carrier: dict[str, str] = {}
+        TraceContextTextMapPropagator().inject(carrier)
+        traceparent = carrier.get("traceparent", fallback_traceparent)
+        yield {
+            "traceparent": {
+                "DataType": "String",
+                "StringValue": traceparent,
+            }
+        }
+
+
 def record_inference(
     span: Span,
     identity: AnalysisIdentity,

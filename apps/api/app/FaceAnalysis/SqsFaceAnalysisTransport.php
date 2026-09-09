@@ -50,11 +50,19 @@ class SqsFaceAnalysisTransport implements FaceAnalysisRequestPublisher, FaceAnal
             'MaxNumberOfMessages' => 10,
             'WaitTimeSeconds' => (int) config('image-analysis.queues.wait_time_seconds'),
             'VisibilityTimeout' => (int) config('image-analysis.queues.visibility_timeout_seconds'),
+            'MessageAttributeNames' => ['traceparent'],
         ]);
         $messages = [];
         foreach ($result['Messages'] ?? [] as $message) {
             if (is_string($message['Body'] ?? null) && is_string($message['ReceiptHandle'] ?? null)) {
-                $messages[] = new ReceivedFaceAnalysisMessage($message['Body'], $message['ReceiptHandle']);
+                $traceparent = $message['MessageAttributes']['traceparent']['StringValue'] ?? null;
+                $messages[] = new ReceivedFaceAnalysisMessage(
+                    $message['Body'],
+                    $message['ReceiptHandle'],
+                    is_string($traceparent) && preg_match('/^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$/', $traceparent) === 1
+                        ? $traceparent
+                        : null,
+                );
             }
         }
 

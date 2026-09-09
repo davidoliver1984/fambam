@@ -22,6 +22,9 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use OpenTelemetry\API\Globals;
+use OpenTelemetry\API\Trace\SpanKind;
 
 class SendEventContributionNotifications implements ShouldBeUnique, ShouldQueue
 {
@@ -49,6 +52,31 @@ class SendEventContributionNotifications implements ShouldBeUnique, ShouldQueue
         Dispatcher $notifications,
     ): void {
         $context = TenantOperationContext::fromArray($this->context);
+        $parent = Globals::propagator()->extract(['traceparent' => $context->traceparent]);
+        $span = Globals::tracerProvider()
+            ->getTracer('fambam-api')
+            ->spanBuilder('event.contribution-notifications')
+            ->setSpanKind(SpanKind::KIND_CONSUMER)
+            ->setParent($parent)
+            ->startSpan();
+        $scope = $span->activate();
+        Log::withContext($context->toArray() + ['event_id' => $this->eventId, 'photo_id' => $this->photoId]);
+
+        try {
+            $this->deliver($context, $databaseContext, $audit, $notifications);
+        } finally {
+            Log::withoutContext([...array_keys($context->toArray()), 'event_id', 'photo_id']);
+            $scope->detach();
+            $span->end();
+        }
+    }
+
+    private function deliver(
+        TenantOperationContext $context,
+        DatabaseTenantContext $databaseContext,
+        AuditRecorder $audit,
+        Dispatcher $notifications,
+    ): void {
 
         [$event, $photo, $recipients] = DB::transaction(function () use ($context, $databaseContext): array {
             $databaseContext->establishUser($context->actorUserId);

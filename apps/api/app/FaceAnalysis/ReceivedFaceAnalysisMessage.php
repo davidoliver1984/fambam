@@ -7,5 +7,6 @@ final readonly class ReceivedFaceAnalysisMessage
     public function __construct(
         public string $body,
         public string $receiptHandle,
+        public ?string $traceparent = null,
     ) {}
 }

@@ -212,10 +212,14 @@ class FaceAnalysisWorker:
                             result_sha256=result_sha256,
                             detected_face_count=len(faces),
                         )
-                        self.sqs.send_message(
-                            QueueUrl=self.completed_queue_url,
-                            MessageBody=completed.model_dump_json(),
-                        )
+                        with observability.observe_result_publish(
+                            "completed", requested.traceparent
+                        ) as message_attributes:
+                            self.sqs.send_message(
+                                QueueUrl=self.completed_queue_url,
+                                MessageBody=completed.model_dump_json(),
+                                MessageAttributes=message_attributes,
+                            )
                         LOGGER.info(
                             "face-analysis request completed",
                             extra={
@@ -268,10 +272,14 @@ class FaceAnalysisWorker:
             failure_category=failure_category,  # type: ignore[arg-type]
             failure_detail=failure_detail,
         )
-        self.sqs.send_message(
-            QueueUrl=self.failed_queue_url,
-            MessageBody=failed.model_dump_json(),
-        )
+        with observability.observe_result_publish(
+            "failed", requested.traceparent
+        ) as message_attributes:
+            self.sqs.send_message(
+                QueueUrl=self.failed_queue_url,
+                MessageBody=failed.model_dump_json(),
+                MessageAttributes=message_attributes,
+            )
         LOGGER.warning(
             "face-analysis request failed",
             extra={"request_id": requested.request_id, "category": failure_category},

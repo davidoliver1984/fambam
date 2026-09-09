@@ -10,6 +10,8 @@ use App\Tenancy\TenantOperationContext;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use OpenTelemetry\API\Globals;
+use OpenTelemetry\API\Trace\SpanKind;
 
 class ConsumeFaceAnalysisResults extends Command
 {
@@ -41,12 +43,33 @@ class ConsumeFaceAnalysisResults extends Command
                             trim((string) $resolved->family_space_id),
                             (int) $resolved->actor_user_id,
                         );
-                        if ($kind === 'completed') {
-                            $pipeline->complete($context, $message->body);
-                        } else {
-                            $pipeline->fail($context, $message->body);
+                        if ($message->traceparent !== null) {
+                            $context = new TenantOperationContext(
+                                $context->familySpaceId,
+                                $context->actorUserId,
+                                $context->correlationId,
+                                $message->traceparent,
+                            );
                         }
-                        $queue->delete($kind, $message->receiptHandle);
+                        $parent = Globals::propagator()->extract(['traceparent' => $context->traceparent]);
+                        $span = Globals::tracerProvider()
+                            ->getTracer('fambam-api')
+                            ->spanBuilder("face-analysis.result {$kind}")
+                            ->setSpanKind(SpanKind::KIND_CONSUMER)
+                            ->setParent($parent)
+                            ->startSpan();
+                        $scope = $span->activate();
+                        try {
+                            if ($kind === 'completed') {
+                                $pipeline->complete($context, $message->body);
+                            } else {
+                                $pipeline->fail($context, $message->body);
+                            }
+                            $queue->delete($kind, $message->receiptHandle);
+                        } finally {
+                            $scope->detach();
+                            $span->end();
+                        }
                     } catch (InvalidFaceAnalysisMessage $exception) {
                         Log::warning('Face-analysis result message rejected.', [
                             'queue' => $kind,
