@@ -7,9 +7,9 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P12",
-    "current_stage": "FPA-P12-S01",
+    "current_stage": "FPA-P12-S02",
     "created_at": "2026-07-31",
-    "updated_at": "2026-09-08"
+    "updated_at": "2026-09-09"
   },
   "conventions": {
     "phase_id_format": "P##",
@@ -841,16 +841,18 @@
         {
           "id": "FPA-P12-S01",
           "title": "Accept memories and family homepage ADR",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P11-S05"
           ],
-          "notes": []
+          "notes": [
+            "ADR-0014 accepted 2026-09-09 (git tag phase-12-s01) after adversarial implementation-readiness reconciliation. The accepted architecture keeps transactional atomic family activity separate from live derived memories and recipient-scoped notifications; preserves authorization-before-disclosure throughout; uses honest historical-date wording and Photo-level resurfacing exclusion; and defines durable, preference-aware notification candidates with actor+batch+Album contribution identity, tenant-consistent typed relationships, Person-merge integration and explicit Family Space teardown ownership. Stage scope was solely ADR acceptance, so the ADR-acceptance commit is the stage-completion commit."
+          ]
         },
         {
           "id": "FPA-P12-S02",
           "title": "Implement recent family activity",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P12-S01"
           ],
@@ -882,6 +884,15 @@
             "FPA-P12-S04"
           ],
           "notes": []
+        },
+        {
+          "id": "FPA-P12-S06",
+          "title": "Implement notification architecture and preferences",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P12-S05"
+          ],
+          "notes": []
         }
       ]
     },
@@ -895,7 +906,7 @@
           "title": "Accept export, portability, backup and recovery ADR",
           "status": "planned",
           "dependencies": [
-            "FPA-P12-S05"
+            "FPA-P12-S06"
           ],
           "notes": []
         },

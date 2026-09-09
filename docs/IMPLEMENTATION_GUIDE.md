@@ -3904,19 +3904,196 @@ Add search performance and permission regressions
 
 ## FPA-P12-S01 — Accept memories and family homepage ADR (ADR-0014)
 
+ADR-0014 establishes the family homepage as bounded, purpose-labelled
+sections rather than one chronological feed; a persisted `family_activities`
+projection for meaningful authored actions, written transactionally
+alongside existing domain mutations and kept structurally distinct from
+`AuditEvent`; fully derived (never persisted) date-based, person-centred
+and Discovery-traversal memory sections; a Photo-level `do_not_resurface`
+resurfacing exclusion that never touches authorization, Search or
+Discovery; and a generalised notification architecture — `notifications`
+(the in-app, read-state product record) and `notification_deliveries`
+(channel-specific delivery/retry history) kept as two tables, with
+category-based preferences, category-specific recipient resolution, and
+authorization revalidated before every disclosure. This stage's entire
+scope is accepting the ADR, so the acceptance commit is the
+stage-completion commit and receives the `phase-12-s01` tag directly.
+
+### Documentation updates
+
+- Accepted ADR-0014.
+- Reconciled the Phase 12 implementation-stage boundaries below,
+  including the new notification stage.
+- Advanced `tasks.json` to FPA-P12-S02.
+
+### Commit boundary
+
+```text
+Accept ADR-0014: Memories, family homepage and notifications
+```
+
 ## FPA-P12-S02 — Implement recent family activity
 
-## FPA-P12-S03 — Implement date-based memories
+Add the additive `UNIQUE(id, family_space_id)` constraints this stage's
+schema depends on — `albums_id_family_space_unique`,
+`events_id_family_space_unique`, `photos_id_family_space_unique`, and
+`photo_stories_id_family_space_unique` — before creating any table that
+composite-foreign-keys to them, matching the pattern already used for
+`people`/`media_uploads` in Phase 10. Then add the `family_activities`
+table (tenant-scoped, RLS, its own additive `UNIQUE(id,
+family_space_id)`) with a small, closed set of nullable typed subject
+foreign-key columns (`subject_album_id`, `subject_event_id`,
+`subject_story_id`, `subject_person_id`) plus a `CHECK` constraint
+enforcing exactly the column matching `action_type` is populated — never
+an untyped `target_type`/`target_id` pair. Write one row per real
+mutation, transactionally, from the existing domain managers that already
+call `AuditRecorder::record()` for Photos-added-to-Album/Event,
+Story-added, Album-created, Event-created, and human-confirmed Person
+identity — never from a background listener reading `AuditEvent`, and
+never as one row representing several separate database writes.
+Implement presentation grouping via a nullable `contribution_batch_id`
+column, copied directly from `media_uploads.upload_batch_id` where a
+Photo reaches an Album through upload finalisation (`null` for a manually
+added existing Photo, which is honestly its own ungrouped fact); rows
+sharing a `NULL` batch id are never grouped with each other, and grouping
+is recomputed fresh on every homepage render rather than requiring any
+completion signal. Implement actor identity resolution through
+`PersonAccountLink` with a User-only fallback. Implement the homepage's
+"Recent family activity" section, fully authorized from its first commit
+via the same entry points ADR-0013 already established
+(`PhotoQuery::visibleTo()`, `AlbumQuery::visibleTo()`, the
+Event-visibility query, `PersonPolicy::viewAny()`), with counts computed
+from the viewer's current authorized subset only.
 
-## FPA-P12-S04 — Implement person-centred memories
+## FPA-P12-S03 — Implement date-based memories and the resurfacing-exclusion field
 
-## FPA-P12-S05 — Implement user controls and exclusions
+Implement "On this day" / "Around this time" as fully derived, live
+queries over `historical_date`/`historical_date_window_end` (no
+persistence) — `exact` precision alone qualifies for true "On this day"
+wording; `month` precision qualifies only for broader wording ("This
+month," "In September 1984") since the specific day is genuinely unknown;
+`year`/`decade`/`approximate` qualify only for broader period wording;
+`unknown` never date-resurfaces. Every resurfaced item carries one
+explainable, stated reason.
+
+**This stage also introduces the additive `photos.do_not_resurface`
+boolean** (default `false`), gated by the same authority as
+`PhotoPolicy::update()` (non-Guest, and either a manages-members role or
+the Photo's own creator) — the column must exist before any memory query
+depends on it, so it ships here, not in a later stage. Every date-based
+memory query implemented in this stage respects it; Search, Discovery,
+and authorization are unaffected.
+
+## FPA-P12-S04 — Implement person-centred memories and Discovery reuse
+
+Implement "People with new memories" as a fully derived count/listing
+over approved `PhotoPerson`, Stories and Event/Album associations created
+within a bounded recent window — never a maintained counter — respecting
+the `photos.do_not_resurface` field `FPA-P12-S03` already introduced.
+Reuse ADR-0013 §16's existing Discovery traversal endpoints directly for
+any homepage "more from this Person" surface; do not introduce a second
+Discovery model.
+
+## FPA-P12-S05 — Implement user controls and low-activity states
+
+Implement the functional user-facing control for `photos.do_not_resurface`
+(the toggle UI and its own exclusion-management tests) — the underlying
+column and its authority already exist from `FPA-P12-S03`; this stage
+does not create either. Implement graceful empty/low-activity homepage
+states (explore People, Albums, Events, recent Stories) rather than a
+bare "No activity" state.
+
+## FPA-P12-S06 — Implement notification architecture and preferences
+
+Add the one remaining supporting constraint this stage's schema depends
+on — `photo_comments_id_family_space_unique` — before creating any table
+that composite-foreign-keys to it (the other four supporting constraints
+were already added in `FPA-P12-S02`).
+
+Generalise the existing `SendEventContributionNotifications` /
+`EventNotificationDelivery` / `EventPhotoContributed` pattern into the
+category-driven pipeline, built around a **durable candidate record**
+rather than relying on `ShouldBeUnique` (a temporary queue-level lock)
+for correctness: `notification_candidates` (`family_space_id,
+recipient_user_id, category, source_action_id, evaluated_at,
+in_app_outcome, email_outcome`, unique on the first four columns) records
+that one recipient/category/originating-action combination has already
+been evaluated, before `notifications` (in-app, read-state,
+recipient-scoped) or `notification_deliveries` (channel-specific
+send/retry state) is ever created for it. All four tables use typed
+nullable FK columns (`photo_id`, `album_id`, `story_id`, `person_id`,
+`comment_id` on `notifications`/`notification_deliveries`; the equivalent
+subject columns on `family_activities`) plus a `CHECK` constraint per
+category — never an untyped `target_type`/`target_id` pair. Notification
+identity is `(family_space_id, recipient_user_id, category,
+source_action_id)`, where `source_action_id` is a plain scalar value
+sourced from a real, stable domain id per category (the `PhotoComment`
+id; the `PhotoStory` id; the confirming `PhotoPerson` id; for
+contribution, the id of a `contribution_groups` row — never the bare,
+client-supplied `upload_batch_id` alone, since it and `target_album_id`
+are independent columns with no compound constraint and the same batch
+id can recur across different Albums or different actors) — never the
+target alone and never a timestamp.
+
+`contribution_groups` (`family_space_id, actor_user_id, upload_batch_id`
+NOT NULL, `album_id`, unique on all four) materializes the full logical
+contribution identity — same actor + same batch id + same Album — as its
+own row, whose `id` becomes the contribution category's
+`source_action_id`; a manually added Photo with no batch id never creates
+one and uses its own `AlbumPhoto` id directly instead.
+
+For comment/story/identity categories, a job evaluates authorization and
+preferences once, synchronously, the first time a candidate's
+`notification_candidates` row is created, and any later duplicate or
+redelivered job — including one arriving after `ShouldBeUnique`'s lock
+window has expired — sees the existing terminal row and no-ops rather
+than re-evaluating current preferences. For the **contribution** category,
+each independently finalized Photo dispatches its own job, resolves the
+same `contribution_groups` row for its actor+batch+Album tuple, and
+against that shared group id; the first to reach a given candidate
+creates it in a `pending` state and schedules one delivery job after a
+short, fixed, explicitly-scoped debounce delay (`ShouldBeUnique` collapses
+repeated near-simultaneous re-dispatches into that single scheduled
+delivery); the delivery job, when it runs, re-queries every currently
+finalized and currently authorized Photo matching that exact
+actor+batch+Album tuple live — never Photos from a different Album or a
+different actor merely sharing the batch id — builds the notification
+from that live set, and marks the candidate terminal — a Photo finalizing
+after that point falls back to its own standalone `AlbumPhoto`-id-keyed
+notification rather than being dropped or retroactively merged into an
+already-delivered notification.
+
+Category-specific recipient resolvers (comment, contribution, story,
+identity) are composed from existing authorization primitives, never a
+"follow" model; the comment resolver reads prior participants only from
+`PhotoComment` rows in that exact `(photo_id, album_id)` conversation,
+never from `PhotoStory` authors, Photo-confirmed People, or their
+relatives. Each channel's preference is checked independently, exactly
+once per candidate: a disabled channel produces no row for that
+candidate at all (not hidden, not deferred) and is recorded as
+`skipped_preference` on the durable candidate row, and re-enabling a
+preference later never retroactively creates a row for a candidate
+already recorded as skipped. Authorization (unlike preferences) is
+revalidated at candidate creation, immediately before channel delivery,
+and again at in-app read time. Implement a functional (not final-polish)
+in-app notification surface and preference controls. Add
+`family_activities`, `contribution_groups`, `notification_candidates`,
+`notifications`, `notification_deliveries`, and `notification_preferences`
+to `FamilySpaceDeletionManager::teardown()`'s explicit per-table delete
+list, and integrate any Person-referencing typed column into
+`PersonMergeManager`'s existing capture/reconcile transaction.
 
 ### Phase verification
 
 - Memory rules are explainable.
-- Hidden and excluded photos are respected.
-- No engagement-ranking model is introduced.
+- Hidden, excluded and inaccessible content is respected in every
+  homepage section, notification, and count.
+- No engagement-ranking model is introduced anywhere in activity,
+  memory, or notification ordering.
+- Notifications never disclose content the recipient cannot currently
+  access, at creation, delivery, or read time.
+- `family_activities` and `notifications`/`notification_deliveries` are
+  structurally distinct from `AuditEvent` and from each other.
 
 ---
 
