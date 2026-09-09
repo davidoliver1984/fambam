@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\AlbumVisibility;
+use App\Enums\FamilyActivityType;
 use App\Enums\FamilySpaceRole;
 use App\Enums\MembershipState;
 use App\Enums\PhotoVisibility;
@@ -21,7 +22,10 @@ use Illuminate\Validation\ValidationException;
 
 class AlbumManager
 {
-    public function __construct(private readonly AuditRecorder $audit) {}
+    public function __construct(
+        private readonly AuditRecorder $audit,
+        private readonly FamilyActivityRecorder $activities,
+    ) {}
 
     /** @param array<string, mixed> $input */
     public function create(FamilySpace $space, User $actor, array $input, Request $request): Album
@@ -37,6 +41,12 @@ class AlbumManager
                 'guest_participation' => ($input['event_id'] ?? null) === null ? 'none' : ($input['guest_participation'] ?? 'none'),
             ]);
             $this->audit->record('album.created', $album, $actor, $request);
+            $this->activities->record(
+                $album->family_space_id,
+                $actor->id,
+                FamilyActivityType::AlbumCreated,
+                subjectAlbumId: $album->id,
+            );
 
             return $album;
         });
@@ -123,6 +133,13 @@ class AlbumManager
             $link = AlbumPhoto::query()->create(['family_space_id' => $album->family_space_id,
                 'album_id' => $album->id, 'photo_id' => $photo->id, 'position' => $position, 'added_by' => $actor->id]);
             $this->audit->record('album.photo_added', $link, $actor, $request, ['visibility_widened' => $photo->visibility === PhotoVisibility::Private && $album->visibility !== AlbumVisibility::Private]);
+            $this->activities->record(
+                $album->family_space_id,
+                $actor->id,
+                FamilyActivityType::PhotosAddedToAlbum,
+                subjectAlbumId: $album->id,
+                photoIds: [$photo->id],
+            );
 
             return $link;
         });

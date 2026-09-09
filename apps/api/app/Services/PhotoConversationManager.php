@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\FamilyActivityType;
 use App\Models\Album;
 use App\Models\Photo;
 use App\Models\PhotoComment;
@@ -15,7 +16,10 @@ use Illuminate\Support\Facades\DB;
 
 class PhotoConversationManager
 {
-    public function __construct(private readonly AuditRecorder $audit) {}
+    public function __construct(
+        private readonly AuditRecorder $audit,
+        private readonly FamilyActivityRecorder $activities,
+    ) {}
 
     public function createStory(Photo $photo, User $actor, string $body, Request $request): PhotoStory
     {
@@ -110,6 +114,15 @@ class PhotoConversationManager
         return DB::transaction(function () use ($class, $action, $photo, $actor, $body, $request): PhotoStory|PhotoComment {
             $model = $class::query()->create(['family_space_id' => $photo->family_space_id, 'photo_id' => $photo->id, 'author_id' => $actor->id, 'body' => trim($body)]);
             $this->audit->record($action, $model, $actor, $request);
+            if ($model instanceof PhotoStory) {
+                $this->activities->record(
+                    $photo->family_space_id,
+                    $actor->id,
+                    FamilyActivityType::StoryAdded,
+                    subjectStoryId: $model->id,
+                    photoIds: [$photo->id],
+                );
+            }
 
             return $model->load('author:id,name');
         });

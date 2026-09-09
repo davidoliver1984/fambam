@@ -89,6 +89,12 @@ class FamilySpace extends Model
         return $this->hasMany(SavedSearch::class);
     }
 
+    /** @return HasMany<FamilyActivity, $this> */
+    public function activities(): HasMany
+    {
+        return $this->hasMany(FamilyActivity::class);
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {

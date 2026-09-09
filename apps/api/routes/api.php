@@ -11,6 +11,7 @@ use App\Http\Controllers\EventExportController;
 use App\Http\Controllers\FaceClusterController;
 use App\Http\Controllers\FaceIdentityAssignmentController;
 use App\Http\Controllers\FaceIdentitySuppressionController;
+use App\Http\Controllers\FamilyActivityController;
 use App\Http\Controllers\FamilyCircleController;
 use App\Http\Controllers\FamilyEventController;
 use App\Http\Controllers\FamilySpaceController;
@@ -55,6 +56,7 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
 
     Route::prefix('/families/{familySpace}')->middleware('family-space')->group(function (): void {
         Route::get('/', [FamilySpaceController::class, 'show']);
+        Route::get('/activities/recent', [FamilyActivityController::class, 'index']);
         Route::get('/search', [SearchController::class, 'index']);
         Route::get('/search/suggestions', [SearchController::class, 'suggestions']);
         Route::get('/saved-searches', [SavedSearchController::class, 'index']);

@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P12",
-    "current_stage": "FPA-P12-S02",
+    "current_stage": "FPA-P12-S03",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-09"
   },
@@ -852,16 +852,18 @@
         {
           "id": "FPA-P12-S02",
           "title": "Implement recent family activity",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P12-S01"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-09. Added the tenant-scoped family_activities projection with typed composite subject relationships, PostgreSQL RLS and transactional writes for the accepted activity taxonomy; implemented live authorization filtering, actor-to-Person resolution, bounded Photo illustration and deterministic contribution-batch presentation grouping; added the Recent family activity homepage section and focused backend, frontend and PostgreSQL regression coverage."
+          ]
         },
         {
           "id": "FPA-P12-S03",
           "title": "Implement date-based memories",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P12-S02"
           ],

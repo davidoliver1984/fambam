@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\AlbumVisibility;
+use App\Enums\FamilyActivityType;
 use App\Enums\FamilySpaceRole;
 use App\Enums\MembershipState;
 use App\Enums\PhotoVisibility;
@@ -23,6 +24,7 @@ class AlbumContributionFinalizer
         private readonly EventAccess $eventAccess,
         private readonly EventContributionNotifier $eventNotifications,
         private readonly ExactDuplicateDetector $duplicates,
+        private readonly FamilyActivityRecorder $activities,
     ) {}
 
     public function finalize(MediaUpload $upload, TenantOperationContext $context): void
@@ -83,6 +85,14 @@ class AlbumContributionFinalizer
             $link = AlbumPhoto::query()->create(['family_space_id' => $upload->family_space_id,
                 'album_id' => $album->id, 'photo_id' => $photo->id, 'position' => $position, 'added_by' => $upload->user_id]);
             $this->audit->record('album.photo_created', $link, operationContext: $context);
+            $this->activities->record(
+                $album->family_space_id,
+                $upload->user_id,
+                FamilyActivityType::PhotosAddedToAlbum,
+                subjectAlbumId: $album->id,
+                contributionBatchId: $upload->upload_batch_id,
+                photoIds: [$photo->id],
+            );
             $this->eventNotifications->dispatch($album, $photo, $context);
         }
 

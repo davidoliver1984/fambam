@@ -55,7 +55,7 @@ class PostgresRowLevelSecurityTest extends TestCase
         $this->admin = DB::connection('pgsql_admin');
         $this->app->instance(FamilyMediaStorageCleaner::class, new RlsFamilyMediaStorageCleaner);
         $this->admin->unprepared(<<<'SQL'
-TRUNCATE TABLE saved_search_people, saved_searches,
+TRUNCATE TABLE family_activities, saved_search_people, saved_searches,
     face_identity_suppressions, face_identity_assignments,
     face_cluster_members, face_clusters, face_cluster_generations,
     face_embedding_projections, face_observations, face_analysis_attempts, face_analysis_runs,
@@ -125,16 +125,56 @@ WHERE relname IN (
     'duplicate_candidates', 'duplicate_decisions', 'media_upload_duplicate_holds', 'perceptual_hashes',
     'face_analysis_runs', 'face_analysis_attempts', 'face_observations', 'face_embedding_projections',
     'face_cluster_generations', 'face_clusters', 'face_cluster_members', 'face_identity_assignments',
-    'face_identity_suppressions', 'saved_searches', 'saved_search_people',
+    'face_identity_suppressions', 'saved_searches', 'saved_search_people', 'family_activities',
     'rls_test_records'
 )
 ORDER BY relname
 SQL);
 
-        $this->assertCount(49, $tables);
+        $this->assertCount(50, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
+        }
+    }
+
+    public function test_family_activity_subjects_are_tenant_consistent_and_match_the_action_type(): void
+    {
+        [$firstOwner, $firstFamily] = $this->createOwnedFamily('first-activity-family');
+        [$secondOwner, $secondFamily] = $this->createOwnedFamily('second-activity-family');
+        $albumId = (string) Str::ulid();
+        $this->admin->table('albums')->insert([
+            'id' => $albumId,
+            'family_space_id' => $secondFamily,
+            'created_by' => $secondOwner,
+            'name' => 'Other family album',
+            'visibility' => 'family_space',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $base = [
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $firstFamily,
+            'actor_user_id' => $firstOwner,
+            'action_type' => 'album_created',
+            'created_at' => now(),
+        ];
+        $this->assertCompositeForeignKeyRejected(fn () => $this->admin->table('family_activities')->insert([
+            ...$base,
+            'subject_album_id' => $albumId,
+        ]));
+
+        try {
+            $this->admin->table('family_activities')->insert([
+                ...$base,
+                'id' => (string) Str::ulid(),
+                'action_type' => 'event_created',
+                'subject_album_id' => null,
+            ]);
+            $this->fail('PostgreSQL accepted an activity without its required typed subject.');
+        } catch (QueryException $exception) {
+            $this->assertSame('23514', $exception->errorInfo[0]);
         }
     }
 

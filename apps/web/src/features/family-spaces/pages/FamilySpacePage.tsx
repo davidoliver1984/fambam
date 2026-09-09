@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router";
 
 import { toAppError } from "@/api/errors";
 import { InvitationManagement } from "@/features/invitations/pages/InvitationManagement";
+import { RecentFamilyActivity } from "@/features/activities/components/RecentFamilyActivity";
 
 import { useFamilySpaceQuery } from "../hooks/useFamilySpaceQuery";
 
@@ -44,6 +45,9 @@ export function FamilySpacePage() {
       <p className="eyebrow">fambam</p>
       <h1 id="family-space-title">{familySpace.name}</h1>
       <p>Your role: {familySpace.role}</p>
+      {familySpace.role !== "guest" && (
+        <RecentFamilyActivity familySlug={familySpace.slug} />
+      )}
       {canAccessPeople && (
         <p>
           <Link to={`/families/${encodeURIComponent(familySpace.slug)}/people`}>

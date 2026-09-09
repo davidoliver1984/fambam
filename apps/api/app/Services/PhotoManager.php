@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\DuplicateResolution;
+use App\Enums\FamilyActivityType;
 use App\Enums\FamilySpaceRole;
 use App\Enums\MediaUploadState;
 use App\Enums\PersonProposalStatus;
@@ -35,6 +36,7 @@ class PhotoManager
         private readonly AuditRecorder $audit,
         private readonly TenantContext $tenantContext,
         private readonly ExactDuplicateDetector $duplicates,
+        private readonly FamilyActivityRecorder $activities,
     ) {}
 
     /** @param array<string, mixed> $input */
@@ -362,6 +364,15 @@ class PhotoManager
                 $request,
                 ['photo_id' => $locked->id, 'person_id' => $person->id],
             );
+            if ($authoritative) {
+                $this->activities->record(
+                    $locked->family_space_id,
+                    $actor->id,
+                    FamilyActivityType::PersonIdentityConfirmed,
+                    subjectPersonId: $person->id,
+                    photoIds: [$locked->id],
+                );
+            }
 
             return $association->load('person:id,preferred_name');
         });
@@ -388,6 +399,15 @@ class PhotoManager
                 $request,
                 ['photo_id' => $lockedPhoto->id, 'person_id' => $locked->person_id],
             );
+            if ($resolution === PersonProposalStatus::Approved) {
+                $this->activities->record(
+                    $lockedPhoto->family_space_id,
+                    $actor->id,
+                    FamilyActivityType::PersonIdentityConfirmed,
+                    subjectPersonId: $locked->person_id,
+                    photoIds: [$lockedPhoto->id],
+                );
+            }
 
             return $locked->load('person:id,preferred_name');
         });

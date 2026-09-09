@@ -65,6 +65,7 @@ class FaceIdentityAssignmentTest extends TestCase
         $this->assertDatabaseHas('audit_events', ['action' => 'face_identity_assignment.proposed']);
         $this->assertDatabaseHas('audit_events', ['action' => 'face_identity_assignment.approved']);
         $this->assertDatabaseHas('audit_events', ['action' => 'photo.person_confirmed']);
+        $this->assertDatabaseCount('family_activities', 0);
     }
 
     public function test_approval_reuses_approved_resolves_pending_and_preserves_rejected_history(): void

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\EventStatus;
+use App\Enums\FamilyActivityType;
 use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\User;
@@ -15,7 +16,10 @@ class FamilyEventManager
 {
     private const FIELDS = ['name', 'description', 'starts_on', 'ends_on', 'location', 'status'];
 
-    public function __construct(private readonly AuditRecorder $audit) {}
+    public function __construct(
+        private readonly AuditRecorder $audit,
+        private readonly FamilyActivityRecorder $activities,
+    ) {}
 
     /** @param array<string, mixed> $input */
     public function create(FamilySpace $family, User $actor, array $input, Request $request): FamilyEvent
@@ -28,6 +32,12 @@ class FamilyEventManager
                 ...$this->attributes($input),
             ]);
             $this->audit->record('event.created', $event, $actor, $request);
+            $this->activities->record(
+                $event->family_space_id,
+                $actor->id,
+                FamilyActivityType::EventCreated,
+                subjectEventId: $event->id,
+            );
 
             return $event->load('creator:id,name');
         });

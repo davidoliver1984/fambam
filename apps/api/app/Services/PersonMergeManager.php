@@ -10,6 +10,7 @@ use App\Enums\RelationshipProposalStatus;
 use App\Enums\RelationshipType;
 use App\Models\FaceIdentityAssignment;
 use App\Models\FaceIdentitySuppression;
+use App\Models\FamilyActivity;
 use App\Models\FamilyCirclePerson;
 use App\Models\Person;
 use App\Models\PersonAccountLink;
@@ -93,6 +94,7 @@ class PersonMergeManager
             $this->reconcilePhotoProvenance($lockedAbsorbed, $lockedSurvivor, $actor);
             $this->reconcileFaceIdentity($lockedAbsorbed, $lockedSurvivor, $actor);
             $this->reconcileSavedSearchPeople($lockedAbsorbed, $lockedSurvivor);
+            $this->reconcileFamilyActivities($lockedAbsorbed, $lockedSurvivor);
             $lockedAbsorbed->delete();
 
             $merge = PersonMerge::query()->create([
@@ -548,6 +550,14 @@ class PersonMergeManager
                     ->update(['person_id' => $survivor->id]);
             }
         }
+    }
+
+    private function reconcileFamilyActivities(Person $absorbed, Person $survivor): void
+    {
+        FamilyActivity::query()->where('actor_person_id', $absorbed->id)
+            ->update(['actor_person_id' => $survivor->id]);
+        FamilyActivity::query()->where('subject_person_id', $absorbed->id)
+            ->update(['subject_person_id' => $survivor->id]);
     }
 
     /** @return array<string, mixed> */
