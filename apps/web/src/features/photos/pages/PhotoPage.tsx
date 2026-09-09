@@ -11,6 +11,7 @@ import { PhotoMetadataForm } from "../components/PhotoMetadataForm";
 import { PhotoPersonForm } from "../components/PhotoPersonForm";
 import { PhotoProvenanceForm } from "../components/PhotoProvenanceForm";
 import { PhotoProvenanceProposals } from "../components/PhotoProvenanceProposals";
+import { PhotoResurfacingControl } from "../components/PhotoResurfacingControl";
 import { PhotoTagsForm } from "../components/PhotoTagsForm";
 import { PhotoConversationPanel } from "../components/PhotoConversationPanel";
 import {
@@ -111,6 +112,14 @@ export function PhotoPage() {
           </dd>
         </div>
       </dl>
+
+      {photo.permissions.can_update && (
+        <PhotoResurfacingControl
+          familySlug={familySlug}
+          photoId={photo.id}
+          excluded={photo.do_not_resurface}
+        />
+      )}
 
       {photo.permissions.can_update && (
         <section aria-labelledby="edit-photo-title">

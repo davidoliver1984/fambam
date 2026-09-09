@@ -1,5 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { memoryKeys } from "@/features/memories/api/memoryKeys";
+
 import {
   createPhoto,
   deletePhoto,
@@ -187,6 +189,31 @@ export function useUpdatePhotoMutation(familySlug: string, photoId: string) {
       await queryClient.invalidateQueries({
         queryKey: photoKeys.list(familySlug),
       });
+    },
+  });
+}
+
+export function useSetPhotoResurfacingMutation(
+  familySlug: string,
+  photoId: string,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (doNotResurface: boolean) =>
+      updatePhoto(familySlug, photoId, {
+        do_not_resurface: doNotResurface,
+      }),
+    onSuccess: async (photo) => {
+      queryClient.setQueryData(photoKeys.detail(familySlug, photoId), photo);
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: memoryKeys.dateBased(familySlug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: memoryKeys.homepage(familySlug),
+        }),
+      ]);
     },
   });
 }

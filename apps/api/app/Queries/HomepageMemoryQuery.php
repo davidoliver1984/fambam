@@ -147,10 +147,9 @@ class HomepageMemoryQuery
 
             return [
                 ...$summary,
-                'author' => [
-                    'id' => $story->author?->id,
-                    'name' => $story->author?->name ?? 'Former family member',
-                ],
+                'author' => $story->author === null
+                    ? ['id' => null, 'name' => 'Former family member']
+                    : ['id' => $story->author->id, 'name' => $story->author->name],
                 'people' => $peopleByPhoto[$story->photo->id] ?? [],
                 'albums' => $albumsByPhoto[$story->photo->id] ?? [],
                 'events' => $eventsByPhoto[$story->photo->id] ?? [],

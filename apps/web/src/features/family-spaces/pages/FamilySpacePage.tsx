@@ -5,6 +5,7 @@ import { RecentFamilyActivity } from "@/features/activities/components/RecentFam
 import { InvitationManagement } from "@/features/invitations/pages/InvitationManagement";
 import { DateMemories } from "@/features/memories/components/DateMemories";
 import { PersonAndStoryMemories } from "@/features/memories/components/PersonAndStoryMemories";
+import { QuietFamilySpaceGuide } from "@/features/memories/components/QuietFamilySpaceGuide";
 
 import { useFamilySpaceQuery } from "../hooks/useFamilySpaceQuery";
 
@@ -52,6 +53,12 @@ export function FamilySpacePage() {
           <RecentFamilyActivity familySlug={familySpace.slug} />
           <DateMemories familySlug={familySpace.slug} />
           <PersonAndStoryMemories familySlug={familySpace.slug} />
+          <QuietFamilySpaceGuide
+            familySlug={familySpace.slug}
+            canExplorePeople={canAccessPeople}
+            canExploreEvents={canAccessPeople}
+            canExploreAlbums={canAccessAlbums}
+          />
         </>
       )}
       {canAccessPeople && (

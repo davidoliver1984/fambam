@@ -109,9 +109,8 @@ export type ResolveDuplicateHoldInput = {
   confirm_visibility_widening?: boolean;
 };
 
-export type UpdatePhotoInput = Omit<
-  CreatePhotoInput,
-  "media_upload_id" | "tags"
+export type UpdatePhotoInput = Partial<
+  Omit<CreatePhotoInput, "media_upload_id" | "tags">
 > & { primary_event_id?: string | null; do_not_resurface?: boolean };
 
 export type PhotoProvenanceInput = {

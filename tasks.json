@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P12",
-    "current_stage": "FPA-P12-S05",
+    "current_stage": "FPA-P12-S06",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-09"
   },
@@ -885,16 +885,18 @@
         {
           "id": "FPA-P12-S05",
           "title": "Implement user controls and exclusions",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P12-S04"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-09. Added an authorized Photo-detail control that clearly excludes or restores a Photo from automatic date and person-centred resurfacing without hiding it from the archive, and refreshes both memory query families after mutation. Added a role-aware low-activity homepage fallback with genuine Photo, People, Album, Event and recent-Story entry points so quiet Family Spaces are never a dead end. Focused frontend tests cover both toggle directions, failure handling, cache invalidation and sparse-versus-active homepage behavior."
+          ]
         },
         {
           "id": "FPA-P12-S06",
           "title": "Implement notification architecture and preferences",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P12-S05"
           ],
