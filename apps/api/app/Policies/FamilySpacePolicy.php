@@ -46,6 +46,17 @@ class FamilySpacePolicy
             && $this->tenantContext->membership()->role->canManageMembers();
     }
 
+    public function requestFullExport(User $user, FamilySpace $familySpace): bool
+    {
+        return $this->matchesContext($user, $familySpace)
+            && $this->tenantContext->membership()->role === FamilySpaceRole::Owner;
+    }
+
+    public function requestPersonalExport(User $user, FamilySpace $familySpace): bool
+    {
+        return $this->matchesContext($user, $familySpace);
+    }
+
     private function matchesContext(User $user, FamilySpace $familySpace): bool
     {
         if (! $this->tenantContext->isEstablished()) {

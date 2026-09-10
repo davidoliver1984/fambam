@@ -55,7 +55,7 @@ class PostgresRowLevelSecurityTest extends TestCase
         $this->admin = DB::connection('pgsql_admin');
         $this->app->instance(FamilyMediaStorageCleaner::class, new RlsFamilyMediaStorageCleaner);
         $this->admin->unprepared(<<<'SQL'
-TRUNCATE TABLE notification_deliveries, notifications, notification_candidates,
+TRUNCATE TABLE notification_deliveries, notifications, notification_candidates, family_exports,
     notification_preferences, contribution_groups, family_activities, saved_search_people, saved_searches,
     face_identity_suppressions, face_identity_assignments,
     face_cluster_members, face_clusters, face_cluster_generations,
@@ -120,7 +120,7 @@ WHERE relname IN (
     'person_relationships', 'relationship_proposals', 'family_circles', 'family_circle_people',
     'person_merges', 'person_merge_proposals', 'media_uploads', 'media_variants',
     'photos', 'photo_provenance_proposals', 'photo_metadata_proposals', 'photo_people', 'tags', 'photo_tag',
-    'albums', 'album_photos', 'album_grants', 'events', 'event_admissions', 'event_exports',
+    'albums', 'album_photos', 'album_grants', 'events', 'event_admissions', 'event_exports', 'family_exports',
     'event_notification_deliveries',
     'photo_stories', 'photo_story_revisions', 'photo_comments', 'photo_comment_revisions', 'photo_reactions',
     'duplicate_candidates', 'duplicate_decisions', 'media_upload_duplicate_holds', 'perceptual_hashes',
@@ -134,7 +134,7 @@ WHERE relname IN (
 ORDER BY relname
 SQL);
 
-        $this->assertCount(55, $tables);
+        $this->assertCount(56, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
@@ -762,6 +762,57 @@ SQL);
         $due = DB::select('SELECT * FROM app_due_event_exports()');
         $this->assertEqualsCanonicalizing($exports, array_map(
             fn ($row): string => trim((string) $row->event_export_id),
+            $due,
+        ));
+    }
+
+    public function test_family_exports_use_the_standard_tenant_boundary_and_bounded_expiry_discovery(): void
+    {
+        [$firstOwner, $firstFamily] = $this->createOwnedFamily('first-family-exports');
+        [$secondOwner, $secondFamily] = $this->createOwnedFamily('second-family-exports');
+        $now = now();
+        $exports = [];
+
+        foreach ([[$firstOwner, $firstFamily], [$secondOwner, $secondFamily]] as [$owner, $family]) {
+            $export = (string) Str::ulid();
+            $exports[] = $export;
+            $this->admin->table('family_exports')->insert([
+                'id' => $export,
+                'family_space_id' => $family,
+                'requested_by' => $owner,
+                'scope' => 'family_space_full',
+                'state' => 'ready',
+                'object_key' => "families/{$family}/family-exports/{$export}.zip",
+                'expires_at' => $now->copy()->subMinute(),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
+        DB::beginTransaction();
+        app(DatabaseTenantContext::class)->establishUser($firstOwner);
+        app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+        $this->assertSame([$exports[0]], DB::table('family_exports')->pluck('id')->all());
+        DB::rollBack();
+
+        $this->assertRlsRejects(function () use ($firstOwner, $firstFamily, $secondFamily, $now): void {
+            app(DatabaseTenantContext::class)->establishUser($firstOwner);
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('family_exports')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $secondFamily,
+                'requested_by' => $firstOwner,
+                'scope' => 'personal',
+                'state' => 'pending',
+                'object_key' => "families/{$secondFamily}/family-exports/cross-tenant.zip",
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        });
+
+        $due = DB::select('SELECT * FROM app_due_family_exports()');
+        $this->assertEqualsCanonicalizing($exports, array_map(
+            fn ($row): string => trim((string) $row->family_export_id),
             $due,
         ));
     }

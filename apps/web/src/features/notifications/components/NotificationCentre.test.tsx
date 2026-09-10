@@ -99,4 +99,42 @@ describe("NotificationCentre", () => {
       expect(updated).toBe(true);
     });
   });
+
+  it("renders an export workflow notification without adding it to preferences", async () => {
+    server.use(
+      http.get(`${base}/notifications`, () =>
+        HttpResponse.json({
+          data: [
+            {
+              id: "notice-export",
+              category: "export",
+              photo_id: null,
+              album_id: null,
+              story_id: null,
+              person_id: null,
+              comment_id: null,
+              family_export_id: "export-1",
+              read_at: null,
+              created_at: "2026-09-10T12:00:00Z",
+            },
+          ],
+        }),
+      ),
+      http.get(`${base}/notification-preferences`, () =>
+        HttpResponse.json({
+          data: [{ category: "comment", channel: "in_app", enabled: true }],
+        }),
+      ),
+    );
+
+    renderCentre();
+
+    expect(
+      await screen.findByRole("link", { name: /Export status/ }),
+    ).toHaveAttribute("href", "/families/mercer-family");
+    await userEvent.click(screen.getByText("Notification preferences"));
+    expect(
+      screen.queryByRole("checkbox", { name: /Export status/ }),
+    ).toBeNull();
+  });
 });

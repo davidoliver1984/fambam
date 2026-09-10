@@ -24,6 +24,10 @@ Schedule::command('fambam:dispatch-due-event-exports')
     ->hourly()
     ->withoutOverlapping();
 
+Schedule::command('fambam:dispatch-due-family-exports')
+    ->hourly()
+    ->withoutOverlapping();
+
 Schedule::command('fambam:dispatch-missing-perceptual-hashes')
     ->everyTenMinutes()
     ->withoutOverlapping();

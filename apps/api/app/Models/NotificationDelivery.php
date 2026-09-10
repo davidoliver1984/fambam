@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['family_space_id', 'recipient_user_id', 'category', 'source_action_id', 'notification_id', 'photo_id', 'album_id', 'story_id', 'person_id', 'comment_id', 'channel', 'status', 'attempted_at', 'sent_at', 'failure_reason'])]
+#[Fillable(['family_space_id', 'recipient_user_id', 'category', 'source_action_id', 'notification_id', 'photo_id', 'album_id', 'story_id', 'person_id', 'comment_id', 'family_export_id', 'channel', 'status', 'attempted_at', 'sent_at', 'failure_reason'])]
 class NotificationDelivery extends Model
 {
     use HasUlids;

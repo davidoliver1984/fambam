@@ -14,6 +14,7 @@ use App\Models\FaceIdentitySuppression;
 use App\Models\FamilyCircle;
 use App\Models\FamilyCirclePerson;
 use App\Models\FamilyEvent;
+use App\Models\FamilyExport;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\Invitation;
@@ -119,6 +120,7 @@ class AuditRecorder
             || $subject instanceof FamilyEvent
             || $subject instanceof EventAdmission
             || $subject instanceof EventExport
+            || $subject instanceof FamilyExport
             || $subject instanceof FaceIdentityAssignment
             || $subject instanceof FaceIdentitySuppression
             || $subject instanceof FaceCluster) {

@@ -212,6 +212,7 @@ class NotificationManager
             NotificationCategory::Contribution => ['album_id' => $subject['album_id']],
             NotificationCategory::Story => ['story_id' => $subject['story_id']],
             NotificationCategory::Identity => ['photo_id' => $subject['photo_id'], 'person_id' => $subject['person_id']],
+            NotificationCategory::Export => ['family_export_id' => $subject['family_export_id']],
         };
     }
 
@@ -236,7 +237,7 @@ class NotificationManager
             $ids = collect([Photo::find($subject['photo_id'])?->created_by])->merge(PersonAccountLink::query()->whereIn('person_id', $personIds)->pluck('user_id'));
         } elseif ($category === NotificationCategory::Identity) {
             $ids = PersonAccountLink::query()->where('person_id', $subject['person_id'])->pluck('user_id');
-        } else {
+        } elseif ($category === NotificationCategory::Contribution) {
             $album = Album::find($subject['album_id']);
             $ids = collect([$album?->created_by]);
             if ($album?->event_id !== null) {
@@ -317,6 +318,7 @@ class NotificationManager
             NotificationCategory::Contribution => 'New photographs were added.',
             NotificationCategory::Story => 'A new story was added to a photograph.',
             NotificationCategory::Identity => 'Your identity was confirmed in a photograph.',
+            NotificationCategory::Export => 'Your fambam export status changed.',
         };
     }
 

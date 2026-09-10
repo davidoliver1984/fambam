@@ -15,6 +15,7 @@ const labels = {
   contribution: "New photographs",
   story: "New story",
   identity: "Identity confirmed",
+  export: "Export status",
 } as const;
 function target(slug: string, item: FamilyNotification) {
   if (item.photo_id)

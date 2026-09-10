@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P13",
-    "current_stage": "FPA-P13-S02",
+    "current_stage": "FPA-P13-S03",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-10"
   },
@@ -925,16 +925,18 @@
         {
           "id": "FPA-P13-S02",
           "title": "Implement personal and family exports",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P13-S01"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-10. Added one requester-owned queued export lifecycle for Owner-only full Family Space archives and authorization-filtered Personal Exports, including live container/content selection, independent preserved-original checks, strict download-time role and membership revalidation, expiry cleanup, forced-RLS tenant isolation, audited state changes and durable unconditional ready/failed notification intents keyed by export plus terminal outcome. Archive schema and ZIP assembly remain owned by FPA-P13-S03."
+          ]
         },
         {
           "id": "FPA-P13-S03",
           "title": "Implement metadata manifest",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P13-S02"
           ],
@@ -2063,6 +2065,14 @@
       "roadmap_stage": "FPA-P11-S05",
       "date": "2026-09-08",
       "description": "Phase 11 completed: tenant-authorized PostgreSQL search, calendar-safe historical dates, relationship-aware filters, visibility-safe Discovery, creator-private saved views, deterministic continuation and projected-library performance evidence satisfy ADR-0013 without leaking inaccessible content or search text."
+    },
+    {
+      "git_tag": "phase-13-s02",
+      "type": "stage_completion",
+      "adr": "ADR-0015",
+      "roadmap_stage": "FPA-P13-S02",
+      "date": "2026-09-10",
+      "description": "FPA-P13-S02 completed: a shared requester-owned queued lifecycle now supports Owner-only full Family Space exports and authorization-filtered Personal Exports, with live inclusion resolution, independent original-download authority, strict download-time role and membership checks, forced-RLS tenant isolation, expiry cleanup, auditing and durable idempotent terminal notifications. Archive schema and assembly remain explicitly deferred to FPA-P13-S03."
     }
   ]
 }

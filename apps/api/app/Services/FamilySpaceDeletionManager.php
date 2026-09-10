@@ -15,6 +15,7 @@ use App\Models\FaceClusterGeneration;
 use App\Models\FamilyActivity;
 use App\Models\FamilyCircle;
 use App\Models\FamilyEvent;
+use App\Models\FamilyExport;
 use App\Models\FamilyNotification;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
@@ -160,6 +161,9 @@ class FamilySpaceDeletionManager
                 ->where('family_space_id', $familySpace->id)
                 ->delete();
             EventExport::query()
+                ->where('family_space_id', $familySpace->id)
+                ->delete();
+            FamilyExport::query()
                 ->where('family_space_id', $familySpace->id)
                 ->delete();
             Invitation::query()

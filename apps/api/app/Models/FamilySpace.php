@@ -95,6 +95,12 @@ class FamilySpace extends Model
         return $this->hasMany(FamilyActivity::class);
     }
 
+    /** @return HasMany<FamilyExport, $this> */
+    public function exports(): HasMany
+    {
+        return $this->hasMany(FamilyExport::class);
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {
