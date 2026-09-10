@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P13",
-    "current_stage": "FPA-P13-S04",
+    "current_stage": "FPA-P13-S06",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-10"
   },
@@ -958,16 +958,18 @@
         {
           "id": "FPA-P13-S05",
           "title": "Perform tested restore exercise",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P13-S04"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-10. Added an isolated PostgreSQL 17 restore drill that consumes exact named backup evidence, verifies the database artifact checksum, restores runtime privileges, reapplies post-snapshot Family Space deletion ledger entries, validates relational integrity and restores every preserved original from its captured object version into isolated storage for SHA-256 verification. The successful real drill verified 77 of 77 originals, found no broken approved Photo-to-Person relationships and left aggregate backup health healthy."
+          ]
         },
         {
           "id": "FPA-P13-S06",
           "title": "Implement deletion request lifecycle",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P13-S05"
           ],

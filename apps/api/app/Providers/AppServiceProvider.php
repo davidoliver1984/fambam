@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Backups\DeletionLedger;
+use App\Backups\S3DeletionLedger;
 use App\FaceAnalysis\FaceAnalysisRequestPublisher;
 use App\FaceAnalysis\FaceAnalysisResultAuthority;
 use App\FaceAnalysis\FaceAnalysisResultQueue;
@@ -56,6 +58,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(MediaObjectStorage::class, S3MediaObjectStorage::class);
         $this->app->bind(MediaDeliveryUrlSigner::class, S3MediaDeliveryUrlSigner::class);
         $this->app->bind(FamilyMediaStorageCleaner::class, S3FamilyMediaStorageCleaner::class);
+        $this->app->bind(DeletionLedger::class, S3DeletionLedger::class);
         $this->app->bind(ImageDecoderValidator::class, ImageMagickDecoderValidator::class);
         $this->app->bind(MalwareScanner::class, ClamAvMalwareScanner::class);
         $this->app->bind(MediaMetadataExtractor::class, ExifToolMediaMetadataExtractor::class);

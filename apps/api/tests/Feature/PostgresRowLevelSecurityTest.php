@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Backups\DeletionLedger;
 use App\Enums\FamilySpaceRole;
 use App\Enums\MembershipState;
 use App\FaceAnalysis\FaceAnalysisRequestPublisher;
@@ -54,6 +55,15 @@ class PostgresRowLevelSecurityTest extends TestCase
 
         $this->admin = DB::connection('pgsql_admin');
         $this->app->instance(FamilyMediaStorageCleaner::class, new RlsFamilyMediaStorageCleaner);
+        $this->app->instance(DeletionLedger::class, new class implements DeletionLedger
+        {
+            public function record(string $familySpaceId, int $actorUserId, CarbonImmutable $completedAt): void {}
+
+            public function completedAfter(CarbonImmutable $snapshotAt): array
+            {
+                return [];
+            }
+        });
         $this->admin->unprepared(<<<'SQL'
 TRUNCATE TABLE notification_deliveries, notifications, notification_candidates, family_exports,
     notification_preferences, contribution_groups, family_activities, saved_search_people, saved_searches,

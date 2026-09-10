@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Backups\DeletionLedger;
 use App\Enums\FamilySpaceRole;
 use App\Enums\FamilySpaceStatus;
 use App\Enums\MembershipState;
@@ -31,6 +32,7 @@ use App\Models\Tag;
 use App\Models\User;
 use App\Tenancy\DatabaseTenantContext;
 use App\Tenancy\TenantOperationContext;
+use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -42,6 +44,7 @@ class FamilySpaceDeletionManager
         private readonly AuditRecorder $audit,
         private readonly DatabaseTenantContext $databaseTenantContext,
         private readonly FamilyMediaStorageCleaner $mediaStorageCleaner,
+        private readonly DeletionLedger $deletionLedger,
     ) {}
 
     public function request(FamilySpace $familySpace, User $actor, Request $request): FamilySpace
@@ -128,7 +131,34 @@ class FamilySpaceDeletionManager
             return;
         }
 
+        $this->completeTeardown($context);
+    }
+
+    public function reapplyAfterRestore(TenantOperationContext $context): void
+    {
+        $claimed = DB::transaction(function () use ($context): bool {
+            $this->establishTeardownContext($context);
+            $familySpace = FamilySpace::query()->lockForUpdate()->find($context->familySpaceId);
+            if ($familySpace === null || $familySpace->status === FamilySpaceStatus::Deleted) {
+                return false;
+            }
+            $familySpace->update(['status' => FamilySpaceStatus::Deleting]);
+
+            return true;
+        });
+        if ($claimed) {
+            $this->completeTeardown($context);
+        }
+    }
+
+    private function completeTeardown(TenantOperationContext $context): void
+    {
         $this->mediaStorageCleaner->deleteFamilyMedia($context->familySpaceId);
+        $this->deletionLedger->record(
+            $context->familySpaceId,
+            $context->actorUserId,
+            CarbonImmutable::now(),
+        );
 
         DB::transaction(function () use ($context): void {
             $this->establishTeardownContext($context);

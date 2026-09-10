@@ -22,8 +22,7 @@ docker compose exec -T postgres pg_dump \
     --username "${database_user}" \
     --dbname "${database}" \
     --format custom \
-    --no-owner \
-    --no-acl >"${temporary_directory}/database.dump"
+    --no-owner >"${temporary_directory}/database.dump"
 
 docker compose exec -T localstack awslocal s3api get-bucket-versioning \
     --bucket "${bucket}" \

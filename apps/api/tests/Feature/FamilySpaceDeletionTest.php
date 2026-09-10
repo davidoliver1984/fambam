@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Backups\DeletionLedger;
 use App\Enums\FamilySpaceRole;
 use App\Enums\FamilySpaceStatus;
 use App\Enums\MembershipState;
@@ -26,8 +27,10 @@ use App\Models\SavedSearch;
 use App\Models\Tag;
 use App\Models\User;
 use App\Services\FamilySpaceDeletionManager;
+use App\Services\RestoreDeletionReconciler;
 use App\Storage\FamilyStorageKey;
 use App\Tenancy\TenantOperationContext;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -40,11 +43,15 @@ class FamilySpaceDeletionTest extends TestCase
 
     private FakeFamilyMediaStorageCleaner $mediaCleaner;
 
+    private FakeDeletionLedger $deletionLedger;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->mediaCleaner = new FakeFamilyMediaStorageCleaner;
+        $this->deletionLedger = new FakeDeletionLedger;
         $this->app->instance(FamilyMediaStorageCleaner::class, $this->mediaCleaner);
+        $this->app->instance(DeletionLedger::class, $this->deletionLedger);
     }
 
     public function test_only_an_owner_can_request_and_cancel_deletion(): void
@@ -231,6 +238,7 @@ class FamilySpaceDeletionTest extends TestCase
             $this->assertDatabaseMissing($table, ['family_space_id' => $familySpace->id]);
         }
         $this->assertSame([$familySpace->id], $this->mediaCleaner->familySpaceIds);
+        $this->assertSame([$familySpace->id], array_column($this->deletionLedger->recorded, 'family_space_id'));
         $this->assertDatabaseHas('audit_events', [
             'family_space_id' => $familySpace->id,
             'actor_user_id' => $owner->id,
@@ -281,6 +289,32 @@ class FamilySpaceDeletionTest extends TestCase
 
         $this->assertSame(FamilySpaceStatus::Active, $familySpace->refresh()->status);
         $this->assertDatabaseMissing('audit_events', ['action' => 'family_space.deleted']);
+    }
+
+    public function test_restore_reconciliation_reapplies_a_post_snapshot_deletion(): void
+    {
+        [$familySpace, $owner] = $this->familyWithOwner('restored-family');
+        MediaUpload::factory()->create([
+            'family_space_id' => $familySpace->id,
+            'user_id' => $owner->id,
+        ]);
+        $snapshotAt = CarbonImmutable::parse('2026-09-01T00:00:00Z');
+        $this->deletionLedger->entries = [[
+            'family_space_id' => $familySpace->id,
+            'actor_user_id' => $owner->id,
+            'completed_at' => $snapshotAt->addDay(),
+        ]];
+
+        $count = app(RestoreDeletionReconciler::class)->reconcile($snapshotAt);
+
+        $this->assertSame(1, $count);
+        $this->assertSame(FamilySpaceStatus::Deleted, $familySpace->refresh()->status);
+        $this->assertDatabaseMissing('media_uploads', ['family_space_id' => $familySpace->id]);
+        $this->assertSame([$familySpace->id], $this->mediaCleaner->familySpaceIds);
+        $this->assertDatabaseHas('audit_events', [
+            'family_space_id' => $familySpace->id,
+            'action' => 'family_space.deleted',
+        ]);
     }
 
     public function test_family_storage_keys_are_tenant_partitioned_and_reject_traversal(): void
@@ -342,5 +376,34 @@ class FakeFamilyMediaStorageCleaner implements FamilyMediaStorageCleaner
             $this->failuresRemaining--;
             throw new \RuntimeException('Storage cleanup failed.');
         }
+    }
+}
+
+class FakeDeletionLedger implements DeletionLedger
+{
+    /** @var list<array{family_space_id: string, actor_user_id: int, completed_at: CarbonImmutable}> */
+    public array $recorded = [];
+
+    /** @var list<array{family_space_id: string, actor_user_id: int, completed_at: CarbonImmutable}> */
+    public array $entries = [];
+
+    public function record(string $familySpaceId, int $actorUserId, CarbonImmutable $completedAt): void
+    {
+        if (in_array($familySpaceId, array_column($this->recorded, 'family_space_id'), true)) {
+            return;
+        }
+        $this->recorded[] = [
+            'family_space_id' => $familySpaceId,
+            'actor_user_id' => $actorUserId,
+            'completed_at' => $completedAt,
+        ];
+    }
+
+    public function completedAfter(CarbonImmutable $snapshotAt): array
+    {
+        return array_values(array_filter(
+            $this->entries,
+            fn (array $entry): bool => $entry['completed_at']->isAfter($snapshotAt),
+        ));
     }
 }

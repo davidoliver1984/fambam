@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Backups\DeletionLedger;
 use App\Enums\FaceClusterGenerationStatus;
 use App\Enums\FaceClusterStatus;
 use App\Enums\FamilySpaceStatus;
@@ -12,6 +13,7 @@ use App\FaceRecognition\SimilaritySearch;
 use App\Media\FamilyMediaStorageCleaner;
 use App\Services\FamilySpaceDeletionManager;
 use App\Tenancy\TenantOperationContext;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +32,15 @@ class FaceClusteringPostgresTest extends TestCase
             $this->markTestSkipped('Face clustering tests require runtime and administrative PostgreSQL connections.');
         }
         $this->admin = DB::connection('pgsql_admin');
+        $this->app->instance(DeletionLedger::class, new class implements DeletionLedger
+        {
+            public function record(string $familySpaceId, int $actorUserId, CarbonImmutable $completedAt): void {}
+
+            public function completedAfter(CarbonImmutable $snapshotAt): array
+            {
+                return [];
+            }
+        });
         $this->admin->unprepared('TRUNCATE TABLE users RESTART IDENTITY CASCADE');
         config()->set('face_recognition.clustering_max_cosine_distance', 0.2);
     }
