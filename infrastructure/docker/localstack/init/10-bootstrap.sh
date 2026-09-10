@@ -21,6 +21,10 @@ awslocal --endpoint-url "${endpoint}" s3api put-public-access-block \
     --public-access-block-configuration \
     'BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true'
 
+awslocal --endpoint-url "${endpoint}" s3api put-bucket-versioning \
+    --bucket "${bucket}" \
+    --versioning-configuration Status=Enabled
+
 for queue in \
     fambam-jobs \
     image-analysis-synthetic \

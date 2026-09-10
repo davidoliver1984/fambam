@@ -4,8 +4,9 @@ set -eu
 
 bucket="${AWS_BUCKET:-fambam-media}"
 queue="image-analysis-requested-dlq"
-object="smoke/infrastructure.txt"
+object="smoke/infrastructure-$(date +%s)-$$.txt"
 payload="fambam-infrastructure-smoke-$(date +%s)-$$"
+previous_payload="${payload}-previous-version"
 
 docker compose exec -T postgres pg_isready -U fambam -d fambam
 docker compose exec -T redis redis-cli ping
@@ -41,6 +42,17 @@ for required_service in api queue-worker scheduler api-image-analysis-results im
     fi
 done
 
+versioning_status="$(
+    docker compose exec -T localstack awslocal s3api get-bucket-versioning \
+        --bucket "${bucket}" --query Status --output text
+)"
+if [ "${versioning_status}" != "Enabled" ]; then
+    echo "S3 bucket versioning is not enabled" >&2
+    exit 1
+fi
+
+printf '%s' "${previous_payload}" |
+    docker compose exec -T localstack awslocal s3 cp - "s3://${bucket}/${object}"
 printf '%s' "${payload}" |
     docker compose exec -T localstack awslocal s3 cp - "s3://${bucket}/${object}"
 
@@ -53,6 +65,28 @@ if [ "${downloaded}" != "${payload}" ]; then
     echo "S3 smoke test returned unexpected content" >&2
     exit 1
 fi
+
+object_version_count="$(
+    docker compose exec -T localstack awslocal s3api list-object-versions \
+        --bucket "${bucket}" \
+        --prefix "${object}" \
+        --query "length(Versions[?Key=='${object}'])" \
+        --output text
+)"
+if [ "${object_version_count}" -lt 2 ]; then
+    echo "S3 smoke test did not retain both object versions" >&2
+    exit 1
+fi
+
+docker compose exec -T localstack awslocal s3api list-object-versions \
+    --bucket "${bucket}" \
+    --prefix "${object}" \
+    --query "Versions[?Key=='${object}'].[Key,VersionId]" \
+    --output text |
+while read -r version_key version_id; do
+    docker compose exec -T localstack awslocal s3api delete-object \
+        --bucket "${bucket}" --key "${version_key}" --version-id "${version_id}" >/dev/null
+done
 
 docker compose exec -T localstack awslocal sqs send-message \
     --queue-url "http://localhost:4566/000000000000/${queue}" \

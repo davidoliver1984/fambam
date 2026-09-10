@@ -947,16 +947,18 @@
         {
           "id": "FPA-P13-S04",
           "title": "Implement backup monitoring",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P13-S03"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-10. Added real whole-PostgreSQL custom-format backup artifacts, enabled and proved local object-storage versioning, captured inspectable object-version inventories and persisted bounded provider-neutral evidence for database backup, object-storage verification and restore drills. Backup health now derives one state from configurable age thresholds and restore outcomes; production requirements retain automated snapshots, point-in-time recovery, declared retention and encryption at rest without selecting a provider. The successful local backup inputs are named for S05, while aggregate health remains honestly degraded until its first restore drill."
+          ]
         },
         {
           "id": "FPA-P13-S05",
           "title": "Perform tested restore exercise",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P13-S04"
           ],

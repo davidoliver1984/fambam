@@ -61,7 +61,7 @@ docker run --rm --network "container:$container_name" \
     DB_ADMIN_DATABASE="$database_name" \
     DB_ADMIN_USERNAME="$owner_name" \
     DB_ADMIN_PASSWORD="$owner_password" \
-    php artisan test tests/Feature/PostgresRowLevelSecurityTest.php tests/Feature/FaceEmbeddingProjectionPostgresTest.php tests/Feature/FaceClusteringPostgresTest.php tests/Feature/SearchPostgresTest.php tests/Feature/FamilyExportPostgresTest.php
+    php artisan test tests/Feature/PostgresRowLevelSecurityTest.php tests/Feature/FaceEmbeddingProjectionPostgresTest.php tests/Feature/FaceClusteringPostgresTest.php tests/Feature/SearchPostgresTest.php tests/Feature/FamilyExportPostgresTest.php tests/Feature/BackupHealthPostgresTest.php
 
     DB_CONNECTION=pgsql \
     DB_HOST=127.0.0.1 \
