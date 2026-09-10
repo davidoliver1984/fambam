@@ -4101,22 +4101,295 @@ list, and integrate any Person-referencing typed column into
 
 ## FPA-P13-S01 — Accept export, portability, backup and recovery ADR (ADR-0015)
 
+ADR-0015 generalises `EventExportManager`'s proven queued-generation,
+checksum-verification, write-once, and signed-delivery pipeline into both
+a full, Owner-only Family Space export and a Personal Export scoped by
+container ownership (`created_by` on Photo/Album/Event) rather than
+narrow authorship-only rows. Its reconciliation corrected several
+implementation-critical mistakes: the archive-level checksum must be
+computed after sealing and stored outside the archive, never embedded in
+a file the archive itself contains; a single per-item authorization check
+is insufficient for Personal Export and is replaced by an explicit
+resolve/assemble/reconcile-before-sealing guarantee that fails safely on
+any mismatch; Family Space teardown must be extended to purge every
+object version, not only the current one, once object-storage versioning
+is enabled; export eligibility for an unattached `MediaUpload` is
+determined by "possesses a valid, checksum-verified preserved original"
+(the `Preserved`/`Processing`/`Ready`/`Degraded` states), never a literal
+`state = 'preserved'` filter, and a promoted upload's original is
+exported exactly once, never duplicated across `originals/` and
+`unattached/`; "transactional" export notification means a durable
+notification intent is recorded atomically with the export's terminal
+state change, never that email delivery itself is part of that
+transaction; and backup creation itself needs an explicit implementation
+owner (`FPA-P13-S04`) rather than being assumed to already exist for
+`FPA-P13-S05` to restore from. It also settles that "complete" includes
+soft-deleted restorable records and preserved-but-unpromoted uploads,
+classifies approved `FaceIdentityAssignment` and decided
+`FaceIdentitySuppression` (and the `FaceObservation` rows either depends
+on) as authoritative despite living among face-recognition tables,
+requires a durable deletion ledger so a restore can never resurrect a
+deliberately deleted Family Space, and confirms — since Phase 12 is now
+complete in this repository — that all six of its tables
+(`FamilyActivity`, `NotificationDelivery`, `FamilyNotification`,
+`NotificationCandidate`, `NotificationPreference`, `ContributionGroup`)
+already exist and are already integrated into
+`FamilySpaceDeletionManager::teardown()`, leaving Phase 13 to add only
+its own new tables to that same list. This stage's entire scope is
+accepting the ADR, so the acceptance commit is the stage-completion
+commit and receives the `phase-13-s01` tag directly.
+
+### Documentation updates
+
+- Accepted ADR-0015.
+- Reconciled the Phase 13 implementation-stage boundaries below.
+- Advanced `tasks.json` to FPA-P13-S02.
+
+### Commit boundary
+
+```text
+Accept ADR-0015: Export, portability, backup and recovery
+```
+
 ## FPA-P13-S02 — Implement personal and family exports
+
+**Export domain and lifecycle foundation — not the final archive itself,
+which depends on the format `FPA-P13-S03` defines.** Add the
+export-tracking table(s) (mirroring `EventExport`'s shape:
+`family_space_id`, requester, `state`, `object_key`, `archive_sha256`,
+`byte_size`, `expires_at`) and a queued generation job. Implement full
+Family Space export (Owner-only, via the existing Owner-authority gate)
+and Personal Export (available to any member, scoped by `created_by` on
+Photo/Album/Event, per ADR-0015 §5-§6) sharing the same pipeline.
+Implement the inclusion-selection services that resolve, live, exactly
+which Photos/Albums/Events qualify per ADR-0015 §5-§7's authorization
+rules — the "resolution" step of generation — scoped, for Personal
+Export, to the requester's current, active, authorized content only via
+the existing `visibleTo()` boundaries, with no soft-deleted/tombstoned
+content ever included even for containers the requester created. For
+Personal Export specifically, resolve preserved-original authorization as
+a second, independent check per included Photo — never implied by the
+Photo's presentation-level inclusion — by resolving the Photo's
+`MediaUpload` and authorizing against the existing, unmodified
+`MediaUploadPolicy::downloadOriginal()` action; confirmed directly that a
+Contributor viewing via an `AlbumGrant` and a Member viewing a `Private`
+Photo through Album-visibility widening both fail this check despite
+passing presentation authorization, so the two must never be conflated.
+This resolution-time original check is only a build-time optimization
+deciding whether to copy bytes at all — it is never the authoritative
+decision; `FPA-P13-S03` re-verifies both presentation and original
+authorization live, together, in one pass immediately before the archive
+seals (ADR-0015 §7), and that final pass — never the earlier one — decides
+what the sealed archive actually contains. None of this yet depends on
+the archive schema. Implement the queued
+lifecycle/state machine (`Pending`/`Processing`/`Ready`/`Failed`/`Expired`
+only — no `Cancelled` state, cancellation endpoint, or worker-abort
+machinery; an unwanted export simply expires under normal retention),
+requester ownership and expiry, and new, explicit, export-type-specific
+download-time authorization: for a full Family Space export, the
+requester must still be the original requester, an active member, **and**
+still hold the Owner role — re-running the full authority check,
+mirroring `EventExportController`'s re-run of `Gate::authorize('manageExports',
+...)` on every action including download, never weakened to membership
+alone; for a Personal Export, the requester must still be the original
+requester with current, valid Family Space membership/access, with no
+Owner requirement. Neither check exists in the reused
+`EventExportManager::authorizeDownload()` pattern and both must be added.
+Losing Owner authority does not delete an already-`Ready` full export —
+it simply expires normally. Implement
+export-ready/export-failed notification as a durable intent recorded
+atomically with the export's terminal state transition (ADR-0015 §19) —
+not an email send inside that transaction — with email queued and
+idempotent after commit, identified by the export's own id plus terminal
+outcome, reusing Phase 12's notification tables/pipeline (extended
+narrowly for an unconditional workflow category if needed) rather than a
+parallel mechanism; self-notification suppression does not apply.
 
 ## FPA-P13-S03 — Implement metadata manifest
 
+**Archive format and generation — this is the stage after which a real,
+accepted, portable export archive exists; `FPA-P13-S02` alone does not
+produce one.** Implement the shared, versioned archive schema
+(`manifest.json` with `export_scope`, `checksums.json`, and one JSON file
+per domain) used by both export types, and the actual ZIP assembly that
+consumes `FPA-P13-S02`'s resolved item sets. Resolve "complete" exactly
+as ADR-0015 §3 requires: an unattached `MediaUpload` qualifies when it
+possesses a valid, checksum-verified preserved original — its state is
+`Preserved`, `Processing`, `Ready`, or `Degraded`, never a literal
+`state = 'preserved'` filter, and never `Quarantined`/`Abandoned`/a
+pre-preservation state; once a `MediaUpload` is promoted, its original is
+exported exactly once under `media/originals/{photo_id}`, never
+additionally under `media/unattached/`. Include soft-deleted Photos/
+People/Events (`withTrashed()`) with an honest `deleted_at` **in the full
+Family Space export only** — Personal Export's inclusion-selection
+services (`FPA-P13-S02`) never call `withTrashed()` or an equivalent
+bypass, so a requester's own soft-deleted Photo, Event, Story, or
+comment is excluded from their Personal Export via its real tombstone
+state, consistent with reusing `visibleTo()`'s default behaviour exactly
+— Album and `PhotoReaction` carry no `SoftDeletes` trait at all (they are
+hard-deleted, with no trashed state to exclude), so for those two domains
+the same current-content principle is satisfied simply by the row no
+longer existing to be selected. Give every Photo manifest entry, **in both export scopes, as part of the
+one stable schema**, an explicit `original_included: true | false` field
+— its presence never varies by `export_scope`, only its value does:
+`true` for every Photo in a full Family Space export (no per-Photo
+original restriction applies there), and, for a Personal Export, whatever
+the final pre-seal reconciliation below decides. Implement that
+reconciliation as the single authoritative pass, run immediately before
+checksumming and sealing, never earlier: re-verify, live, for every Photo
+still in the resolved set, (A) continued presentation authorization —
+removing the Photo entirely, along with its original if copied and any
+contextual record kept solely for it (retaining one still needed by a
+surviving Photo), if it fails; this dimension is removal-only, never
+adding a Photo absent from the originally resolved set — and (B)
+continued `MediaUploadPolicy::downloadOriginal()` authority for any Photo
+that remains, evaluated symmetrically in both directions regardless of
+what the resolution-time preliminary check or assembly decided: if
+authority now holds and an original was already copied, it and its
+checksum/path metadata remain (`original_included: true`); if authority
+now holds but no original was copied (the preliminary check had skipped
+it), the reconciliation copies and checksum-verifies the original now,
+before sealing, and sets `original_included: true`; if authority does not
+hold, any already-copied original file is deleted along with its
+checksum/path metadata and `original_included` is set `false`, while the
+Photo's authorized context itself is retained regardless. A
+reconciled-down Personal Export, even one reduced to few or zero Photos,
+still seals as a valid `Ready` archive, never `Failed` — this
+reconciliation never fails the export outright on any difference; it
+resolves every difference by adding or removing exactly what current
+authorization requires, then seals whatever remains. When
+`original_included` is `false`, the original's fields and file are simply
+absent — never a `null` placeholder, never a fabricated empty file, and
+never treated as a missing-object error. `checksums.json` never lists a
+checksum for an omitted original, since no such file exists to checksum.
+Export saved
+searches as portable definitions only — never a snapshot of query result
+rows — with any now-inaccessible reference marked honestly unresolved.
+Preserve Fambam ULIDs as the cross-file reference identity throughout.
+Represent legacy Photo-scoped comments/reactions with an honest `null`
+`album_id`, never an invented Album. Apply the biometric exclusion policy
+(ADR-0015 §12) to every manifest file, including explicit exclusion of
+`FaceIdentitySuppression` internals. Implement the corrected integrity
+model: the archive's own SHA-256 and byte size are computed once the ZIP
+is sealed and stored on the export's own database row — exactly as
+`EventExport.archive_sha256` already does — never written into a file
+the archive contains; `checksums.json` lists every other file's checksum
+and excludes itself.
+
 ## FPA-P13-S04 — Implement backup monitoring
+
+**Creates and proves backup inputs — this stage does not merely monitor
+backups assumed to exist elsewhere.** Classify data per ADR-0015
+§23/§26/§27: preserved originals, authoritative PostgreSQL data,
+`NotificationPreference`, and — critically — approved
+`FaceIdentityAssignment` rows, decided `FaceIdentitySuppression` rows,
+and the specific `FaceObservation` rows either references, are
+authoritative and are never selectively excluded from the primary
+database backup; only face-recognition rows with no such reference, and
+other clearly machine-derived or projection data (including Phase 12's
+`FamilyActivity`, `FamilyNotification`, `NotificationDelivery`,
+`NotificationCandidate`), are treated as regenerable/expendable. Enable
+and prove object-storage versioning on the local development bucket
+(`infrastructure/docker/localstack/init/10-bootstrap.sh` does not enable
+it today) and provision a real, inspectable local/development database
+backup mechanism, so both exist as genuine artifacts, not assumptions.
+Implement the provider-neutral backup health evidence contract (ADR-0015
+§29) — last successful database backup timestamp and age-threshold
+check; last verified object-storage backup/versioning signal and
+age-threshold check; last restore-drill timestamp and result; one
+derived health state driven by threshold breaches — generated from the
+backups this stage itself creates, without naming a specific AWS
+service. Fix the production requirement (automated snapshots,
+point-in-time recovery, retention, encryption at rest) without selecting
+a specific managed service.
 
 ## FPA-P13-S05 — Perform tested restore exercise
 
+Implement the concrete restore procedure against the real, named inputs
+`FPA-P13-S04` actually produced — the most recent local/development
+database backup and the most recent verified object-storage backup/
+version state — never an assumed external timestamp: restore into an
+isolated environment, verify a sample of preserved originals against
+their stored checksums, and run consistency checks (every `MediaUpload`
+with a valid preserved original resolves to an actual object; every
+approved `PhotoPerson` resolves to an existing Photo and Person).
+Implement the durable deletion ledger ADR-0015 §31 requires — retained
+independently of the primary backup window — and the restore-time
+reconciliation step that re-applies
+`FamilySpaceDeletionManager::teardown()` against any Family Space
+recorded as deleted after the restored snapshot's point-in-time, before
+the restored environment is considered complete. Record every drill's
+outcome as the evidence FPA-P13-S04's health contract requires.
+
 ## FPA-P13-S06 — Implement deletion request lifecycle
+
+Add a strong, prominent "download your family archive" prompt to the
+Family Space deletion request flow, surfaced during the existing deletion
+grace period, without making export a prerequisite for deletion. Extend
+`S3FamilyMediaStorageCleaner` (or its successor) so that Family Space
+teardown enumerates and permanently purges every version of every object
+under that family's storage prefix — not only the current version, which
+`deleteObjects` without a version id leaves recoverable on a versioned
+bucket — depending on `FPA-P13-S04` having already enabled versioning in
+the environment this stage runs against. Add this ADR's own
+export-tracking table and its storage objects to
+`FamilySpaceDeletionManager::teardown()`'s explicit per-table delete
+list. Phase 12's own six tables (`FamilyActivity`, `NotificationDelivery`,
+`FamilyNotification`, `NotificationCandidate`, `NotificationPreference`,
+`ContributionGroup`) are already present in `teardown()` today — Phase 12
+is complete — so this stage adds only Phase 13's new table(s), nothing
+Phase 12-owned.
 
 ### Phase verification
 
 - Export opens without the application.
 - Originals retain checksums and useful filenames.
-- Restore succeeds in an isolated environment.
-- Deletion behaviour is documented across backups.
+- A full export includes soft-deleted records and unattached preserved
+  uploads, each honestly represented as such; a Personal Export excludes
+  the requester's own soft-deleted content entirely.
+- No archive contains its own checksum; `checksums.json` never lists
+  itself.
+- A Personal Export generation run that has access revoked partway
+  through fails safely rather than delivering mismatched content.
+- A Personal Export never includes a preserved original the requester
+  lacks `MediaUploadPolicy::downloadOriginal()` authority for, even when
+  the Photo itself is presentation-authorized (Contributor via
+  `AlbumGrant`; Member via `Private`-Photo Album widening) — such Photos
+  still appear with their authorized context and `original_included:
+  false`, never omitted entirely and never treated as an error.
+- The final pre-seal reconciliation, not any earlier copy-time check, is
+  authoritative: an original copied while authorized but revoked before
+  sealing is absent from the sealed archive; a Photo whose presentation
+  authorization is revoked before sealing is removed entirely, including
+  orphaned context; `original_included` is present on every Photo in
+  both export scopes as one stable schema field.
+- A full Family Space export requester demoted from Owner after the
+  export reaches `Ready` cannot download it, but the export itself is
+  unaffected and still expires normally; a Personal Export requester who
+  loses Family Space membership entirely cannot download theirs, but a
+  mere role change while remaining a member does not block it.
+- No export lifecycle state, endpoint, or UI implies cancellation — an
+  unwanted export simply expires.
+- No face-recognition field, including `FaceIdentitySuppression`
+  internals, appears in any export.
+- Approved `FaceIdentityAssignment`, decided `FaceIdentitySuppression`,
+  and their referenced `FaceObservation` rows are never excluded from
+  backup scope.
+- An unattached `MediaUpload` is included when it possesses a valid
+  preserved original (`Preserved`/`Processing`/`Ready`/`Degraded`), never
+  filtered by a literal `state = 'preserved'` check, and a promoted
+  upload's original never appears twice.
+- Export-ready/export-failed notifications fire exactly once per export
+  id and terminal outcome, idempotently under retry.
+- Restore succeeds in an isolated environment, against real, named
+  inputs `FPA-P13-S04` actually created, with its outcome recorded as
+  observable backup health.
+- A restore of a snapshot predating a completed Family Space deletion
+  results in that deletion being re-applied, not resurrected.
+- Family Space teardown removes every object version, not only the
+  current one, on a versioned bucket.
+- Deletion behaviour is documented and tested across primary data,
+  derivatives, and backups.
 
 ---
 

@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P13",
-    "current_stage": "FPA-P13-S01",
+    "current_stage": "FPA-P13-S02",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-10"
   },
@@ -914,16 +914,18 @@
         {
           "id": "FPA-P13-S01",
           "title": "Accept export, portability, backup and recovery ADR",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P12-S06"
           ],
-          "notes": []
+          "notes": [
+            "ADR-0015 accepted 2026-09-10 (git tag phase-13-s01) after adversarial implementation-readiness reconciliation. The accepted architecture defines Owner-only full Family Space export and role-appropriate Personal Export; separately revalidates presentation and preserved-original authority immediately before sealing; uses one stable, checksummed archive schema; classifies authoritative versus regenerable backup data; provisions real backup inputs before restore testing; and extends version-aware Family Space deletion without weakening existing authorization. Stage scope was solely ADR acceptance, so the ADR-acceptance commit is the stage-completion commit."
+          ]
         },
         {
           "id": "FPA-P13-S02",
           "title": "Implement personal and family exports",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P13-S01"
           ],
@@ -1420,7 +1422,7 @@
       {
         "id": "ADR-0015",
         "title": "Export, portability, backup and recovery",
-        "status": "planned",
+        "status": "accepted",
         "roadmap_phase": "P13",
         "required_by_stage": "FPA-P13-S01"
       },
