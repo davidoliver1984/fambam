@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P13",
-    "current_stage": "FPA-P13-S03",
+    "current_stage": "FPA-P13-S04",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-10"
   },
@@ -936,16 +936,18 @@
         {
           "id": "FPA-P13-S03",
           "title": "Implement metadata manifest",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P13-S02"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-10. Implemented one shared versioned ZIP schema for full and Personal Exports, deterministic typed domain manifests, self-excluding per-file checksums, checksum-verified preserved originals and eligible unattached uploads, honest soft-deletion and legacy context, biometric exclusion, stable Fambam identities and archive-level integrity metadata stored only after sealing. Personal generation now performs final live bidirectional original-authority reconciliation and removal-only presentation reconciliation, including context-only Photos, while PostgreSQL runtime-role coverage proves generation through forced RLS."
+          ]
         },
         {
           "id": "FPA-P13-S04",
           "title": "Implement backup monitoring",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P13-S03"
           ],
@@ -2073,6 +2075,14 @@
       "roadmap_stage": "FPA-P13-S02",
       "date": "2026-09-10",
       "description": "FPA-P13-S02 completed: a shared requester-owned queued lifecycle now supports Owner-only full Family Space exports and authorization-filtered Personal Exports, with live inclusion resolution, independent original-download authority, strict download-time role and membership checks, forced-RLS tenant isolation, expiry cleanup, auditing and durable idempotent terminal notifications. Archive schema and assembly remain explicitly deferred to FPA-P13-S03."
+    },
+    {
+      "git_tag": "phase-13-s03",
+      "type": "stage_completion",
+      "adr": "ADR-0015",
+      "roadmap_stage": "FPA-P13-S03",
+      "date": "2026-09-10",
+      "description": "FPA-P13-S03 completed: full and Personal Exports now produce portable versioned ZIP archives with typed domain manifests, stable identities, verified originals, eligible unattached media, self-excluding checksums and sealed archive integrity metadata. Final live reconciliation adds newly authorized originals, removes revoked originals and presentation-inaccessible Photos plus orphaned context without failing reduced exports; restricted PostgreSQL runtime-role and complete repository verification passed."
     }
   ]
 }

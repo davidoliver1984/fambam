@@ -7,6 +7,7 @@ use App\Enums\FamilyExportState;
 use App\Enums\FamilySpaceRole;
 use App\Enums\NotificationCategory;
 use App\Enums\NotificationOutcome;
+use App\Exports\FamilyArchiveBuilder;
 use App\Exports\FamilyExportSelection;
 use App\Jobs\GenerateFamilyExport;
 use App\Jobs\SendFamilyExportNotification;
@@ -38,6 +39,7 @@ class FamilyExportManager
 {
     public function __construct(
         private readonly FamilyExportSelectionService $selections,
+        private readonly FamilyArchiveBuilder $archives,
         private readonly MediaDeliveryUrlSigner $signer,
         private readonly MediaObjectStorage $storage,
         private readonly AuditRecorder $audit,
@@ -93,9 +95,14 @@ class FamilyExportManager
                 [$export, $requester] = $this->establish($context, $exportId, true);
                 if ($export === null || $requester === null || ! in_array($export->state, [
                     FamilyExportState::Pending,
+                    FamilyExportState::Processing,
                     FamilyExportState::Failed,
                 ], true)) {
                     return null;
+                }
+                if ($export->scope === FamilyExportScope::FamilySpaceFull
+                    && $this->tenantContext->membership()->role !== FamilySpaceRole::Owner) {
+                    throw new AuthorizationException('Only the current Family Space Owner may generate a full export.');
                 }
 
                 $export->update(['state' => FamilyExportState::Processing, 'failure_reason' => null]);
@@ -105,6 +112,24 @@ class FamilyExportManager
         } finally {
             $this->tenantContext->clear();
         }
+    }
+
+    public function generate(TenantOperationContext $context, string $exportId): void
+    {
+        $selection = $this->beginGeneration($context, $exportId);
+        if ($selection === null) {
+            return;
+        }
+
+        [$export, $requester] = DB::transaction(function () use ($context, $exportId): array {
+            return $this->establish($context, $exportId);
+        });
+        if ($export === null || $requester === null) {
+            return;
+        }
+
+        $archive = $this->archives->buildAndStore($context, $export, $requester, $selection);
+        $this->markReady($context, $exportId, $archive->sha256, $archive->byteSize, $archive->photoCount);
     }
 
     public function authorizeDownload(FamilyExport $export, User $actor, Request $request): MediaDeliveryAuthorization

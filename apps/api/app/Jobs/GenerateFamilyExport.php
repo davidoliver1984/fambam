@@ -40,7 +40,7 @@ class GenerateFamilyExport implements ShouldBeUnique, ShouldQueue
 
     public function handle(FamilyExportManager $exports): void
     {
-        $exports->beginGeneration(TenantOperationContext::fromArray($this->context), $this->familyExportId);
+        $exports->generate(TenantOperationContext::fromArray($this->context), $this->familyExportId);
     }
 
     public function failed(\Throwable $exception): void

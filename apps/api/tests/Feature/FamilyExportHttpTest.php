@@ -9,6 +9,7 @@ use App\Enums\FamilySpaceRole;
 use App\Enums\MediaUploadState;
 use App\Enums\MembershipState;
 use App\Enums\PhotoVisibility;
+use App\Exports\FamilyArchiveBuilder;
 use App\Jobs\GenerateFamilyExport;
 use App\Jobs\SendFamilyExportNotification;
 use App\Media\MediaDeliveryAuthorization;
@@ -25,8 +26,12 @@ use App\Models\FamilySpaceMembership;
 use App\Models\MediaUpload;
 use App\Models\NotificationCandidate;
 use App\Models\NotificationDelivery;
+use App\Models\Person;
 use App\Models\Photo;
 use App\Models\PhotoComment;
+use App\Models\PhotoPerson;
+use App\Models\PhotoStory;
+use App\Models\SavedSearch;
 use App\Models\User;
 use App\Notifications\FamilyActivityNotification;
 use App\Services\FamilyExportManager;
@@ -37,6 +42,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Tests\TestCase;
+use ZipArchive;
 
 class FamilyExportHttpTest extends TestCase
 {
@@ -305,6 +311,216 @@ class FamilyExportHttpTest extends TestCase
         $this->assertNotContains($comment->id, $selection->commentIds);
     }
 
+    public function test_full_generation_seals_the_versioned_manifest_with_verified_originals_and_checksums(): void
+    {
+        Queue::fake();
+        $family = FamilySpace::factory()->create(['name' => 'Archive family']);
+        [$owner] = $this->membership($family, FamilySpaceRole::Owner, 'Owner');
+        $photo = $this->photo($family, $owner, PhotoVisibility::FamilySpace);
+        $photo->delete();
+        $unattachedBytes = 'unattached-preserved-original';
+        $unattached = MediaUpload::factory()->create([
+            'family_space_id' => $family->id,
+            'user_id' => $owner->id,
+            'state' => MediaUploadState::Degraded,
+            'original_object_key' => "families/{$family->id}/media/unattached.png",
+            'original_sha256' => hash('sha256', $unattachedBytes),
+            'detected_mime_type' => 'image/png',
+        ]);
+        $this->storage->objects[$unattached->original_object_key] = $unattachedBytes;
+        $export = FamilyExport::query()->create([
+            'family_space_id' => $family->id,
+            'requested_by' => $owner->id,
+            'scope' => FamilyExportScope::FamilySpaceFull,
+            'state' => FamilyExportState::Pending,
+            'object_key' => "families/{$family->id}/family-exports/full.zip",
+        ]);
+
+        app(FamilyExportManager::class)->generate(
+            TenantOperationContext::forBackground($family->id, $owner->id),
+            $export->id,
+        );
+
+        $export->refresh();
+        $this->assertSame(FamilyExportState::Ready, $export->state);
+        $this->assertSame(hash('sha256', $this->storage->finalized[$export->object_key]), $export->archive_sha256);
+        $archive = $this->archive($export->object_key);
+        $photos = json_decode($archive->getFromName('photos.json'), true, flags: JSON_THROW_ON_ERROR);
+        $manifest = json_decode($archive->getFromName('manifest.json'), true, flags: JSON_THROW_ON_ERROR);
+        $checksums = json_decode($archive->getFromName('checksums.json'), true, flags: JSON_THROW_ON_ERROR)['files'];
+        $this->assertSame('family_space_full', $manifest['export_scope']);
+        $this->assertArrayNotHasKey('archive_sha256', $manifest);
+        $this->assertSame($photo->deleted_at?->toJSON(), $photos['items'][0]['deleted_at']);
+        $this->assertTrue($photos['items'][0]['original_included']);
+        $this->assertSame('family-memory.jpg', $photos['items'][0]['original_media']['client_filename']);
+        $this->assertNotFalse($archive->locateName("media/originals/{$photo->id}.jpg"));
+        $this->assertNotFalse($archive->locateName("media/unattached/{$unattached->id}.png"));
+        $this->assertFalse($archive->locateName("media/unattached/{$photo->media_upload_id}.jpg"));
+        $this->assertArrayNotHasKey('checksums.json', $checksums);
+        $this->assertCount($archive->numFiles - 1, $checksums);
+        $this->assertStringNotContainsString('recognition_allowed', (string) $archive->getFromName('people.json'));
+        $this->assertStringNotContainsString('face_', (string) $archive->getFromName('photos.json'));
+        foreach ($checksums as $path => $checksum) {
+            $this->assertSame($checksum, hash('sha256', $archive->getFromName($path)));
+        }
+        $archive->close();
+    }
+
+    public function test_personal_final_reconciliation_adds_newly_authorized_original_and_removes_revoked_original(): void
+    {
+        $family = FamilySpace::factory()->create();
+        [$owner] = $this->membership($family, FamilySpaceRole::Owner, 'Owner');
+        [$member] = $this->membership($family, FamilySpaceRole::Member, 'Member');
+        $album = Album::query()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $member->id,
+            'name' => 'Member context',
+            'visibility' => AlbumVisibility::FamilySpace,
+        ]);
+        $photo = $this->photo($family, $owner, PhotoVisibility::Private);
+        $album->photos()->attach($photo->id, [
+            'id' => (string) Str::ulid(), 'family_space_id' => $family->id,
+            'position' => 1, 'added_by' => $member->id,
+        ]);
+        $grantExport = $this->pendingExport($family, $member, 'newly-authorized.zip');
+        $context = TenantOperationContext::forBackground($family->id, $member->id);
+        $grantSelection = app(FamilyExportManager::class)->beginGeneration($context, $grantExport->id);
+        $this->assertNotNull($grantSelection);
+        $this->assertNotContains($photo->id, $grantSelection->originalPhotoIds);
+        $photo->update(['visibility' => PhotoVisibility::FamilySpace]);
+        app(FamilyArchiveBuilder::class)->buildAndStore($context, $grantExport, $member, $grantSelection);
+        $archive = $this->archive($grantExport->object_key);
+        $photos = json_decode($archive->getFromName('photos.json'), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertTrue($photos['items'][0]['original_included']);
+        $this->assertNotFalse($archive->locateName("media/originals/{$photo->id}.jpg"));
+        $archive->close();
+
+        $revokeExport = $this->pendingExport($family, $member, 'revoked-original.zip');
+        $revokeSelection = app(FamilyExportManager::class)->beginGeneration($context, $revokeExport->id);
+        $this->assertNotNull($revokeSelection);
+        $this->assertContains($photo->id, $revokeSelection->originalPhotoIds);
+        $photo->update(['visibility' => PhotoVisibility::Private]);
+        app(FamilyArchiveBuilder::class)->buildAndStore($context, $revokeExport, $member, $revokeSelection);
+        $archive = $this->archive($revokeExport->object_key);
+        $photos = json_decode($archive->getFromName('photos.json'), true, flags: JSON_THROW_ON_ERROR);
+        $checksums = json_decode($archive->getFromName('checksums.json'), true, flags: JSON_THROW_ON_ERROR)['files'];
+        $this->assertFalse($photos['items'][0]['original_included']);
+        $this->assertArrayNotHasKey('original_path', $photos['items'][0]);
+        $this->assertFalse($archive->locateName("media/originals/{$photo->id}.jpg"));
+        $this->assertArrayNotHasKey("media/originals/{$photo->id}.jpg", $checksums);
+        $archive->close();
+    }
+
+    public function test_contributor_personal_archive_keeps_granted_photo_context_without_disclosing_original(): void
+    {
+        Queue::fake();
+        $family = FamilySpace::factory()->create();
+        [$owner] = $this->membership($family, FamilySpaceRole::Owner, 'Owner');
+        [$contributor, $membership] = $this->membership($family, FamilySpaceRole::Contributor, 'Contributor');
+        $photo = $this->photo($family, $owner, PhotoVisibility::Private);
+        $album = Album::query()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $owner->id,
+            'name' => 'Granted memories',
+            'visibility' => AlbumVisibility::Selected,
+        ]);
+        $album->photos()->attach($photo->id, [
+            'id' => (string) Str::ulid(), 'family_space_id' => $family->id,
+            'position' => 1, 'added_by' => $owner->id,
+        ]);
+        AlbumGrant::query()->create([
+            'family_space_id' => $family->id,
+            'album_id' => $album->id,
+            'family_space_membership_id' => $membership->id,
+            'can_view' => true,
+            'can_contribute' => true,
+            'granted_by' => $owner->id,
+        ]);
+        PhotoComment::query()->create([
+            'family_space_id' => $family->id,
+            'photo_id' => $photo->id,
+            'album_id' => $album->id,
+            'author_id' => $contributor->id,
+            'body' => 'My contribution keeps the Photo as context.',
+        ]);
+        $export = $this->pendingExport($family, $contributor, 'contributor.zip');
+
+        app(FamilyExportManager::class)->generate(
+            TenantOperationContext::forBackground($family->id, $contributor->id),
+            $export->id,
+        );
+
+        $archive = $this->archive($export->object_key);
+        $photos = json_decode($archive->getFromName('photos.json'), true, flags: JSON_THROW_ON_ERROR);
+        $checksums = json_decode($archive->getFromName('checksums.json'), true, flags: JSON_THROW_ON_ERROR)['files'];
+        $this->assertSame($photo->id, $photos['items'][0]['id']);
+        $this->assertFalse($photos['items'][0]['original_included']);
+        $this->assertArrayNotHasKey('original_media', $photos['items'][0]);
+        $this->assertArrayNotHasKey("media/originals/{$photo->id}.jpg", $checksums);
+        $this->assertFalse($archive->locateName("media/originals/{$photo->id}.jpg"));
+        $archive->close();
+    }
+
+    public function test_personal_final_reconciliation_removes_revoked_photo_context_and_marks_saved_search_reference_unresolved(): void
+    {
+        $family = FamilySpace::factory()->create();
+        [$owner] = $this->membership($family, FamilySpaceRole::Owner, 'Owner');
+        [$member] = $this->membership($family, FamilySpaceRole::Member, 'Member');
+        $photo = $this->photo($family, $owner, PhotoVisibility::Private);
+        $album = Album::query()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $member->id,
+            'name' => 'Temporary context',
+            'visibility' => AlbumVisibility::Selected,
+        ]);
+        $album->photos()->attach($photo->id, [
+            'id' => (string) Str::ulid(), 'family_space_id' => $family->id,
+            'position' => 1, 'added_by' => $member->id,
+        ]);
+        $story = PhotoStory::query()->create([
+            'family_space_id' => $family->id,
+            'photo_id' => $photo->id,
+            'author_id' => $owner->id,
+            'body' => 'Context removed with the Photo.',
+        ]);
+        $person = Person::factory()->create(['family_space_id' => $family->id]);
+        $photoPerson = PhotoPerson::query()->create([
+            'family_space_id' => $family->id,
+            'photo_id' => $photo->id,
+            'person_id' => $person->id,
+            'proposal_source' => 'manual',
+            'status' => 'approved',
+            'proposed_by' => $member->id,
+            'resolved_by' => $member->id,
+            'resolved_at' => now(),
+        ]);
+        $savedSearch = SavedSearch::query()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $member->id,
+            'name' => 'Person memories',
+            'filters' => ['schema_version' => 1],
+        ]);
+        $savedSearch->people()->attach($person->id, ['family_space_id' => $family->id]);
+        $export = $this->pendingExport($family, $member, 'reconciled-down.zip');
+        $context = TenantOperationContext::forBackground($family->id, $member->id);
+        $selection = app(FamilyExportManager::class)->beginGeneration($context, $export->id);
+        $this->assertNotNull($selection);
+        $this->assertContains($story->id, $selection->storyIds);
+
+        $album->delete();
+        $photoPerson->delete();
+        app(FamilyArchiveBuilder::class)->buildAndStore($context, $export, $member, $selection);
+
+        $archive = $this->archive($export->object_key);
+        $photos = json_decode($archive->getFromName('photos.json'), true, flags: JSON_THROW_ON_ERROR);
+        $stories = json_decode($archive->getFromName('stories.json'), true, flags: JSON_THROW_ON_ERROR);
+        $searches = json_decode($archive->getFromName('saved_searches.json'), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame([], $photos['items']);
+        $this->assertSame([], $stories['items']);
+        $this->assertSame([['person_id' => $person->id, 'resolved' => false]], $searches['items'][0]['people']);
+        $archive->close();
+    }
+
     /** @return array{User, FamilySpaceMembership} */
     private function membership(FamilySpace $family, FamilySpaceRole $role, string $name): array
     {
@@ -328,7 +544,10 @@ class FamilyExportHttpTest extends TestCase
             'original_object_key' => "families/{$family->id}/media/".Str::uuid().'.jpg',
             'original_sha256' => hash('sha256', $bytes),
             'detected_mime_type' => 'image/jpeg',
+            'client_filename' => 'family-memory.jpg',
         ]);
+
+        $this->storage->objects[$upload->original_object_key] = $bytes;
 
         return Photo::factory()->create([
             'family_space_id' => $family->id,
@@ -336,6 +555,29 @@ class FamilyExportHttpTest extends TestCase
             'created_by' => $creator->id,
             'visibility' => $visibility,
         ]);
+    }
+
+    private function pendingExport(FamilySpace $family, User $requester, string $filename): FamilyExport
+    {
+        return FamilyExport::query()->create([
+            'family_space_id' => $family->id,
+            'requested_by' => $requester->id,
+            'scope' => FamilyExportScope::Personal,
+            'state' => FamilyExportState::Pending,
+            'object_key' => "families/{$family->id}/family-exports/{$filename}",
+        ]);
+    }
+
+    private function archive(string $objectKey): ZipArchive
+    {
+        $path = tempnam(sys_get_temp_dir(), 'family-export-test-');
+        $this->assertNotFalse($path);
+        file_put_contents($path, $this->storage->finalized[$objectKey]);
+        $archive = new ZipArchive;
+        $this->assertTrue($archive->open($path));
+        @unlink($path);
+
+        return $archive;
     }
 
     private function readyExport(FamilySpace $family, User $requester, FamilyExportScope $scope): FamilyExport
@@ -366,6 +608,12 @@ class FamilyExportTestStorage implements MediaObjectStorage
     /** @var list<string> */
     public array $deleted = [];
 
+    /** @var array<string, string> */
+    public array $objects = [];
+
+    /** @var array<string, string> */
+    public array $finalized = [];
+
     public function authorizeSingleWrite(string $key, \DateTimeInterface $expiresAt, MediaSigningAudience $audience): UploadAuthorization
     {
         throw new \RuntimeException('Not used.');
@@ -378,12 +626,22 @@ class FamilyExportTestStorage implements MediaObjectStorage
 
     public function downloadTo(string $key, string $path): void
     {
-        throw new \RuntimeException('Not used.');
+        if (! array_key_exists($key, $this->objects)) {
+            throw new \RuntimeException('Missing test object.');
+        }
+        file_put_contents($path, $this->objects[$key]);
     }
 
     public function finalizeWriteOnce(string $sourcePath, string $key, string $sha256): void
     {
-        throw new \RuntimeException('Not used.');
+        $bytes = file_get_contents($sourcePath);
+        if ($bytes === false || ! hash_equals($sha256, hash('sha256', $bytes))) {
+            throw new \RuntimeException('Invalid test finalization.');
+        }
+        if (isset($this->finalized[$key]) && $this->finalized[$key] !== $bytes) {
+            throw new \RuntimeException('Test object replacement refused.');
+        }
+        $this->finalized[$key] = $bytes;
     }
 
     public function delete(string $key): void
