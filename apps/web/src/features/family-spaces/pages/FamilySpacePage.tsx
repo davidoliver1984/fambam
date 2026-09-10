@@ -6,6 +6,7 @@ import { InvitationManagement } from "@/features/invitations/pages/InvitationMan
 import { DateMemories } from "@/features/memories/components/DateMemories";
 import { PersonAndStoryMemories } from "@/features/memories/components/PersonAndStoryMemories";
 import { QuietFamilySpaceGuide } from "@/features/memories/components/QuietFamilySpaceGuide";
+import { NotificationCentre } from "@/features/notifications/components/NotificationCentre";
 
 import { useFamilySpaceQuery } from "../hooks/useFamilySpaceQuery";
 
@@ -48,6 +49,7 @@ export function FamilySpacePage() {
       <p className="eyebrow">fambam</p>
       <h1 id="family-space-title">{familySpace.name}</h1>
       <p>Your role: {familySpace.role}</p>
+      <NotificationCentre familySlug={familySpace.slug} />
       {familySpace.role !== "guest" && (
         <>
           <RecentFamilyActivity familySlug={familySpace.slug} />

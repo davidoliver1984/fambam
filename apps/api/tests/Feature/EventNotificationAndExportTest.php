@@ -8,6 +8,7 @@ use App\Enums\FamilySpaceRole;
 use App\Enums\GuestParticipation;
 use App\Enums\MediaUploadState;
 use App\Jobs\GenerateEventExport;
+use App\Jobs\ProcessNotificationCandidate;
 use App\Jobs\SendEventContributionNotifications;
 use App\Media\MediaDeliveryAuthorization;
 use App\Media\MediaDeliveryUrlSigner;
@@ -186,7 +187,7 @@ class EventNotificationAndExportTest extends TestCase
             app(AlbumContributionFinalizer::class)->finalize($upload, $context);
         });
 
-        Queue::assertPushed(SendEventContributionNotifications::class, 1);
+        Queue::assertPushed(ProcessNotificationCandidate::class, 1);
     }
 
     public function test_archive_is_manager_only_and_contains_distinct_originals_and_manifest_metadata(): void

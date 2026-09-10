@@ -6,10 +6,12 @@ use App\Enums\DuplicateResolution;
 use App\Enums\FamilyActivityType;
 use App\Enums\FamilySpaceRole;
 use App\Enums\MediaUploadState;
+use App\Enums\NotificationCategory;
 use App\Enums\PersonProposalStatus;
 use App\Enums\PhotoMetadataField;
 use App\Enums\PhotoProvenanceRole;
 use App\Enums\PhotoVisibility;
+use App\Jobs\ProcessNotificationCandidate;
 use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\MediaUpload;
@@ -23,6 +25,7 @@ use App\Models\User;
 use App\People\UncertainDate;
 use App\Photos\PhotoCreationResult;
 use App\Tenancy\TenantContext;
+use App\Tenancy\TenantOperationContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -379,6 +382,8 @@ class PhotoManager
                     subjectPersonId: $person->id,
                     photoIds: [$locked->id],
                 );
+                $context = TenantOperationContext::fromRequest($locked->familySpace, $actor, $request);
+                DB::afterCommit(fn () => ProcessNotificationCandidate::dispatch($context->toArray(), NotificationCategory::Identity, $association->id, ['photo_id' => $locked->id, 'person_id' => $person->id]));
             }
 
             return $association->load('person:id,preferred_name');
@@ -414,6 +419,8 @@ class PhotoManager
                     subjectPersonId: $locked->person_id,
                     photoIds: [$lockedPhoto->id],
                 );
+                $context = TenantOperationContext::fromRequest($lockedPhoto->familySpace, $actor, $request);
+                DB::afterCommit(fn () => ProcessNotificationCandidate::dispatch($context->toArray(), NotificationCategory::Identity, $locked->id, ['photo_id' => $lockedPhoto->id, 'person_id' => $locked->person_id]));
             }
 
             return $locked->load('person:id,preferred_name');

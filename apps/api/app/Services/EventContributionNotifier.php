@@ -2,8 +2,11 @@
 
 namespace App\Services;
 
-use App\Jobs\SendEventContributionNotifications;
+use App\Enums\NotificationCategory;
+use App\Jobs\ProcessNotificationCandidate;
 use App\Models\Album;
+use App\Models\AlbumPhoto;
+use App\Models\ContributionGroup;
 use App\Models\Photo;
 use App\Tenancy\TenantOperationContext;
 use Illuminate\Support\Facades\DB;
@@ -15,11 +18,28 @@ class EventContributionNotifier
 {
     public function dispatch(Album $album, Photo $photo, TenantOperationContext $context): void
     {
-        if ($album->event_id === null) {
-            return;
+        $photo->loadMissing('mediaUpload');
+        $link = AlbumPhoto::query()->where('album_id', $album->id)->where('photo_id', $photo->id)->firstOrFail();
+        $source = $link->id;
+        $groupId = null;
+        if ($photo->mediaUpload?->upload_batch_id !== null) {
+            $group = ContributionGroup::query()->firstOrCreate([
+                'family_space_id' => $album->family_space_id,
+                'actor_user_id' => $context->actorUserId,
+                'upload_batch_id' => $photo->mediaUpload->upload_batch_id,
+                'album_id' => $album->id,
+            ]);
+            $source = $group->id;
+            $groupId = $group->id;
         }
+        $subject = [
+            'photo_id' => $photo->id,
+            'album_id' => $album->id,
+            'album_photo_id' => $link->id,
+            ...($groupId !== null ? ['contribution_group_id' => $groupId] : []),
+        ];
 
-        DB::afterCommit(function () use ($album, $photo, $context): void {
+        DB::afterCommit(function () use ($context, $source, $subject): void {
             $parent = Globals::propagator()->extract(['traceparent' => $context->traceparent]);
             $span = Globals::tracerProvider()
                 ->getTracer('fambam-api')
@@ -45,11 +65,7 @@ class EventContributionNotifier
                         ),
                     );
                 }
-                SendEventContributionNotifications::dispatch(
-                    $dispatchContext->toArray(),
-                    $album->event_id,
-                    $photo->id,
-                );
+                ProcessNotificationCandidate::dispatch($dispatchContext->toArray(), NotificationCategory::Contribution, $source, $subject);
             } finally {
                 $scope->detach();
                 $span->end();

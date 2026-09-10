@@ -6,10 +6,10 @@
     "version": "0.1.0",
     "status": "in_progress",
     "v1_release_phase": "P17",
-    "current_phase": "P12",
-    "current_stage": "FPA-P12-S06",
+    "current_phase": "P13",
+    "current_stage": "FPA-P13-S01",
     "created_at": "2026-07-31",
-    "updated_at": "2026-09-09"
+    "updated_at": "2026-09-10"
   },
   "conventions": {
     "phase_id_format": "P##",
@@ -836,7 +836,7 @@
     {
       "id": "P12",
       "name": "Memories and Homepage",
-      "status": "in_progress",
+      "status": "completed",
       "stages": [
         {
           "id": "FPA-P12-S01",
@@ -896,23 +896,25 @@
         {
           "id": "FPA-P12-S06",
           "title": "Implement notification architecture and preferences",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P12-S05"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-10. Generalised the Event contribution notification pattern into a durable, category-driven candidate pipeline with independent in-app/email preferences, authorization checks at candidate, delivery and read time, actor+batch+Album contribution convergence, safe late-arrival handling and retry-safe delivery bookkeeping. Added recipient-scoped typed notification APIs and a functional TanStack Query notification centre, tenant-consistent PostgreSQL constraints/RLS, Family Space teardown, Person-merge integration, propagated queue trace context and focused backend, frontend and PostgreSQL regression coverage."
+          ]
         }
       ]
     },
     {
       "id": "P13",
       "name": "Export, Backup and Recovery",
-      "status": "planned",
+      "status": "in_progress",
       "stages": [
         {
           "id": "FPA-P13-S01",
           "title": "Accept export, portability, backup and recovery ADR",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P12-S06"
           ],

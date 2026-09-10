@@ -7,10 +7,16 @@ use App\Enums\FamilySpaceStatus;
 use App\Enums\MembershipState;
 use App\Jobs\DeleteFamilySpace;
 use App\Media\FamilyMediaStorageCleaner;
+use App\Models\Album;
+use App\Models\ContributionGroup;
+use App\Models\FamilyNotification;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\MediaUpload;
 use App\Models\MediaVariant;
+use App\Models\NotificationCandidate;
+use App\Models\NotificationDelivery;
+use App\Models\NotificationPreference;
 use App\Models\PerceptualHash;
 use App\Models\Person;
 use App\Models\Photo;
@@ -24,6 +30,7 @@ use App\Storage\FamilyStorageKey;
 use App\Tenancy\TenantOperationContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Tests\TestCase;
 
@@ -179,6 +186,13 @@ class FamilySpaceDeletionTest extends TestCase
             'resolved_by' => $owner->id,
             'resolved_at' => now(),
         ]);
+        $album = Album::query()->create(['family_space_id' => $familySpace->id, 'created_by' => $owner->id, 'name' => 'Deletion album', 'visibility' => 'family_space']);
+        $sourceActionId = (string) Str::ulid();
+        $notification = FamilyNotification::query()->create(['family_space_id' => $familySpace->id, 'recipient_user_id' => $owner->id, 'category' => 'contribution', 'source_action_id' => $sourceActionId, 'album_id' => $album->id]);
+        NotificationCandidate::query()->create(['family_space_id' => $familySpace->id, 'recipient_user_id' => $owner->id, 'category' => 'contribution', 'source_action_id' => $sourceActionId]);
+        NotificationDelivery::query()->create(['family_space_id' => $familySpace->id, 'recipient_user_id' => $owner->id, 'category' => 'contribution', 'source_action_id' => $sourceActionId, 'notification_id' => $notification->id, 'album_id' => $album->id, 'channel' => 'mail', 'status' => 'pending']);
+        NotificationPreference::query()->create(['family_space_id' => $familySpace->id, 'user_id' => $owner->id, 'category' => 'contribution', 'channel' => 'in_app', 'enabled' => true]);
+        ContributionGroup::query()->create(['family_space_id' => $familySpace->id, 'actor_user_id' => $owner->id, 'upload_batch_id' => (string) Str::ulid(), 'album_id' => $album->id]);
         $familySpace->forceFill([
             'status' => FamilySpaceStatus::DeletionRequested,
             'deletion_requested_at' => now()->subDays(15),
@@ -213,6 +227,9 @@ class FamilySpaceDeletionTest extends TestCase
         $this->assertDatabaseMissing('tags', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('saved_searches', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('saved_search_people', ['family_space_id' => $familySpace->id]);
+        foreach (['contribution_groups', 'notification_candidates', 'notifications', 'notification_deliveries', 'notification_preferences'] as $table) {
+            $this->assertDatabaseMissing($table, ['family_space_id' => $familySpace->id]);
+        }
         $this->assertSame([$familySpace->id], $this->mediaCleaner->familySpaceIds);
         $this->assertDatabaseHas('audit_events', [
             'family_space_id' => $familySpace->id,

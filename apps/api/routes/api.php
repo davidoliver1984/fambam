@@ -21,6 +21,7 @@ use App\Http\Controllers\HomepageMemoryController;
 use App\Http\Controllers\InvitationAcceptanceController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\MediaUploadController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PersonAccountLinkController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\PersonMergeController;
@@ -61,6 +62,10 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::get('/activities/recent', [FamilyActivityController::class, 'index']);
         Route::get('/memories/date-based', [DateMemoryController::class, 'index']);
         Route::get('/memories/homepage', [HomepageMemoryController::class, 'index']);
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::patch('/notifications/{notification}/read', [NotificationController::class, 'read']);
+        Route::get('/notification-preferences', [NotificationController::class, 'preferences']);
+        Route::put('/notification-preferences', [NotificationController::class, 'updatePreferences']);
         Route::get('/search', [SearchController::class, 'index']);
         Route::get('/search/suggestions', [SearchController::class, 'suggestions']);
         Route::get('/saved-searches', [SavedSearchController::class, 'index']);

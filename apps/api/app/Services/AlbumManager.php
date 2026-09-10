@@ -15,6 +15,7 @@ use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\Photo;
 use App\Models\User;
+use App\Tenancy\TenantOperationContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,7 @@ class AlbumManager
     public function __construct(
         private readonly AuditRecorder $audit,
         private readonly FamilyActivityRecorder $activities,
+        private readonly EventContributionNotifier $notifications,
     ) {}
 
     /** @param array<string, mixed> $input */
@@ -140,6 +142,7 @@ class AlbumManager
                 subjectAlbumId: $album->id,
                 photoIds: [$photo->id],
             );
+            $this->notifications->dispatch($album, $photo, TenantOperationContext::fromRequest($album->familySpace, $actor, $request));
 
             return $link;
         });

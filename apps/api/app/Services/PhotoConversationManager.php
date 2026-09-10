@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Enums\FamilyActivityType;
+use App\Enums\NotificationCategory;
+use App\Jobs\ProcessNotificationCandidate;
 use App\Models\Album;
 use App\Models\Photo;
 use App\Models\PhotoComment;
@@ -11,6 +13,7 @@ use App\Models\PhotoReaction;
 use App\Models\PhotoStory;
 use App\Models\PhotoStoryRevision;
 use App\Models\User;
+use App\Tenancy\TenantOperationContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -37,6 +40,8 @@ class PhotoConversationManager
                 'body' => trim($body),
             ]);
             $this->audit->record('photo_comment.created', $comment, $actor, $request, ['album_id' => $album->id]);
+            $context = TenantOperationContext::fromRequest($photo->familySpace, $actor, $request);
+            DB::afterCommit(fn () => ProcessNotificationCandidate::dispatch($context->toArray(), NotificationCategory::Comment, $comment->id, ['photo_id' => $photo->id, 'album_id' => $album->id, 'comment_id' => $comment->id]));
 
             return $comment->load('author:id,name');
         });
@@ -122,6 +127,8 @@ class PhotoConversationManager
                     subjectStoryId: $model->id,
                     photoIds: [$photo->id],
                 );
+                $context = TenantOperationContext::fromRequest($photo->familySpace, $actor, $request);
+                DB::afterCommit(fn () => ProcessNotificationCandidate::dispatch($context->toArray(), NotificationCategory::Story, $model->id, ['photo_id' => $photo->id, 'story_id' => $model->id]));
             }
 
             return $model->load('author:id,name');

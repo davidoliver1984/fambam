@@ -55,7 +55,8 @@ class PostgresRowLevelSecurityTest extends TestCase
         $this->admin = DB::connection('pgsql_admin');
         $this->app->instance(FamilyMediaStorageCleaner::class, new RlsFamilyMediaStorageCleaner);
         $this->admin->unprepared(<<<'SQL'
-TRUNCATE TABLE family_activities, saved_search_people, saved_searches,
+TRUNCATE TABLE notification_deliveries, notifications, notification_candidates,
+    notification_preferences, contribution_groups, family_activities, saved_search_people, saved_searches,
     face_identity_suppressions, face_identity_assignments,
     face_cluster_members, face_clusters, face_cluster_generations,
     face_embedding_projections, face_observations, face_analysis_attempts, face_analysis_runs,
@@ -126,12 +127,14 @@ WHERE relname IN (
     'face_analysis_runs', 'face_analysis_attempts', 'face_observations', 'face_embedding_projections',
     'face_cluster_generations', 'face_clusters', 'face_cluster_members', 'face_identity_assignments',
     'face_identity_suppressions', 'saved_searches', 'saved_search_people', 'family_activities',
+    'contribution_groups', 'notification_candidates', 'notifications', 'notification_deliveries',
+    'notification_preferences',
     'rls_test_records'
 )
 ORDER BY relname
 SQL);
 
-        $this->assertCount(50, $tables);
+        $this->assertCount(55, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
@@ -173,6 +176,47 @@ SQL);
                 'subject_album_id' => null,
             ]);
             $this->fail('PostgreSQL accepted an activity without its required typed subject.');
+        } catch (QueryException $exception) {
+            $this->assertSame('23514', $exception->errorInfo[0]);
+        }
+    }
+
+    public function test_notification_subjects_are_tenant_consistent_and_category_typed(): void
+    {
+        [$firstOwner, $firstFamily] = $this->createOwnedFamily('first-notification-family');
+        [$secondOwner, $secondFamily] = $this->createOwnedFamily('second-notification-family');
+        $otherAlbum = (string) Str::ulid();
+        $this->admin->table('albums')->insert([
+            'id' => $otherAlbum,
+            'family_space_id' => $secondFamily,
+            'created_by' => $secondOwner,
+            'name' => 'Other family album',
+            'visibility' => 'family_space',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $base = [
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $firstFamily,
+            'recipient_user_id' => $firstOwner,
+            'category' => 'contribution',
+            'source_action_id' => (string) Str::ulid(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        $this->assertCompositeForeignKeyRejected(fn () => $this->admin->table('notifications')->insert([
+            ...$base,
+            'album_id' => $otherAlbum,
+        ]));
+
+        try {
+            $this->admin->table('notifications')->insert([
+                ...$base,
+                'id' => (string) Str::ulid(),
+                'album_id' => null,
+            ]);
+            $this->fail('PostgreSQL accepted a notification without its category subject.');
         } catch (QueryException $exception) {
             $this->assertSame('23514', $exception->errorInfo[0]);
         }

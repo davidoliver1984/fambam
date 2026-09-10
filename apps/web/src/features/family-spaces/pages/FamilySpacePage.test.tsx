@@ -19,6 +19,24 @@ vi.mock("@/features/invitations/pages/InvitationManagement", () => ({
 const apiBaseUrl = "http://localhost:8082";
 
 function renderPage(path: string) {
+  server.use(
+    http.get(`${apiBaseUrl}/api/families/:familySlug/notifications`, () =>
+      HttpResponse.json({ data: [] }),
+    ),
+    http.get(
+      `${apiBaseUrl}/api/families/:familySlug/notification-preferences`,
+      () => HttpResponse.json({ data: [] }),
+    ),
+    http.get(`${apiBaseUrl}/api/families/:familySlug/activities/recent`, () =>
+      HttpResponse.json({ data: [] }),
+    ),
+    http.get(`${apiBaseUrl}/api/families/:familySlug/memories/date-based`, () =>
+      HttpResponse.json({ data: [] }),
+    ),
+    http.get(`${apiBaseUrl}/api/families/:familySlug/memories/homepage`, () =>
+      HttpResponse.json({ data: { people: [], stories: [] } }),
+    ),
+  );
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });

@@ -7,6 +7,7 @@ use App\Enums\FamilySpaceStatus;
 use App\Enums\MembershipState;
 use App\Media\FamilyMediaStorageCleaner;
 use App\Models\Album;
+use App\Models\ContributionGroup;
 use App\Models\EventAdmission;
 use App\Models\EventExport;
 use App\Models\EventNotificationDelivery;
@@ -14,10 +15,14 @@ use App\Models\FaceClusterGeneration;
 use App\Models\FamilyActivity;
 use App\Models\FamilyCircle;
 use App\Models\FamilyEvent;
+use App\Models\FamilyNotification;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\Invitation;
 use App\Models\MediaUpload;
+use App\Models\NotificationCandidate;
+use App\Models\NotificationDelivery;
+use App\Models\NotificationPreference;
 use App\Models\Person;
 use App\Models\Photo;
 use App\Models\SavedSearch;
@@ -140,6 +145,11 @@ class FamilySpaceDeletionManager
             FamilyActivity::query()
                 ->where('family_space_id', $familySpace->id)
                 ->delete();
+            NotificationDelivery::query()->where('family_space_id', $familySpace->id)->delete();
+            FamilyNotification::query()->where('family_space_id', $familySpace->id)->delete();
+            NotificationCandidate::query()->where('family_space_id', $familySpace->id)->delete();
+            NotificationPreference::query()->where('family_space_id', $familySpace->id)->delete();
+            ContributionGroup::query()->where('family_space_id', $familySpace->id)->delete();
             FamilyCircle::query()
                 ->where('family_space_id', $familySpace->id)
                 ->delete();

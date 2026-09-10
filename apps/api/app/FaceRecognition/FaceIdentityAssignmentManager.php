@@ -4,7 +4,9 @@ namespace App\FaceRecognition;
 
 use App\Enums\FaceIdentityAssignmentStatus;
 use App\Enums\FamilySpaceRole;
+use App\Enums\NotificationCategory;
 use App\Enums\PersonProposalStatus;
+use App\Jobs\ProcessNotificationCandidate;
 use App\Models\FaceIdentityAssignment;
 use App\Models\FaceIdentitySuppression;
 use App\Models\FaceObservation;
@@ -15,6 +17,7 @@ use App\Models\User;
 use App\Policies\PhotoPolicy;
 use App\Services\AuditRecorder;
 use App\Tenancy\TenantContext;
+use App\Tenancy\TenantOperationContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -167,6 +170,13 @@ final class FaceIdentityAssignmentManager
             'photo_id' => $photo->id,
             'person_id' => $association->person_id,
         ]);
+        $context = TenantOperationContext::fromRequest($this->tenant->familySpace(), $actor, $request);
+        DB::afterCommit(fn () => ProcessNotificationCandidate::dispatch(
+            $context->toArray(),
+            NotificationCategory::Identity,
+            $association->id,
+            ['photo_id' => $photo->id, 'person_id' => $association->person_id],
+        ));
     }
 
     private function photoFor(FaceObservation $observation): Photo
