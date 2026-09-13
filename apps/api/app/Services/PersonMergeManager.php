@@ -22,6 +22,7 @@ use App\Models\Photo;
 use App\Models\PhotoPerson;
 use App\Models\PhotoProvenanceProposal;
 use App\Models\RelationshipProposal;
+use App\Models\Story;
 use App\Models\User;
 use App\Relationships\RelationshipValidator;
 use Carbon\CarbonImmutable;
@@ -96,6 +97,7 @@ class PersonMergeManager
             $this->reconcileFaceIdentity($lockedAbsorbed, $lockedSurvivor, $actor);
             $this->reconcileSavedSearchPeople($lockedAbsorbed, $lockedSurvivor);
             $this->reconcileFamilyActivities($lockedAbsorbed, $lockedSurvivor);
+            $this->reconcileStoryReferences($lockedAbsorbed, $lockedSurvivor);
             $lockedAbsorbed->delete();
 
             $merge = PersonMerge::query()->create([
@@ -604,6 +606,9 @@ class PersonMergeManager
         $faceSuppressionQuery = FaceIdentitySuppression::query()->whereIn('person_id', $personIds)->orderBy('id');
         $savedSearchPeopleQuery = DB::table('saved_search_people')
             ->whereIn('person_id', $personIds)->orderBy('saved_search_id')->orderBy('person_id');
+        $storySubjectQuery = Story::withTrashed()->whereIn('person_id', $personIds)->orderBy('id');
+        $storyMentionQuery = DB::table('story_person_mentions')->whereIn('person_id', $personIds)->orderBy('id');
+        $commentMentionQuery = DB::table('story_comment_person_mentions')->whereIn('person_id', $personIds)->orderBy('id');
         if ($lock) {
             $proposalQuery->lockForUpdate();
             $circleQuery->lockForUpdate();
@@ -614,6 +619,9 @@ class PersonMergeManager
             $faceAssignmentQuery->lockForUpdate();
             $faceSuppressionQuery->lockForUpdate();
             $savedSearchPeopleQuery->lockForUpdate();
+            $storySubjectQuery->lockForUpdate();
+            $storyMentionQuery->lockForUpdate();
+            $commentMentionQuery->lockForUpdate();
         }
 
         return [
@@ -631,6 +639,14 @@ class PersonMergeManager
                 ->map($this->faceIdentitySuppressionSnapshot(...))->values()->all(),
             'saved_search_people' => $savedSearchPeopleQuery->get()
                 ->map(fn ($row): array => (array) $row)->values()->all(),
+            'story_subjects' => $storySubjectQuery->get(['id', 'person_id', 'updated_at'])
+                ->map(fn (Story $story): array => [
+                    'id' => $story->id,
+                    'person_id' => $story->person_id,
+                    'updated_at' => $story->getRawOriginal('updated_at'),
+                ])->values()->all(),
+            'story_person_mentions' => $storyMentionQuery->get()->map(fn ($row): array => (array) $row)->values()->all(),
+            'story_comment_person_mentions' => $commentMentionQuery->get()->map(fn ($row): array => (array) $row)->values()->all(),
         ];
     }
 
@@ -882,6 +898,27 @@ class PersonMergeManager
         $savedSearchPeople = $before['saved_search_people'] ?? [];
         foreach ($savedSearchPeople as $row) {
             DB::table('saved_search_people')->insert($row);
+        }
+
+        foreach (['story_subjects' => 'stories', 'story_person_mentions' => 'story_person_mentions',
+            'story_comment_person_mentions' => 'story_comment_person_mentions'] as $snapshot => $table) {
+            /** @var list<array<string, mixed>> $rows */
+            $rows = $before[$snapshot] ?? [];
+            foreach ($rows as $row) {
+                $id = $row['id'];
+                unset($row['id']);
+                DB::table($table)->where('id', $id)->update($row);
+            }
+        }
+    }
+
+    private function reconcileStoryReferences(Person $absorbed, Person $survivor): void
+    {
+        Story::withTrashed()->where('person_id', $absorbed->id)
+            ->update(['person_id' => $survivor->id, 'updated_at' => now()]);
+        foreach (['story_person_mentions', 'story_comment_person_mentions'] as $table) {
+            DB::table($table)->where('person_id', $absorbed->id)
+                ->update(['person_id' => $survivor->id, 'updated_at' => now()]);
         }
     }
 

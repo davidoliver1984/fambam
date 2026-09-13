@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P14",
-    "current_stage": "FPA-P14-S02",
+    "current_stage": "FPA-P14-S03",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-13"
   },
@@ -998,7 +998,7 @@
         {
           "id": "FPA-P14-S02",
           "title": "Implement Story/comment schema and rich-text/mention infrastructure",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P14-S01"
           ],
@@ -1007,7 +1007,7 @@
         {
           "id": "FPA-P14-S03",
           "title": "Migrate Search, homepage, notifications, exports and Photo-Story consumers onto Story",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P14-S02"
           ],

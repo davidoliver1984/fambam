@@ -24,7 +24,9 @@ use App\Models\PhotoPerson;
 use App\Models\PhotoProvenanceProposal;
 use App\Models\RelationshipProposal;
 use App\Models\SavedSearch;
+use App\Models\Story;
 use App\Models\User;
+use App\Stories\StoryWriter;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -32,6 +34,36 @@ use Tests\TestCase;
 class PersonMergeTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_merge_and_reversal_repoint_story_subjects_and_mentions_from_the_operation_snapshot(): void
+    {
+        [$family, $owner] = $this->familyWithRole(FamilySpaceRole::Owner, 'story-mention-merge');
+        $survivor = $this->person($family, 'Survivor');
+        $absorbed = $this->person($family, 'Absorbed');
+        $story = app(StoryWriter::class)->create($family->id, $owner, ['person_id' => $absorbed->id], [
+            'schema_version' => 1,
+            'blocks' => [['type' => 'paragraph', 'content' => [[
+                'type' => 'mention', 'person_id' => $absorbed->id, 'label' => 'Absorbed',
+            ]]]],
+        ], fn (string $personId): bool => $personId === $absorbed->id);
+
+        $mergeId = $this->actingAs($owner)
+            ->postJson("/api/families/{$family->slug}/people/{$absorbed->id}/merge", [
+                'survivor_person_id' => $survivor->id,
+            ])->assertCreated()->json('data.id');
+
+        $this->assertSame($survivor->id, Story::findOrFail($story->id)->person_id);
+        $this->assertDatabaseHas('story_person_mentions', ['story_id' => $story->id, 'person_id' => $survivor->id]);
+        $before = PersonMerge::findOrFail($mergeId)->provenance['before'];
+        $this->assertSame($absorbed->id, $before['story_subjects'][0]['person_id']);
+        $this->assertSame($absorbed->id, $before['story_person_mentions'][0]['person_id']);
+
+        $this->actingAs($owner)
+            ->postJson("/api/families/{$family->slug}/person-merges/{$mergeId}/reverse")
+            ->assertOk();
+        $this->assertSame($absorbed->id, Story::findOrFail($story->id)->person_id);
+        $this->assertDatabaseHas('story_person_mentions', ['story_id' => $story->id, 'person_id' => $absorbed->id]);
+    }
 
     public function test_merge_and_guarded_reversal_reconcile_saved_search_person_collisions(): void
     {
