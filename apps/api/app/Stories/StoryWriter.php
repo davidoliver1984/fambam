@@ -91,4 +91,23 @@ final class StoryWriter
             return $comment->refresh();
         });
     }
+
+    /** @param array<string, mixed> $body @param callable(string): bool $mayMention */
+    public function updateComment(StoryComment $comment, array $body, callable $mayMention): StoryComment
+    {
+        return DB::transaction(function () use ($comment, $body, $mayMention): StoryComment {
+            $comment = StoryComment::query()->lockForUpdate()->findOrFail($comment->id);
+            $this->documents->validate($body, RichTextDocument::COMMENT);
+            $body = $this->mentions->synchronize(
+                $comment,
+                'story_comment_person_mentions',
+                'story_comment_id',
+                $body,
+                $mayMention,
+            );
+            $comment->update(['body' => $body]);
+
+            return $comment->refresh();
+        });
+    }
 }

@@ -6,17 +6,18 @@ use App\Models\Album;
 use App\Models\FamilyEvent;
 use App\Models\Person;
 use App\Models\Photo;
-use App\Models\PhotoStory;
+use App\Models\Story;
 use App\Models\User;
 use App\Queries\AlbumQuery;
 use App\Queries\FamilyEventQuery;
 use App\Queries\PersonQuery;
 use App\Queries\PhotoQuery;
+use App\Queries\StoryQuery;
 use App\Search\Summaries\AlbumSearchSummary;
 use App\Search\Summaries\EventSearchSummary;
 use App\Search\Summaries\PersonSearchSummary;
 use App\Search\Summaries\PhotoSearchSummary;
-use App\Search\Summaries\PhotoStorySearchSummary;
+use App\Search\Summaries\StorySearchSummary;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -30,6 +31,7 @@ final class DatabaseDiscoveryService implements DiscoveryService
         private readonly AlbumQuery $albums,
         private readonly FamilyEventQuery $events,
         private readonly PersonQuery $people,
+        private readonly StoryQuery $storyQuery,
     ) {}
 
     public function fromPerson(Person $person, User $actor): array
@@ -48,7 +50,7 @@ final class DatabaseDiscoveryService implements DiscoveryService
                 ->map($this->albumSummary(...))->all(),
             'events' => $this->eventsForPhotos($actor, $photoIds->all())
                 ->limit(self::LIMIT)->get()->map($this->eventSummary(...))->all(),
-            'stories' => $this->storiesForPhotos($photoIds->all()),
+            'stories' => $this->storiesForSubject($actor, 'person', $person->id, $photoIds->all()),
             'people' => $this->peopleForPhotos($actor, $photoIds->all(), $person->id),
         ];
     }
@@ -65,7 +67,7 @@ final class DatabaseDiscoveryService implements DiscoveryService
                 ->map($this->albumSummary(...))->all(),
             'events' => $this->eventsForPhotos($actor, $photoIds)
                 ->limit(self::LIMIT)->get()->map($this->eventSummary(...))->all(),
-            'stories' => $this->storiesForPhotos($photoIds),
+            'stories' => $this->storiesForSubject($actor, 'photo', $photo->id, $photoIds),
         ];
     }
 
@@ -76,13 +78,14 @@ final class DatabaseDiscoveryService implements DiscoveryService
         $photoIds = $photos->pluck('id')->all();
         $events = $album->event_id === null
             ? []
-            : $this->events->visibleTo($actor)->where('events.id', $album->event_id)
+            : FamilyEvent::query()->where('events.id', $album->event_id)
                 ->limit(1)->get()->map($this->eventSummary(...))->all();
 
         return [
             'photos' => $photos->map($this->photoSummary(...))->all(),
             'people' => $this->peopleForPhotos($actor, $photoIds),
             'events' => $events,
+            'stories' => $this->storiesForSubject($actor, 'album', $album->id, $photoIds),
         ];
     }
 
@@ -100,6 +103,7 @@ final class DatabaseDiscoveryService implements DiscoveryService
             'albums' => $albums->map($this->albumSummary(...))->all(),
             'photos' => $photos->map($this->photoSummary(...))->all(),
             'people' => $this->peopleForPhotos($actor, $photoIds),
+            'stories' => $this->storiesForSubject($actor, 'event', $event->id, $photoIds),
         ];
     }
 
@@ -133,16 +137,17 @@ final class DatabaseDiscoveryService implements DiscoveryService
     /** @param list<string> $photoIds
      * @return list<array<string, mixed>>
      */
-    private function storiesForPhotos(array $photoIds): array
+    private function storiesForSubject(User $actor, string $type, string $id, array $photoIds): array
     {
-        return PhotoStory::query()->whereIn('photo_id', $photoIds)->with('photo:id,media_upload_id,caption')
+        return $this->storyQuery->visibleTo($actor)
+            ->where(fn (Builder $query) => $query->where("{$type}_id", $id)->orWhereIn('photo_id', $photoIds))
             ->latest('created_at')->orderByDesc('id')->limit(self::LIMIT)->get()
-            ->map(fn (PhotoStory $story): array => (new PhotoStorySearchSummary(
+            ->map(fn (Story $story): array => (new StorySearchSummary(
                 $story->id,
-                $story->photo->id,
-                $story->photo->caption,
-                $story->photo->media_upload_id,
-                Str::limit(trim($story->body), 240),
+                Str::limit(trim($story->body_plain_text), 120),
+                Str::limit(trim($story->body_plain_text), 240),
+                ['type' => $story->person_id !== null ? 'person' : ($story->album_id !== null ? 'album' : ($story->event_id !== null ? 'event' : 'photo')),
+                    'id' => $story->person_id ?? $story->album_id ?? $story->event_id ?? $story->photo_id],
                 $story->created_at?->toAtomString() ?? '',
             ))->toArray())->all();
     }

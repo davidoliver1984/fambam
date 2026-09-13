@@ -9,7 +9,7 @@ use App\Models\FamilyNotification;
 use App\Models\FamilySpace;
 use App\Models\NotificationPreference;
 use App\Models\Photo;
-use App\Models\PhotoStory;
+use App\Models\Story;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -75,8 +75,8 @@ class NotificationController extends Controller
             }
         }
         if ($row->story_id) {
-            $story = PhotoStory::query()->with('photo')->find($row->story_id);
-            if ($story === null || ! Gate::forUser($request->user())->allows('view', $story->photo)) {
+            $story = Story::query()->find($row->story_id);
+            if ($story === null || ! Gate::forUser($request->user())->allows('view', $story)) {
                 return false;
             }
         }
@@ -90,7 +90,7 @@ class NotificationController extends Controller
     /** @return array<string, mixed> */
     private function payload(FamilyNotification $row): array
     {
-        $storyPhotoId = $row->story_id ? PhotoStory::query()->whereKey($row->story_id)->value('photo_id') : null;
+        $storyPhotoId = $row->story_id ? Story::query()->whereKey($row->story_id)->value('photo_id') : null;
 
         return [
             'id' => $row->id,
@@ -100,6 +100,7 @@ class NotificationController extends Controller
             'story_id' => $row->story_id,
             'person_id' => $row->person_id,
             'comment_id' => $row->comment_id,
+            'story_comment_id' => $row->story_comment_id,
             'family_export_id' => $row->family_export_id,
             'read_at' => $row->read_at?->toIso8601String(),
             'created_at' => $row->created_at->toIso8601String(),

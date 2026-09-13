@@ -20,6 +20,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property array<string, mixed> $body
  * @property string $body_plain_text
  * @property string|null $deletion_operation_id
+ * @property CarbonImmutable|null $edited_at
+ * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $deleted_at
  */
 #[Fillable(['family_space_id', 'author_id', 'person_id', 'album_id', 'event_id', 'photo_id', 'body', 'body_plain_text', 'edited_at', 'deletion_operation_id'])]
@@ -35,6 +37,12 @@ class Story extends Model
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id');
+    }
+
+    /** @return BelongsTo<FamilySpace, $this> */
+    public function familySpace(): BelongsTo
+    {
+        return $this->belongsTo(FamilySpace::class);
     }
 
     /** @return BelongsTo<Person, $this> */

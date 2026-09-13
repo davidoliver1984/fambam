@@ -15,12 +15,13 @@ use App\Models\Photo;
 use App\Models\PhotoComment;
 use App\Models\PhotoPerson;
 use App\Models\PhotoReaction;
-use App\Models\PhotoStory;
 use App\Models\SavedSearch;
+use App\Models\Story;
 use App\Models\User;
 use App\Queries\AlbumQuery;
 use App\Queries\FamilyEventQuery;
 use App\Queries\PhotoQuery;
+use App\Queries\StoryQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
@@ -31,6 +32,7 @@ class FamilyExportSelectionService
         private readonly PhotoQuery $photos,
         private readonly AlbumQuery $albums,
         private readonly FamilyEventQuery $events,
+        private readonly StoryQuery $stories,
     ) {}
 
     public function resolve(FamilyExport $export, User $requester): FamilyExportSelection
@@ -50,7 +52,7 @@ class FamilyExportSelectionService
             contextPhotoIds: [],
             albumIds: $this->ids(Album::query()->where('family_space_id', $familySpaceId)),
             eventIds: $this->ids(FamilyEvent::withTrashed()->where('family_space_id', $familySpaceId)),
-            storyIds: $this->ids(PhotoStory::withTrashed()->where('family_space_id', $familySpaceId)),
+            storyIds: $this->ids(Story::withTrashed()->where('family_space_id', $familySpaceId)),
             commentIds: $this->ids(PhotoComment::withTrashed()->where('family_space_id', $familySpaceId)),
             reactionIds: $this->ids(PhotoReaction::query()->where('family_space_id', $familySpaceId)),
             personIds: $this->ids(Person::withTrashed()->where('family_space_id', $familySpaceId)),
@@ -90,8 +92,7 @@ class FamilyExportSelectionService
             }
         }));
 
-        $ownStoryIds = $this->ids(PhotoStory::query()->where('family_space_id', $familySpaceId)
-            ->where('author_id', $requester->id)->whereIn('photo_id', $visiblePhotoIds));
+        $ownStoryIds = $this->ids($this->stories->visibleTo($requester)->where('author_id', $requester->id));
         $ownCommentIds = $this->ids(PhotoComment::query()->where('family_space_id', $familySpaceId)
             ->where('author_id', $requester->id)->whereIn('photo_id', $visiblePhotoIds)
             ->where(fn (Builder $query) => $this->visibleConversationScope($query, $visibleAlbumIds)));
@@ -99,14 +100,16 @@ class FamilyExportSelectionService
             ->where('user_id', $requester->id)->whereIn('photo_id', $visiblePhotoIds)
             ->where(fn (Builder $query) => $this->visibleConversationScope($query, $visibleAlbumIds)));
         $contextPhotoIds = collect([
-            ...PhotoStory::query()->whereIn('id', $ownStoryIds)->pluck('photo_id'),
+            ...Story::query()->whereIn('id', $ownStoryIds)->whereNotNull('photo_id')->pluck('photo_id'),
             ...PhotoComment::query()->whereIn('id', $ownCommentIds)->pluck('photo_id'),
             ...PhotoReaction::query()->whereIn('id', $ownReactionIds)->pluck('photo_id'),
         ])->unique()->diff($containerPhotoIds)->sort()->values()->all();
         $allContextIds = collect([...$containerPhotoIds, ...$contextPhotoIds])->unique()->values()->all();
 
-        $storyIds = collect($this->ids(PhotoStory::query()->where('family_space_id', $familySpaceId)
-            ->whereIn('photo_id', $containerPhotoIds)))->merge($ownStoryIds)->unique()->sort()->values()->all();
+        $storyIds = collect($this->ids($this->stories->visibleTo($requester)
+            ->where(fn (Builder $stories) => $stories->whereIn('photo_id', $containerPhotoIds)
+                ->orWhereIn('album_id', $albumIds)->orWhereIn('event_id', $ownedEventIds))))
+            ->merge($ownStoryIds)->unique()->sort()->values()->all();
         $commentIds = collect($this->ids(PhotoComment::query()->where('family_space_id', $familySpaceId)
             ->whereIn('photo_id', $containerPhotoIds)
             ->where(fn (Builder $query) => $this->visibleConversationScope($query, $visibleAlbumIds))))->merge($ownCommentIds)->unique()->sort()->values()->all();

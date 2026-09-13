@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\FamilyActivityType;
 use App\Enums\NotificationCategory;
 use App\Jobs\ProcessNotificationCandidate;
 use App\Models\Album;
@@ -10,8 +9,6 @@ use App\Models\Photo;
 use App\Models\PhotoComment;
 use App\Models\PhotoCommentRevision;
 use App\Models\PhotoReaction;
-use App\Models\PhotoStory;
-use App\Models\PhotoStoryRevision;
 use App\Models\User;
 use App\Tenancy\TenantOperationContext;
 use Illuminate\Http\Request;
@@ -21,13 +18,7 @@ class PhotoConversationManager
 {
     public function __construct(
         private readonly AuditRecorder $audit,
-        private readonly FamilyActivityRecorder $activities,
     ) {}
-
-    public function createStory(Photo $photo, User $actor, string $body, Request $request): PhotoStory
-    {
-        return $this->create(PhotoStory::class, 'photo_story.created', $photo, $actor, $body, $request);
-    }
 
     public function createComment(Photo $photo, Album $album, User $actor, string $body, Request $request): PhotoComment
     {
@@ -47,20 +38,6 @@ class PhotoConversationManager
         });
     }
 
-    public function updateStory(PhotoStory $story, User $actor, string $body, Request $request): PhotoStory
-    {
-        return DB::transaction(function () use ($story, $actor, $body, $request): PhotoStory {
-            $locked = PhotoStory::query()->lockForUpdate()->findOrFail($story->id);
-            $revision = ((int) PhotoStoryRevision::query()->where('photo_story_id', $locked->id)->max('revision')) + 1;
-            PhotoStoryRevision::query()->create(['family_space_id' => $locked->family_space_id,
-                'photo_story_id' => $locked->id, 'editor_id' => $actor->id, 'revision' => $revision, 'body' => $locked->body]);
-            $locked->update(['body' => trim($body), 'edited_at' => now()]);
-            $this->audit->record('photo_story.updated', $locked, $actor, $request, ['revision' => $revision]);
-
-            return $locked->load('author:id,name');
-        });
-    }
-
     public function updateComment(PhotoComment $comment, User $actor, string $body, Request $request): PhotoComment
     {
         return DB::transaction(function () use ($comment, $actor, $body, $request): PhotoComment {
@@ -75,11 +52,11 @@ class PhotoConversationManager
         });
     }
 
-    public function remove(PhotoStory|PhotoComment $content, User $actor, Request $request): void
+    public function remove(PhotoComment $content, User $actor, Request $request): void
     {
         DB::transaction(function () use ($content, $actor, $request): void {
             if ($content->author_id !== $actor->id) {
-                $this->audit->record($content instanceof PhotoStory ? 'photo_story.removed' : 'photo_comment.removed', $content, $actor, $request);
+                $this->audit->record('photo_comment.removed', $content, $actor, $request);
             }
             $content->delete();
         });
@@ -105,33 +82,6 @@ class PhotoConversationManager
                 ->where('album_id', $album->id)->where('user_id', $actor->id)->firstOrFail();
             $this->audit->record('photo.reaction_removed', $reaction, $actor, $request, ['album_id' => $album->id]);
             $reaction->delete();
-        });
-    }
-
-    /**
-     * @template TModel of PhotoStory|PhotoComment
-     *
-     * @param  class-string<TModel>  $class
-     * @return TModel
-     */
-    private function create(string $class, string $action, Photo $photo, User $actor, string $body, Request $request): PhotoStory|PhotoComment
-    {
-        return DB::transaction(function () use ($class, $action, $photo, $actor, $body, $request): PhotoStory|PhotoComment {
-            $model = $class::query()->create(['family_space_id' => $photo->family_space_id, 'photo_id' => $photo->id, 'author_id' => $actor->id, 'body' => trim($body)]);
-            $this->audit->record($action, $model, $actor, $request);
-            if ($model instanceof PhotoStory) {
-                $this->activities->record(
-                    $photo->family_space_id,
-                    $actor->id,
-                    FamilyActivityType::StoryAdded,
-                    subjectStoryId: $model->id,
-                    photoIds: [$photo->id],
-                );
-                $context = TenantOperationContext::fromRequest($photo->familySpace, $actor, $request);
-                DB::afterCommit(fn () => ProcessNotificationCandidate::dispatch($context->toArray(), NotificationCategory::Story, $model->id, ['photo_id' => $photo->id, 'story_id' => $model->id]));
-            }
-
-            return $model->load('author:id,name');
         });
     }
 }

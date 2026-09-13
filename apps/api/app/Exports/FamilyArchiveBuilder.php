@@ -19,8 +19,8 @@ use App\Models\Photo;
 use App\Models\PhotoComment;
 use App\Models\PhotoPerson;
 use App\Models\PhotoReaction;
-use App\Models\PhotoStory;
 use App\Models\SavedSearch;
+use App\Models\Story;
 use App\Models\Tag;
 use App\Models\User;
 use App\Tenancy\DatabaseTenantContext;
@@ -221,8 +221,11 @@ class FamilyArchiveBuilder
             ->orderBy('id')->get();
         $eventQuery = $full ? FamilyEvent::withTrashed() : FamilyEvent::query();
         $events = $eventQuery->whereIn('id', $selection->eventIds)->orderBy('id')->get();
-        $storyQuery = $full ? PhotoStory::withTrashed() : PhotoStory::query();
-        $stories = $storyQuery->whereIn('id', $selection->storyIds)->whereIn('photo_id', $photoIds)->orderBy('id')->get();
+        $storyQuery = $full ? Story::withTrashed() : Story::query();
+        $stories = $storyQuery->whereIn('id', $selection->storyIds)->orderBy('id')->get();
+        if (! $full) {
+            $stories = $stories->filter(fn (Story $story): bool => Gate::forUser($requester)->allows('view', $story))->values();
+        }
         $commentQuery = $full ? PhotoComment::withTrashed() : PhotoComment::query();
         $comments = $commentQuery->whereIn('id', $selection->commentIds)->whereIn('photo_id', $photoIds)->orderBy('id')->get();
         $reactions = PhotoReaction::query()->whereIn('id', $selection->reactionIds)->whereIn('photo_id', $photoIds)->orderBy('id')->get();
@@ -287,7 +290,7 @@ class FamilyArchiveBuilder
                 return $row;
             })->all(),
             'events.json' => $events->map(fn (FamilyEvent $event) => $this->only($event, ['id', 'created_by', 'name', 'description', 'starts_on', 'ends_on', 'location', 'status', 'created_at', 'updated_at', 'deleted_at']))->all(),
-            'stories.json' => $stories->map(fn (PhotoStory $story) => $this->only($story, ['id', 'photo_id', 'author_id', 'body', 'edited_at', 'created_at', 'updated_at', 'deleted_at']))->all(),
+            'stories.json' => $stories->map(fn (Story $story) => $this->only($story, ['id', 'person_id', 'album_id', 'event_id', 'photo_id', 'author_id', 'body', 'body_plain_text', 'edited_at', 'created_at', 'updated_at', 'deleted_at']))->all(),
             'comments.json' => $comments->map(fn (PhotoComment $comment) => $this->only($comment, ['id', 'photo_id', 'album_id', 'author_id', 'body', 'edited_at', 'created_at', 'updated_at', 'deleted_at']))->all(),
             'reactions.json' => $reactions->map(fn (PhotoReaction $reaction) => $this->only($reaction, ['id', 'photo_id', 'album_id', 'user_id', 'reaction', 'created_at', 'updated_at']))->all(),
             'saved_searches.json' => $savedSearches->map(function (SavedSearch $search) use ($people): array {

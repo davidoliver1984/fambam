@@ -89,6 +89,49 @@ class StoryPostgresTest extends TestCase
         }
     }
 
+    public function test_story_consumer_foreign_keys_and_comment_notification_shape_are_database_enforced(): void
+    {
+        [$ownerId, $familyId, $photoId] = $this->familyFixture('story-consumer-pg');
+        $storyId = (string) Str::ulid();
+        $commentId = (string) Str::ulid();
+        $document = json_encode(['schema_version' => 1, 'blocks' => []], JSON_THROW_ON_ERROR);
+        $this->admin->table('stories')->insert([
+            'id' => $storyId, 'family_space_id' => $familyId, 'author_id' => $ownerId,
+            'photo_id' => $photoId, 'body' => $document, 'body_plain_text' => 'Consumer Story',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->admin->table('story_comments')->insert([
+            'id' => $commentId, 'family_space_id' => $familyId, 'story_id' => $storyId,
+            'author_id' => $ownerId, 'body' => $document, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->admin->table('notifications')->insert([
+            'id' => (string) Str::ulid(), 'family_space_id' => $familyId, 'recipient_user_id' => $ownerId,
+            'category' => 'comment', 'source_action_id' => $commentId, 'story_id' => $storyId,
+            'story_comment_id' => $commentId, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        try {
+            $this->admin->table('notifications')->insert([
+                'id' => (string) Str::ulid(), 'family_space_id' => $familyId, 'recipient_user_id' => $ownerId,
+                'category' => 'comment', 'source_action_id' => (string) Str::ulid(), 'story_id' => $storyId,
+                'story_comment_id' => $commentId, 'photo_id' => $photoId,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $this->fail('A mixed Photo-comment and Story-comment notification shape was accepted.');
+        } catch (QueryException) {
+        }
+
+        foreach (['family_activities_story_family_foreign', 'notifications_story_family_foreign', 'notification_deliveries_story_family_foreign'] as $constraint) {
+            $target = $this->admin->selectOne(<<<'SQL'
+SELECT target.relname AS target
+FROM pg_constraint constraint_row
+JOIN pg_class target ON target.oid = constraint_row.confrelid
+WHERE constraint_row.conname = ?
+SQL, [$constraint]);
+            $this->assertSame('stories', $target->target);
+        }
+    }
+
     /** @return array{int, string, string, string} */
     private function familyFixture(string $slug): array
     {

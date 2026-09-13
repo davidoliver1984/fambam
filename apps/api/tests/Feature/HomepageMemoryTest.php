@@ -14,7 +14,7 @@ use App\Models\FamilySpaceMembership;
 use App\Models\Person;
 use App\Models\Photo;
 use App\Models\PhotoPerson;
-use App\Models\PhotoStory;
+use App\Models\Story;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -55,11 +55,12 @@ class HomepageMemoryTest extends TestCase
             'resolved_by' => $owner->id,
             'resolved_at' => now(),
         ]);
-        $story = PhotoStory::query()->create([
+        $story = Story::query()->create([
             'family_space_id' => $family->id,
             'photo_id' => $photo->id,
             'author_id' => $owner->id,
-            'body' => 'William always remembered how cold the water was.',
+            'body' => $this->storyBody('William always remembered how cold the water was.'),
+            'body_plain_text' => 'William always remembered how cold the water was.',
         ]);
         $event = FamilyEvent::query()->create([
             'family_space_id' => $family->id,
@@ -88,8 +89,8 @@ class HomepageMemoryTest extends TestCase
             ->assertJsonPath('data.people.0.person_id', $person->id)
             ->assertJsonPath('data.people.0.memory_count', 4)
             ->assertJsonPath('data.stories.0.id', $story->id)
-            ->assertJsonPath('data.stories.0.photo_id', $photo->id)
-            ->assertJsonPath('data.stories.0.media_upload_id', $photo->media_upload_id)
+            ->assertJsonPath('data.stories.0.subject.type', 'photo')
+            ->assertJsonPath('data.stories.0.subject.id', $photo->id)
             ->assertJsonPath('data.stories.0.author.name', $owner->name)
             ->assertJsonPath('data.stories.0.people.0.id', $person->id)
             ->assertJsonPath('data.stories.0.albums.0.id', $album->id)
@@ -177,14 +178,21 @@ class HomepageMemoryTest extends TestCase
         return $user;
     }
 
-    private function story(FamilySpace $family, Photo $photo, User $author, string $body): PhotoStory
+    private function story(FamilySpace $family, Photo $photo, User $author, string $body): Story
     {
-        return PhotoStory::query()->create([
+        return Story::query()->create([
             'family_space_id' => $family->id,
             'photo_id' => $photo->id,
             'author_id' => $author->id,
-            'body' => $body,
+            'body' => $this->storyBody($body),
+            'body_plain_text' => $body,
         ]);
+    }
+
+    /** @return array{schema_version: int, blocks: list<array<string, mixed>>} */
+    private function storyBody(string $text): array
+    {
+        return ['schema_version' => 1, 'blocks' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => $text]]]]];
     }
 
     private function association(

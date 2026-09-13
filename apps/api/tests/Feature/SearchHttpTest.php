@@ -12,7 +12,7 @@ use App\Models\FamilySpaceMembership;
 use App\Models\MediaUpload;
 use App\Models\Person;
 use App\Models\Photo;
-use App\Models\PhotoStory;
+use App\Models\Story;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Contracts\Events\Dispatcher;
@@ -33,16 +33,18 @@ class SearchHttpTest extends TestCase
         [$family, $owner, $member] = $this->family();
         $visible = $this->photo($family, $owner, 'Summer beach', PhotoVisibility::FamilySpace);
         $hidden = $this->photo($family, $owner, 'Private beach', PhotoVisibility::Private);
-        PhotoStory::query()->create([
+        Story::query()->create([
             'family_space_id' => $family->id,
             'photo_id' => $visible->id,
-            'body' => 'A beach story the family remembers.',
+            'body' => $this->storyBody('A beach story the family remembers.'),
+            'body_plain_text' => 'A beach story the family remembers.',
             'author_id' => $owner->id,
         ]);
-        PhotoStory::query()->create([
+        Story::query()->create([
             'family_space_id' => $family->id,
             'photo_id' => $hidden->id,
-            'body' => 'A private beach story.',
+            'body' => $this->storyBody('A private beach story.'),
+            'body_plain_text' => 'A private beach story.',
             'author_id' => $owner->id,
         ]);
         $visibleAlbum = Album::query()->create([
@@ -66,7 +68,8 @@ class SearchHttpTest extends TestCase
             ->assertJsonCount(1, 'data.albums.items')
             ->assertJsonPath('data.albums.items.0.id', $visibleAlbum->id)
             ->assertJsonCount(1, 'data.stories.items')
-            ->assertJsonPath('data.stories.items.0.photo_id', $visible->id);
+            ->assertJsonPath('data.stories.items.0.subject.type', 'photo')
+            ->assertJsonPath('data.stories.items.0.subject.id', $visible->id);
         $this->assertStringNotContainsString($hidden->id, $response->getContent());
     }
 
@@ -277,5 +280,11 @@ class SearchHttpTest extends TestCase
             'historical_date' => $historicalDate,
             'historical_date_precision' => $precision,
         ]);
+    }
+
+    /** @return array{schema_version: int, blocks: list<array<string, mixed>>} */
+    private function storyBody(string $text): array
+    {
+        return ['schema_version' => 1, 'blocks' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => $text]]]]];
     }
 }

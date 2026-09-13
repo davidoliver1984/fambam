@@ -12,7 +12,7 @@ use App\Models\FamilySpaceMembership;
 use App\Models\Photo;
 use App\Models\PhotoComment;
 use App\Models\PhotoReaction;
-use App\Models\PhotoStory;
+use App\Models\Story;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -41,14 +41,18 @@ class PhotoConversationTest extends TestCase
         $this->actingAs($other)->deleteJson("{$base}/comments/{$commentId}")->assertForbidden();
         $this->actingAs($author)->patchJson("{$base}/stories/{$storyId}", ['body' => 'The corrected memory.'])
             ->assertOk()->assertJsonPath('data.body', 'The corrected memory.');
-        $this->assertDatabaseHas('photo_story_revisions', ['photo_story_id' => $storyId,
-            'revision' => 1, 'body' => 'The original memory.']);
+        $this->assertDatabaseHas('story_revisions', ['story_id' => $storyId,
+            'revision' => 1]);
+        $this->assertSame(
+            'The original memory.',
+            Story::query()->findOrFail($storyId)->revisions()->firstOrFail()->body['blocks'][0]['content'][0]['text'],
+        );
 
         $this->actingAs($administrator)->deleteJson("{$base}/comments/{$commentId}")->assertNoContent();
         $this->assertSoftDeleted(PhotoComment::query()->withTrashed()->findOrFail($commentId));
         $this->assertDatabaseHas('audit_events', ['action' => 'photo_comment.removed',
             'actor_user_id' => $administrator->id, 'subject_id' => $commentId]);
-        $this->assertFalse(PhotoStory::query()->findOrFail($storyId)->trashed());
+        $this->assertFalse(Story::query()->findOrFail($storyId)->trashed());
     }
 
     public function test_reactions_are_one_fixed_lightweight_expression_per_user(): void
@@ -138,7 +142,7 @@ class PhotoConversationTest extends TestCase
             ->assertCreated()->json('data.id');
         $this->actingAs($author)->deleteJson("{$base}/stories/{$ownStory}")->assertNoContent();
         $this->actingAs($author)->deleteJson("{$base}/comments/{$ownComment}")->assertNoContent();
-        $this->assertDatabaseMissing('audit_events', ['action' => 'photo_story.removed', 'subject_id' => $ownStory]);
+        $this->assertDatabaseMissing('audit_events', ['action' => 'story.removed', 'subject_id' => $ownStory]);
         $this->assertDatabaseMissing('audit_events', ['action' => 'photo_comment.removed', 'subject_id' => $ownComment]);
 
         $moderatedStory = $this->actingAs($author)->postJson("{$base}/stories", ['body' => 'Moderated story.'])
@@ -147,7 +151,7 @@ class PhotoConversationTest extends TestCase
             ->assertCreated()->json('data.id');
         $this->actingAs($administrator)->deleteJson("{$base}/stories/{$moderatedStory}")->assertNoContent();
         $this->actingAs($administrator)->deleteJson("{$base}/comments/{$moderatedComment}")->assertNoContent();
-        $this->assertDatabaseHas('audit_events', ['action' => 'photo_story.removed',
+        $this->assertDatabaseHas('audit_events', ['action' => 'story.removed',
             'actor_user_id' => $administrator->id, 'subject_id' => $moderatedStory]);
         $this->assertDatabaseHas('audit_events', ['action' => 'photo_comment.removed',
             'actor_user_id' => $administrator->id, 'subject_id' => $moderatedComment]);

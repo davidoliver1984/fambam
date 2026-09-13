@@ -3,17 +3,18 @@
 namespace App\Search;
 
 use App\Models\Photo;
-use App\Models\PhotoStory;
+use App\Models\Story;
 use App\Models\User;
 use App\Queries\AlbumQuery;
 use App\Queries\FamilyEventQuery;
 use App\Queries\PersonQuery;
 use App\Queries\PhotoQuery;
+use App\Queries\StoryQuery;
 use App\Search\Summaries\AlbumSearchSummary;
 use App\Search\Summaries\EventSearchSummary;
 use App\Search\Summaries\PersonSearchSummary;
 use App\Search\Summaries\PhotoSearchSummary;
-use App\Search\Summaries\PhotoStorySearchSummary;
+use App\Search\Summaries\StorySearchSummary;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,7 @@ final class DatabaseSearchService implements SearchService
         private readonly AlbumQuery $albums,
         private readonly PersonQuery $people,
         private readonly FamilyEventQuery $events,
+        private readonly StoryQuery $storyQuery,
         private readonly SearchCursorCodec $cursors,
     ) {}
 
@@ -139,21 +141,13 @@ final class DatabaseSearchService implements SearchService
             && $query->visibility === null && $query->dateFrom === null && $query->dateTo === null) {
             return new SearchPage([], null);
         }
-        $visiblePhotos = $this->photos->visibleTo($actor)->setEagerLoads([]);
-        $this->applyPhotoFilters($visiblePhotos, $query);
-        $visiblePhotoIds = $visiblePhotos->select('photos.id');
-        $base = PhotoStory::query()
-            ->whereIn('photo_stories.photo_id', $visiblePhotoIds)
-            ->join('photos', function ($join): void {
-                $join->on('photos.id', '=', 'photo_stories.photo_id')
-                    ->on('photos.family_space_id', '=', 'photo_stories.family_space_id');
-            })
-            ->select([
-                'photo_stories.id', 'photo_stories.photo_id', 'photo_stories.body',
-                'photo_stories.created_at', 'photos.media_upload_id', 'photos.caption as photo_caption',
-            ]);
+        $base = $this->storyQuery->visibleTo($actor)->select([
+            'stories.id', 'stories.person_id', 'stories.album_id', 'stories.event_id', 'stories.photo_id',
+            'stories.body_plain_text', 'stories.created_at',
+        ]);
+        $this->applyStoryFilters($base, $query);
         [$matchClass, $classBindings, $score, $scoreBindings, $matches, $matchBindings] =
-            $this->simpleExpressions('photo_stories', ['body'], null, $term ?? '');
+            $this->simpleExpressions('stories', ['body_plain_text'], null, $term ?? '');
         if ($term !== null) {
             $base->whereRaw($matches, $matchBindings);
         } else {
@@ -164,12 +158,11 @@ final class DatabaseSearchService implements SearchService
             ->selectRaw($this->storyTieBreaker().' AS sort_tie');
         $page = $this->page('stories', $base->toBase(), $query, 'sort_tie', 'desc');
 
-        return new SearchPage(array_map(fn (array $row): PhotoStorySearchSummary => new PhotoStorySearchSummary(
+        return new SearchPage(array_map(fn (array $row): StorySearchSummary => new StorySearchSummary(
             $row['id'],
-            $row['photo_id'],
-            $row['photo_caption'],
-            $row['media_upload_id'],
-            Str::limit(trim((string) $row['body']), 240),
+            Str::limit(trim((string) $row['body_plain_text']), 120),
+            Str::limit(trim((string) $row['body_plain_text']), 240),
+            $this->storySubject($row),
             (string) $row['created_at'],
         ), $page['rows']), $page['next_cursor']);
     }
@@ -230,6 +223,44 @@ final class DatabaseSearchService implements SearchService
             $row['starts_on'] === null ? null : substr((string) $row['starts_on'], 0, 10),
             $row['ends_on'] === null ? null : substr((string) $row['ends_on'], 0, 10),
         ), $page['rows']), $page['next_cursor']);
+    }
+
+    /** @param EloquentBuilder<Story> $base */
+    private function applyStoryFilters(EloquentBuilder $base, SearchQuery $query): void
+    {
+        $hasFilters = $query->tagId !== null || $query->personIds !== [] || $query->eventId !== null
+            || $query->albumId !== null || $query->uploadedBy !== null || $query->visibility !== null
+            || $query->dateFrom !== null || $query->dateTo !== null;
+        if (! $hasFilters) {
+            return;
+        }
+
+        $photoIds = Photo::query()->select('photos.id');
+        $this->applyPhotoFilters($photoIds, $query);
+        $base->where(function (EloquentBuilder $stories) use ($query, $photoIds): void {
+            $stories->whereIn('stories.photo_id', $photoIds);
+
+            $onlyPerson = count($query->personIds) === 1 && $query->tagId === null && $query->eventId === null
+                && $query->albumId === null && $query->uploadedBy === null && $query->visibility === null
+                && $query->dateFrom === null && $query->dateTo === null;
+            if ($onlyPerson) {
+                $stories->orWhere('stories.person_id', $query->personIds[0]);
+            }
+
+            $onlyEvent = $query->eventId !== null && $query->tagId === null && $query->personIds === []
+                && $query->albumId === null && $query->uploadedBy === null && $query->visibility === null
+                && $query->dateFrom === null && $query->dateTo === null;
+            if ($onlyEvent) {
+                $stories->orWhere('stories.event_id', $query->eventId);
+            }
+
+            $onlyAlbum = $query->albumId !== null && $query->tagId === null && $query->personIds === []
+                && $query->eventId === null && $query->uploadedBy === null && $query->visibility === null
+                && $query->dateFrom === null && $query->dateTo === null;
+            if ($onlyAlbum) {
+                $stories->orWhere('stories.album_id', $query->albumId);
+            }
+        });
     }
 
     public function suggest(string $type, string $prefix, User $actor): array
@@ -483,8 +514,24 @@ final class DatabaseSearchService implements SearchService
     private function storyTieBreaker(): string
     {
         return DB::getDriverName() === 'pgsql'
-            ? "COALESCE(photo_stories.created_at::text, '0001-01-01')"
-            : "COALESCE(photo_stories.created_at, '0001-01-01')";
+            ? "COALESCE(stories.created_at::text, '0001-01-01')"
+            : "COALESCE(stories.created_at, '0001-01-01')";
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array{type: string, id: string}
+     */
+    private function storySubject(array $row): array
+    {
+        foreach (['person', 'album', 'event', 'photo'] as $type) {
+            $id = $row["{$type}_id"];
+            if (is_string($id)) {
+                return ['type' => $type, 'id' => $id];
+            }
+        }
+
+        throw new \LogicException('Story has no subject.');
     }
 
     private function eventTieBreaker(): string

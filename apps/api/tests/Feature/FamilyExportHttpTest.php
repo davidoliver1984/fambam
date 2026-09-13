@@ -30,8 +30,8 @@ use App\Models\Person;
 use App\Models\Photo;
 use App\Models\PhotoComment;
 use App\Models\PhotoPerson;
-use App\Models\PhotoStory;
 use App\Models\SavedSearch;
+use App\Models\Story;
 use App\Models\User;
 use App\Notifications\FamilyActivityNotification;
 use App\Services\FamilyExportManager;
@@ -477,11 +477,12 @@ class FamilyExportHttpTest extends TestCase
             'id' => (string) Str::ulid(), 'family_space_id' => $family->id,
             'position' => 1, 'added_by' => $member->id,
         ]);
-        $story = PhotoStory::query()->create([
+        $story = Story::query()->create([
             'family_space_id' => $family->id,
             'photo_id' => $photo->id,
             'author_id' => $owner->id,
-            'body' => 'Context removed with the Photo.',
+            'body' => ['schema_version' => 1, 'blocks' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Context removed with the Photo.']]]]],
+            'body_plain_text' => 'Context removed with the Photo.',
         ]);
         $person = Person::factory()->create(['family_space_id' => $family->id]);
         $photoPerson = PhotoPerson::query()->create([

@@ -13,7 +13,7 @@ use App\Models\FamilySpaceMembership;
 use App\Models\Photo;
 use App\Models\PhotoComment;
 use App\Models\PhotoReaction;
-use App\Models\PhotoStory;
+use App\Models\Story;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
@@ -41,8 +41,10 @@ class PhotoDeletionTest extends TestCase
             'name' => 'Archive', 'visibility' => 'family_space']);
         $album->photos()->attach($photo->id, ['id' => (string) Str::ulid(), 'family_space_id' => $family->id,
             'position' => 1, 'added_by' => $creator->id]);
-        $story = PhotoStory::query()->create(['family_space_id' => $family->id, 'photo_id' => $photo->id,
-            'author_id' => $creator->id, 'body' => 'Retained story']);
+        $story = Story::query()->create(['family_space_id' => $family->id, 'photo_id' => $photo->id,
+            'author_id' => $creator->id,
+            'body' => ['schema_version' => 1, 'blocks' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Retained story']]]]],
+            'body_plain_text' => 'Retained story']);
         $comment = PhotoComment::query()->create(['family_space_id' => $family->id, 'photo_id' => $photo->id,
             'author_id' => $viewer->id, 'body' => 'Retained comment']);
         PhotoReaction::query()->create(['family_space_id' => $family->id, 'photo_id' => $photo->id,
@@ -59,7 +61,7 @@ class PhotoDeletionTest extends TestCase
             $this->actingAs($creator)->getJson("/api/families/photo-tombstone/media-uploads/{$photo->media_upload_id}/{$asset}")->assertForbidden();
         }
         $this->assertDatabaseHas('album_photos', ['album_id' => $album->id, 'photo_id' => $photo->id]);
-        $this->assertDatabaseHas('photo_stories', ['id' => $story->id, 'deleted_at' => null]);
+        $this->assertDatabaseHas('stories', ['id' => $story->id, 'deleted_at' => null]);
         $this->assertDatabaseHas('photo_comments', ['id' => $comment->id, 'deleted_at' => null]);
         $this->assertDatabaseHas('photo_reactions', ['photo_id' => $photo->id]);
 

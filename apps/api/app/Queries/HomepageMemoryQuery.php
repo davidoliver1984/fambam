@@ -4,9 +4,9 @@ namespace App\Queries;
 
 use App\Models\Person;
 use App\Models\Photo;
-use App\Models\PhotoStory;
+use App\Models\Story;
 use App\Models\User;
-use App\Search\Summaries\PhotoStorySearchSummary;
+use App\Search\Summaries\StorySearchSummary;
 use App\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -25,6 +25,7 @@ class HomepageMemoryQuery
         private readonly PhotoQuery $photos,
         private readonly AlbumQuery $albums,
         private readonly FamilyEventQuery $events,
+        private readonly StoryQuery $storyQuery,
     ) {}
 
     /** @return array{recent_days: int, people: list<array<string, mixed>>, stories: list<array<string, mixed>>} */
@@ -62,7 +63,7 @@ class HomepageMemoryQuery
             ->where('pp.created_at', '>=', $cutoff)
             ->selectRaw("pp.person_id, pp.created_at as occurred_at, 'photo' as memory_kind, pp.id as memory_id");
         $stories = $approvedPeople()
-            ->join('photo_stories as ps', function ($join): void {
+            ->join('stories as ps', function ($join): void {
                 $join->on('ps.photo_id', '=', 'p.id')
                     ->on('ps.family_space_id', '=', 'p.family_space_id');
             })
@@ -115,10 +116,11 @@ class HomepageMemoryQuery
     /** @return list<array<string, mixed>> */
     private function stories(User $viewer, CarbonImmutable $cutoff): array
     {
-        $storyRows = PhotoStory::query()
-            ->whereIn('photo_id', $this->visiblePhotoIds($viewer))
+        $storyRows = $this->storyQuery->visibleTo($viewer)
             ->where('created_at', '>=', $cutoff)
-            ->with(['author:id,name', 'photo:id,family_space_id,media_upload_id,caption,primary_event_id'])
+            ->where(fn (Builder $stories) => $stories->whereNull('photo_id')
+                ->orWhereHas('photo', fn (Builder $photos) => $photos->where('do_not_resurface', false)))
+            ->with(['author:id,name'])
             ->latest('created_at')
             ->orderByDesc('id')
             ->limit(self::LIMIT)
@@ -128,20 +130,21 @@ class HomepageMemoryQuery
             return [];
         }
 
-        $photoIds = $storyRows->pluck('photo_id')->unique()->values()->all();
+        $photoIds = $storyRows->pluck('photo_id')->filter()->unique()->values()->all();
         $peopleByPhoto = Gate::forUser($viewer)->allows('viewAny', Person::class)
             ? $this->peopleForPhotos($photoIds)
             : [];
         $albumsByPhoto = $this->albumsForPhotos($viewer, $photoIds);
         $eventsByPhoto = $this->eventsForPhotos($viewer, $photoIds);
 
-        return $storyRows->map(function (PhotoStory $story) use ($peopleByPhoto, $albumsByPhoto, $eventsByPhoto): array {
-            $summary = (new PhotoStorySearchSummary(
+        return $storyRows->map(function (Story $story) use ($peopleByPhoto, $albumsByPhoto, $eventsByPhoto): array {
+            $subjectType = $story->person_id !== null ? 'person' : ($story->album_id !== null ? 'album' : ($story->event_id !== null ? 'event' : 'photo'));
+            $subjectId = $story->person_id ?? $story->album_id ?? $story->event_id ?? $story->photo_id;
+            $summary = (new StorySearchSummary(
                 $story->id,
-                $story->photo->id,
-                $story->photo->caption,
-                $story->photo->media_upload_id,
-                Str::limit(trim($story->body), 240),
+                Str::limit(trim($story->body_plain_text), 120),
+                Str::limit(trim($story->body_plain_text), 240),
+                ['type' => $subjectType, 'id' => $subjectId],
                 $story->created_at?->toAtomString() ?? '',
             ))->toArray();
 
@@ -150,9 +153,9 @@ class HomepageMemoryQuery
                 'author' => $story->author === null
                     ? ['id' => null, 'name' => 'Former family member']
                     : ['id' => $story->author->id, 'name' => $story->author->name],
-                'people' => $peopleByPhoto[$story->photo->id] ?? [],
-                'albums' => $albumsByPhoto[$story->photo->id] ?? [],
-                'events' => $eventsByPhoto[$story->photo->id] ?? [],
+                'people' => $story->photo_id === null ? [] : ($peopleByPhoto[$story->photo_id] ?? []),
+                'albums' => $story->photo_id === null ? [] : ($albumsByPhoto[$story->photo_id] ?? []),
+                'events' => $story->photo_id === null ? [] : ($eventsByPhoto[$story->photo_id] ?? []),
             ];
         })->all();
     }

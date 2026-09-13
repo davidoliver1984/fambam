@@ -7,6 +7,7 @@ use App\Enums\FamilySpaceRole;
 use App\Enums\MembershipState;
 use App\Enums\PhotoVisibility;
 use App\Models\Album;
+use App\Models\AlbumGrant;
 use App\Models\EventAdmission;
 use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
@@ -16,7 +17,7 @@ use App\Models\Person;
 use App\Models\Photo;
 use App\Models\PhotoComment;
 use App\Models\PhotoReaction;
-use App\Models\PhotoStory;
+use App\Models\Story;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -107,11 +108,12 @@ class SearchRelationshipHttpTest extends TestCase
             [$outside, $first, 'approved'], [$outside, $second, 'approved']] as [$photo, $person, $status]) {
             $this->associate($photo, $person, $owner, $status);
         }
-        $story = PhotoStory::query()->create([
+        $story = Story::query()->create([
             'family_space_id' => $family->id,
             'photo_id' => $match->id,
             'author_id' => $owner->id,
-            'body' => 'Together at the wedding.',
+            'body' => $this->storyBody('Together at the wedding.'),
+            'body_plain_text' => 'Together at the wedding.',
         ]);
 
         $query = http_build_query([
@@ -171,13 +173,15 @@ class SearchRelationshipHttpTest extends TestCase
         $this->associate($visible, $person, $owner, 'approved');
         $this->associate($visible, $companion, $owner, 'approved');
         $this->associate($hidden, $person, $owner, 'approved');
-        PhotoStory::query()->create([
+        Story::query()->create([
             'family_space_id' => $family->id, 'photo_id' => $visible->id,
-            'author_id' => $owner->id, 'body' => 'A beach story.',
+            'author_id' => $owner->id, 'body' => $this->storyBody('A beach story.'),
+            'body_plain_text' => 'A beach story.',
         ]);
-        $hiddenStory = PhotoStory::query()->create([
+        $hiddenStory = Story::query()->create([
             'family_space_id' => $family->id, 'photo_id' => $hidden->id,
-            'author_id' => $owner->id, 'body' => 'Disclosure needle in a private Story.',
+            'author_id' => $owner->id, 'body' => $this->storyBody('Disclosure needle in a private Story.'),
+            'body_plain_text' => 'Disclosure needle in a private Story.',
         ]);
         $comment = PhotoComment::query()->create([
             'family_space_id' => $family->id, 'photo_id' => $visible->id,
@@ -241,6 +245,19 @@ class SearchRelationshipHttpTest extends TestCase
             ->getJson("/api/families/{$family->slug}/discover/albums/{$album->id}")
             ->assertOk()
             ->assertJsonPath('data.related.photos.0.id', $visible->id);
+        AlbumGrant::query()->create([
+            'family_space_id' => $family->id,
+            'album_id' => $album->id,
+            'family_space_membership_id' => FamilySpaceMembership::query()
+                ->where('family_space_id', $family->id)->where('user_id', $contributor->id)->value('id'),
+            'can_view' => true,
+            'can_contribute' => false,
+            'granted_by' => $owner->id,
+        ]);
+        $this->actingAs($contributor)
+            ->getJson("/api/families/{$family->slug}/discover/albums/{$album->id}")
+            ->assertOk()
+            ->assertJsonPath('data.related.events.0.id', $event->id);
         $this->actingAs($member)
             ->getJson("/api/families/{$family->slug}/discover/events/{$event->id}")
             ->assertOk()
@@ -321,5 +338,11 @@ class SearchRelationshipHttpTest extends TestCase
             'resolved_by' => $status === 'approved' ? $actor->id : null,
             'resolved_at' => $status === 'approved' ? now() : null,
         ]);
+    }
+
+    /** @return array{schema_version: int, blocks: list<array<string, mixed>>} */
+    private function storyBody(string $text): array
+    {
+        return ['schema_version' => 1, 'blocks' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => $text]]]]];
     }
 }

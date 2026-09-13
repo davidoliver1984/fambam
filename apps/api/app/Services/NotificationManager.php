@@ -24,6 +24,8 @@ use App\Models\PersonAccountLink;
 use App\Models\Photo;
 use App\Models\PhotoComment;
 use App\Models\PhotoPerson;
+use App\Models\Story;
+use App\Models\StoryComment;
 use App\Models\User;
 use App\Notifications\FamilyActivityNotification;
 use App\Tenancy\DatabaseTenantContext;
@@ -208,7 +210,9 @@ class NotificationManager
     private function typedSubject(NotificationCategory $category, array $subject): array
     {
         return match ($category) {
-            NotificationCategory::Comment => ['photo_id' => $subject['photo_id'], 'album_id' => $subject['album_id'], 'comment_id' => $subject['comment_id']],
+            NotificationCategory::Comment => isset($subject['story_comment_id'])
+                ? ['story_id' => $subject['story_id'], 'story_comment_id' => $subject['story_comment_id']]
+                : ['photo_id' => $subject['photo_id'], 'album_id' => $subject['album_id'], 'comment_id' => $subject['comment_id']],
             NotificationCategory::Contribution => ['album_id' => $subject['album_id']],
             NotificationCategory::Story => ['story_id' => $subject['story_id']],
             NotificationCategory::Identity => ['photo_id' => $subject['photo_id'], 'person_id' => $subject['person_id']],
@@ -231,10 +235,24 @@ class NotificationManager
     {
         $ids = collect();
         if ($category === NotificationCategory::Comment) {
-            $ids = collect([Album::find($subject['album_id'])?->created_by, Photo::find($subject['photo_id'])?->created_by])->merge(PhotoComment::query()->where('photo_id', $subject['photo_id'])->where('album_id', $subject['album_id'])->pluck('author_id'));
+            if (isset($subject['story_comment_id'])) {
+                $ids = collect([Story::find($subject['story_id'])?->author_id])
+                    ->merge(StoryComment::query()->where('story_id', $subject['story_id'])->pluck('author_id'))
+                    ->merge(PersonAccountLink::query()->whereIn('person_id', DB::table('story_comment_person_mentions')
+                        ->where('story_comment_id', $subject['story_comment_id'])->pluck('person_id'))->pluck('user_id'));
+            } else {
+                $ids = collect([Album::find($subject['album_id'])?->created_by, Photo::find($subject['photo_id'])?->created_by])
+                    ->merge(PhotoComment::query()->where('photo_id', $subject['photo_id'])->where('album_id', $subject['album_id'])->pluck('author_id'));
+            }
         } elseif ($category === NotificationCategory::Story) {
-            $personIds = PhotoPerson::query()->where('photo_id', $subject['photo_id'])->where('status', PersonProposalStatus::Approved->value)->pluck('person_id');
-            $ids = collect([Photo::find($subject['photo_id'])?->created_by])->merge(PersonAccountLink::query()->whereIn('person_id', $personIds)->pluck('user_id'));
+            $story = Story::query()->find($subject['story_id']);
+            $ids = match (true) {
+                $story?->photo_id !== null => collect([Photo::find($story->photo_id)?->created_by])->merge(PersonAccountLink::query()->whereIn('person_id', PhotoPerson::query()->where('photo_id', $story->photo_id)->where('status', PersonProposalStatus::Approved->value)->pluck('person_id'))->pluck('user_id')),
+                $story?->person_id !== null => PersonAccountLink::query()->where('person_id', $story->person_id)->pluck('user_id'),
+                $story?->album_id !== null => collect([Album::find($story->album_id)?->created_by]),
+                $story?->event_id !== null => collect([FamilyEvent::find($story->event_id)?->created_by]),
+                default => collect(),
+            };
         } elseif ($category === NotificationCategory::Identity) {
             $ids = PersonAccountLink::query()->where('person_id', $subject['person_id'])->pluck('user_id');
         } elseif ($category === NotificationCategory::Contribution) {
@@ -276,6 +294,12 @@ class NotificationManager
                     return false;
                 }
             }
+            if (isset($subject['story_id'])) {
+                $story = Story::find($subject['story_id']);
+                if ($story === null || ! Gate::forUser($user)->allows('view', $story)) {
+                    return false;
+                }
+            }
 
             return true;
         } finally {
@@ -314,9 +338,9 @@ class NotificationManager
     private function message(NotificationCategory $category): string
     {
         return match ($category) {
-            NotificationCategory::Comment => 'Someone joined a photo conversation.',
+            NotificationCategory::Comment => 'Someone joined a family conversation.',
             NotificationCategory::Contribution => 'New photographs were added.',
-            NotificationCategory::Story => 'A new story was added to a photograph.',
+            NotificationCategory::Story => 'A new family story was added.',
             NotificationCategory::Identity => 'Your identity was confirmed in a photograph.',
             NotificationCategory::Export => 'Your fambam export status changed.',
         };
@@ -328,6 +352,8 @@ class NotificationManager
         $slug = FamilySpace::query()->whereKey($familyId)->value('slug');
         $base = rtrim((string) config('app.web_url'), '/')."/families/{$slug}";
 
-        return isset($subject['photo_id']) ? $base.'/photos/'.$subject['photo_id'] : (isset($subject['album_id']) ? $base.'/albums/'.$subject['album_id'] : $base);
+        return isset($subject['story_id']) ? $base.'/stories/'.$subject['story_id']
+            : (isset($subject['photo_id']) ? $base.'/photos/'.$subject['photo_id']
+                : (isset($subject['album_id']) ? $base.'/albums/'.$subject['album_id'] : $base));
     }
 }

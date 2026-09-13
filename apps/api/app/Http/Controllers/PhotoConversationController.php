@@ -11,7 +11,7 @@ use App\Models\FamilySpace;
 use App\Models\Photo;
 use App\Models\PhotoComment;
 use App\Models\PhotoReaction;
-use App\Models\PhotoStory;
+use App\Models\Story;
 use App\Queries\AlbumQuery;
 use App\Queries\PhotoQuery;
 use App\Services\PhotoConversationManager;
@@ -37,33 +37,6 @@ class PhotoConversationController extends Controller
         $album = $albumId === '' ? null : $this->albumForPhoto($request, $target, $albumId);
 
         return response()->json(['data' => $this->payload($target, $album)]);
-    }
-
-    public function storeStory(FamilySpace $familySpace, string $photo, StorePhotoTextRequest $request): JsonResponse
-    {
-        $target = $this->photo($request, $photo);
-        Gate::authorize('authorStory', $target);
-
-        return response()->json(['data' => $this->textPayload($this->manager->createStory($target, $request->user(), $request->validated('body'), $request))], 201);
-    }
-
-    public function updateStory(FamilySpace $familySpace, string $photo, string $story, StorePhotoTextRequest $request): JsonResponse
-    {
-        $target = $this->photo($request, $photo);
-        $model = PhotoStory::query()->where('photo_id', $target->id)->findOrFail($story);
-        Gate::authorize('update', $model);
-
-        return response()->json(['data' => $this->textPayload($this->manager->updateStory($model, $request->user(), $request->validated('body'), $request))]);
-    }
-
-    public function removeStory(FamilySpace $familySpace, string $photo, string $story, Request $request): JsonResponse
-    {
-        $target = $this->photo($request, $photo);
-        $model = PhotoStory::query()->where('photo_id', $target->id)->findOrFail($story);
-        Gate::authorize('delete', $model);
-        $this->manager->remove($model, $request->user(), $request);
-
-        return response()->json(null, 204);
     }
 
     public function storeComment(FamilySpace $familySpace, string $photo, StorePhotoCommentRequest $request): JsonResponse
@@ -132,13 +105,13 @@ class PhotoConversationController extends Controller
         $comments = $photo->comments()->where('album_id', $album?->id)->with('author:id,name')->get();
         $reactions = $photo->reactions()->where('album_id', $album?->id)->with('user:id,name')->get();
 
-        return ['stories' => $photo->stories->map(fn (PhotoStory $story): array => $this->textPayload($story)), 'comments' => $comments->map(fn (PhotoComment $comment): array => $this->textPayload($comment, $album === null)), 'reactions' => $reactions->map(fn (PhotoReaction $reaction) => ['user_id' => $reaction->user_id, 'name' => $reaction->user->name, 'reaction' => $reaction->reaction->value]), 'permissions' => ['can_interact' => $album !== null && $this->canInteract($photo, $album), 'can_author_story' => Gate::allows('authorStory', $photo)], 'conversation_scope' => $album === null ? 'legacy' : 'album', 'album_id' => $album?->id];
+        return ['stories' => $photo->stories->map(fn (Story $story): array => $this->textPayload($story)), 'comments' => $comments->map(fn (PhotoComment $comment): array => $this->textPayload($comment, $album === null)), 'reactions' => $reactions->map(fn (PhotoReaction $reaction) => ['user_id' => $reaction->user_id, 'name' => $reaction->user->name, 'reaction' => $reaction->reaction->value]), 'permissions' => ['can_interact' => $album !== null && $this->canInteract($photo, $album), 'can_author_story' => Gate::allows('authorStory', $photo)], 'conversation_scope' => $album === null ? 'legacy' : 'album', 'album_id' => $album?->id];
     }
 
     /** @return array<string, mixed> */
-    private function textPayload(PhotoStory|PhotoComment $content, bool $readOnly = false): array
+    private function textPayload(Story|PhotoComment $content, bool $readOnly = false): array
     {
-        return ['id' => $content->id, 'body' => $content->body, 'author' => $content->author === null ? null : ['id' => $content->author->id, 'name' => $content->author->name], 'edited_at' => $content->edited_at?->toAtomString(), 'created_at' => $content->created_at?->toAtomString(), 'permissions' => ['can_edit' => ! $readOnly && Gate::allows('update', $content), 'can_remove' => ! $readOnly && Gate::allows('delete', $content)]];
+        return ['id' => $content->id, 'body' => $content instanceof Story ? $content->body_plain_text : $content->body, 'author' => $content->author === null ? null : ['id' => $content->author->id, 'name' => $content->author->name], 'edited_at' => $content->edited_at?->toAtomString(), 'created_at' => $content->created_at?->toAtomString(), 'permissions' => ['can_edit' => ! $readOnly && Gate::allows('update', $content), 'can_remove' => ! $readOnly && Gate::allows('delete', $content)]];
     }
 
     private function albumForPhoto(Request $request, Photo $photo, string $albumId): Album

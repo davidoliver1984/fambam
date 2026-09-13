@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/** @property array<string, mixed> $body */
 #[Fillable(['family_space_id', 'story_id', 'editor_id', 'revision', 'body'])]
 class StoryRevision extends Model
 {

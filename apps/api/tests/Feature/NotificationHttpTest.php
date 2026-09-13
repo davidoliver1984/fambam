@@ -21,8 +21,13 @@ use App\Models\MediaUpload;
 use App\Models\NotificationCandidate;
 use App\Models\NotificationDelivery;
 use App\Models\NotificationPreference;
+use App\Models\Person;
+use App\Models\PersonAccountLink;
 use App\Models\Photo;
 use App\Models\PhotoComment;
+use App\Models\Story;
+use App\Models\StoryComment;
+use App\Models\StoryCommentPersonMention;
 use App\Models\User;
 use App\Services\NotificationManager;
 use App\Tenancy\TenantOperationContext;
@@ -109,6 +114,42 @@ class NotificationHttpTest extends TestCase
         $this->assertDatabaseCount('notifications', 0);
         $this->assertDatabaseCount('notification_deliveries', 1);
         Notification::assertCount(1);
+    }
+
+    public function test_story_comment_notifies_author_prior_commenters_and_explicit_mentions_only_once(): void
+    {
+        Notification::fake();
+        [$family, $storyAuthor, $commenter, , $photo] = $this->scenario('story-comment-notifications');
+        $priorCommenter = User::factory()->create();
+        $mentioned = User::factory()->create();
+        foreach ([$priorCommenter, $mentioned] as $user) {
+            FamilySpaceMembership::query()->create(['family_space_id' => $family->id, 'user_id' => $user->id,
+                'role' => FamilySpaceRole::Member, 'state' => MembershipState::Active, 'accepted_at' => now()]);
+        }
+        $story = Story::query()->create(['family_space_id' => $family->id, 'photo_id' => $photo->id,
+            'author_id' => $storyAuthor->id, 'body' => $this->document('Story'), 'body_plain_text' => 'Story']);
+        StoryComment::query()->create(['family_space_id' => $family->id, 'story_id' => $story->id,
+            'author_id' => $priorCommenter->id, 'body' => $this->document('Earlier comment')]);
+        $comment = StoryComment::query()->create(['family_space_id' => $family->id, 'story_id' => $story->id,
+            'author_id' => $commenter->id, 'body' => $this->document('New comment')]);
+        $person = Person::factory()->create(['family_space_id' => $family->id]);
+        PersonAccountLink::query()->create(['family_space_id' => $family->id, 'person_id' => $person->id,
+            'user_id' => $mentioned->id, 'created_by' => $storyAuthor->id]);
+        StoryCommentPersonMention::query()->create(['family_space_id' => $family->id,
+            'story_comment_id' => $comment->id, 'mention_id' => (string) Str::ulid(), 'person_id' => $person->id,
+            'historical_label_snapshot' => $person->preferred_name]);
+        $context = TenantOperationContext::forBackground($family->id, $commenter->id)->toArray();
+        $subject = ['story_id' => $story->id, 'story_comment_id' => $comment->id];
+
+        app(NotificationManager::class)->process($context, NotificationCategory::Comment, $comment->id, $subject);
+        app(NotificationManager::class)->process($context, NotificationCategory::Comment, $comment->id, $subject);
+
+        $this->assertEqualsCanonicalizing(
+            [$storyAuthor->id, $priorCommenter->id, $mentioned->id],
+            FamilyNotification::query()->where('source_action_id', $comment->id)->pluck('recipient_user_id')->all(),
+        );
+        $this->assertDatabaseCount('notifications', 3);
+        $this->assertDatabaseCount('notification_deliveries', 3);
     }
 
     public function test_a_notification_disappears_when_its_subject_access_is_revoked(): void
@@ -269,6 +310,12 @@ class NotificationHttpTest extends TestCase
     private function link(FamilySpace $family, Album $album, Photo $photo, User $actor, int $position): AlbumPhoto
     {
         return AlbumPhoto::query()->create(['family_space_id' => $family->id, 'album_id' => $album->id, 'photo_id' => $photo->id, 'added_by' => $actor->id, 'position' => $position]);
+    }
+
+    /** @return array{schema_version: int, blocks: list<array<string, mixed>>} */
+    private function document(string $text): array
+    {
+        return ['schema_version' => 1, 'blocks' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => $text]]]]];
     }
 }
 

@@ -31,6 +31,7 @@ use App\Http\Controllers\PhotoConversationController;
 use App\Http\Controllers\RelationshipController;
 use App\Http\Controllers\SavedSearchController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\StoryController;
 use Aws\Sqs\SqsClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -81,6 +82,14 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::get('/saved-searches/{savedSearch}/results', [SavedSearchController::class, 'run']);
         Route::get('/discover/{type}/{id}', [DiscoveryController::class, 'show'])
             ->whereIn('type', ['people', 'photos', 'albums', 'events']);
+        Route::post('/stories', [StoryController::class, 'store']);
+        Route::get('/stories/{story}', [StoryController::class, 'show']);
+        Route::patch('/stories/{story}', [StoryController::class, 'update']);
+        Route::delete('/stories/{story}', [StoryController::class, 'destroy']);
+        Route::post('/stories/{story}/restore', [StoryController::class, 'restore']);
+        Route::post('/stories/{story}/comments', [StoryController::class, 'comment']);
+        Route::patch('/stories/{story}/comments/{comment}', [StoryController::class, 'updateComment']);
+        Route::delete('/stories/{story}/comments/{comment}', [StoryController::class, 'removeComment']);
         Route::post('/deletion', [FamilySpaceController::class, 'requestDeletion']);
         Route::delete('/deletion', [FamilySpaceController::class, 'cancelDeletion']);
         Route::get('/memberships', [FamilySpaceMembershipController::class, 'index']);
@@ -139,9 +148,9 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::post('/photos/{photo}/people/{association}/approve', [PhotoController::class, 'approvePhotoPerson']);
         Route::post('/photos/{photo}/people/{association}/reject', [PhotoController::class, 'rejectPhotoPerson']);
         Route::get('/photos/{photo}/conversation', [PhotoConversationController::class, 'index']);
-        Route::post('/photos/{photo}/stories', [PhotoConversationController::class, 'storeStory']);
-        Route::patch('/photos/{photo}/stories/{story}', [PhotoConversationController::class, 'updateStory']);
-        Route::delete('/photos/{photo}/stories/{story}', [PhotoConversationController::class, 'removeStory']);
+        Route::post('/photos/{photo}/stories', [StoryController::class, 'storeForPhoto']);
+        Route::patch('/photos/{photo}/stories/{story}', [StoryController::class, 'updateForPhoto']);
+        Route::delete('/photos/{photo}/stories/{story}', [StoryController::class, 'removeForPhoto']);
         Route::post('/photos/{photo}/comments', [PhotoConversationController::class, 'storeComment']);
         Route::patch('/photos/{photo}/comments/{comment}', [PhotoConversationController::class, 'updateComment']);
         Route::delete('/photos/{photo}/comments/{comment}', [PhotoConversationController::class, 'removeComment']);

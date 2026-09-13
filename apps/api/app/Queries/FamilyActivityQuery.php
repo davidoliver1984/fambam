@@ -8,7 +8,7 @@ use App\Models\FamilyActivity;
 use App\Models\FamilyEvent as FamilyEventModel;
 use App\Models\Person;
 use App\Models\Photo;
-use App\Models\PhotoStory;
+use App\Models\Story;
 use App\Models\User;
 use App\Tenancy\TenantContext;
 use Illuminate\Support\Collection;
@@ -21,6 +21,7 @@ class FamilyActivityQuery
         private readonly PhotoQuery $photos,
         private readonly AlbumQuery $albums,
         private readonly FamilyEventQuery $events,
+        private readonly StoryQuery $storyQuery,
     ) {}
 
     /** @return list<array<string, mixed>> */
@@ -45,9 +46,8 @@ class FamilyActivityQuery
             ->get(['id', 'name'])->keyBy('id');
         $visiblePhotos = $this->photos->visibleTo($viewer)->whereIn('id', $photoIds)
             ->get(['photos.id', 'caption'])->keyBy('id');
-        $visibleStories = PhotoStory::query()->whereIn('id', $storyIds)
-            ->whereHas('photo', fn ($query) => $query->whereIn('photos.id', $visiblePhotos->keys()))
-            ->get(['id', 'photo_id', 'body'])->keyBy('id');
+        $visibleStories = $this->storyQuery->visibleTo($viewer)->whereIn('id', $storyIds)
+            ->get(['id', 'person_id', 'album_id', 'event_id', 'photo_id', 'body_plain_text'])->keyBy('id');
         $peopleVisible = Gate::forUser($viewer)->allows('viewAny', Person::class);
         $subjectPeople = $peopleVisible
             ? Person::query()->whereIn('id', $activities->pluck('subject_person_id')->filter()->unique())
@@ -83,7 +83,7 @@ class FamilyActivityQuery
     /**
      * @param  Collection<int|string, AlbumModel>  $albums
      * @param  Collection<int|string, FamilyEventModel>  $events
-     * @param  Collection<int|string, PhotoStory>  $stories
+     * @param  Collection<int|string, Story>  $stories
      * @param  Collection<int|string, Person>  $people
      * @param  Collection<int|string, User>  $actors
      * @param  Collection<int|string, Person>  $actorPeople
@@ -147,7 +147,9 @@ class FamilyActivityQuery
             ],
             FamilyActivityType::StoryAdded => [
                 'type' => 'story', 'id' => $subject->id, 'photo_id' => $subject->photo_id,
-                'label' => mb_strimwidth($subject->body, 0, 100, '…'),
+                'subject_type' => $subject->person_id !== null ? 'person' : ($subject->album_id !== null ? 'album' : ($subject->event_id !== null ? 'event' : 'photo')),
+                'subject_id' => $subject->person_id ?? $subject->album_id ?? $subject->event_id ?? $subject->photo_id,
+                'label' => mb_strimwidth($subject->body_plain_text, 0, 100, '…'),
             ],
             FamilyActivityType::PersonIdentityConfirmed => [
                 'type' => 'person', 'id' => $subject->id, 'label' => $subject->preferred_name,

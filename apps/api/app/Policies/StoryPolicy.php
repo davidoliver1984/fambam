@@ -43,7 +43,7 @@ final class StoryPolicy
     public function createForSubject(User $user, object $subject): bool
     {
         return match (true) {
-            $subject instanceof Person => $this->people->create($user),
+            $subject instanceof Person => $this->people->view($user, $subject),
             $subject instanceof Album => $this->albums->contribute($user, $subject),
             $subject instanceof FamilyEvent => $this->events->view($user, $subject),
             $subject instanceof Photo => $this->photos->authorStory($user, $subject),

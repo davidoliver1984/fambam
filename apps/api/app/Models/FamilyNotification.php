@@ -18,11 +18,12 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $story_id
  * @property string|null $person_id
  * @property string|null $comment_id
+ * @property string|null $story_comment_id
  * @property string|null $family_export_id
  * @property CarbonImmutable|null $read_at
  * @property CarbonImmutable $created_at
  */
-#[Fillable(['family_space_id', 'recipient_user_id', 'category', 'source_action_id', 'photo_id', 'album_id', 'story_id', 'person_id', 'comment_id', 'family_export_id', 'read_at'])]
+#[Fillable(['family_space_id', 'recipient_user_id', 'category', 'source_action_id', 'photo_id', 'album_id', 'story_id', 'person_id', 'comment_id', 'story_comment_id', 'family_export_id', 'read_at'])]
 class FamilyNotification extends Model
 {
     use HasUlids;
