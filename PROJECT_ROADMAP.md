@@ -563,6 +563,12 @@ it is not the separate Platform Administrator role introduced in Phase 15.
 
 ## Required decisions
 
+- ADR-0021: First-class interactive Stories — a bounded architecture
+  correction, decided and implemented before the UI-integration work below,
+  generalising Story into a first-class object with exactly one typed
+  subject (Person, Album, Event, or Photo) and extending constrained
+  rich-text/typed-mention support to Person biography, Album description,
+  Event description, and Photo comments.
 - ADR-0019: Family product UI/UX integration.
 
 ## Exit criteria

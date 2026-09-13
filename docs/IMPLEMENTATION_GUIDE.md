@@ -4400,7 +4400,49 @@ phases into the final Family Space product experience. It is not permission to
 defer feature-level frontend work: every functional phase must still provide
 enough UI to navigate, exercise and verify its own capability.
 
-## FPA-P14-S01 — Accept family product UI/UX integration ADR (ADR-0019)
+## FPA-P14-S01 — Accept first-class interactive Stories ADR (ADR-0021)
+
+Accept the bounded architecture correction that replaces Photo-bound
+`PhotoStory` with a first-class Story having exactly one typed Person, Album,
+Event or Photo subject. Settle constrained rich text, stable typed Person
+mentions, comment behaviour, migration ordering, merge/reversal integration,
+search, activity, notification and export boundaries before implementation.
+
+## FPA-P14-S02 — Implement Story/comment schema and rich-text/mention infrastructure
+
+Add `stories`, `story_revisions`, `story_comments`, `story_person_mentions` and
+`story_comment_person_mentions`, their tenant-consistent integrity, policies,
+restricted document schema, `mention_id`-keyed extraction and transactional
+save/update path. Keep every legacy PhotoStory consumer live and unchanged in
+this additive stage. Finish with an idempotent, re-runnable legacy backfill;
+do not expose the new Story write path yet.
+
+## FPA-P14-S03 — Migrate Search, homepage, notifications, exports and Photo-Story consumers onto Story
+
+Re-run the legacy backfill, repoint typed activity and notification references,
+then move every live PhotoStory reader/writer to Story together: routes and
+controllers, Photo conversation, Search and Discovery, homepage activity and
+memories, notifications, export selection/building and audit recording. Widen
+the existing `comment` notification shape for Story comments. End with no live
+code path reading or writing `photo_stories` or `photo_story_revisions` while
+leaving those tables present for one safety stage.
+
+## FPA-P14-S04 — Remove legacy PhotoStory
+
+Drop `photo_stories` and `photo_story_revisions` and remove the obsolete
+PhotoStory model, revision model and policy only after S03 proves that no live
+consumer remains.
+
+## FPA-P14-S05 — Extend rich-text and typed mentions to biography, descriptions and Photo comments
+
+Convert Person biography, Album description and Event description to the same
+constrained rich-text vocabulary, and Photo comments to the shared restricted
+comment document family. Add their plain-text/search projections, typed mention
+extraction tables, transactional save/update paths, Person-merge integration
+and explicit Photo-comment mention recipients atomically with the new writable
+formats.
+
+## FPA-P14-S06 — Accept family product UI/UX integration ADR (ADR-0019)
 
 Define the integrated information architecture, navigation model, visual and
 interaction foundations, supported responsive layouts, role-based journey
@@ -4408,38 +4450,38 @@ matrix and product-level accessibility acceptance approach. Preserve existing
 domain authorization; this ADR integrates the product experience rather than
 redesigning domain permissions.
 
-## FPA-P14-S02 — Implement the product shell and Family Space context
+## FPA-P14-S07 — Implement the product shell and Family Space context
 
 Integrate global navigation, Family Space switching/context and the family
 homepage into a consistent responsive shell with clear loading, empty, error
 and success states.
 
-## FPA-P14-S03 — Integrate Photo, upload, Album and Event journeys
+## FPA-P14-S08 — Integrate Photo, upload, Album and Event journeys
 
 Make browsing, Photo detail, ready-upload selection and promotion, upload
 progress/recovery, Albums, Events and the Guest experience coherent without
 requiring internal IDs, API knowledge or developer tooling.
 
-## FPA-P14-S04 — Integrate People, recognition, duplicate and discovery journeys
+## FPA-P14-S09 — Integrate People, recognition, duplicate and discovery journeys
 
 Connect People and Person pages, Photo tagging, face suggestions and human
 confirmation, duplicate prompts/review, search, discovery, memories and
 history surfaces into understandable family workflows.
 
-## FPA-P14-S05 — Integrate collaboration and Family Space management journeys
+## FPA-P14-S10 — Integrate collaboration and Family Space management journeys
 
 Complete comments, reactions, stories, invitations, membership, personal and
 Family Space export/portability, and the normal Owner/Administrator Family
 Space controls. Keep these customer-facing controls strictly distinct from
 Phase 15 Platform Administration.
 
-## FPA-P14-S06 — Complete responsive, visual and state integration
+## FPA-P14-S11 — Complete responsive, visual and state integration
 
 Reconcile mobile and desktop behaviour, visual consistency, keyboard and
 assistive-technology operation, and loading, empty, error and success states
 across all important journeys.
 
-## FPA-P14-S07 — Conduct role-based product journey acceptance
+## FPA-P14-S12 — Conduct role-based product journey acceptance
 
 Test Owner, Administrator, Member, Contributor and Guest through their real
 product experiences with non-technical participants where practical. Resolve

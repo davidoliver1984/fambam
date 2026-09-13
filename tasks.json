@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P14",
-    "current_stage": "FPA-P14-S01",
+    "current_stage": "FPA-P14-S02",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-13"
   },
@@ -986,17 +986,19 @@
       "stages": [
         {
           "id": "FPA-P14-S01",
-          "title": "Accept family product UI/UX integration ADR",
-          "status": "ready",
+          "title": "Accept first-class interactive Stories ADR",
+          "status": "completed",
           "dependencies": [
             "FPA-P13-S06"
           ],
-          "notes": []
+          "notes": [
+            "ADR-0021 accepted 2026-09-13 (git tag phase-14-s01) after final repository-grounded implementation-readiness review. The accepted architecture introduces first-class typed-subject Stories, constrained rich text and stable typed Person mentions; preserves deterministic chained Person-merge reversal through per-operation snapshots; uses an explicit Story-deletion operation marker for comment restoration; and sequences additive schema, consumer migration, legacy removal and field extensions so every stage remains runnable."
+          ]
         },
         {
           "id": "FPA-P14-S02",
-          "title": "Implement the product shell and Family Space context",
-          "status": "planned",
+          "title": "Implement Story/comment schema and rich-text/mention infrastructure",
+          "status": "ready",
           "dependencies": [
             "FPA-P14-S01"
           ],
@@ -1004,7 +1006,7 @@
         },
         {
           "id": "FPA-P14-S03",
-          "title": "Integrate Photo, upload, Album and Event journeys",
+          "title": "Migrate Search, homepage, notifications, exports and Photo-Story consumers onto Story",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S02"
@@ -1013,7 +1015,7 @@
         },
         {
           "id": "FPA-P14-S04",
-          "title": "Integrate People, recognition, duplicate and discovery journeys",
+          "title": "Remove legacy PhotoStory",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S03"
@@ -1022,7 +1024,7 @@
         },
         {
           "id": "FPA-P14-S05",
-          "title": "Integrate collaboration and Family Space management journeys",
+          "title": "Extend rich-text and typed mentions to biography, descriptions and Photo comments",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S04"
@@ -1031,7 +1033,7 @@
         },
         {
           "id": "FPA-P14-S06",
-          "title": "Complete responsive, visual and state integration",
+          "title": "Accept family product UI/UX integration ADR",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S05"
@@ -1040,10 +1042,55 @@
         },
         {
           "id": "FPA-P14-S07",
-          "title": "Conduct role-based product journey acceptance",
+          "title": "Implement the product shell and Family Space context",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S06"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S08",
+          "title": "Integrate Photo, upload, Album and Event journeys",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S07"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S09",
+          "title": "Integrate People, recognition, duplicate and discovery journeys",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S08"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S10",
+          "title": "Integrate collaboration and Family Space management journeys",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S09"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S11",
+          "title": "Complete responsive, visual and state integration",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S10"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S12",
+          "title": "Conduct role-based product journey acceptance",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S11"
           ],
           "notes": []
         }
@@ -1059,7 +1106,7 @@
           "title": "Accept platform administration authorization and operations ADR",
           "status": "planned",
           "dependencies": [
-            "FPA-P14-S07"
+            "FPA-P14-S12"
           ],
           "notes": []
         },
@@ -1462,7 +1509,7 @@
         "title": "Family product UI/UX integration",
         "status": "planned",
         "roadmap_phase": "P14",
-        "required_by_stage": "FPA-P14-S01"
+        "required_by_stage": "FPA-P14-S06"
       },
       {
         "id": "ADR-0020",
@@ -1470,6 +1517,13 @@
         "status": "planned",
         "roadmap_phase": "P15",
         "required_by_stage": "FPA-P15-S01"
+      },
+      {
+        "id": "ADR-0021",
+        "title": "First-class interactive Stories",
+        "status": "accepted",
+        "roadmap_phase": "P14",
+        "required_by_stage": "FPA-P14-S01"
       }
     ]
   },
@@ -2105,6 +2159,14 @@
       "roadmap_stage": "FPA-P13-S06",
       "date": "2026-09-13",
       "description": "Phase 13 completed: portable full and Personal Exports, deterministic checksummed manifests, monitored backups, a real isolated restore exercise and version-aware Family Space deletion satisfy ADR-0015 end to end."
+    },
+    {
+      "git_tag": "phase-14-s01",
+      "type": "stage_completion",
+      "adr": "ADR-0021",
+      "roadmap_stage": "FPA-P14-S01",
+      "date": "2026-09-13",
+      "description": "FPA-P14-S01 completed: ADR-0021 accepted. First-class typed-subject Stories, constrained rich text, stable typed Person mentions, merge/reversal-safe mention history, deterministic Story-comment deletion provenance and a runnable additive migration sequence are ready for implementation beginning with FPA-P14-S02."
     }
   ]
 }
