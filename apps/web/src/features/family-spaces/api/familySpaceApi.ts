@@ -34,3 +34,25 @@ export async function getFamilySpace(
     ),
   );
 }
+
+export async function requestFamilySpaceDeletion(
+  familySlug: string,
+): Promise<FamilySpace> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.post<ApiEnvelope<FamilySpace>>(
+      `/api/families/${encodeURIComponent(familySlug)}/deletion`,
+    ),
+  );
+}
+
+export async function cancelFamilySpaceDeletion(
+  familySlug: string,
+): Promise<FamilySpace> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.delete<ApiEnvelope<FamilySpace>>(
+      `/api/families/${encodeURIComponent(familySlug)}/deletion`,
+    ),
+  );
+}

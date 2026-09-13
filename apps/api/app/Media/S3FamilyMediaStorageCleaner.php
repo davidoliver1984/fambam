@@ -34,7 +34,7 @@ class S3FamilyMediaStorageCleaner implements FamilyMediaStorageCleaner
 
     public function deleteFamilyMedia(string $familySpaceId): void
     {
-        foreach (['media-staging', 'media', 'quarantine', 'event-exports', 'face-analysis'] as $area) {
+        foreach (['media-staging', 'media', 'quarantine', 'event-exports', 'family-exports', 'face-analysis'] as $area) {
             $this->deletePrefix(FamilyStorageKey::for($familySpaceId, $area).'/');
         }
     }
@@ -42,22 +42,16 @@ class S3FamilyMediaStorageCleaner implements FamilyMediaStorageCleaner
     private function deletePrefix(string $prefix): void
     {
         $bucket = (string) config('filesystems.disks.s3.bucket');
-        $continuationToken = null;
-
         do {
-            $request = [
+            $result = $this->client->listObjectVersions([
                 'Bucket' => $bucket,
                 'Prefix' => $prefix,
                 'MaxKeys' => (int) config('media.cleanup.storage_delete_page_size'),
-            ];
-            if ($continuationToken !== null) {
-                $request['ContinuationToken'] = $continuationToken;
-            }
-            $result = $this->client->listObjectsV2($request);
+            ]);
             $objects = [];
-            foreach ($result['Contents'] ?? [] as $object) {
-                if (is_string($object['Key'] ?? null)) {
-                    $objects[] = ['Key' => $object['Key']];
+            foreach ([...($result['Versions'] ?? []), ...($result['DeleteMarkers'] ?? [])] as $object) {
+                if (is_string($object['Key'] ?? null) && is_string($object['VersionId'] ?? null)) {
+                    $objects[] = ['Key' => $object['Key'], 'VersionId' => $object['VersionId']];
                 }
             }
             if ($objects !== []) {
@@ -69,10 +63,6 @@ class S3FamilyMediaStorageCleaner implements FamilyMediaStorageCleaner
                     throw new \RuntimeException('Family media object cleanup was incomplete.');
                 }
             }
-            $continuationToken = ($result['IsTruncated'] ?? false) === true
-                && is_string($result['NextContinuationToken'] ?? null)
-                    ? $result['NextContinuationToken']
-                    : null;
-        } while ($continuationToken !== null);
+        } while ($objects !== []);
     }
 }

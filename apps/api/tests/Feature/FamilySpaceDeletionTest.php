@@ -10,6 +10,7 @@ use App\Jobs\DeleteFamilySpace;
 use App\Media\FamilyMediaStorageCleaner;
 use App\Models\Album;
 use App\Models\ContributionGroup;
+use App\Models\FamilyExport;
 use App\Models\FamilyNotification;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
@@ -200,6 +201,13 @@ class FamilySpaceDeletionTest extends TestCase
         NotificationDelivery::query()->create(['family_space_id' => $familySpace->id, 'recipient_user_id' => $owner->id, 'category' => 'contribution', 'source_action_id' => $sourceActionId, 'notification_id' => $notification->id, 'album_id' => $album->id, 'channel' => 'mail', 'status' => 'pending']);
         NotificationPreference::query()->create(['family_space_id' => $familySpace->id, 'user_id' => $owner->id, 'category' => 'contribution', 'channel' => 'in_app', 'enabled' => true]);
         ContributionGroup::query()->create(['family_space_id' => $familySpace->id, 'actor_user_id' => $owner->id, 'upload_batch_id' => (string) Str::ulid(), 'album_id' => $album->id]);
+        FamilyExport::query()->create([
+            'family_space_id' => $familySpace->id,
+            'requested_by' => $owner->id,
+            'scope' => 'family_space_full',
+            'state' => 'pending',
+            'object_key' => "families/{$familySpace->id}/family-exports/pending.zip",
+        ]);
         $familySpace->forceFill([
             'status' => FamilySpaceStatus::DeletionRequested,
             'deletion_requested_at' => now()->subDays(15),
@@ -234,6 +242,7 @@ class FamilySpaceDeletionTest extends TestCase
         $this->assertDatabaseMissing('tags', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('saved_searches', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('saved_search_people', ['family_space_id' => $familySpace->id]);
+        $this->assertDatabaseMissing('family_exports', ['family_space_id' => $familySpace->id]);
         foreach (['contribution_groups', 'notification_candidates', 'notifications', 'notification_deliveries', 'notification_preferences'] as $table) {
             $this->assertDatabaseMissing($table, ['family_space_id' => $familySpace->id]);
         }

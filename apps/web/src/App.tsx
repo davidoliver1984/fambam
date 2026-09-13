@@ -1,6 +1,8 @@
 import "./App.css";
 import { Link, Route, Routes } from "react-router";
 
+import { FamilyExportsPage } from "@/features/exports/pages/FamilyExportsPage";
+
 import {
   AccountPage,
   ForgotPasswordPage,
@@ -72,6 +74,10 @@ export function App() {
         />
         <Route path="/families/:familySlug/photos" element={<PhotosPage />} />
         <Route path="/families/:familySlug/search" element={<SearchPage />} />
+        <Route
+          path="/families/:familySlug/exports"
+          element={<FamilyExportsPage />}
+        />
         <Route
           path="/families/:familySlug/discover/:type/:id"
           element={<DiscoveryPage />}

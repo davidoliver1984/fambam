@@ -8,6 +8,7 @@ import { PersonAndStoryMemories } from "@/features/memories/components/PersonAnd
 import { QuietFamilySpaceGuide } from "@/features/memories/components/QuietFamilySpaceGuide";
 import { NotificationCentre } from "@/features/notifications/components/NotificationCentre";
 
+import { FamilySpaceDeletionPanel } from "../components/FamilySpaceDeletionPanel";
 import { useFamilySpaceQuery } from "../hooks/useFamilySpaceQuery";
 
 export function FamilySpacePage() {
@@ -109,6 +110,11 @@ export function FamilySpacePage() {
           </Link>
         </p>
       )}
+      <p>
+        <Link to={`/families/${encodeURIComponent(familySpace.slug)}/exports`}>
+          Export your archive
+        </Link>
+      </p>
       {canManageInvitations ? (
         <>
           <p>
@@ -123,6 +129,7 @@ export function FamilySpacePage() {
       ) : (
         <p>Invitation management is available to Owners and Administrators.</p>
       )}
+      <FamilySpaceDeletionPanel familySpace={familySpace} />
       <Link to="/account">Back to your account</Link>
     </main>
   );

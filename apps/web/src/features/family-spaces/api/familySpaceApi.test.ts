@@ -6,8 +6,10 @@ import { server } from "@/test/msw/server";
 
 import {
   createFamilySpace,
+  cancelFamilySpaceDeletion,
   getFamilySpace,
   getFamilySpaces,
+  requestFamilySpaceDeletion,
 } from "./familySpaceApi";
 
 const apiBaseUrl = "http://localhost:8082";
@@ -62,6 +64,44 @@ describe("familySpaceApi", () => {
     await expect(
       createFamilySpace({ name: "New Family", slug: "new-family" }),
     ).resolves.toMatchObject({ slug: "new-family", role: "owner" });
+  });
+
+  it("requests and cancels deletion through the Family Space endpoint", async () => {
+    server.use(
+      http.post(`${apiBaseUrl}/api/families/oliver-family/deletion`, () =>
+        HttpResponse.json({
+          data: {
+            id: "01K1ZZZZZZZZZZZZZZZZZZZZZZ",
+            slug: "oliver-family",
+            name: "Oliver Family",
+            status: "deletion_requested",
+            role: "owner",
+          },
+        }),
+      ),
+      http.delete(`${apiBaseUrl}/api/families/oliver-family/deletion`, () =>
+        HttpResponse.json({
+          data: {
+            id: "01K1ZZZZZZZZZZZZZZZZZZZZZZ",
+            slug: "oliver-family",
+            name: "Oliver Family",
+            status: "active",
+            role: "owner",
+          },
+        }),
+      ),
+    );
+
+    await expect(
+      requestFamilySpaceDeletion("oliver-family"),
+    ).resolves.toMatchObject({
+      status: "deletion_requested",
+    });
+    await expect(
+      cancelFamilySpaceDeletion("oliver-family"),
+    ).resolves.toMatchObject({
+      status: "active",
+    });
   });
 
   it("preserves a forbidden creation response", async () => {

@@ -175,11 +175,26 @@ class S3MediaObjectStorageTest extends TestCase
             "families/{$familyId}/media/upload/variants/thumbnail.v1.webp",
             "families/{$familyId}/quarantine/upload/original.jpg",
             "families/{$familyId}/face-analysis/attempt/result.json",
+            "families/{$familyId}/family-exports/archive.zip",
         ];
         $otherKey = "families/{$otherFamilyId}/media/upload/original.jpg";
         foreach ([...$familyKeys, $otherKey] as $key) {
-            $disk->put($key, 'bytes');
+            $disk->put($key, 'first-version');
+            $disk->put($key, 'second-version');
         }
+        $disk->delete($familyKeys[0]);
+
+        $client = new S3Client([
+            'version' => 'latest',
+            'region' => (string) config('filesystems.disks.s3.region'),
+            'endpoint' => (string) config('filesystems.disks.s3.endpoint'),
+            'credentials' => [
+                'key' => (string) config('filesystems.disks.s3.key'),
+                'secret' => (string) config('filesystems.disks.s3.secret'),
+            ],
+            'use_path_style_endpoint' => (bool) config('filesystems.disks.s3.use_path_style_endpoint'),
+        ]);
+        $bucket = (string) config('filesystems.disks.s3.bucket');
 
         try {
             $cleaner = new S3FamilyMediaStorageCleaner;
@@ -189,11 +204,21 @@ class S3MediaObjectStorageTest extends TestCase
             foreach ($familyKeys as $key) {
                 $this->assertFalse($disk->exists($key));
             }
+            $remaining = $client->listObjectVersions([
+                'Bucket' => $bucket,
+                'Prefix' => "families/{$familyId}/",
+            ]);
+            $this->assertSame([], $remaining['Versions'] ?? []);
+            $this->assertSame([], $remaining['DeleteMarkers'] ?? []);
             $this->assertTrue($disk->exists($otherKey));
+            $otherVersions = $client->listObjectVersions([
+                'Bucket' => $bucket,
+                'Prefix' => "families/{$otherFamilyId}/",
+            ]);
+            $this->assertNotEmpty($otherVersions['Versions'] ?? []);
         } finally {
-            foreach ([...$familyKeys, $otherKey] as $key) {
-                $disk->delete($key);
-            }
+            (new S3FamilyMediaStorageCleaner)->deleteFamilyMedia($familyId);
+            (new S3FamilyMediaStorageCleaner)->deleteFamilyMedia($otherFamilyId);
         }
     }
 

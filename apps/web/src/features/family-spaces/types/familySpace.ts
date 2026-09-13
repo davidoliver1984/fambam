@@ -7,6 +7,10 @@ export type FamilySpace = {
   name: string;
   status: "active" | "deletion_requested" | "deleting" | "deleted";
   role: FamilySpaceRole;
+  deletion?: {
+    requested_at: string | null;
+    scheduled_at: string | null;
+  };
 };
 
 export type CreateFamilySpaceInput = Pick<FamilySpace, "name" | "slug">;

@@ -80,6 +80,9 @@ describe("FamilySpacePage", () => {
     expect(
       screen.getByText("Invitations for oliver-family"),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Export your archive" }),
+    ).toHaveAttribute("href", "/families/oliver-family/exports");
   });
 
   it("renders the same unavailable state for a tenant 404", async () => {

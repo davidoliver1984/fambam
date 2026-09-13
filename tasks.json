@@ -6,10 +6,10 @@
     "version": "0.1.0",
     "status": "in_progress",
     "v1_release_phase": "P17",
-    "current_phase": "P13",
-    "current_stage": "FPA-P13-S06",
+    "current_phase": "P14",
+    "current_stage": "FPA-P14-S01",
     "created_at": "2026-07-31",
-    "updated_at": "2026-09-10"
+    "updated_at": "2026-09-13"
   },
   "conventions": {
     "phase_id_format": "P##",
@@ -909,7 +909,7 @@
     {
       "id": "P13",
       "name": "Export, Backup and Recovery",
-      "status": "in_progress",
+      "status": "completed",
       "stages": [
         {
           "id": "FPA-P13-S01",
@@ -969,23 +969,25 @@
         {
           "id": "FPA-P13-S06",
           "title": "Implement deletion request lifecycle",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P13-S05"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-13. Added typed TanStack Query export request/status/download UI, Owner-only Family Space deletion controls with a prominent optional archive prompt during the grace period, permanent deletion of every object version and delete marker across all tenant storage areas including family exports, and explicit FamilyExport teardown coverage. Targeted and complete repository verification passed."
+          ]
         }
       ]
     },
     {
       "id": "P14",
       "name": "Family Product UI / UX Completion",
-      "status": "planned",
+      "status": "in_progress",
       "stages": [
         {
           "id": "FPA-P14-S01",
           "title": "Accept family product UI/UX integration ADR",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P13-S06"
           ],
@@ -2087,6 +2089,22 @@
       "roadmap_stage": "FPA-P13-S03",
       "date": "2026-09-10",
       "description": "FPA-P13-S03 completed: full and Personal Exports now produce portable versioned ZIP archives with typed domain manifests, stable identities, verified originals, eligible unattached media, self-excluding checksums and sealed archive integrity metadata. Final live reconciliation adds newly authorized originals, removes revoked originals and presentation-inaccessible Photos plus orphaned context without failing reduced exports; restricted PostgreSQL runtime-role and complete repository verification passed."
+    },
+    {
+      "git_tag": "phase-13-s06",
+      "type": "stage_completion",
+      "adr": "ADR-0015",
+      "roadmap_stage": "FPA-P13-S06",
+      "date": "2026-09-13",
+      "description": "FPA-P13-S06 completed: typed export request, status and authorised-download UI now accompanies Owner-only Family Space deletion controls and a prominent optional archive prompt during the grace period. Tenant teardown permanently removes every object version and delete marker, including Family Export objects and rows, while preserving the existing cancellation and idempotency guarantees."
+    },
+    {
+      "git_tag": "phase-13",
+      "type": "phase_completion",
+      "adr": "ADR-0015",
+      "roadmap_stage": "FPA-P13-S06",
+      "date": "2026-09-13",
+      "description": "Phase 13 completed: portable full and Personal Exports, deterministic checksummed manifests, monitored backups, a real isolated restore exercise and version-aware Family Space deletion satisfy ADR-0015 end to end."
     }
   ]
 }
