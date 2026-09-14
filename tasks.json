@@ -1018,16 +1018,18 @@
         {
           "id": "FPA-P14-S04",
           "title": "Remove legacy PhotoStory",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P14-S03"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-13. Removed the retired PhotoStory models, policy, search summary and persistence tables after the first-class Story cutover; retained the historical migration-only backfill helper; and added SQLite/PostgreSQL regression proof that canonical Story tables remain while legacy tables are absent."
+          ]
         },
         {
           "id": "FPA-P14-S05",
           "title": "Extend rich-text and typed mentions to biography, descriptions and Photo comments",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P14-S04"
           ],

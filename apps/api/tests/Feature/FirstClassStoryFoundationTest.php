@@ -7,18 +7,16 @@ use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\Person;
 use App\Models\Photo;
-use App\Models\PhotoStory;
-use App\Models\PhotoStoryRevision;
 use App\Models\Story;
 use App\Models\StoryComment;
 use App\Models\User;
-use App\Stories\LegacyStoryBackfill;
 use App\Stories\RichTextRenderer;
 use App\Stories\StoryHeading;
 use App\Stories\StoryLifecycleManager;
 use App\Stories\StoryWriter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -48,6 +46,8 @@ class FirstClassStoryFoundationTest extends TestCase
         $updated = $writer->update($story, $author, $stale, fn (): bool => false);
 
         $this->assertSame($mentionId, $updated->body['blocks'][1]['content'][0]['mention_id']);
+        $this->assertSame($person->id, $updated->body['blocks'][1]['content'][0]['person_id']);
+        $this->assertSame($person->preferred_name, $updated->body['blocks'][1]['content'][0]['label']);
         $this->assertDatabaseHas('story_person_mentions', ['mention_id' => $mentionId, 'person_id' => $other->id]);
         $this->assertDatabaseHas('story_revisions', ['story_id' => $story->id, 'revision' => 1]);
     }
@@ -136,30 +136,38 @@ class FirstClassStoryFoundationTest extends TestCase
         $this->assertNull(Story::findOrFail($story->id)->deletion_operation_id);
     }
 
-    public function test_legacy_backfill_is_lossless_and_rerunnable(): void
+    public function test_immediate_delete_restore_cycles_use_distinct_operation_ids_and_ignore_stale_markers(): void
     {
-        [$family, $author, $photo] = $this->subjectFixture();
-        $legacy = PhotoStory::query()->create([
-            'family_space_id' => $family->id,
-            'photo_id' => $photo->id,
-            'author_id' => $author->id,
-            'body' => "A legacy memory.\nSecond line.",
-        ]);
-        PhotoStoryRevision::query()->create([
-            'family_space_id' => $family->id,
-            'photo_story_id' => $legacy->id,
-            'editor_id' => $author->id,
-            'revision' => 1,
-            'body' => 'Earlier text.',
-        ]);
+        [$family, $author, $photo, $person] = $this->subjectFixture();
+        $writer = app(StoryWriter::class);
+        $story = $writer->create($family->id, $author, ['photo_id' => $photo->id], $this->document($person), fn (): bool => true);
+        $current = $writer->comment($story, $author, $this->commentDocument(), fn (): bool => true);
+        $lifecycle = app(StoryLifecycleManager::class);
 
-        $backfill = app(LegacyStoryBackfill::class);
-        $this->assertSame(['stories' => 1, 'revisions' => 1], $backfill->run());
-        $this->assertSame(['stories' => 0, 'revisions' => 0], $backfill->run());
-        $story = Story::findOrFail($legacy->id);
-        $this->assertSame($legacy->body, $story->body_plain_text);
-        $this->assertSame($legacy->body, $story->body['blocks'][0]['content'][0]['text']);
-        $this->assertDatabaseHas('story_revisions', ['id' => PhotoStoryRevision::query()->value('id'), 'story_id' => $legacy->id]);
+        $lifecycle->delete($story);
+        $firstOperation = Story::withTrashed()->findOrFail($story->id)->deletion_operation_id;
+        $lifecycle->restore($story);
+        $stale = $writer->comment($story->refresh(), $author, $this->commentDocument(), fn (): bool => true);
+        $stale->delete();
+        StoryComment::withTrashed()->whereKey($stale->id)->update(['deleted_with_story_operation_id' => $firstOperation]);
+
+        $lifecycle->delete($story->refresh());
+        $secondOperation = Story::withTrashed()->findOrFail($story->id)->deletion_operation_id;
+        $this->assertNotSame($firstOperation, $secondOperation);
+        $this->assertSame($secondOperation, StoryComment::withTrashed()->findOrFail($current->id)->deleted_with_story_operation_id);
+
+        $lifecycle->restore($story);
+        $this->assertFalse(StoryComment::withTrashed()->findOrFail($current->id)->trashed());
+        $this->assertTrue(StoryComment::withTrashed()->findOrFail($stale->id)->trashed());
+        $this->assertSame($firstOperation, StoryComment::withTrashed()->findOrFail($stale->id)->deleted_with_story_operation_id);
+    }
+
+    public function test_legacy_photo_story_schema_is_removed_after_cutover(): void
+    {
+        $this->assertFalse(Schema::hasTable('photo_stories'));
+        $this->assertFalse(Schema::hasTable('photo_story_revisions'));
+        $this->assertTrue(Schema::hasTable('stories'));
+        $this->assertTrue(Schema::hasTable('story_revisions'));
     }
 
     /** @return array{FamilySpace, User, Photo, Person} */

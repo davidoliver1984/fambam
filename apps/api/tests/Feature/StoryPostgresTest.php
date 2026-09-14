@@ -130,6 +130,13 @@ WHERE constraint_row.conname = ?
 SQL, [$constraint]);
             $this->assertSame('stories', $target->target);
         }
+
+        $legacyTables = $this->admin->table('pg_tables')
+            ->where('schemaname', 'public')
+            ->whereIn('tablename', ['photo_stories', 'photo_story_revisions'])
+            ->pluck('tablename')
+            ->all();
+        $this->assertSame([], $legacyTables);
     }
 
     /** @return array{int, string, string, string} */

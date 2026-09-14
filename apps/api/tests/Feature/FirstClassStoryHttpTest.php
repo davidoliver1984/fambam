@@ -50,7 +50,6 @@ class FirstClassStoryHttpTest extends TestCase
         }
 
         $this->assertDatabaseCount('stories', 4);
-        $this->assertDatabaseCount('photo_stories', 0);
         Queue::assertPushed(ProcessNotificationCandidate::class, 4);
     }
 
