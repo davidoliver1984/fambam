@@ -207,7 +207,7 @@ final class DatabaseDiscoveryService implements DiscoveryService
         return (new AlbumSearchSummary(
             $album->id,
             $album->name,
-            $album->description,
+            $album->description_plain_text,
             $album->visibility->value,
             $album->event_id,
         ))->toArray();
@@ -219,7 +219,7 @@ final class DatabaseDiscoveryService implements DiscoveryService
         return (new EventSearchSummary(
             $event->id,
             $event->name,
-            $event->description,
+            $event->description_plain_text,
             $event->location,
             $event->starts_on?->format('Y-m-d'),
             $event->ends_on?->format('Y-m-d'),

@@ -19,7 +19,7 @@ class StoreAlbumRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:120'],
-            'description' => ['nullable', 'string', 'max:5000'],
+            'description' => ['nullable'],
             'visibility' => ['sometimes', Rule::enum(AlbumVisibility::class)],
             'event_id' => ['sometimes', 'nullable', 'string', 'size:26'],
             'guest_participation' => ['sometimes', Rule::enum(GuestParticipation::class)],

@@ -14,16 +14,23 @@ use App\Models\Story;
 use App\Models\StoryComment;
 use App\Models\User;
 use App\Services\StoryManager;
+use App\Stories\MentionAuthorizer;
+use App\Stories\RichTextDocument;
+use App\Stories\RichTextPresenter;
 use App\Stories\StoryHeading;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 final class StoryController extends Controller
 {
-    public function __construct(private readonly StoryManager $manager, private readonly StoryHeading $headings) {}
+    public function __construct(
+        private readonly StoryManager $manager,
+        private readonly StoryHeading $headings,
+        private readonly MentionAuthorizer $mentionAuthorizer,
+        private readonly RichTextPresenter $presenter,
+    ) {}
 
     public function store(FamilySpace $familySpace, StoreStoryRequest $request): JsonResponse
     {
@@ -149,6 +156,8 @@ final class StoryController extends Controller
             'id' => $story->id,
             'heading' => $this->headings->derive($story->body, fn (string $id): ?string => Person::query()->whereKey($mentions[$id] ?? null)->value('preferred_name')),
             'body' => $story->body,
+            'body_html' => $this->presenter->html($story->body, $story, 'story_person_mentions', 'story_id',
+                $this->familySlug(), $this->actor(), $this->storySubject($story)),
             'body_plain_text' => $story->body_plain_text,
             'subject' => ['type' => $subjectType, 'id' => $story->{"{$subjectType}_id"}],
             'author' => $story->author === null ? null : ['id' => $story->author->id, 'name' => $story->author->name],
@@ -165,6 +174,9 @@ final class StoryController extends Controller
         $comment->loadMissing('author:id,name');
 
         return ['id' => $comment->id, 'body' => $comment->body,
+            'body_html' => $this->presenter->html($comment->body, $comment, 'story_comment_person_mentions',
+                'story_comment_id', $this->familySlug(), $this->actor(),
+                $this->storySubject($comment->story()->firstOrFail()), RichTextDocument::COMMENT),
             'author' => $comment->author === null ? null : ['id' => $comment->author->id, 'name' => $comment->author->name],
             'created_at' => $comment->created_at?->toAtomString(),
             'permissions' => ['can_remove' => Gate::allows('delete', $comment)]];
@@ -206,22 +218,21 @@ final class StoryController extends Controller
 
     private function mayMention(User $actor, Model $subject): callable
     {
-        return function (string $personId) use ($actor, $subject): bool {
-            $person = Person::query()->find($personId);
-            if ($person === null) {
-                return false;
-            }
-            if (Gate::forUser($actor)->allows('view', $person)) {
-                return true;
-            }
-            $photoIds = match (true) {
-                $subject instanceof Photo => [$subject->id],
-                $subject instanceof Album => DB::table('album_photos')->where('album_id', $subject->id)->pluck('photo_id')->all(),
-                $subject instanceof FamilyEvent => DB::table('photos')->where('primary_event_id', $subject->id)->pluck('id')->merge(DB::table('album_photos')->join('albums', 'albums.id', '=', 'album_photos.album_id')->where('albums.event_id', $subject->id)->pluck('album_photos.photo_id'))->unique()->all(),
-                default => [],
-            };
+        return $this->mentionAuthorizer->for($actor, $subject);
+    }
 
-            return DB::table('photo_people')->where('person_id', $personId)->where('status', 'approved')->whereIn('photo_id', $photoIds)->exists();
-        };
+    private function familySlug(): string
+    {
+        $familySpace = request()->route('familySpace');
+
+        return $familySpace instanceof FamilySpace ? $familySpace->slug : (string) $familySpace;
+    }
+
+    private function actor(): User
+    {
+        $actor = request()->user();
+        abort_unless($actor instanceof User, 401);
+
+        return $actor;
     }
 }

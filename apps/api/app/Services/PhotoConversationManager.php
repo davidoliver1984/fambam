@@ -10,6 +10,9 @@ use App\Models\PhotoComment;
 use App\Models\PhotoCommentRevision;
 use App\Models\PhotoReaction;
 use App\Models\User;
+use App\Stories\MentionAuthorizer;
+use App\Stories\RichTextDocument;
+use App\Stories\RichTextFieldWriter;
 use App\Tenancy\TenantOperationContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,9 +21,11 @@ class PhotoConversationManager
 {
     public function __construct(
         private readonly AuditRecorder $audit,
+        private readonly RichTextFieldWriter $richText,
+        private readonly MentionAuthorizer $mentionAuthorizer,
     ) {}
 
-    public function createComment(Photo $photo, Album $album, User $actor, string $body, Request $request): PhotoComment
+    public function createComment(Photo $photo, Album $album, User $actor, mixed $body, Request $request): PhotoComment
     {
         return DB::transaction(function () use ($photo, $album, $actor, $body, $request): PhotoComment {
             $comment = PhotoComment::query()->create([
@@ -28,8 +33,11 @@ class PhotoConversationManager
                 'photo_id' => $photo->id,
                 'album_id' => $album->id,
                 'author_id' => $actor->id,
-                'body' => trim($body),
+                'body' => ['schema_version' => 1, 'blocks' => []],
             ]);
+            $body = $this->richText->synchronize($comment, 'photo_comment_person_mentions', 'photo_comment_id', $body,
+                $this->mentionAuthorizer->for($actor, $photo), RichTextDocument::COMMENT);
+            $comment->update(['body' => $body]);
             $this->audit->record('photo_comment.created', $comment, $actor, $request, ['album_id' => $album->id]);
             $context = TenantOperationContext::fromRequest($photo->familySpace, $actor, $request);
             DB::afterCommit(fn () => ProcessNotificationCandidate::dispatch($context->toArray(), NotificationCategory::Comment, $comment->id, ['photo_id' => $photo->id, 'album_id' => $album->id, 'comment_id' => $comment->id]));
@@ -38,14 +46,16 @@ class PhotoConversationManager
         });
     }
 
-    public function updateComment(PhotoComment $comment, User $actor, string $body, Request $request): PhotoComment
+    public function updateComment(PhotoComment $comment, User $actor, mixed $body, Request $request): PhotoComment
     {
         return DB::transaction(function () use ($comment, $actor, $body, $request): PhotoComment {
             $locked = PhotoComment::query()->lockForUpdate()->findOrFail($comment->id);
             $revision = ((int) PhotoCommentRevision::query()->where('photo_comment_id', $locked->id)->max('revision')) + 1;
             PhotoCommentRevision::query()->create(['family_space_id' => $locked->family_space_id,
                 'photo_comment_id' => $locked->id, 'editor_id' => $actor->id, 'revision' => $revision, 'body' => $locked->body]);
-            $locked->update(['body' => trim($body), 'edited_at' => now()]);
+            $body = $this->richText->synchronize($locked, 'photo_comment_person_mentions', 'photo_comment_id', $body,
+                $this->mentionAuthorizer->for($actor, $locked->photo()->firstOrFail()), RichTextDocument::COMMENT);
+            $locked->update(['body' => $body, 'edited_at' => now()]);
             $this->audit->record('photo_comment.updated', $locked, $actor, $request, ['revision' => $revision]);
 
             return $locked->load('author:id,name');

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\RichTextDocumentCast;
 use App\Enums\AlbumVisibility;
 use App\Enums\GuestParticipation;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -14,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * @property AlbumVisibility $visibility
  * @property GuestParticipation $guest_participation
+ * @property array<string, mixed>|null $description
+ * @property string|null $description_plain_text
  */
 #[Fillable(['family_space_id', 'created_by', 'name', 'description', 'visibility', 'event_id', 'guest_participation'])]
 class Album extends Model
@@ -66,6 +69,7 @@ class Album extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['visibility' => AlbumVisibility::class, 'guest_participation' => GuestParticipation::class];
+        return ['visibility' => AlbumVisibility::class, 'guest_participation' => GuestParticipation::class,
+            'description' => RichTextDocumentCast::class.':full,description_plain_text'];
     }
 }

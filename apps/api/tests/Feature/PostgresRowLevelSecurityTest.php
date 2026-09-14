@@ -71,7 +71,8 @@ TRUNCATE TABLE notification_deliveries, notifications, notification_candidates, 
     face_cluster_members, face_clusters, face_cluster_generations,
     face_embedding_projections, face_observations, face_analysis_attempts, face_analysis_runs,
     perceptual_hashes, media_upload_duplicate_holds, duplicate_decisions, duplicate_candidates,
-    photo_reactions, photo_comment_revisions, photo_comments, photo_story_revisions, photo_stories,
+    photo_comment_person_mentions, photo_reactions, photo_comment_revisions, photo_comments,
+    person_biography_mentions, album_description_mentions, event_description_mentions,
     event_notification_deliveries, event_exports, event_admissions, album_grants, album_photos, albums, events,
     photo_people, photo_metadata_proposals, photo_tag, tags, photo_provenance_proposals, photos,
     media_variants, media_uploads, person_merge_proposals, person_merges,
@@ -132,7 +133,9 @@ WHERE relname IN (
     'photos', 'photo_provenance_proposals', 'photo_metadata_proposals', 'photo_people', 'tags', 'photo_tag',
     'albums', 'album_photos', 'album_grants', 'events', 'event_admissions', 'event_exports', 'family_exports',
     'event_notification_deliveries',
-    'photo_stories', 'photo_story_revisions', 'photo_comments', 'photo_comment_revisions', 'photo_reactions',
+    'photo_comments', 'photo_comment_revisions', 'photo_reactions',
+    'person_biography_mentions', 'album_description_mentions', 'event_description_mentions',
+    'photo_comment_person_mentions',
     'duplicate_candidates', 'duplicate_decisions', 'media_upload_duplicate_holds', 'perceptual_hashes',
     'face_analysis_runs', 'face_analysis_attempts', 'face_observations', 'face_embedding_projections',
     'face_cluster_generations', 'face_clusters', 'face_cluster_members', 'face_identity_assignments',
@@ -144,7 +147,7 @@ WHERE relname IN (
 ORDER BY relname
 SQL);
 
-        $this->assertCount(56, $tables);
+        $this->assertCount(58, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");

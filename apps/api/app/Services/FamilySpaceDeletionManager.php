@@ -181,6 +181,10 @@ class FamilySpaceDeletionManager
             NotificationCandidate::query()->where('family_space_id', $familySpace->id)->delete();
             NotificationPreference::query()->where('family_space_id', $familySpace->id)->delete();
             ContributionGroup::query()->where('family_space_id', $familySpace->id)->delete();
+            foreach (['person_biography_mentions', 'album_description_mentions',
+                'event_description_mentions', 'photo_comment_person_mentions'] as $table) {
+                DB::table($table)->where('family_space_id', $familySpace->id)->delete();
+            }
             FamilyCircle::query()
                 ->where('family_space_id', $familySpace->id)
                 ->delete();

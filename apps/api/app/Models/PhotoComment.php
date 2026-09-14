@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Casts\RichTextDocumentCast;
+use App\Stories\RichTextDocument;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -13,7 +15,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * @property string $family_space_id
  * @property int|null $author_id
- * @property string $body
+ * @property array<string, mixed> $body
+ * @property string $body_plain_text
  * @property CarbonImmutable|null $edited_at
  * @property CarbonImmutable|null $created_at
  * @property User|null $author
@@ -53,6 +56,7 @@ class PhotoComment extends Model
 
     protected function casts(): array
     {
-        return ['edited_at' => 'immutable_datetime'];
+        return ['edited_at' => 'immutable_datetime',
+            'body' => RichTextDocumentCast::class.':'.RichTextDocument::COMMENT.',body_plain_text'];
     }
 }

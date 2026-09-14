@@ -10,16 +10,23 @@ use App\Http\Requests\UpdateAlbumRequest;
 use App\Models\Album;
 use App\Models\FamilySpace;
 use App\Models\Photo;
+use App\Models\User;
 use App\Queries\AlbumQuery;
 use App\Services\AlbumManager;
 use App\Services\MediaUploadManager;
+use App\Stories\RichTextPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class AlbumController extends Controller
 {
-    public function __construct(private readonly AlbumQuery $albums, private readonly AlbumManager $manager, private readonly MediaUploadManager $uploads) {}
+    public function __construct(
+        private readonly AlbumQuery $albums,
+        private readonly AlbumManager $manager,
+        private readonly MediaUploadManager $uploads,
+        private readonly RichTextPresenter $presenter,
+    ) {}
 
     public function index(FamilySpace $familySpace, Request $request): JsonResponse
     {
@@ -108,7 +115,10 @@ class AlbumController extends Controller
             'albumPhotos' => fn ($query) => $query->whereHas('photo')->with('photo.mediaUpload'),
             'grants.membership.user:id,name']);
 
-        return ['id' => $album->id, 'name' => $album->name, 'description' => $album->description,
+        return ['id' => $album->id, 'name' => $album->name, 'description' => $album->description_plain_text,
+            'description_document' => $album->description,
+            'description_html' => $this->presenter->html($album->description, $album, 'album_description_mentions',
+                'album_id', $this->familySlug(), $this->actor(), $album),
             'visibility' => $album->visibility->value, 'created_by' => $album->created_by,
             'event_id' => $album->event_id,
             'guest_participation' => $album->guest_participation->value,
@@ -126,5 +136,20 @@ class AlbumController extends Controller
     private function album(FamilySpace $space, string $id): Album
     {
         return Album::query()->where('family_space_id', $space->id)->findOrFail($id);
+    }
+
+    private function familySlug(): string
+    {
+        $familySpace = request()->route('familySpace');
+
+        return $familySpace instanceof FamilySpace ? $familySpace->slug : (string) $familySpace;
+    }
+
+    private function actor(): User
+    {
+        $actor = request()->user();
+        abort_unless($actor instanceof User, 401);
+
+        return $actor;
     }
 }

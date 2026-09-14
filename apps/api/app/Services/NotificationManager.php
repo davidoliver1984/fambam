@@ -242,7 +242,9 @@ class NotificationManager
                         ->where('story_comment_id', $subject['story_comment_id'])->pluck('person_id'))->pluck('user_id'));
             } else {
                 $ids = collect([Album::find($subject['album_id'])?->created_by, Photo::find($subject['photo_id'])?->created_by])
-                    ->merge(PhotoComment::query()->where('photo_id', $subject['photo_id'])->where('album_id', $subject['album_id'])->pluck('author_id'));
+                    ->merge(PhotoComment::query()->where('photo_id', $subject['photo_id'])->where('album_id', $subject['album_id'])->pluck('author_id'))
+                    ->merge(PersonAccountLink::query()->whereIn('person_id', DB::table('photo_comment_person_mentions')
+                        ->where('photo_comment_id', $subject['comment_id'])->pluck('person_id'))->pluck('user_id'));
             }
         } elseif ($category === NotificationCategory::Story) {
             $story = Story::query()->find($subject['story_id']);

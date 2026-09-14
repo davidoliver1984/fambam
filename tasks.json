@@ -1029,16 +1029,18 @@
         {
           "id": "FPA-P14-S05",
           "title": "Extend rich-text and typed mentions to biography, descriptions and Photo comments",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P14-S04"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-13. Extended constrained rich-text documents, plain-text/search projections and stable typed Person mentions to Person biography, Album/Event descriptions and Photo comments; added authoritative read-time mention resolution, transactional persistence, notification recipients, Person-merge snapshots/reversal, Family Space teardown and tenant-consistent forced-RLS coverage. Historical embedded mention payloads remain unchanged while presentation resolves through the canonical extraction row."
+          ]
         },
         {
           "id": "FPA-P14-S06",
           "title": "Accept family product UI/UX integration ADR",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P14-S05"
           ],

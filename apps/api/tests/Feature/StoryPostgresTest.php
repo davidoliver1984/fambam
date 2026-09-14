@@ -82,7 +82,9 @@ class StoryPostgresTest extends TestCase
         $this->assertSame(1, $visible);
         $this->assertSame(0, $hidden);
 
-        foreach (['stories', 'story_revisions', 'story_comments', 'story_person_mentions', 'story_comment_person_mentions'] as $table) {
+        foreach (['stories', 'story_revisions', 'story_comments', 'story_person_mentions', 'story_comment_person_mentions',
+            'person_biography_mentions', 'album_description_mentions', 'event_description_mentions',
+            'photo_comment_person_mentions'] as $table) {
             $flags = $this->admin->selectOne('SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = ?', [$table]);
             $this->assertTrue($flags->relrowsecurity);
             $this->assertTrue($flags->relforcerowsecurity);

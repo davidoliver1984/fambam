@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\RichTextDocumentCast;
 use App\Enums\EventStatus;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -15,6 +16,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property EventStatus $status
  * @property CarbonImmutable|null $starts_on
  * @property CarbonImmutable|null $ends_on
+ * @property array<string, mixed>|null $description
+ * @property string|null $description_plain_text
  */
 #[Fillable(['family_space_id', 'created_by', 'name', 'description', 'starts_on', 'ends_on', 'location', 'status'])]
 class FamilyEvent extends Model
@@ -76,6 +79,7 @@ class FamilyEvent extends Model
             'status' => EventStatus::class,
             'starts_on' => 'immutable_date',
             'ends_on' => 'immutable_date',
+            'description' => RichTextDocumentCast::class.':full,description_plain_text',
         ];
     }
 }

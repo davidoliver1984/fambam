@@ -19,7 +19,7 @@ class UpdateAlbumRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'string', 'max:120'],
-            'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'description' => ['sometimes', 'nullable'],
             'visibility' => ['sometimes', Rule::enum(AlbumVisibility::class)],
             'event_id' => ['sometimes', 'nullable', 'string', 'size:26'],
             'guest_participation' => ['sometimes', Rule::enum(GuestParticipation::class)],

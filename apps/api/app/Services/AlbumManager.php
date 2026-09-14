@@ -15,6 +15,8 @@ use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\Photo;
 use App\Models\User;
+use App\Stories\MentionAuthorizer;
+use App\Stories\RichTextFieldWriter;
 use App\Tenancy\TenantOperationContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
@@ -27,6 +29,8 @@ class AlbumManager
         private readonly AuditRecorder $audit,
         private readonly FamilyActivityRecorder $activities,
         private readonly EventContributionNotifier $notifications,
+        private readonly RichTextFieldWriter $richText,
+        private readonly MentionAuthorizer $mentionAuthorizer,
     ) {}
 
     /** @param array<string, mixed> $input */
@@ -42,6 +46,11 @@ class AlbumManager
                 'event_id' => $input['event_id'] ?? null,
                 'guest_participation' => ($input['event_id'] ?? null) === null ? 'none' : ($input['guest_participation'] ?? 'none'),
             ]);
+            if (array_key_exists('description', $input)) {
+                $description = $this->richText->synchronize($album, 'album_description_mentions', 'album_id',
+                    $input['description'], $this->mentionAuthorizer->for($actor, $album));
+                $album->update(['description' => $description]);
+            }
             $this->audit->record('album.created', $album, $actor, $request);
             $this->activities->record(
                 $album->family_space_id,
@@ -69,6 +78,11 @@ class AlbumManager
                 $album->grants()->delete();
             }
             $album->update($input);
+            if (array_key_exists('description', $input)) {
+                $description = $this->richText->synchronize($album, 'album_description_mentions', 'album_id',
+                    $input['description'], $this->mentionAuthorizer->for($actor, $album));
+                $album->update(['description' => $description]);
+            }
             $this->audit->record('album.updated', $album, $actor, $request);
 
             return $album->refresh();

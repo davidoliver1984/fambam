@@ -24,7 +24,7 @@ trait ValidatesPersonDetails
             'death_date' => ['sometimes', 'array'],
             'death_date.precision' => ['required_with:death_date', Rule::enum(DatePrecision::class)],
             'death_date.value' => ['present_with:death_date', 'nullable', 'string', 'max:10'],
-            'biography' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'biography' => ['sometimes', 'nullable'],
         ];
     }
 

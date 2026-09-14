@@ -15,7 +15,7 @@ class StorePhotoCommentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'body' => ['required', 'string', 'max:10000'],
+            'body' => ['required'],
             'album_id' => ['required', 'string', 'size:26'],
         ];
     }

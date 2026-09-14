@@ -26,6 +26,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(SubstituteBindings::class, ResolveFamilySpace::class);
         $middleware->prependToPriorityList(ResolveFamilySpace::class, DatabaseRequestContext::class);
         $middleware->redirectGuestsTo(null);
+        $middleware->trimStrings(except: [
+            'body.blocks.*.content.*.text',
+            'biography.blocks.*.content.*.text',
+            'description.blocks.*.content.*.text',
+            'changes.biography.blocks.*.content.*.text',
+        ]);
         $middleware->statefulApi();
         $middleware->api(prepend: [RequestContext::class]);
         $middleware->web(append: [

@@ -18,7 +18,7 @@ class StoreFamilyEventRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:120'],
-            'description' => ['nullable', 'string', 'max:5000'],
+            'description' => ['nullable'],
             'starts_on' => ['nullable', 'date'],
             'ends_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
             'location' => ['nullable', 'string', 'max:255'],

@@ -38,10 +38,10 @@ final class DatabaseSearchService implements SearchService
             return new SearchPage([], null);
         }
         $base = $this->people->forCurrentFamilySpace()->setEagerLoads([])->select([
-            'people.id', 'people.preferred_name', 'people.alternate_names', 'people.identity_status',
+            'people.id', 'people.preferred_name', 'people.alternate_names', 'people.biography_plain_text', 'people.identity_status',
         ]);
         [$matchClass, $classBindings, $score, $scoreBindings, $matches, $matchBindings] =
-            $this->simpleExpressions('people', ['preferred_name', 'alternate_names'], 'preferred_name', $term);
+            $this->simpleExpressions('people', ['preferred_name', 'alternate_names', 'biography_plain_text'], 'preferred_name', $term);
         $base->whereRaw($matches, $matchBindings)
             ->selectRaw("{$matchClass} AS match_class", $classBindings)
             ->selectRaw("{$score} AS match_score", $scoreBindings)
@@ -97,7 +97,7 @@ final class DatabaseSearchService implements SearchService
             return new SearchPage([], null);
         }
         $base = $this->albums->visibleTo($actor)->setEagerLoads([])->select([
-            'albums.id', 'albums.name', 'albums.description', 'albums.visibility', 'albums.event_id',
+            'albums.id', 'albums.name', 'albums.description_plain_text', 'albums.visibility', 'albums.event_id',
         ]);
         if ($query->eventId !== null) {
             $base->where('albums.event_id', $query->eventId);
@@ -113,7 +113,7 @@ final class DatabaseSearchService implements SearchService
                 ->where('person_id', $personId)->where('status', 'approved'));
         }
         [$matchClass, $classBindings, $score, $scoreBindings, $matches, $matchBindings] =
-            $this->simpleExpressions('albums', ['name', 'description'], 'name', $term ?? '');
+            $this->simpleExpressions('albums', ['name', 'description_plain_text'], 'name', $term ?? '');
         if ($term !== null) {
             $base->whereRaw($matches, $matchBindings);
         } else {
@@ -127,7 +127,7 @@ final class DatabaseSearchService implements SearchService
         return new SearchPage(array_map(fn (array $row): AlbumSearchSummary => new AlbumSearchSummary(
             $row['id'],
             $row['name'],
-            $row['description'],
+            $row['description_plain_text'],
             $row['visibility'],
             $row['event_id'],
         ), $page['rows']), $page['next_cursor']);
@@ -175,7 +175,7 @@ final class DatabaseSearchService implements SearchService
             return new SearchPage([], null);
         }
         $base = $this->events->visibleTo($actor)->select([
-            'events.id', 'events.name', 'events.description', 'events.location', 'events.starts_on', 'events.ends_on',
+            'events.id', 'events.name', 'events.description_plain_text', 'events.location', 'events.starts_on', 'events.ends_on',
         ]);
         if ($query->eventId !== null) {
             $base->where('events.id', $query->eventId);
@@ -204,7 +204,7 @@ final class DatabaseSearchService implements SearchService
             $base->whereDate('events.starts_on', '<=', $query->dateTo);
         }
         [$matchClass, $classBindings, $score, $scoreBindings, $matches, $matchBindings] =
-            $this->simpleExpressions('events', ['name', 'description', 'location'], 'name', $term ?? '');
+            $this->simpleExpressions('events', ['name', 'description_plain_text', 'location'], 'name', $term ?? '');
         if ($term !== null) {
             $base->whereRaw($matches, $matchBindings);
         } else {
@@ -218,7 +218,7 @@ final class DatabaseSearchService implements SearchService
         return new SearchPage(array_map(fn (array $row): EventSearchSummary => new EventSearchSummary(
             $row['id'],
             $row['name'],
-            $row['description'],
+            $row['description_plain_text'],
             $row['location'],
             $row['starts_on'] === null ? null : substr((string) $row['starts_on'], 0, 10),
             $row['ends_on'] === null ? null : substr((string) $row['ends_on'], 0, 10),

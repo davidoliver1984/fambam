@@ -15,7 +15,7 @@ class StorePhotoTextRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'body' => ['required', 'string', 'max:10000'],
+            'body' => ['required'],
             'album_id' => ['sometimes', 'nullable', 'string', 'size:26'],
         ];
     }

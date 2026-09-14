@@ -65,6 +65,39 @@ class PersonMergeTest extends TestCase
         $this->assertDatabaseHas('story_person_mentions', ['story_id' => $story->id, 'person_id' => $absorbed->id]);
     }
 
+    public function test_active_merge_survivor_cannot_be_absorbed_and_mentions_remain_consistent(): void
+    {
+        [$family, $owner] = $this->familyWithRole(FamilySpaceRole::Owner, 'active-merge-chain');
+        $first = $this->person($family, 'First');
+        $middle = $this->person($family, 'Middle');
+        $last = $this->person($family, 'Last');
+        $story = app(StoryWriter::class)->create($family->id, $owner, ['person_id' => $last->id], [
+            'schema_version' => 1,
+            'blocks' => [['type' => 'paragraph', 'content' => [[
+                'type' => 'mention', 'person_id' => $first->id, 'label' => 'First',
+            ]]]],
+        ], fn (): bool => true);
+        $this->actingAs($owner)->postJson("/api/families/{$family->slug}/people/{$first->id}/merge", [
+            'survivor_person_id' => $middle->id,
+        ])->assertCreated();
+
+        $this->actingAs($owner)->postJson("/api/families/{$family->slug}/people/{$middle->id}/merge", [
+            'survivor_person_id' => $last->id,
+        ])->assertUnprocessable()->assertJsonPath(
+            'errors.person_merge.0',
+            'Reverse this Person’s existing merges before absorbing them into another Person.',
+        );
+
+        $this->assertDatabaseCount('person_merges', 1);
+        $this->assertDatabaseHas('story_person_mentions', [
+            'story_id' => $story->id, 'person_id' => $middle->id,
+        ]);
+        foreach (['story_comment_person_mentions', 'person_biography_mentions', 'album_description_mentions',
+            'event_description_mentions', 'photo_comment_person_mentions'] as $table) {
+            $this->assertDatabaseMissing($table, ['person_id' => $last->id]);
+        }
+    }
+
     public function test_merge_and_guarded_reversal_reconcile_saved_search_person_collisions(): void
     {
         [$family, $owner] = $this->familyWithRole(FamilySpaceRole::Owner, 'saved-search-merge');

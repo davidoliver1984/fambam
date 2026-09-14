@@ -16,6 +16,7 @@ use App\Models\User;
 use App\People\UncertainDate;
 use App\Queries\PersonQuery;
 use App\Services\PersonManager;
+use App\Stories\RichTextPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -26,6 +27,7 @@ class PersonController extends Controller
         private readonly PersonQuery $people,
         private readonly PersonManager $personManager,
         private readonly RecognitionConsentManager $recognitionConsent,
+        private readonly RichTextPresenter $presenter,
     ) {}
 
     public function index(FamilySpace $familySpace): JsonResponse
@@ -175,7 +177,10 @@ class PersonController extends Controller
                 $person->death_date_precision,
                 $person->death_date?->format('Y-m-d'),
             )->toPayload(),
-            'biography' => $person->biography,
+            'biography' => $person->biography_plain_text,
+            'biography_document' => $person->biography,
+            'biography_html' => $this->presenter->html($person->biography, $person, 'person_biography_mentions',
+                'biography_person_id', $this->familySlug(), $this->actor(), $person),
             'recognition_allowed' => $person->recognition_allowed,
             'account_link' => $accountLink === null ? null : $this->accountLinkPayload($accountLink, $viewer),
             'created_at' => $person->created_at?->toAtomString(),
@@ -206,6 +211,21 @@ class PersonController extends Controller
                 'is_current_user' => $link->user_id === $viewer->id,
             ],
         ];
+    }
+
+    private function familySlug(): string
+    {
+        $familySpace = request()->route('familySpace');
+
+        return $familySpace instanceof FamilySpace ? $familySpace->slug : (string) $familySpace;
+    }
+
+    private function actor(): User
+    {
+        $actor = request()->user();
+        abort_unless($actor instanceof User, 401);
+
+        return $actor;
     }
 
     /** @return array<string, mixed> */

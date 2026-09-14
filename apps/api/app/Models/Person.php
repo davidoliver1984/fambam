@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\RichTextDocumentCast;
 use App\Enums\DatePrecision;
 use App\Enums\PersonIdentityStatus;
 use Carbon\CarbonImmutable;
@@ -25,6 +26,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property CarbonImmutable|null $death_date
  * @property DatePrecision $death_date_precision
  * @property CarbonImmutable|null $confirmed_at
+ * @property array<string, mixed>|null $biography
+ * @property string|null $biography_plain_text
  */
 #[Fillable([
     'family_space_id',
@@ -121,6 +124,7 @@ class Person extends Model
             'death_date' => 'immutable_date',
             'death_date_precision' => DatePrecision::class,
             'confirmed_at' => 'immutable_datetime',
+            'biography' => RichTextDocumentCast::class.':full,biography_plain_text',
         ];
     }
 }

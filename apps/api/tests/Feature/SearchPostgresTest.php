@@ -90,6 +90,29 @@ SQL, [$photoId, $familySpaceId, $uploadId, $ownerId]);
         $this->assertStringContainsString('winter', $row->vector);
         $this->assertSame('1989-12-31', $row->window_end);
         $this->assertFalse($row->do_not_resurface);
+        $document = json_encode(['schema_version' => 1, 'blocks' => [[
+            'type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Mercer recollection']],
+        ]]], JSON_THROW_ON_ERROR);
+        $personVector = $this->admin->scalar(<<<'SQL'
+INSERT INTO people (id, family_space_id, preferred_name, identity_status, birth_date_precision,
+    is_deceased, death_date_precision, biography, biography_plain_text, created_at, updated_at)
+VALUES (?, ?, 'Archive relative', 'confirmed', 'unknown', false, 'unknown', ?::jsonb, 'Mercer recollection', now(), now())
+RETURNING search_vector::text
+SQL, [(string) Str::ulid(), $familySpaceId, $document]);
+        $albumVector = $this->admin->scalar(<<<'SQL'
+INSERT INTO albums (id, family_space_id, created_by, name, description, description_plain_text, visibility, created_at, updated_at)
+VALUES (?, ?, ?, 'Archive album', ?::jsonb, 'Mercer recollection', 'family_space', now(), now())
+RETURNING search_vector::text
+SQL, [(string) Str::ulid(), $familySpaceId, $ownerId, $document]);
+        $eventVector = $this->admin->scalar(<<<'SQL'
+INSERT INTO events (id, family_space_id, created_by, name, description, description_plain_text, status, created_at, updated_at)
+VALUES (?, ?, ?, 'Archive event', ?::jsonb, 'Mercer recollection', 'planned', now(), now())
+RETURNING search_vector::text
+SQL, [(string) Str::ulid(), $familySpaceId, $ownerId, $document]);
+        foreach ([$personVector, $albumVector, $eventVector] as $vector) {
+            $this->assertStringContainsString('mercer', (string) $vector);
+            $this->assertStringContainsString('recollection', (string) $vector);
+        }
         $tagId = (string) Str::ulid();
         $this->admin->table('tags')->insert([
             'id' => $tagId,
@@ -136,9 +159,10 @@ SQL, [$photoId, $familySpaceId, $uploadId, $ownerId]);
             'albums_name_trgm_gin', 'albums_search_vector_gin',
             'events_location_trgm_gin', 'events_name_trgm_gin', 'events_search_vector_gin',
             'people_preferred_name_trgm_gin', 'people_search_vector_gin',
-            'photo_stories_search_vector_gin', 'photos_caption_trgm_gin',
+            'photos_caption_trgm_gin',
             'photos_historical_date_window_idx', 'photos_location_description_trgm_gin',
-            'photos_resurfacing_date_index', 'photos_search_vector_gin', 'tags_label_trgm_gin',
+            'photos_resurfacing_date_index', 'photos_search_vector_gin', 'stories_search_vector_gin',
+            'tags_label_trgm_gin',
         ];
         $indexes = $this->admin->table('pg_indexes')->where('schemaname', 'public')
             ->whereIn('indexname', $expectedIndexes)->pluck('indexname')->sort()->values()->all();

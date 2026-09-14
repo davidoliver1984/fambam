@@ -18,7 +18,7 @@ class UpdateFamilyEventRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'string', 'max:120'],
-            'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'description' => ['sometimes', 'nullable'],
             'starts_on' => ['sometimes', 'nullable', 'date'],
             'ends_on' => ['sometimes', 'nullable', 'date', 'after_or_equal:starts_on'],
             'location' => ['sometimes', 'nullable', 'string', 'max:255'],

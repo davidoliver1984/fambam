@@ -10,6 +10,9 @@ use App\Models\Person;
 use App\Models\PersonDetailProposal;
 use App\Models\User;
 use App\People\UncertainDate;
+use App\Stories\MentionAuthorizer;
+use App\Stories\RichTextDocument;
+use App\Stories\RichTextFieldWriter;
 use App\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -31,6 +34,9 @@ class PersonManager
     public function __construct(
         private readonly AuditRecorder $audit,
         private readonly TenantContext $tenantContext,
+        private readonly RichTextDocument $documents,
+        private readonly RichTextFieldWriter $richText,
+        private readonly MentionAuthorizer $mentionAuthorizer,
     ) {}
 
     /** @param array<string, mixed> $input */
@@ -58,6 +64,11 @@ class PersonManager
             }
 
             $person->save();
+            if (array_key_exists('biography', $input)) {
+                $biography = $this->richText->synchronize($person, 'person_biography_mentions', 'biography_person_id',
+                    $input['biography'], $this->mentionAuthorizer->for($actor, $person));
+                $person->update(['biography' => $biography]);
+            }
             $this->audit->record('person.created', $person, $actor, $request, [
                 'identity_status' => $person->identity_status->value,
             ]);
@@ -84,8 +95,15 @@ class PersonManager
             }
 
             $locked->update($attributes);
+            $changes = array_keys($locked->getChanges());
+            if (array_key_exists('biography', $input)) {
+                $biography = $this->richText->synchronize($locked, 'person_biography_mentions', 'biography_person_id',
+                    $input['biography'], $this->mentionAuthorizer->for($actor, $locked));
+                $locked->update(['biography' => $biography]);
+                $changes = array_values(array_unique([...$changes, ...array_keys($locked->getChanges())]));
+            }
             $changedFields = array_values(array_intersect(
-                array_keys($locked->getChanges()),
+                $changes,
                 [...self::DETAIL_FIELDS, 'birth_date_precision', 'death_date_precision', 'identity_status'],
             ));
             $this->audit->record('person.identity_changed', $locked, $actor, $request, [
@@ -158,6 +176,11 @@ class PersonManager
                 $attributes['confirmed_by'] = $actor->id;
                 $attributes['confirmed_at'] = CarbonImmutable::now();
                 $lockedPerson->update($attributes);
+                if (array_key_exists('biography', $lockedProposal->changes)) {
+                    $biography = $this->richText->synchronize($lockedPerson, 'person_biography_mentions', 'biography_person_id',
+                        $lockedProposal->changes['biography'], $this->mentionAuthorizer->for($actor, $lockedPerson));
+                    $lockedPerson->update(['biography' => $biography]);
+                }
             }
 
             $lockedProposal->update([
@@ -218,7 +241,7 @@ class PersonManager
             'is_deceased' => $isDeceased,
             'death_date' => $death->storageDate(),
             'death_date_precision' => $death->precision,
-            'biography' => $details['biography'] === null ? null : trim((string) $details['biography']),
+            'biography' => $details['biography'],
         ];
     }
 
@@ -258,8 +281,8 @@ class PersonManager
             $changes['preferred_name'] = trim((string) $changes['preferred_name']);
         }
 
-        if (array_key_exists('biography', $changes) && $changes['biography'] !== null) {
-            $changes['biography'] = trim((string) $changes['biography']);
+        if (array_key_exists('biography', $changes)) {
+            $changes['biography'] = $this->documents->normalize($changes['biography']);
         }
 
         return $changes;

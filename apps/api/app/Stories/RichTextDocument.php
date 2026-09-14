@@ -16,6 +16,33 @@ final class RichTextDocument
 
     private const MAX_TEXT_CHARACTERS = 50000;
 
+    /** @return array<string, mixed> */
+    public function fromPlainText(string $text): array
+    {
+        return [
+            'schema_version' => 1,
+            'blocks' => [[
+                'type' => 'paragraph',
+                'content' => $text === '' ? [] : [['type' => 'text', 'text' => $text]],
+            ]],
+        ];
+    }
+
+    /** @return array<string, mixed>|null */
+    public function normalize(mixed $value, string $vocabulary = self::FULL): ?array
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $document = is_string($value) ? $this->fromPlainText(trim($value)) : $value;
+        if (! is_array($document)) {
+            $this->invalid('The rich-text value must be a document.');
+        }
+
+        return $this->validate($document, $vocabulary);
+    }
+
     /**
      * @param  array<string, mixed>  $document
      * @return array<string, mixed>

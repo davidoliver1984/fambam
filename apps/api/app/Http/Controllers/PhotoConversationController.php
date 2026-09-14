@@ -12,9 +12,12 @@ use App\Models\Photo;
 use App\Models\PhotoComment;
 use App\Models\PhotoReaction;
 use App\Models\Story;
+use App\Models\User;
 use App\Queries\AlbumQuery;
 use App\Queries\PhotoQuery;
 use App\Services\PhotoConversationManager;
+use App\Stories\RichTextDocument;
+use App\Stories\RichTextPresenter;
 use App\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,6 +30,7 @@ class PhotoConversationController extends Controller
         private readonly AlbumQuery $albums,
         private readonly PhotoConversationManager $manager,
         private readonly TenantContext $tenantContext,
+        private readonly RichTextPresenter $presenter,
     ) {}
 
     public function index(FamilySpace $familySpace, string $photo, Request $request): JsonResponse
@@ -111,7 +115,15 @@ class PhotoConversationController extends Controller
     /** @return array<string, mixed> */
     private function textPayload(Story|PhotoComment $content, bool $readOnly = false): array
     {
-        return ['id' => $content->id, 'body' => $content instanceof Story ? $content->body_plain_text : $content->body, 'author' => $content->author === null ? null : ['id' => $content->author->id, 'name' => $content->author->name], 'edited_at' => $content->edited_at?->toAtomString(), 'created_at' => $content->created_at?->toAtomString(), 'permissions' => ['can_edit' => ! $readOnly && Gate::allows('update', $content), 'can_remove' => ! $readOnly && Gate::allows('delete', $content)]];
+        return ['id' => $content->id,
+            'body' => $content instanceof Story ? $content->body_plain_text : $content->body_plain_text,
+            'body_document' => $content->body,
+            'body_html' => $content instanceof Story
+                ? $this->presenter->html($content->body, $content, 'story_person_mentions', 'story_id',
+                    $this->familySlug(), $this->actor(), $content->photo()->firstOrFail())
+                : $this->presenter->html($content->body, $content, 'photo_comment_person_mentions', 'photo_comment_id',
+                    $this->familySlug(), $this->actor(), $content->photo()->firstOrFail(), RichTextDocument::COMMENT),
+            'author' => $content->author === null ? null : ['id' => $content->author->id, 'name' => $content->author->name], 'edited_at' => $content->edited_at?->toAtomString(), 'created_at' => $content->created_at?->toAtomString(), 'permissions' => ['can_edit' => ! $readOnly && Gate::allows('update', $content), 'can_remove' => ! $readOnly && Gate::allows('delete', $content)]];
     }
 
     private function albumForPhoto(Request $request, Photo $photo, string $albumId): Album
@@ -138,5 +150,20 @@ class PhotoConversationController extends Controller
 
         return $this->tenantContext->membership()->role !== FamilySpaceRole::Contributor
             || Gate::allows('contribute', $album);
+    }
+
+    private function familySlug(): string
+    {
+        $familySpace = request()->route('familySpace');
+
+        return $familySpace instanceof FamilySpace ? $familySpace->slug : (string) $familySpace;
+    }
+
+    private function actor(): User
+    {
+        $actor = request()->user();
+        abort_unless($actor instanceof User, 401);
+
+        return $actor;
     }
 }

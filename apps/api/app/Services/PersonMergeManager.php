@@ -609,6 +609,10 @@ class PersonMergeManager
         $storySubjectQuery = Story::withTrashed()->whereIn('person_id', $personIds)->orderBy('id');
         $storyMentionQuery = DB::table('story_person_mentions')->whereIn('person_id', $personIds)->orderBy('id');
         $commentMentionQuery = DB::table('story_comment_person_mentions')->whereIn('person_id', $personIds)->orderBy('id');
+        $personBiographyMentionQuery = DB::table('person_biography_mentions')->whereIn('person_id', $personIds)->orderBy('id');
+        $albumDescriptionMentionQuery = DB::table('album_description_mentions')->whereIn('person_id', $personIds)->orderBy('id');
+        $eventDescriptionMentionQuery = DB::table('event_description_mentions')->whereIn('person_id', $personIds)->orderBy('id');
+        $photoCommentMentionQuery = DB::table('photo_comment_person_mentions')->whereIn('person_id', $personIds)->orderBy('id');
         if ($lock) {
             $proposalQuery->lockForUpdate();
             $circleQuery->lockForUpdate();
@@ -622,6 +626,10 @@ class PersonMergeManager
             $storySubjectQuery->lockForUpdate();
             $storyMentionQuery->lockForUpdate();
             $commentMentionQuery->lockForUpdate();
+            $personBiographyMentionQuery->lockForUpdate();
+            $albumDescriptionMentionQuery->lockForUpdate();
+            $eventDescriptionMentionQuery->lockForUpdate();
+            $photoCommentMentionQuery->lockForUpdate();
         }
 
         return [
@@ -647,6 +655,10 @@ class PersonMergeManager
                 ])->values()->all(),
             'story_person_mentions' => $storyMentionQuery->get()->map(fn ($row): array => (array) $row)->values()->all(),
             'story_comment_person_mentions' => $commentMentionQuery->get()->map(fn ($row): array => (array) $row)->values()->all(),
+            'person_biography_mentions' => $personBiographyMentionQuery->get()->map(fn ($row): array => (array) $row)->values()->all(),
+            'album_description_mentions' => $albumDescriptionMentionQuery->get()->map(fn ($row): array => (array) $row)->values()->all(),
+            'event_description_mentions' => $eventDescriptionMentionQuery->get()->map(fn ($row): array => (array) $row)->values()->all(),
+            'photo_comment_person_mentions' => $photoCommentMentionQuery->get()->map(fn ($row): array => (array) $row)->values()->all(),
         ];
     }
 
@@ -901,7 +913,11 @@ class PersonMergeManager
         }
 
         foreach (['story_subjects' => 'stories', 'story_person_mentions' => 'story_person_mentions',
-            'story_comment_person_mentions' => 'story_comment_person_mentions'] as $snapshot => $table) {
+            'story_comment_person_mentions' => 'story_comment_person_mentions',
+            'person_biography_mentions' => 'person_biography_mentions',
+            'album_description_mentions' => 'album_description_mentions',
+            'event_description_mentions' => 'event_description_mentions',
+            'photo_comment_person_mentions' => 'photo_comment_person_mentions'] as $snapshot => $table) {
             /** @var list<array<string, mixed>> $rows */
             $rows = $before[$snapshot] ?? [];
             foreach ($rows as $row) {
@@ -916,7 +932,8 @@ class PersonMergeManager
     {
         Story::withTrashed()->where('person_id', $absorbed->id)
             ->update(['person_id' => $survivor->id, 'updated_at' => now()]);
-        foreach (['story_person_mentions', 'story_comment_person_mentions'] as $table) {
+        foreach (['story_person_mentions', 'story_comment_person_mentions', 'person_biography_mentions',
+            'album_description_mentions', 'event_description_mentions', 'photo_comment_person_mentions'] as $table) {
             DB::table($table)->where('person_id', $absorbed->id)
                 ->update(['person_id' => $survivor->id, 'updated_at' => now()]);
         }

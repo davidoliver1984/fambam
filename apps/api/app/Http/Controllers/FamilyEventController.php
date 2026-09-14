@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Queries\FamilyEventQuery;
 use App\Services\EventAccess;
 use App\Services\FamilyEventManager;
+use App\Stories\RichTextPresenter;
 use App\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,7 @@ class FamilyEventController extends Controller
         private readonly FamilyEventManager $manager,
         private readonly EventAccess $access,
         private readonly TenantContext $tenantContext,
+        private readonly RichTextPresenter $presenter,
     ) {}
 
     public function index(FamilySpace $familySpace): JsonResponse
@@ -127,7 +129,10 @@ class FamilyEventController extends Controller
         $payload = [
             'id' => $event->id,
             'name' => $event->name,
-            'description' => $event->description,
+            'description' => $event->description_plain_text,
+            'description_document' => $event->description,
+            'description_html' => $this->presenter->html($event->description, $event, 'event_description_mentions',
+                'event_id', $this->familySlug(), $this->actor(), $event),
             'starts_on' => $event->starts_on?->format('Y-m-d'),
             'ends_on' => $event->ends_on?->format('Y-m-d'),
             'location' => $event->location,
@@ -163,5 +168,20 @@ class FamilyEventController extends Controller
             ])->values();
 
         return $payload;
+    }
+
+    private function familySlug(): string
+    {
+        $familySpace = request()->route('familySpace');
+
+        return $familySpace instanceof FamilySpace ? $familySpace->slug : (string) $familySpace;
+    }
+
+    private function actor(): User
+    {
+        $actor = request()->user();
+        abort_unless($actor instanceof User, 401);
+
+        return $actor;
     }
 }

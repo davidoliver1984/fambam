@@ -7,6 +7,8 @@ use App\Enums\FamilyActivityType;
 use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\User;
+use App\Stories\MentionAuthorizer;
+use App\Stories\RichTextFieldWriter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +21,8 @@ class FamilyEventManager
     public function __construct(
         private readonly AuditRecorder $audit,
         private readonly FamilyActivityRecorder $activities,
+        private readonly RichTextFieldWriter $richText,
+        private readonly MentionAuthorizer $mentionAuthorizer,
     ) {}
 
     /** @param array<string, mixed> $input */
@@ -31,6 +35,11 @@ class FamilyEventManager
                 'status' => EventStatus::tryFrom((string) ($input['status'] ?? '')) ?? EventStatus::Planned,
                 ...$this->attributes($input),
             ]);
+            if (array_key_exists('description', $input)) {
+                $description = $this->richText->synchronize($event, 'event_description_mentions', 'event_id',
+                    $input['description'], $this->mentionAuthorizer->for($actor, $event));
+                $event->update(['description' => $description]);
+            }
             $this->audit->record('event.created', $event, $actor, $request);
             $this->activities->record(
                 $event->family_space_id,
@@ -56,8 +65,15 @@ class FamilyEventManager
                 throw ValidationException::withMessages(['ends_on' => ['The end date must not precede the start date.']]);
             }
             $locked->update($attributes);
+            $changedFields = array_keys($locked->getChanges());
+            if (array_key_exists('description', $input)) {
+                $description = $this->richText->synchronize($locked, 'event_description_mentions', 'event_id',
+                    $input['description'], $this->mentionAuthorizer->for($actor, $locked));
+                $locked->update(['description' => $description]);
+                $changedFields = array_values(array_unique([...$changedFields, ...array_keys($locked->getChanges())]));
+            }
             $this->audit->record('event.updated', $locked, $actor, $request, [
-                'changed_fields' => array_keys($locked->getChanges()),
+                'changed_fields' => $changedFields,
             ]);
 
             return $locked->load('creator:id,name');
@@ -91,7 +107,7 @@ class FamilyEventManager
     private function attributes(array $input): array
     {
         $attributes = Arr::only($input, self::FIELDS);
-        foreach (['name', 'description', 'location'] as $field) {
+        foreach (['name', 'location'] as $field) {
             if (array_key_exists($field, $attributes)) {
                 $attributes[$field] = trim((string) ($attributes[$field] ?? '')) ?: null;
             }
