@@ -5,12 +5,14 @@ import { AlbumPhotoGrid } from "../components/AlbumPhotoGrid";
 import {
   useAlbumQuery,
   useAlbumUploadMutation,
+  useAlbumExportMutation,
 } from "../hooks/useAlbumQueries";
 
 export function AlbumPage() {
   const { familySlug = "", albumId = "" } = useParams();
   const album = useAlbumQuery(familySlug, albumId);
   const upload = useAlbumUploadMutation(familySlug);
+  const exportAlbum = useAlbumExportMutation(familySlug, albumId);
   const [file, setFile] = useState<File>();
 
   if (album.isPending) return <p role="status">Loading Event Album…</p>;
@@ -31,6 +33,26 @@ export function AlbumPage() {
           eventId={album.data.event?.id}
           photos={album.data.photos}
         />
+      )}
+      <button
+        type="button"
+        disabled={exportAlbum.isPending}
+        onClick={() => {
+          exportAlbum.mutate();
+        }}
+      >
+        Export Album Photos
+      </button>
+      {exportAlbum.isError && (
+        <p role="alert">The Album export could not be requested.</p>
+      )}
+      {exportAlbum.isSuccess && (
+        <p role="status">
+          Album export requested.{" "}
+          <Link to={`/families/${encodeURIComponent(familySlug)}/exports`}>
+            View export status
+          </Link>
+        </p>
       )}
       {album.data.permissions.can_contribute && (
         <form

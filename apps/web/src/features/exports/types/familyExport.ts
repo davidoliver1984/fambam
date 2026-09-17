@@ -3,7 +3,9 @@ export type FamilyExportState =
 
 export type FamilyExport = {
   id: string;
-  scope: "family_space_full" | "personal";
+  scope: "family_space_full" | "personal" | "collection" | "album";
+  collection_id?: string | null;
+  album_id?: string | null;
   state: FamilyExportState;
   photo_count: number | null;
   byte_size: number | null;

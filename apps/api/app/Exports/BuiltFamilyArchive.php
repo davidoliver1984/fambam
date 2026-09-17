@@ -8,5 +8,6 @@ final readonly class BuiltFamilyArchive
         public string $sha256,
         public int $byteSize,
         public int $photoCount,
+        public ?string $selectionChecksum = null,
     ) {}
 }

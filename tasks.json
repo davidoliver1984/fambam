@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P14",
-    "current_stage": "FPA-P14-S12",
+    "current_stage": "FPA-P14-S13",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-17"
   },
@@ -1104,16 +1104,18 @@
         {
           "id": "FPA-P14-S12",
           "title": "Reconcile export/download semantics onto active presentation versions",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P14-S11"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-17. Ordinary Photo download and Event, Album and Collection exports now use active presentation versions with canonical fallback. Full/Personal archive originals remain unchanged with additive version provenance. Collection exports use final-selection checksums, live authorization at build/download, durable deletion fencing and quiescence-gated scheduled storage reconciliation."
+          ]
         },
         {
           "id": "FPA-P14-S13",
           "title": "Implement the product shell and Family Space context",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P14-S12"
           ],

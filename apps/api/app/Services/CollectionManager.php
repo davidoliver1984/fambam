@@ -2,17 +2,23 @@
 
 namespace App\Services;
 
+use App\Enums\FamilyExportState;
+use App\Media\MediaObjectStorage;
 use App\Models\Collection;
 use App\Models\CollectionPhoto;
+use App\Models\FamilyExport;
 use App\Models\FamilySpace;
 use App\Models\Photo;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 final class CollectionManager
 {
+    public function __construct(private readonly MediaObjectStorage $storage) {}
+
     /** @param array{name:string,description?:string|null} $data */
     public function create(FamilySpace $family, User $owner, array $data): Collection
     {
@@ -31,8 +37,34 @@ final class CollectionManager
 
     public function delete(Collection $collection): void
     {
+        $exports = DB::transaction(function () use ($collection) {
+            $locked = Collection::query()->whereKey($collection->id)->lockForUpdate()->firstOrFail();
+            if ($locked->deleting_at === null) {
+                $locked->update(['deleting_at' => now()]);
+            }
+            $exports = FamilyExport::query()->where('collection_id', $locked->id)
+                ->lockForUpdate()->get();
+            foreach ($exports as $export) {
+                if ($export->cancelled_at === null) {
+                    $export->update(['cancelled_at' => now(), 'state' => FamilyExportState::Failed,
+                        'failure_reason' => 'collection_deleted']);
+                }
+            }
+
+            return $exports;
+        });
+
+        foreach ($exports as $export) {
+            try {
+                $this->storage->delete($export->object_key);
+            } catch (\Throwable $exception) {
+                Log::warning('Collection export prompt object cleanup failed; scheduled reconciliation will retry.',
+                    ['family_export_id' => $export->id]);
+            }
+        }
         DB::transaction(function () use ($collection): void {
             $locked = Collection::query()->whereKey($collection->id)->lockForUpdate()->firstOrFail();
+            FamilyExport::query()->where('collection_id', $locked->id)->update(['collection_id' => null]);
             $locked->delete();
         });
     }

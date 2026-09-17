@@ -8,6 +8,8 @@ use App\Media\MediaDeliveryAuthorization;
 use App\Media\MediaDeliveryUrlSigner;
 use App\Media\MediaObjectStorage;
 use App\Media\MediaSigningAudience;
+use App\Media\PhotoPresentationAsset;
+use App\Media\PhotoPresentationResolver;
 use App\Models\EventExport;
 use App\Models\FamilyEvent;
 use App\Models\Photo;
@@ -30,6 +32,7 @@ class EventExportManager
         private readonly MediaDeliveryUrlSigner $signer,
         private readonly AuditRecorder $audit,
         private readonly DatabaseTenantContext $databaseContext,
+        private readonly PhotoPresentationResolver $presentations,
     ) {}
 
     public function request(FamilyEvent $event, User $actor, Request $request): EventExport
@@ -116,24 +119,22 @@ class EventExportManager
             $manifestPhotos = [];
             $archiveTimestamp = $export->created_at?->getTimestamp() ?? now()->getTimestamp();
             foreach ($photos as $photo) {
-                $upload = $photo->mediaUpload;
-                if ($upload === null || $upload->original_object_key === null || $upload->original_sha256 === null) {
-                    throw new RuntimeException('An Event Photo has no preserved original.');
-                }
-                $extension = $this->extensionForMime((string) $upload->detected_mime_type);
-                $sourcePath = $directory."/{$photo->id}.{$extension}";
-                $this->storage->downloadTo($upload->original_object_key, $sourcePath);
+                $asset = $this->presentations->resolve($photo);
+                $sourcePath = $directory."/{$photo->id}.{$asset->extension}";
+                $this->storage->downloadTo($asset->objectKey, $sourcePath);
                 $sourcePaths[] = $sourcePath;
                 $checksum = hash_file('sha256', $sourcePath);
-                if ($checksum === false || ! hash_equals($upload->original_sha256, $checksum)) {
-                    throw new RuntimeException('A preserved original failed its Event export integrity check.');
+                $presentationByteSize = filesize($sourcePath);
+                if ($checksum === false || $presentationByteSize === false
+                    || ($asset->expectedSha256 !== null && ! hash_equals($asset->expectedSha256, $checksum))) {
+                    throw new RuntimeException('A Photo presentation failed its Event export integrity check.');
                 }
-                $entry = "originals/{$photo->id}.{$extension}";
+                $entry = "presentations/{$photo->id}.{$asset->extension}";
                 if (! $zip->addFile($sourcePath, $entry)) {
-                    throw new RuntimeException('A preserved original could not be added to the Event archive.');
+                    throw new RuntimeException('A Photo presentation could not be added to the Event archive.');
                 }
                 $zip->setMtimeName($entry, $archiveTimestamp);
-                $manifestPhotos[] = $this->photoManifest($photo, $entry, $event->id);
+                $manifestPhotos[] = $this->photoManifest($photo, $asset, $entry, $event->id, $checksum, $presentationByteSize);
             }
 
             $manifest = json_encode([
@@ -248,7 +249,7 @@ class EventExportManager
                 ->where(fn ($query) => $query->where('primary_event_id', $event->id)
                     ->orWhereHas('albums', fn ($album) => $album->where('albums.event_id', $event->id)))
                 ->with([
-                    'creator:id,name', 'mediaUpload.uploader:id,name', 'tags:id,label',
+                    'creator:id,name', 'mediaUpload.uploader:id,name', 'activeVersion', 'tags:id,label',
                     'albums:id,event_id',
                     'photographer:id,preferred_name', 'scanner:id,preferred_name',
                     'physicalOwner:id,preferred_name',
@@ -259,7 +260,7 @@ class EventExportManager
     }
 
     /** @return array<string, mixed> */
-    private function photoManifest(Photo $photo, string $entry, string $eventId): array
+    private function photoManifest(Photo $photo, PhotoPresentationAsset $asset, string $entry, string $eventId, string $checksum, int $byteSize): array
     {
         $upload = $photo->mediaUpload;
 
@@ -267,12 +268,14 @@ class EventExportManager
             'photo_id' => $photo->id,
             'media_upload_id' => $photo->media_upload_id,
             'archive_entry' => $entry,
+            'presentation_mime_type' => $asset->mimeType,
+            'presentation_photo_version_id' => $asset->photoVersionId,
             'original_filename' => $upload?->client_filename,
             'upload_method' => $upload?->upload_method,
             'upload_batch_id' => $upload?->upload_batch_id,
             'detected_mime_type' => $upload?->detected_mime_type,
-            'byte_size' => $upload?->byte_size,
-            'sha256' => $upload?->original_sha256,
+            'byte_size' => $byteSize,
+            'sha256' => $checksum,
             'uploader' => $upload?->uploader === null ? null : [
                 'id' => $upload->uploader->id, 'name' => $upload->uploader->name,
             ],
@@ -306,19 +309,6 @@ class EventExportManager
         }
 
         return $description === null ? null : ['description' => $description];
-    }
-
-    private function extensionForMime(string $mimeType): string
-    {
-        return match ($mimeType) {
-            'image/jpeg' => 'jpg',
-            'image/png' => 'png',
-            'image/heic' => 'heic',
-            'image/heif' => 'heif',
-            'image/webp' => 'webp',
-            'image/tiff' => 'tif',
-            default => throw new RuntimeException('An Event Photo has an unsupported detected format.'),
-        };
     }
 
     private function markReady(

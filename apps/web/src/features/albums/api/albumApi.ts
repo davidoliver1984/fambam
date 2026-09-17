@@ -8,6 +8,18 @@ function albumsPath(familySlug: string) {
   return `/api/families/${encodeURIComponent(familySlug)}/albums`;
 }
 
+export async function requestAlbumExport(
+  familySlug: string,
+  albumId: string,
+): Promise<{ id: string }> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.post<ApiEnvelope<{ id: string }>>(
+      `${albumsPath(familySlug)}/${encodeURIComponent(albumId)}/exports`,
+    ),
+  );
+}
+
 export async function getAlbums(familySlug: string, signal?: AbortSignal) {
   return unwrap(
     await apiClient.get<ApiEnvelope<Album[]>>(albumsPath(familySlug), {

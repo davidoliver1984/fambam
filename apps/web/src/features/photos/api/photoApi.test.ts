@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { server } from "@/test/msw/server";
 
 import {
+  authorizePhotoPresentationDownload,
   createPhoto,
   getPhoto,
   getPhotoMetadataProposals,
@@ -65,6 +66,23 @@ const input: CreatePhotoInput = {
 };
 
 describe("photoApi", () => {
+  it("requests an authorised active Photo presentation download", async () => {
+    const authorization = {
+      url: "https://storage.test/signed-presentation",
+      expires_at: "2026-09-17T12:00:00Z",
+      photo_version_id: "01K80000000000000000000000",
+    };
+    server.use(
+      http.get(
+        `${apiBaseUrl}/api/families/oliver-family/photos/${photo.id}/download`,
+        () => HttpResponse.json({ data: authorization }),
+      ),
+    );
+
+    await expect(
+      authorizePhotoPresentationDownload("oliver-family", photo.id),
+    ).resolves.toEqual(authorization);
+  });
   it("fetches typed promotable upload summaries from the Photo feature", async () => {
     const upload = {
       id: "01K50000000000000000000001",

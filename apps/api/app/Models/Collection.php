@@ -15,9 +15,10 @@ use Illuminate\Support\Carbon;
  * @property int $owner_user_id
  * @property string $name
  * @property string|null $description
+ * @property Carbon|null $deleting_at
  * @property Carbon|null $created_at
  */
-#[Fillable(['family_space_id', 'owner_user_id', 'name', 'description'])]
+#[Fillable(['family_space_id', 'owner_user_id', 'name', 'description', 'deleting_at'])]
 class Collection extends Model
 {
     use HasUlids;
@@ -42,5 +43,11 @@ class Collection extends Model
     public function collectionPhotos(): HasMany
     {
         return $this->hasMany(CollectionPhoto::class)->orderBy('position');
+    }
+
+    /** @return array<string, string> */
+    protected function casts(): array
+    {
+        return ['deleting_at' => 'immutable_datetime'];
     }
 }

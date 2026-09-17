@@ -24,6 +24,7 @@ use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\MediaUpload;
 use App\Models\Photo;
+use App\Models\PhotoVersion;
 use App\Models\User;
 use App\Notifications\EventPhotoContributed;
 use App\Services\AlbumContributionFinalizer;
@@ -190,7 +191,7 @@ class EventNotificationAndExportTest extends TestCase
         Queue::assertPushed(ProcessNotificationCandidate::class, 1);
     }
 
-    public function test_archive_is_manager_only_and_contains_distinct_originals_and_manifest_metadata(): void
+    public function test_archive_is_manager_only_and_contains_active_presentations_and_manifest_metadata(): void
     {
         Queue::fake();
         $family = FamilySpace::factory()->create(['slug' => 'event-export']);
@@ -215,10 +216,14 @@ class EventNotificationAndExportTest extends TestCase
             'original_object_key' => "families/{$family->id}/media/source/original.jpg",
             'original_sha256' => hash('sha256', $bytes),
             'detected_mime_type' => 'image/jpeg',
+            'canonical_object_key' => "families/{$family->id}/media/canonical/display.jpg",
+            'canonical_mime_type' => 'image/jpeg',
+            'canonical_sha256' => hash('sha256', 'canonical-pixels'),
             'byte_size' => strlen($bytes),
             'client_filename' => 'grandparents-original.jpg',
         ]);
         $this->storage->objects[$upload->original_object_key] = $bytes;
+        $this->storage->objects[$upload->canonical_object_key] = 'canonical-pixels';
         $photo = Photo::factory()->create([
             'family_space_id' => $family->id,
             'media_upload_id' => $upload->id,
@@ -227,6 +232,14 @@ class EventNotificationAndExportTest extends TestCase
             'caption' => 'The family together',
             'archive_source_description' => 'Scanned from the blue album',
         ]);
+        $version = PhotoVersion::query()->create([
+            'family_space_id' => $family->id, 'photo_id' => $photo->id,
+            'edit_recipe' => ['schema_version' => 1],
+            'derived_object_key' => "families/{$family->id}/photos/{$photo->id}/versions/one.webp",
+            'created_by' => $owner->id,
+        ]);
+        $this->storage->objects[$version->derived_object_key] = 'edited-pixels';
+        $photo->update(['active_photo_version_id' => $version->id]);
         $album->photos()->attach($photo->id, [
             'id' => (string) Str::ulid(), 'family_space_id' => $family->id,
             'position' => 1, 'added_by' => $owner->id,
@@ -256,11 +269,13 @@ class EventNotificationAndExportTest extends TestCase
         $zip = new ZipArchive;
         $this->assertTrue($zip->open($zipPath) === true);
         $manifest = json_decode((string) $zip->getFromName('manifest.json'), true, flags: JSON_THROW_ON_ERROR);
-        $this->assertSame($bytes, $zip->getFromName("originals/{$photo->id}.jpg"));
+        $this->assertSame('edited-pixels', $zip->getFromName("presentations/{$photo->id}.webp"));
+        $this->assertFalse($zip->locateName("originals/{$photo->id}.jpg"));
         $this->assertSame(1, $manifest['schema_version']);
         $this->assertSame($event->id, $manifest['event']['id']);
         $this->assertCount(1, $manifest['photos']);
-        $this->assertSame(hash('sha256', $bytes), $manifest['photos'][0]['sha256']);
+        $this->assertSame(hash('sha256', 'edited-pixels'), $manifest['photos'][0]['sha256']);
+        $this->assertSame($version->id, $manifest['photos'][0]['presentation_photo_version_id']);
         $this->assertSame($member->id, $manifest['photos'][0]['uploader']['id']);
         $this->assertSame('single', $manifest['photos'][0]['upload_method']);
         $this->assertSame('Scanned from the blue album', $manifest['photos'][0]['provenance']['archive_source_description']);
@@ -277,7 +292,7 @@ class EventNotificationAndExportTest extends TestCase
         $this->assertContains($export->object_key, $this->storage->deleted);
     }
 
-    public function test_archive_generation_fails_closed_on_original_checksum_mismatch(): void
+    public function test_archive_generation_fails_closed_on_canonical_presentation_checksum_mismatch(): void
     {
         $family = FamilySpace::factory()->create();
         [$owner] = $this->membership($family, FamilySpaceRole::Owner, 'Owner');
@@ -289,8 +304,11 @@ class EventNotificationAndExportTest extends TestCase
             'original_object_key' => "families/{$family->id}/media/source/original.png",
             'original_sha256' => hash('sha256', 'expected'),
             'detected_mime_type' => 'image/png',
+            'canonical_object_key' => "families/{$family->id}/media/canonical/display.png",
+            'canonical_mime_type' => 'image/png',
+            'canonical_sha256' => hash('sha256', 'expected-presentation'),
         ]);
-        $this->storage->objects[$upload->original_object_key] = 'tampered';
+        $this->storage->objects[$upload->canonical_object_key] = 'tampered';
         Photo::factory()->create([
             'family_space_id' => $family->id, 'media_upload_id' => $upload->id,
             'created_by' => $owner->id, 'primary_event_id' => $event->id,

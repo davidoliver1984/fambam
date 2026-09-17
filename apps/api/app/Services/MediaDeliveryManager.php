@@ -6,6 +6,7 @@ use App\Enums\MediaUploadState;
 use App\Media\MediaDeliveryAuthorization;
 use App\Media\MediaDeliveryUrlSigner;
 use App\Media\MediaSigningAudience;
+use App\Media\PhotoPresentationResolver;
 use App\Models\MediaUpload;
 use App\Models\MediaVariant;
 use App\Models\Photo;
@@ -20,6 +21,7 @@ class MediaDeliveryManager
     public function __construct(
         private readonly MediaDeliveryUrlSigner $signer,
         private readonly AuditRecorder $audit,
+        private readonly PhotoPresentationResolver $presentations,
     ) {}
 
     public function canonical(MediaUpload $upload): MediaDeliveryAuthorization
@@ -82,6 +84,13 @@ class MediaDeliveryManager
         }
 
         return $this->authorize($version->derived_object_key, 'image/webp');
+    }
+
+    public function photoPresentation(Photo $photo): MediaDeliveryAuthorization
+    {
+        $asset = $this->presentations->resolve($photo);
+
+        return $this->authorize($asset->objectKey, $asset->mimeType);
     }
 
     public function photoEditPreview(Photo $photo, PhotoEditPreview $preview): MediaDeliveryAuthorization

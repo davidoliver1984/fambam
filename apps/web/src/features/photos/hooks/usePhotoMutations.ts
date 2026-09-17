@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { memoryKeys } from "@/features/memories/api/memoryKeys";
 
 import {
+  authorizePhotoPresentationDownload,
   createPhoto,
   deletePhoto,
   replacePhotoTags,
@@ -42,6 +43,15 @@ export function useCreatePhotoMutation(familySlug: string) {
         queryKey: photoKeys.promotableUploads(familySlug),
       });
     },
+  });
+}
+
+export function usePhotoPresentationDownloadMutation(
+  familySlug: string,
+  photoId: string,
+) {
+  return useMutation({
+    mutationFn: () => authorizePhotoPresentationDownload(familySlug, photoId),
   });
 }
 

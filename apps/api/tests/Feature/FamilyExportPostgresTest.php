@@ -10,6 +10,7 @@ use App\Services\FamilyExportManager;
 use App\Tenancy\TenantOperationContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -40,6 +41,89 @@ class FamilyExportPostgresTest extends TestCase
             DB::purge('pgsql_admin');
         }
         parent::tearDown();
+    }
+
+    public function test_collection_export_reference_is_tenant_consistent_and_cancelled_exports_remain_due(): void
+    {
+        $ownerId = (int) $this->admin->table('users')->insertGetId([
+            'name' => 'Collection Owner', 'email' => 'collection-owner@example.test',
+            'password' => 'not-used', 'timezone' => 'Europe/London',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $firstFamily = (string) Str::ulid();
+        $otherFamily = (string) Str::ulid();
+        foreach ([$firstFamily, $otherFamily] as $id) {
+            $this->admin->transaction(function () use ($id, $ownerId): void {
+                $this->admin->table('family_spaces')->insert([
+                    'id' => $id, 'slug' => strtolower($id), 'name' => 'Export tenant',
+                    'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+                ]);
+                $this->admin->table('family_space_memberships')->insert([
+                    'id' => (string) Str::ulid(), 'family_space_id' => $id,
+                    'user_id' => $ownerId, 'role' => 'owner', 'state' => 'active',
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
+            });
+        }
+        $collectionId = (string) Str::ulid();
+        $this->admin->table('collections')->insert([
+            'id' => $collectionId, 'family_space_id' => $firstFamily,
+            'owner_user_id' => $ownerId, 'name' => 'Selected Photos',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        try {
+            $this->admin->table('family_exports')->insert([
+                'id' => (string) Str::ulid(), 'family_space_id' => $otherFamily,
+                'requested_by' => $ownerId, 'scope' => 'collection',
+                'collection_id' => $collectionId, 'state' => 'pending',
+                'object_key' => "families/{$otherFamily}/family-exports/cross-tenant.zip",
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $this->fail('A Collection from another Family Space must not be referenced.');
+        } catch (QueryException $exception) {
+            $this->assertSame('23503', $exception->getCode());
+        }
+
+        $albumId = (string) Str::ulid();
+        $this->admin->table('albums')->insert([
+            'id' => $albumId, 'family_space_id' => $firstFamily,
+            'created_by' => $ownerId, 'name' => 'Export Album',
+            'visibility' => 'family_space', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        try {
+            $this->admin->table('family_exports')->insert([
+                'id' => (string) Str::ulid(), 'family_space_id' => $otherFamily,
+                'requested_by' => $ownerId, 'scope' => 'album',
+                'album_id' => $albumId, 'state' => 'pending',
+                'object_key' => "families/{$otherFamily}/family-exports/cross-album.zip",
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $this->fail('An Album from another Family Space must not be referenced.');
+        } catch (QueryException $exception) {
+            $this->assertSame('23503', $exception->getCode());
+        }
+
+        $exportId = (string) Str::ulid();
+        $this->admin->table('family_exports')->insert([
+            'id' => $exportId, 'family_space_id' => $firstFamily,
+            'requested_by' => $ownerId, 'scope' => 'collection',
+            'collection_id' => $collectionId, 'state' => 'failed',
+            'object_key' => "families/{$firstFamily}/family-exports/{$exportId}.zip",
+            'cancelled_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $due = $this->admin->select('SELECT family_export_id FROM app_due_family_exports()');
+        $this->assertContains($exportId, array_map(
+            fn (object $row): string => trim((string) $row->family_export_id), $due,
+        ));
+
+        $this->admin->table('family_exports')->where('id', $exportId)
+            ->update(['collection_id' => null]);
+        $this->admin->table('collections')->where('id', $collectionId)->delete();
+        $afterDeletion = $this->admin->select('SELECT family_export_id FROM app_due_family_exports()');
+        $this->assertContains($exportId, array_map(
+            fn (object $row): string => trim((string) $row->family_export_id), $afterDeletion,
+        ));
     }
 
     public function test_runtime_role_builds_and_persists_a_tenant_scoped_family_archive(): void

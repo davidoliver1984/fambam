@@ -30,6 +30,7 @@ use App\Http\Controllers\PersonController;
 use App\Http\Controllers\PersonMergeController;
 use App\Http\Controllers\PhotoController;
 use App\Http\Controllers\PhotoConversationController;
+use App\Http\Controllers\PhotoDownloadController;
 use App\Http\Controllers\PhotoEditorController;
 use App\Http\Controllers\RelationshipController;
 use App\Http\Controllers\SavedSearchController;
@@ -136,6 +137,7 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::get('/photos/promotable-uploads', [PhotoController::class, 'promotableUploads']);
         Route::post('/photos', [PhotoController::class, 'store']);
         Route::get('/photos/{photo}', [PhotoController::class, 'show']);
+        Route::get('/photos/{photo}/download', [PhotoDownloadController::class, 'show']);
         Route::get('/photos/{photo}/versions', [PhotoEditorController::class, 'index']);
         Route::post('/photos/{photo}/edit-previews', [PhotoEditorController::class, 'preview']);
         Route::post('/photos/{photo}/restore-previews', [PhotoEditorController::class, 'restorePreview']);
@@ -174,6 +176,7 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::get('/albums', [AlbumController::class, 'index']);
         Route::post('/albums', [AlbumController::class, 'store']);
         Route::get('/albums/{album}', [AlbumController::class, 'show']);
+        Route::post('/albums/{album}/exports', [FamilyExportController::class, 'storeAlbum']);
         Route::patch('/albums/{album}', [AlbumController::class, 'update']);
         Route::put('/albums/{album}/grants', [AlbumController::class, 'grant']);
         Route::delete('/albums/{album}/grants/{membership}', [AlbumController::class, 'revokeGrant']);
@@ -193,6 +196,7 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::delete('/collections/{collection}/photos/{photo}', [CollectionController::class, 'removePhoto']);
         Route::put('/collections/{collection}/order', [CollectionController::class, 'reorder']);
         Route::post('/collections/{collection}/populate', [CollectionController::class, 'populate']);
+        Route::post('/collections/{collection}/exports', [FamilyExportController::class, 'storeCollection']);
         Route::get('/events', [FamilyEventController::class, 'index']);
         Route::post('/events', [FamilyEventController::class, 'store']);
         Route::get('/events/deleted', [FamilyEventController::class, 'deleted']);

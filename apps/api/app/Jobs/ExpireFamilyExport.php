@@ -29,6 +29,6 @@ class ExpireFamilyExport implements ShouldBeUnique, ShouldQueue
 
     public function handle(FamilyExportManager $exports): void
     {
-        $exports->expire(TenantOperationContext::fromArray($this->context), $this->familyExportId);
+        $exports->cleanupDue(TenantOperationContext::fromArray($this->context), $this->familyExportId);
     }
 }

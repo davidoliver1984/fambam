@@ -7,6 +7,7 @@ import {
   getAlbum,
   removePhotoFromAlbum,
   uploadPhotoToAlbum,
+  requestAlbumExport,
 } from "../api/albumApi";
 import { albumKeys } from "../api/albumKeys";
 import type { CreateAlbumInput } from "../types/album";
@@ -36,6 +37,12 @@ export function useAlbumUploadMutation(familySlug: string) {
       uploadPhotoToAlbum(familySlug, input.albumId, input.file),
     onSuccess: () =>
       client.invalidateQueries({ queryKey: albumKeys.all(familySlug) }),
+  });
+}
+
+export function useAlbumExportMutation(familySlug: string, albumId: string) {
+  return useMutation({
+    mutationFn: () => requestAlbumExport(familySlug, albumId),
   });
 }
 

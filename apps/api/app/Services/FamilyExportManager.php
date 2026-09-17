@@ -7,6 +7,7 @@ use App\Enums\FamilyExportState;
 use App\Enums\FamilySpaceRole;
 use App\Enums\NotificationCategory;
 use App\Enums\NotificationOutcome;
+use App\Exports\CollectionSelectionChecksum;
 use App\Exports\FamilyArchiveBuilder;
 use App\Exports\FamilyExportSelection;
 use App\Jobs\GenerateFamilyExport;
@@ -15,6 +16,8 @@ use App\Media\MediaDeliveryAuthorization;
 use App\Media\MediaDeliveryUrlSigner;
 use App\Media\MediaObjectStorage;
 use App\Media\MediaSigningAudience;
+use App\Models\Album;
+use App\Models\Collection as PhotoCollection;
 use App\Models\FamilyExport;
 use App\Models\FamilyNotification;
 use App\Models\FamilySpace;
@@ -32,6 +35,7 @@ use Illuminate\Contracts\Notifications\Dispatcher;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -39,6 +43,7 @@ class FamilyExportManager
 {
     public function __construct(
         private readonly FamilyExportSelectionService $selections,
+        private readonly CollectionSelectionChecksum $selectionChecksums,
         private readonly FamilyArchiveBuilder $archives,
         private readonly MediaDeliveryUrlSigner $signer,
         private readonly MediaObjectStorage $storage,
@@ -48,15 +53,27 @@ class FamilyExportManager
         private readonly Dispatcher $notifications,
     ) {}
 
-    public function request(FamilySpace $familySpace, User $actor, FamilyExportScope $scope, Request $request): FamilyExport
+    public function request(FamilySpace $familySpace, User $actor, FamilyExportScope $scope, Request $request, ?PhotoCollection $collection = null, ?Album $album = null): FamilyExport
     {
         $context = TenantOperationContext::fromRequest($familySpace, $actor, $request);
-        $export = DB::transaction(function () use ($familySpace, $actor, $scope, $request, $context): FamilyExport {
+        $export = DB::transaction(function () use ($familySpace, $actor, $scope, $request, $context, $collection, $album): FamilyExport {
+            if ($scope === FamilyExportScope::Collection) {
+                $collection = PhotoCollection::query()->where('family_space_id', $familySpace->id)
+                    ->where('owner_user_id', $actor->id)->whereNull('deleting_at')
+                    ->lockForUpdate()->findOrFail($collection?->id);
+            }
+            if ($scope === FamilyExportScope::Album) {
+                $album = Album::query()->where('family_space_id', $familySpace->id)
+                    ->lockForUpdate()->findOrFail($album?->id);
+                Gate::forUser($actor)->authorize('view', $album);
+            }
             $export = new FamilyExport([
                 'family_space_id' => $familySpace->id,
                 'requested_by' => $actor->id,
                 'scope' => $scope,
                 'state' => FamilyExportState::Pending,
+                'collection_id' => $collection?->id,
+                'album_id' => $album?->id,
             ]);
             $export->id = (string) Str::ulid();
             $export->object_key = FamilyStorageKey::for($familySpace, "family-exports/{$export->id}.zip");
@@ -93,7 +110,7 @@ class FamilyExportManager
         try {
             return DB::transaction(function () use ($context, $exportId): ?FamilyExportSelection {
                 [$export, $requester] = $this->establish($context, $exportId, true);
-                if ($export === null || $requester === null || ! in_array($export->state, [
+                if ($export === null || $requester === null || $export->cancelled_at !== null || ! in_array($export->state, [
                     FamilyExportState::Pending,
                     FamilyExportState::Processing,
                     FamilyExportState::Failed,
@@ -105,7 +122,8 @@ class FamilyExportManager
                     throw new AuthorizationException('Only the current Family Space Owner may generate a full export.');
                 }
 
-                $export->update(['state' => FamilyExportState::Processing, 'failure_reason' => null]);
+                $export->update(['state' => FamilyExportState::Processing, 'failure_reason' => null,
+                    'generation_started_at' => now(), 'generation_finished_at' => null]);
 
                 return $this->selections->resolve($export, $requester);
             });
@@ -129,7 +147,19 @@ class FamilyExportManager
         }
 
         $archive = $this->archives->buildAndStore($context, $export, $requester, $selection);
-        $this->markReady($context, $exportId, $archive->sha256, $archive->byteSize, $archive->photoCount);
+        $cancelled = DB::transaction(function () use ($context, $exportId): bool {
+            [$current] = $this->establish($context, $exportId, true);
+
+            return $current === null || $current->cancelled_at !== null;
+        });
+        if ($cancelled) {
+            $this->storage->delete($export->object_key);
+            $this->finishCancelledGeneration($context, $exportId);
+
+            return;
+        }
+        $this->markReady($context, $exportId, $archive->sha256, $archive->byteSize,
+            $archive->photoCount, $archive->selectionChecksum);
     }
 
     public function authorizeDownload(FamilyExport $export, User $actor, Request $request): MediaDeliveryAuthorization
@@ -144,6 +174,15 @@ class FamilyExportManager
         if ($export->state !== FamilyExportState::Ready
             || $export->expires_at === null || ! $export->expires_at->isFuture()) {
             throw ValidationException::withMessages(['export' => ['This family archive is not available.']]);
+        }
+        if (in_array($export->scope, [FamilyExportScope::Collection, FamilyExportScope::Album], true)) {
+            $current = $export->scope === FamilyExportScope::Album
+                ? $this->selections->authorizedAlbumPhotoIds($export, $actor)
+                : $this->selections->authorizedCollectionPhotoIds($export, $actor);
+            if ($export->selection_checksum === null
+                || ! hash_equals($export->selection_checksum, $this->selectionChecksums->forPhotoIds($current))) {
+                throw ValidationException::withMessages(['export' => ['This family archive is not available.']]);
+            }
         }
 
         $authorization = $this->signer->authorizeRead(
@@ -160,12 +199,14 @@ class FamilyExportManager
         return $authorization;
     }
 
-    public function markReady(TenantOperationContext $context, string $exportId, string $sha256, int $byteSize, int $photoCount): void
+    public function markReady(TenantOperationContext $context, string $exportId, string $sha256, int $byteSize, int $photoCount, ?string $selectionChecksum = null): void
     {
         $this->transitionTerminal($context, $exportId, FamilyExportState::Ready, [
             'archive_sha256' => $sha256,
             'byte_size' => $byteSize,
             'photo_count' => $photoCount,
+            'selection_checksum' => $selectionChecksum,
+            'generation_finished_at' => now(),
             'failure_reason' => null,
             'expires_at' => now()->addHours((int) config('family-exports.lifetime_hours')),
         ]);
@@ -175,6 +216,7 @@ class FamilyExportManager
     {
         $this->transitionTerminal($context, $exportId, FamilyExportState::Failed, [
             'failure_reason' => 'generation_failed',
+            'generation_finished_at' => now(),
         ]);
     }
 
@@ -204,6 +246,69 @@ class FamilyExportManager
         } finally {
             $this->tenantContext->clear();
         }
+    }
+
+    public function cleanupDue(TenantOperationContext $context, string $exportId): void
+    {
+        $cancelled = DB::transaction(function () use ($context, $exportId): bool {
+            [$export] = $this->establish($context, $exportId);
+
+            return $export !== null && $export->cancelled_at !== null;
+        });
+        if ($cancelled) {
+            $this->reconcileCancelled($context, $exportId);
+
+            return;
+        }
+        $this->expire($context, $exportId);
+    }
+
+    public function reconcileCancelled(TenantOperationContext $context, string $exportId): void
+    {
+        try {
+            $export = DB::transaction(function () use ($context, $exportId): ?FamilyExport {
+                [$candidate] = $this->establish($context, $exportId);
+
+                return $candidate?->cancelled_at !== null && $candidate->storage_reconciled_at === null
+                    ? $candidate : null;
+            });
+            if ($export === null) {
+                return;
+            }
+            $quiescent = $this->generationQuiescent($export);
+            $this->storage->delete($export->object_key);
+            if (! $quiescent) {
+                return;
+            }
+            DB::transaction(function () use ($context, $exportId): void {
+                [$locked] = $this->establish($context, $exportId, true);
+                if ($locked !== null && $locked->cancelled_at !== null
+                    && $locked->storage_reconciled_at === null
+                    && $this->generationQuiescent($locked)) {
+                    $locked->update(['storage_reconciled_at' => now()]);
+                }
+            });
+        } finally {
+            $this->tenantContext->clear();
+        }
+    }
+
+    private function finishCancelledGeneration(TenantOperationContext $context, string $exportId): void
+    {
+        DB::transaction(function () use ($context, $exportId): void {
+            [$export] = $this->establish($context, $exportId, true);
+            if ($export !== null && $export->cancelled_at !== null) {
+                $export->update(['generation_finished_at' => now()]);
+            }
+        });
+        $this->tenantContext->clear();
+    }
+
+    private function generationQuiescent(FamilyExport $export): bool
+    {
+        return $export->generation_started_at === null
+            || $export->generation_finished_at !== null
+            || $export->generation_started_at->lte(now()->subSeconds(960));
     }
 
     public function deliverTerminalNotification(
@@ -293,6 +398,16 @@ class FamilyExportManager
             DB::transaction(function () use ($context, $exportId, $state, $values): void {
                 [$export, $requester] = $this->establish($context, $exportId, true);
                 if ($export === null || $requester === null || $export->state === $state) {
+                    if ($export !== null && $export->cancelled_at !== null
+                        && $export->generation_finished_at === null) {
+                        $export->update(['generation_finished_at' => now()]);
+                    }
+
+                    return;
+                }
+                if ($export->cancelled_at !== null) {
+                    $export->update(['generation_finished_at' => now()]);
+
                     return;
                 }
                 $mayTransition = $state === FamilyExportState::Ready

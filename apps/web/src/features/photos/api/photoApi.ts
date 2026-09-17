@@ -27,6 +27,23 @@ function photoPath(familySlug: string, photoId: string): string {
   return `${photosPath(familySlug)}/${encodeURIComponent(photoId)}`;
 }
 
+export type PhotoPresentationDownload = {
+  url: string;
+  expires_at: string;
+  photo_version_id: string | null;
+};
+
+export async function authorizePhotoPresentationDownload(
+  familySlug: string,
+  photoId: string,
+): Promise<PhotoPresentationDownload> {
+  return unwrap(
+    await apiClient.get<ApiEnvelope<PhotoPresentationDownload>>(
+      `${photoPath(familySlug, photoId)}/download`,
+    ),
+  );
+}
+
 export async function getPhotos(
   familySlug: string,
   filters: PhotoFilters = {},

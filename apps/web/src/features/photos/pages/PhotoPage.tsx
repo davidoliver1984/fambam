@@ -23,6 +23,7 @@ import {
   useSubmitPhotoPersonMutation,
   useSubmitPhotoProvenanceMutation,
   useUpdatePhotoMutation,
+  usePhotoPresentationDownloadMutation,
 } from "../hooks/usePhotoMutations";
 import { usePhotoQuery, usePhotosQuery } from "../hooks/usePhotoQueries";
 
@@ -36,6 +37,10 @@ export function PhotoPage() {
   const flagDuplicate = useFlagPhotoDuplicateMutation(familySlug, photoId);
   const navigate = useNavigate();
   const deletePhoto = useDeletePhotoMutation(familySlug, photoId);
+  const presentationDownload = usePhotoPresentationDownloadMutation(
+    familySlug,
+    photoId,
+  );
   const peopleQuery = usePeopleQuery(
     familySlug,
     photoQuery.data?.permissions.can_propose_provenance === true,
@@ -81,6 +86,22 @@ export function PhotoPage() {
           className="photo-display-image"
         />
       </figure>
+      <button
+        type="button"
+        disabled={presentationDownload.isPending}
+        onClick={() => {
+          presentationDownload.mutate(undefined, {
+            onSuccess: ({ url }) => {
+              window.location.assign(url);
+            },
+          });
+        }}
+      >
+        Download Photo
+      </button>
+      {presentationDownload.isError && (
+        <p role="alert">The Photo download could not be authorised.</p>
+      )}
       <dl className="photo-details">
         <div>
           <dt>Uploaded by</dt>

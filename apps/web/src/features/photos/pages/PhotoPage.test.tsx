@@ -11,6 +11,7 @@ import { getPhotoVersions } from "../api/photoEditorApi";
 import type { Person } from "@/features/people/types/person";
 
 import {
+  authorizePhotoPresentationDownload,
   getPhoto,
   submitPhotoMetadata,
   submitPhotoPerson,
@@ -24,6 +25,7 @@ import type {
 import { PhotoPage } from "./PhotoPage";
 
 vi.mock("../api/photoApi", () => ({
+  authorizePhotoPresentationDownload: vi.fn(),
   deletePhoto: vi.fn(),
   getPhoto: vi.fn(),
   getPhotoProvenanceProposals: vi.fn(),
@@ -166,6 +168,11 @@ function renderPage() {
 }
 
 beforeEach(() => {
+  vi.mocked(authorizePhotoPresentationDownload).mockResolvedValue({
+    url: "https://storage.test/signed-presentation",
+    expires_at: "2026-09-17T12:00:00Z",
+    photo_version_id: null,
+  });
   vi.mocked(getPhoto).mockResolvedValue(photo);
   vi.mocked(getPhotoVersions).mockResolvedValue({
     active_photo_version_id: null,
@@ -197,6 +204,27 @@ afterEach(() => {
 });
 
 describe("PhotoPage", () => {
+  it("requests Photo download authorization and shows a safe failure", async () => {
+    const user = userEvent.setup();
+    vi.mocked(authorizePhotoPresentationDownload).mockRejectedValueOnce(
+      new Error("delivery unavailable"),
+    );
+    renderPage();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Download Photo" }),
+    );
+    await waitFor(() => {
+      expect(authorizePhotoPresentationDownload).toHaveBeenCalledWith(
+        "oliver-family",
+        photo.id,
+      );
+    });
+    expect(
+      await screen.findByText("The Photo download could not be authorised."),
+    ).toHaveAttribute("role", "alert");
+  });
+
   it("renders the display presentation variant above the Photo metadata", async () => {
     renderPage();
 

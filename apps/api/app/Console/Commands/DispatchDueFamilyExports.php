@@ -11,7 +11,7 @@ class DispatchDueFamilyExports extends Command
 {
     protected $signature = 'fambam:dispatch-due-family-exports';
 
-    protected $description = 'Dispatch idempotent cleanup for expired family archives';
+    protected $description = 'Dispatch idempotent cleanup for expired and cancelled family archives';
 
     public function handle(): int
     {

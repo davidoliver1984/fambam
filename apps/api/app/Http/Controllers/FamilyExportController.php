@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Enums\FamilyExportScope;
+use App\Models\Collection;
 use App\Models\FamilyExport;
 use App\Models\FamilySpace;
 use App\Models\User;
+use App\Queries\AlbumQuery;
 use App\Services\FamilyExportManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,7 +15,7 @@ use Illuminate\Support\Facades\Gate;
 
 class FamilyExportController extends Controller
 {
-    public function __construct(private readonly FamilyExportManager $exports) {}
+    public function __construct(private readonly FamilyExportManager $exports, private readonly AlbumQuery $albums) {}
 
     public function index(FamilySpace $familySpace, Request $request): JsonResponse
     {
@@ -57,6 +59,30 @@ class FamilyExportController extends Controller
         )], 202);
     }
 
+    public function storeCollection(FamilySpace $familySpace, string $collection, Request $request): JsonResponse
+    {
+        Gate::authorize('requestPersonalExport', $familySpace);
+        $owned = Collection::query()->where('family_space_id', $familySpace->id)
+            ->where('owner_user_id', $request->user()->id)->whereNull('deleting_at')->findOrFail($collection);
+        Gate::authorize('view', $owned);
+
+        return response()->json(['data' => $this->payload(
+            $this->exports->request($familySpace, $request->user(), FamilyExportScope::Collection, $request, $owned),
+        )], 202);
+    }
+
+    public function storeAlbum(FamilySpace $familySpace, string $album, Request $request): JsonResponse
+    {
+        Gate::authorize('requestPersonalExport', $familySpace);
+        $visible = $this->albums->findVisibleTo($request->user(), $album);
+        Gate::authorize('view', $visible);
+
+        return response()->json(['data' => $this->payload(
+            $this->exports->request($familySpace, $request->user(), FamilyExportScope::Album, $request,
+                album: $visible),
+        )], 202);
+    }
+
     public function download(FamilySpace $familySpace, string $familyExport, Request $request): JsonResponse
     {
         Gate::authorize('requestPersonalExport', $familySpace);
@@ -79,6 +105,8 @@ class FamilyExportController extends Controller
         return [
             'id' => $export->id,
             'scope' => $export->scope->value,
+            'collection_id' => $export->collection_id,
+            'album_id' => $export->album_id,
             'state' => $export->state->value,
             'requested_by' => $export->requested_by,
             'requester' => ['id' => $export->requester->id, 'name' => $export->requester->name],

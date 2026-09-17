@@ -7,6 +7,8 @@ use App\Enums\MediaUploadState;
 use App\Enums\PersonProposalStatus;
 use App\Exports\FamilyExportSelection;
 use App\Models\Album;
+use App\Models\Collection;
+use App\Models\CollectionPhoto;
 use App\Models\FamilyEvent;
 use App\Models\FamilyExport;
 use App\Models\MediaUpload;
@@ -37,9 +39,61 @@ class FamilyExportSelectionService
 
     public function resolve(FamilyExport $export, User $requester): FamilyExportSelection
     {
-        return $export->scope === FamilyExportScope::FamilySpaceFull
-            ? $this->full($export)
-            : $this->personal($export, $requester);
+        return match ($export->scope) {
+            FamilyExportScope::FamilySpaceFull => $this->full($export),
+            FamilyExportScope::Personal => $this->personal($export, $requester),
+            FamilyExportScope::Collection => $this->collection($export, $requester),
+            FamilyExportScope::Album => $this->album($export, $requester),
+        };
+    }
+
+    /** @return list<string> */
+    public function authorizedCollectionPhotoIds(FamilyExport $export, User $requester): array
+    {
+        $collection = Collection::query()->where('family_space_id', $export->family_space_id)
+            ->where('owner_user_id', $requester->id)->findOrFail($export->collection_id);
+        $members = CollectionPhoto::query()->where('collection_id', $collection->id)->pluck('photo_id')->all();
+
+        return $this->ids($this->photos->visibleTo($requester)->whereIn('photos.id', $members));
+    }
+
+    /** @return list<string> */
+    public function authorizedAlbumPhotoIds(FamilyExport $export, User $requester): array
+    {
+        $album = $this->albums->findVisibleTo($requester, (string) $export->album_id);
+
+        return $this->ids($this->photos->visibleTo($requester)
+            ->whereHas('albums', fn (Builder $query) => $query->where('albums.id', $album->id)));
+    }
+
+    private function album(FamilyExport $export, User $requester): FamilyExportSelection
+    {
+        return $this->curated($this->authorizedAlbumPhotoIds($export, $requester));
+    }
+
+    private function collection(FamilyExport $export, User $requester): FamilyExportSelection
+    {
+        $ids = $this->authorizedCollectionPhotoIds($export, $requester);
+
+        return $this->curated($ids);
+    }
+
+    /** @param list<string> $ids */
+    private function curated(array $ids): FamilyExportSelection
+    {
+        return new FamilyExportSelection(
+            photoIds: $ids,
+            contextPhotoIds: [],
+            albumIds: [],
+            eventIds: [],
+            storyIds: [],
+            commentIds: [],
+            reactionIds: [],
+            personIds: [],
+            savedSearchIds: [],
+            originalPhotoIds: [],
+            unattachedMediaUploadIds: [],
+        );
     }
 
     private function full(FamilyExport $export): FamilyExportSelection

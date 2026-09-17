@@ -2,16 +2,18 @@ import "@testing-library/jest-dom/vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 
 import { getMediaVariantDelivery } from "@/features/media-uploads/api/mediaUploadApi";
 import { getPhotoVersions } from "@/features/photos/api/photoEditorApi";
 
-import { getAlbum } from "../api/albumApi";
+import { getAlbum, requestAlbumExport } from "../api/albumApi";
 import { AlbumPage } from "./AlbumPage";
 
 vi.mock("../api/albumApi", () => ({
   getAlbum: vi.fn(),
+  requestAlbumExport: vi.fn(),
   uploadPhotoToAlbum: vi.fn(),
 }));
 vi.mock("@/features/media-uploads/api/mediaUploadApi", () => ({
@@ -29,6 +31,7 @@ afterEach(() => {
 
 describe("AlbumPage", () => {
   it("renders ordered thumbnail cards that navigate to Photo detail", async () => {
+    vi.mocked(requestAlbumExport).mockResolvedValue({ id: "export-1" });
     vi.mocked(getPhotoVersions).mockResolvedValue({
       active_photo_version_id: null,
       can_edit: false,
@@ -111,6 +114,18 @@ describe("AlbumPage", () => {
       "thumbnail",
       expect.any(AbortSignal),
     );
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "Export Album Photos" }));
+    await waitFor(() => {
+      expect(requestAlbumExport).toHaveBeenCalledWith(
+        "family-archive",
+        "album-1",
+      );
+    });
+    expect(
+      await screen.findByRole("link", { name: "View export status" }),
+    ).toHaveAttribute("href", "/families/family-archive/exports");
   });
 
   it("shows an admitted contributor the scoped upload control and Event return path", async () => {

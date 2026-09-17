@@ -9,9 +9,16 @@ import {
 import type { FamilyExport } from "../types/familyExport";
 
 function scopeLabel(item: FamilyExport): string {
-  return item.scope === "family_space_full"
-    ? "Full Family Space archive"
-    : "Personal archive";
+  switch (item.scope) {
+    case "family_space_full":
+      return "Full Family Space archive";
+    case "collection":
+      return "Collection archive";
+    case "album":
+      return "Album archive";
+    case "personal":
+      return "Personal archive";
+  }
 }
 
 function sizeLabel(bytes: number | null): string {

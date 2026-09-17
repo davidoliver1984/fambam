@@ -9,6 +9,7 @@ use App\Enums\FamilySpaceRole;
 use App\Enums\MediaUploadState;
 use App\Enums\MembershipState;
 use App\Enums\PhotoVisibility;
+use App\Exports\CollectionSelectionChecksum;
 use App\Exports\FamilyArchiveBuilder;
 use App\Jobs\GenerateFamilyExport;
 use App\Jobs\SendFamilyExportNotification;
@@ -20,6 +21,7 @@ use App\Media\StoredObject;
 use App\Media\UploadAuthorization;
 use App\Models\Album;
 use App\Models\AlbumGrant;
+use App\Models\Collection;
 use App\Models\FamilyExport;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
@@ -30,6 +32,7 @@ use App\Models\Person;
 use App\Models\Photo;
 use App\Models\PhotoComment;
 use App\Models\PhotoPerson;
+use App\Models\PhotoVersion;
 use App\Models\SavedSearch;
 use App\Models\Story;
 use App\Models\User;
@@ -522,6 +525,165 @@ class FamilyExportHttpTest extends TestCase
         $archive->close();
     }
 
+    public function test_collection_export_packages_active_presentation_and_revalidates_the_final_selection(): void
+    {
+        Queue::fake();
+        $family = FamilySpace::factory()->create(['slug' => 'curated-export']);
+        [$owner] = $this->membership($family, FamilySpaceRole::Owner, 'Owner');
+        [$member] = $this->membership($family, FamilySpaceRole::Member, 'Member');
+        $photo = $this->photo($family, $owner, PhotoVisibility::FamilySpace);
+        $upload = $photo->mediaUpload;
+        $upload->update(['canonical_object_key' => "families/{$family->id}/canonical/{$photo->id}.jpg",
+            'canonical_mime_type' => 'image/jpeg', 'canonical_sha256' => hash('sha256', 'canonical-bytes')]);
+        $this->storage->objects[$upload->canonical_object_key] = 'canonical-bytes';
+        $version = PhotoVersion::query()->create(['family_space_id' => $family->id,
+            'photo_id' => $photo->id, 'edit_recipe' => ['schema_version' => 1],
+            'derived_object_key' => "families/{$family->id}/photos/{$photo->id}/versions/one.webp",
+            'created_by' => $owner->id]);
+        $this->storage->objects[$version->derived_object_key] = 'edited-bytes';
+        $photo->update(['active_photo_version_id' => $version->id]);
+        $collection = Collection::query()->create(['family_space_id' => $family->id,
+            'owner_user_id' => $member->id, 'name' => 'My picks']);
+        $this->actingAs($member)->postJson("/api/families/{$family->slug}/collections/{$collection->id}/photos",
+            ['photo_id' => $photo->id])->assertCreated();
+        $exportId = $this->actingAs($member)
+            ->postJson("/api/families/{$family->slug}/collections/{$collection->id}/exports")
+            ->assertAccepted()->assertJsonPath('data.scope', 'collection')
+            ->assertJsonPath('data.collection_id', $collection->id)->json('data.id');
+        $this->actingAs($owner)
+            ->postJson("/api/families/{$family->slug}/collections/{$collection->id}/exports")->assertNotFound();
+        $context = TenantOperationContext::forBackground($family->id, $member->id);
+        app(FamilyExportManager::class)->generate($context, $exportId);
+        $export = FamilyExport::query()->findOrFail($exportId);
+        $this->assertSame(FamilyExportState::Ready, $export->state);
+        $this->assertSame(app(CollectionSelectionChecksum::class)->forPhotoIds([$photo->id]),
+            $export->selection_checksum);
+        $archive = $this->archive($export->object_key);
+        $photos = json_decode($archive->getFromName('photos.json'), true, flags: JSON_THROW_ON_ERROR)['items'];
+        $this->assertFalse($photos[0]['original_included']);
+        $this->assertSame($version->id, $photos[0]['active_presentation']['photo_version_id']);
+        $this->assertSame('edited-bytes', $archive->getFromName("media/presentations/{$photo->id}.webp"));
+        $this->assertFalse($archive->locateName("media/originals/{$photo->id}.jpg"));
+        $archive->close();
+        $this->actingAs($member)->getJson("/api/families/{$family->slug}/exports/{$exportId}/download")
+            ->assertOk();
+        $photo->update(['visibility' => PhotoVisibility::Private]);
+        $this->actingAs($member)->getJson("/api/families/{$family->slug}/exports/{$exportId}/download")
+            ->assertUnprocessable();
+    }
+
+    public function test_album_export_packages_active_presentation_and_rechecks_album_membership(): void
+    {
+        Queue::fake();
+        $family = FamilySpace::factory()->create(['slug' => 'album-export']);
+        [$owner] = $this->membership($family, FamilySpaceRole::Owner, 'Owner');
+        [$member] = $this->membership($family, FamilySpaceRole::Member, 'Member');
+        $photo = $this->photo($family, $owner, PhotoVisibility::FamilySpace);
+        $upload = $photo->mediaUpload;
+        $upload->update(['canonical_object_key' => "families/{$family->id}/canonical/{$photo->id}.jpg",
+            'canonical_mime_type' => 'image/jpeg', 'canonical_sha256' => hash('sha256', 'album-canonical')]);
+        $this->storage->objects[$upload->canonical_object_key] = 'album-canonical';
+        $version = PhotoVersion::query()->create(['family_space_id' => $family->id,
+            'photo_id' => $photo->id, 'edit_recipe' => ['schema_version' => 1],
+            'derived_object_key' => "families/{$family->id}/photos/{$photo->id}/versions/album.webp",
+            'created_by' => $owner->id]);
+        $this->storage->objects[$version->derived_object_key] = 'album-edited';
+        $photo->update(['active_photo_version_id' => $version->id]);
+        $album = Album::query()->create(['family_space_id' => $family->id,
+            'created_by' => $owner->id, 'name' => 'Family album',
+            'visibility' => AlbumVisibility::FamilySpace]);
+        $album->photos()->attach($photo->id, ['id' => (string) Str::ulid(),
+            'family_space_id' => $family->id, 'position' => 1, 'added_by' => $owner->id]);
+
+        $path = "/api/families/{$family->slug}/albums/{$album->id}/exports";
+        $exportId = $this->actingAs($member)->postJson($path)
+            ->assertAccepted()->assertJsonPath('data.scope', 'album')
+            ->assertJsonPath('data.album_id', $album->id)->json('data.id');
+        app(FamilyExportManager::class)->generate(
+            TenantOperationContext::forBackground($family->id, $member->id), $exportId,
+        );
+        $export = FamilyExport::query()->findOrFail($exportId);
+        $this->assertSame(FamilyExportState::Ready, $export->state);
+        $archive = $this->archive($export->object_key);
+        $this->assertSame('album-edited', $archive->getFromName("media/presentations/{$photo->id}.webp"));
+        $this->assertFalse($archive->locateName("media/originals/{$photo->id}.jpg"));
+        $archive->close();
+        $this->actingAs($member)->getJson("/api/families/{$family->slug}/exports/{$exportId}/download")
+            ->assertOk();
+        $album->photos()->detach($photo->id);
+        $this->actingAs($member)->getJson("/api/families/{$family->slug}/exports/{$exportId}/download")
+            ->assertUnprocessable();
+    }
+
+    public function test_ordinary_photo_download_uses_the_active_version_and_never_the_original(): void
+    {
+        $family = FamilySpace::factory()->create(['slug' => 'photo-download']);
+        [$owner] = $this->membership($family, FamilySpaceRole::Owner, 'Owner');
+        [$member] = $this->membership($family, FamilySpaceRole::Member, 'Member');
+        $photo = $this->photo($family, $owner, PhotoVisibility::FamilySpace);
+        $upload = $photo->mediaUpload;
+        $upload->update(['canonical_object_key' => "families/{$family->id}/canonical/{$photo->id}.jpg",
+            'canonical_mime_type' => 'image/jpeg']);
+        $version = PhotoVersion::query()->create(['family_space_id' => $family->id,
+            'photo_id' => $photo->id, 'edit_recipe' => ['schema_version' => 1],
+            'derived_object_key' => "families/{$family->id}/photos/{$photo->id}/versions/edit.webp",
+            'created_by' => $owner->id]);
+        $photo->update(['active_photo_version_id' => $version->id]);
+        $path = "/api/families/{$family->slug}/photos/{$photo->id}/download";
+        $this->actingAs($member)->getJson($path)->assertOk()
+            ->assertJsonPath('data.photo_version_id', $version->id)
+            ->assertJsonPath('data.url', "https://storage.test/{$version->derived_object_key}");
+        $photo->update(['active_photo_version_id' => null]);
+        $this->actingAs($member)->getJson($path)->assertOk()
+            ->assertJsonPath('data.photo_version_id', null)
+            ->assertJsonPath('data.url', "https://storage.test/{$upload->canonical_object_key}");
+        $photo->update(['visibility' => PhotoVisibility::Private]);
+        $this->actingAs($member)->getJson($path)->assertNotFound();
+    }
+
+    public function test_collection_deletion_fences_and_reconciles_a_late_written_export(): void
+    {
+        Queue::fake();
+        $family = FamilySpace::factory()->create(['slug' => 'cancel-export']);
+        [$owner] = $this->membership($family, FamilySpaceRole::Owner, 'Owner');
+        $collection = Collection::query()->create(['family_space_id' => $family->id,
+            'owner_user_id' => $owner->id, 'name' => 'Going away']);
+        $exportId = $this->actingAs($owner)
+            ->postJson("/api/families/{$family->slug}/collections/{$collection->id}/exports")
+            ->assertAccepted()->json('data.id');
+        $context = TenantOperationContext::forBackground($family->id, $owner->id);
+        $manager = app(FamilyExportManager::class);
+        $this->assertNotNull($manager->beginGeneration($context, $exportId));
+        $export = FamilyExport::query()->findOrFail($exportId);
+        $this->storage->failNextDelete = true;
+        $this->actingAs($owner)->deleteJson("/api/families/{$family->slug}/collections/{$collection->id}")
+            ->assertNoContent();
+        $export->refresh();
+        $this->assertSame(FamilyExportState::Failed, $export->state);
+        $this->assertNotNull($export->cancelled_at);
+        $this->assertNull($export->collection_id);
+        $this->assertNull($export->storage_reconciled_at);
+        $this->assertNull($manager->beginGeneration($context, $exportId));
+        $this->storage->finalized[$export->object_key] = 'late-write';
+        $manager->cleanupDue($context, $exportId);
+        $this->assertNull($export->fresh()->storage_reconciled_at);
+        $export->update(['generation_finished_at' => now()]);
+        $manager->cleanupDue($context, $exportId);
+        $this->assertNotNull($export->fresh()->storage_reconciled_at);
+        $this->assertArrayNotHasKey($export->object_key, $this->storage->finalized);
+        $retry = $this->pendingExport($family, $owner, 'ordinary-retry.zip');
+        $retry->update(['state' => FamilyExportState::Failed, 'generation_finished_at' => now()]);
+        $this->assertNotNull($manager->beginGeneration($context, $retry->id));
+        $this->assertNull($retry->fresh()->generation_finished_at);
+
+        $deleting = Collection::query()->create(['family_space_id' => $family->id,
+            'owner_user_id' => $owner->id, 'name' => 'Interrupted deletion',
+            'deleting_at' => now()]);
+        $this->actingAs($owner)
+            ->postJson("/api/families/{$family->slug}/collections/{$deleting->id}/exports")
+            ->assertNotFound();
+    }
+
     /** @return array{User, FamilySpaceMembership} */
     private function membership(FamilySpace $family, FamilySpaceRole $role, string $name): array
     {
@@ -606,6 +768,8 @@ class FamilyExportTestUrlSigner implements MediaDeliveryUrlSigner
 
 class FamilyExportTestStorage implements MediaObjectStorage
 {
+    public bool $failNextDelete = false;
+
     /** @var list<string> */
     public array $deleted = [];
 
@@ -647,6 +811,11 @@ class FamilyExportTestStorage implements MediaObjectStorage
 
     public function delete(string $key): void
     {
+        if ($this->failNextDelete) {
+            $this->failNextDelete = false;
+            throw new \RuntimeException('Simulated temporary storage failure.');
+        }
         $this->deleted[] = $key;
+        unset($this->finalized[$key]);
     }
 }

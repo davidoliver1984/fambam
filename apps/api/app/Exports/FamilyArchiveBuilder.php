@@ -6,6 +6,7 @@ use App\Enums\FamilyExportScope;
 use App\Enums\MediaUploadState;
 use App\Enums\PersonProposalStatus;
 use App\Media\MediaObjectStorage;
+use App\Media\PhotoPresentationResolver;
 use App\Models\Album;
 use App\Models\FamilyEvent;
 use App\Models\FamilyExport;
@@ -49,6 +50,8 @@ class FamilyArchiveBuilder
         private readonly MediaObjectStorage $storage,
         private readonly DatabaseTenantContext $databaseContext,
         private readonly TenantContext $tenantContext,
+        private readonly CollectionSelectionChecksum $selectionChecksums,
+        private readonly PhotoPresentationResolver $presentations,
     ) {}
 
     public function buildAndStore(
@@ -64,7 +67,7 @@ class FamilyArchiveBuilder
 
         try {
             $originals = $this->copyPreliminaryOriginals($directory, $context, $export, $requester, $selection);
-            [$domains, $originals, $unattached, $requesterAccountLink] = $this->reconcileAndSnapshot(
+            [$domains, $originals, $presentations, $unattached, $requesterAccountLink] = $this->reconcileAndSnapshot(
                 $directory,
                 $context,
                 $export,
@@ -73,13 +76,14 @@ class FamilyArchiveBuilder
                 $originals,
             );
             $this->writeDomainFiles($directory, $domains);
-            $this->writeManifest($directory, $export, $requester, $domains, $originals, $unattached, $requesterAccountLink);
-            $checksums = $this->checksums($directory, [...array_values($originals), ...array_values($unattached)]);
+            $this->writeManifest($directory, $export, $requester, $domains, $originals, $presentations, $unattached, $requesterAccountLink);
+            $media = [...array_values($originals), ...array_values($presentations), ...array_values($unattached)];
+            $checksums = $this->checksums($directory, $media);
             $this->writeJson($directory.'/checksums.json', [
                 'schema_version' => self::SCHEMA_VERSION,
                 'files' => $checksums,
             ]);
-            $zipPath = $this->seal($directory, $export, [...array_values($originals), ...array_values($unattached)]);
+            $zipPath = $this->seal($directory, $export, $media);
             $sha256 = hash_file('sha256', $zipPath);
             $byteSize = filesize($zipPath);
             if ($sha256 === false || $byteSize === false) {
@@ -87,7 +91,11 @@ class FamilyArchiveBuilder
             }
             $this->storage->finalizeWriteOnce($zipPath, $export->object_key, $sha256);
 
-            return new BuiltFamilyArchive($sha256, $byteSize, count($domains['photos.json']));
+            $photoIds = array_column($domains['photos.json'], 'id');
+
+            return new BuiltFamilyArchive($sha256, $byteSize, count($photoIds),
+                $this->isCurated($export)
+                    ? $this->selectionChecksums->forPhotoIds($photoIds) : null);
         } finally {
             $this->removeDirectory($directory);
             $this->tenantContext->clear();
@@ -122,7 +130,7 @@ class FamilyArchiveBuilder
 
     /**
      * @param  array<string, array{path:string,archive_path:string,sha256:string,byte_size:int,upload:MediaUpload}>  $originals
-     * @return array{array<string, list<array<string, mixed>>>, array<string, array{path:string,archive_path:string,sha256:string,byte_size:int,upload:MediaUpload}>, array<string, array{path:string,archive_path:string,sha256:string,byte_size:int,upload:MediaUpload}>, array{id:string,person_id:string}|null}
+     * @return array{array<string, list<array<string, mixed>>>, array<string, array{path:string,archive_path:string,sha256:string,byte_size:int,upload:MediaUpload}>, array<string, array{path:string,archive_path:string,sha256:string,byte_size:int}>, array<string, array{path:string,archive_path:string,sha256:string,byte_size:int,upload:MediaUpload}>, array{id:string,person_id:string}|null}
      */
     private function reconcileAndSnapshot(
         string $directory,
@@ -140,21 +148,26 @@ class FamilyArchiveBuilder
             /** @var Collection<int, Photo> $photos */
             $photos = $photoQuery->where('family_space_id', $family->id)
                 ->whereIn('id', $selectedPhotoIds)
-                ->with(['mediaUpload', 'tags:id,label', 'albums', 'photoPeople' => fn ($query) => $query
+                ->with(['mediaUpload', 'activeVersion', 'tags:id,label', 'albums', 'photoPeople' => fn ($query) => $query
                     ->where('status', PersonProposalStatus::Approved)->orderBy('person_id')])
                 ->orderBy('id')->get();
 
-            if ($export->scope === FamilyExportScope::Personal) {
+            if ($export->scope === FamilyExportScope::Personal || $this->isCurated($export)) {
                 $photos = $photos->filter(fn (Photo $photo): bool => Gate::forUser($requester)->allows('view', $photo))->values();
             }
             $survivingPhotoIds = $photos->pluck('id')->all();
 
+            $presentations = [];
             foreach ($photos as $photo) {
                 if ($export->scope === FamilyExportScope::FamilySpaceFull && $photo->mediaUpload === null) {
                     throw new RuntimeException('A full family export Photo has no preserved original.');
                 }
                 $mayInclude = $export->scope === FamilyExportScope::FamilySpaceFull
-                    || ($photo->mediaUpload !== null && Gate::forUser($requester)->allows('downloadOriginal', $photo->mediaUpload));
+                    || ($export->scope === FamilyExportScope::Personal && $photo->mediaUpload !== null
+                        && Gate::forUser($requester)->allows('downloadOriginal', $photo->mediaUpload));
+                if ($this->isCurated($export)) {
+                    $presentations[$photo->id] = $this->copyPresentation($directory, $photo);
+                }
                 if ($mayInclude && ! isset($originals[$photo->id]) && $photo->mediaUpload !== null) {
                     $originals[$photo->id] = $this->copyOriginal($directory, $photo->mediaUpload, "media/originals/{$photo->id}");
                 }
@@ -168,7 +181,7 @@ class FamilyArchiveBuilder
                 unset($originals[$removedPhotoId]);
             }
 
-            $domains = $this->domains($export, $requester, $selection, $photos, $survivingPhotoIds, $originals);
+            $domains = $this->domains($export, $requester, $selection, $photos, $survivingPhotoIds, $originals, $presentations);
             $unattached = [];
             if ($export->scope === FamilyExportScope::FamilySpaceFull) {
                 $uploads = MediaUpload::query()->whereIn('id', $selection->unattachedMediaUploadIds)
@@ -187,7 +200,7 @@ class FamilyArchiveBuilder
 
             $requesterAccountLink = PersonAccountLink::query()->where('user_id', $requester->id)->first();
 
-            return [$domains, $originals, $unattached, $requesterAccountLink === null ? null : [
+            return [$domains, $originals, $presentations, $unattached, $requesterAccountLink === null ? null : [
                 'id' => $requesterAccountLink->id,
                 'person_id' => $requesterAccountLink->person_id,
             ]];
@@ -198,9 +211,10 @@ class FamilyArchiveBuilder
      * @param  Collection<int, Photo>  $photos
      * @param  list<string>  $photoIds
      * @param  array<string, array{path:string,archive_path:string,sha256:string,byte_size:int,upload:MediaUpload}>  $originals
+     * @param  array<string, array{path:string,archive_path:string,sha256:string,byte_size:int}>  $presentations
      * @return array<string, list<array<string, mixed>>>
      */
-    private function domains(FamilyExport $export, User $requester, FamilyExportSelection $selection, Collection $photos, array $photoIds, array $originals): array
+    private function domains(FamilyExport $export, User $requester, FamilyExportSelection $selection, Collection $photos, array $photoIds, array $originals, array $presentations): array
     {
         $full = $export->scope === FamilyExportScope::FamilySpaceFull;
         $personIds = $selection->personIds;
@@ -231,7 +245,7 @@ class FamilyArchiveBuilder
         $reactions = PhotoReaction::query()->whereIn('id', $selection->reactionIds)->whereIn('photo_id', $photoIds)->orderBy('id')->get();
         $savedSearches = SavedSearch::query()->whereIn('id', $selection->savedSearchIds)->with('people:id')->orderBy('id')->get();
 
-        $photoRows = $photos->map(function (Photo $photo) use ($export, $originals, $requester): array {
+        $photoRows = $photos->map(function (Photo $photo) use ($export, $originals, $presentations, $requester): array {
             $row = $this->only($photo, [
                 'id', 'media_upload_id', 'created_by', 'visibility', 'caption', 'description', 'archive_source_description',
                 'photographer_person_id', 'photographer_description', 'scanner_person_id', 'scanner_description',
@@ -252,6 +266,16 @@ class FamilyArchiveBuilder
                     'event_id' => $album->event_id,
                 ])->all();
             $row['original_included'] = isset($originals[$photo->id]);
+            $row['active_presentation'] = $photo->activeVersion === null ? null : [
+                'photo_version_id' => $photo->activeVersion->id,
+                'edit_recipe' => $photo->activeVersion->edit_recipe,
+                'restore' => $photo->activeVersion->restore,
+                'derived_object_key' => $photo->activeVersion->derived_object_key,
+            ];
+            if (isset($presentations[$photo->id])) {
+                $row['presentation_path'] = $presentations[$photo->id]['archive_path'];
+                $row['presentation_sha256'] = $presentations[$photo->id]['sha256'];
+            }
             if (isset($originals[$photo->id])) {
                 $original = $originals[$photo->id];
                 $row['original_path'] = $original['archive_path'];
@@ -327,6 +351,24 @@ class FamilyArchiveBuilder
         return ['path' => $path, 'archive_path' => $archivePath, 'sha256' => $checksum, 'byte_size' => $byteSize, 'upload' => $upload];
     }
 
+    /** @return array{path:string,archive_path:string,sha256:string,byte_size:int} */
+    private function copyPresentation(string $directory, Photo $photo): array
+    {
+        $asset = $this->presentations->resolve($photo);
+        $archivePath = "media/presentations/{$photo->id}.{$asset->extension}";
+        $path = $directory.'/.media-'.hash('sha256', $archivePath);
+        $this->storage->downloadTo($asset->objectKey, $path);
+        $checksum = hash_file('sha256', $path);
+        $byteSize = filesize($path);
+        if ($checksum === false || $byteSize === false
+            || ($asset->expectedSha256 !== null && ! hash_equals($asset->expectedSha256, $checksum))) {
+            @unlink($path);
+            throw new RuntimeException('A presentation asset failed its export integrity check.');
+        }
+
+        return ['path' => $path, 'archive_path' => $archivePath, 'sha256' => $checksum, 'byte_size' => $byteSize];
+    }
+
     /** @param array<string, list<array<string, mixed>>> $domains */
     private function writeDomainFiles(string $directory, array $domains): void
     {
@@ -341,6 +383,7 @@ class FamilyArchiveBuilder
     /**
      * @param  array<string, list<array<string, mixed>>>  $domains
      * @param  array<string, array{path:string,archive_path:string,sha256:string,byte_size:int,upload:MediaUpload}>  $originals
+     * @param  array<string, array{path:string,archive_path:string,sha256:string,byte_size:int}>  $presentations
      * @param  array<string, array{path:string,archive_path:string,sha256:string,byte_size:int,upload:MediaUpload}>  $unattached
      * @param  array{id:string,person_id:string}|null  $requesterAccountLink
      */
@@ -350,6 +393,7 @@ class FamilyArchiveBuilder
         User $requester,
         array $domains,
         array $originals,
+        array $presentations,
         array $unattached,
         ?array $requesterAccountLink,
     ): void {
@@ -366,7 +410,7 @@ class FamilyArchiveBuilder
                 'person_account_link' => $requesterAccountLink,
             ],
             'record_counts' => collect($domains)->mapWithKeys(fn (array $items, string $file) => [str_replace('.json', '', $file) => count($items)])->all(),
-            'media_byte_count' => collect([...array_values($originals), ...array_values($unattached)])->sum('byte_size'),
+            'media_byte_count' => collect([...array_values($originals), ...array_values($presentations), ...array_values($unattached)])->sum('byte_size'),
             'unattached_media' => collect($unattached)->map(fn (array $file, string $id) => [
                 'media_upload_id' => $id,
                 'path' => $file['archive_path'],
@@ -379,7 +423,7 @@ class FamilyArchiveBuilder
     }
 
     /**
-     * @param  list<array{path:string,archive_path:string,sha256:string,byte_size:int,upload:MediaUpload}>  $media
+     * @param  list<array{path:string,archive_path:string,sha256:string,byte_size:int}>  $media
      * @return array<string, string>
      */
     private function checksums(string $directory, array $media): array
@@ -402,7 +446,7 @@ class FamilyArchiveBuilder
         return $checksums;
     }
 
-    /** @param list<array{path:string,archive_path:string,sha256:string,byte_size:int,upload:MediaUpload}> $media */
+    /** @param list<array{path:string,archive_path:string,sha256:string,byte_size:int}> $media */
     private function seal(string $directory, FamilyExport $export, array $media): string
     {
         $zipPath = $directory.'/archive.zip';
@@ -474,6 +518,11 @@ class FamilyArchiveBuilder
             'image/tiff' => 'tiff', 'image/heic' => 'heic', 'image/heif' => 'heif',
             default => throw new RuntimeException('An exported original has an unsupported detected format.'),
         };
+    }
+
+    private function isCurated(FamilyExport $export): bool
+    {
+        return in_array($export->scope, [FamilyExportScope::Album, FamilyExportScope::Collection], true);
     }
 
     private function removeDirectory(string $directory): void
