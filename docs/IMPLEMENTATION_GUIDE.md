@@ -4448,40 +4448,296 @@ Define the integrated information architecture, navigation model, visual and
 interaction foundations, supported responsive layouts, role-based journey
 matrix and product-level accessibility acceptance approach. Preserve existing
 domain authorization; this ADR integrates the product experience rather than
-redesigning domain permissions.
+redesigning domain permissions. This same ADR also reconciles the frozen
+Phase 14 UI Reference V1 against the live domain model, adding the minimum
+domain/API support the reference requires — Album metadata and cover, Event
+RSVP, a private Collection domain, a shared Love reaction, an ADR-0021 Story
+restatement, and a nondestructive Photo editor with Restore — before the
+product-integration stages below build UI against it, exactly as ADR-0021's
+own domain work preceded UI integration.
 
-## FPA-P14-S07 — Implement the product shell and Family Space context
+## FPA-P14-S07 — Implement Album metadata, cover and People association
+
+Add Album date range, location, tags (reusing the existing Tag vocabulary),
+and a non-authorization-bearing `album_people` association, integrated into
+`PersonMergeManager`'s existing capture/reconcile/guarded-reversal transaction
+(collision-aware repoint, matching `saved_search_people`/ADR-0021's mention
+tables) — capture, collision reconciliation, provenance, guarded reversal and
+tests all land atomically in this stage, since `album_people` is introduced
+here; this does not depend on `FPA-P14-S08`'s `event_people`, which does not
+exist yet. Add an optional Album cover (`cover_photo_id` with `ON DELETE
+RESTRICT`, never `SET NULL` — a composite `SET NULL` would attempt to null
+`albums.id`, its own primary key — plus fractional focal position, never a
+duplicate asset). Cover creation is a mix of synchronous choices (an existing,
+currently-authorized Photo, or none) and one asynchronous path: an uploaded
+cover is a pending intent tracked by one authoritative
+`albums.current_cover_intent_id` column (not a flag on `MediaUpload`, which
+cannot prevent a stale, still-processing upload from overwriting a newer
+cover choice). **Setting, replacing, or intentionally clearing this intent —
+including selecting an existing Photo as candidate — requires
+`AlbumPolicy::update()`, separate from and in addition to the ordinary
+upload's own contribution authority**: the ordinary Album upload endpoint
+authorizes contribution, not Album management, so without this explicit
+check a Contributor able to upload a Photo could overwrite an Owner or
+Administrator's already-current cover intent even though their own
+finalization would later fail; the underlying upload itself still proceeds
+normally under contribution authority even when the intent-setting action is
+refused. Choosing a different cover — another upload, or an existing Photo —
+immediately supersedes the prior intent without cancelling its underlying
+upload. Finalization — including through exact-duplicate resolution (`Use
+existing Photo` / `Create separate Photo`) — re-verifies both that this
+intent is still current *and* that the requesting actor still holds
+Album-update authority (contribution authority alone is insufficient at
+either point) before assigning the cover, on top of the ordinary, unchanged
+`AlbumManager::addPhoto()` visibility-widening confirmation and
+update-authority checks; a superseded, failed, or cancelled upload never
+touches `cover_photo_id` and still becomes an ordinary Photo where the
+pipeline otherwise permits. The cover-membership invariant ("an active cover
+must be a Photo currently, validly, in the Album") is enforced at the service
+layer across every lifecycle path — assignment, `AlbumPhoto` removal, explicit
+cover removal, Photo soft deletion (which does not remove `album_photos` rows,
+so cover validity must be reconciled explicitly), Photo restoration (never
+auto-reinstates a cleared cover), Album deletion, and Family Space teardown —
+since a declarative composite constraint cannot express it (it would need an
+`ON DELETE` action nulling a primary key). None of this changes `AlbumPolicy`,
+`AlbumGrant`, or Album visibility.
+
+## FPA-P14-S08 — Implement Event RSVP
+
+Add `rsvp_status`/`rsvp_responded_at` directly to `EventAdmission` — scoped
+to exactly the Guest/Contributor population it already represents — with
+self-service-only authorization and read-time-derived Going/Awaiting
+reply/Not attending groupings, restricted to currently-effective (non-revoked,
+non-expired) admissions. Because `EventAdmissionManager::admit()` already
+reuses the same row across a revoke/readmit cycle, a genuine readmission
+(the existing admission's `revoked_at` was non-null) must reset `rsvp_status`
+to `pending`/`rsvp_responded_at` to null, while an idempotent re-admit call on
+an admission that was never revoked must leave an in-progress RSVP untouched
+— revocation itself never mutates RSVP, only `admitted_at`/`revoked_at`, so
+history is retained but excluded from active groupings. Add a
+non-authorization-bearing `event_people` association for a historical or
+unlinked Person connected to an Event, with its own, complete Person-merge
+integration (capture, collision reconciliation, provenance, guarded reversal,
+tests) landing atomically in this stage, exactly as `album_people`'s did in
+`FPA-P14-S07` — the two do not share one change. Add a restrained `Attendance`
+notification to the Event's organiser, with no family-activity feed entry;
+extend both `NotificationManager::authorized()` and
+`NotificationController::visible()` with an identical new `event_id` branch
+so Attendance (and, later, Event Love) notifications are deliverable only
+while, and remain inbox-visible only while, the recipient currently holds
+Event view authority — closing both gaps together, since each method has the
+same missing branch independently. `event_admissions.rsvp_status`'s
+existing-row default is a genuine data-initialization step, not a
+backfill-free addition, and should be described as one.
+
+## FPA-P14-S09 — Implement the Collection domain
+
+Add `collections`/`collection_photos` as a private, owner-only, non-archival
+personal Photo-curation domain — never an Album, Event, or shared object, and
+never widening what Photos its owner can see. Support create/rename/delete,
+add/remove/reorder Photos, and deduplicated bulk population from an Album's
+or Event's currently-authorized Photos. A `FamilyExportScope::Collection`
+request contract/scope may be introduced here, reusing ADR-0015's
+job/ownership/expiry lifecycle, with `family_exports.collection_id` as a
+genuine, database-enforced, tenant-consistent composite FK to
+`collections(id, family_space_id)` using `ON DELETE RESTRICT` (never `SET
+NULL`, which would attempt to null the required `family_space_id`) — this is
+not merely service-checked; the database itself rejects a cross-tenant
+reference. This stage does not deliver complete curated export semantics on
+its own — final active-version packaging, download-time revalidation, and
+current-vs-original rules are `FPA-P14-S12`'s responsibility (below), which
+itself depends on `FPA-P14-S11`'s Photo-version work. Collection deletion
+must still coordinate with any in-flight export for that Collection: because
+the export's storage object key is deterministic and known from request
+time, deletion-side cleanup makes an immediate, best-effort attempt to
+delete it for every associated export regardless of state, and a live
+worker makes its own best-effort post-write recheck — but **neither is the
+crash-safety guarantee**, since a worker can write the object after
+deletion's attempt already ran and then crash before its own recheck,
+leaving nothing scheduled to revisit it. The actual guarantee is durable,
+scheduled reconciliation (`FPA-P14-S12`'s responsibility, below), extending
+this project's existing `app_due_family_exports()`/`DispatchDueFamilyExports`
+export-cleanup infrastructure. A dedicated, durable `cancelled_at` marker
+(never inferred from `state`/`failure_reason` text) fences a
+deletion-cancelled export as permanently non-retryable, checked explicitly
+wherever generation could otherwise restart it. UI built against this
+stage's export contract must not claim behaviour `FPA-P14-S12` has not yet
+delivered — including the scheduled reconciliation mechanism itself, which
+is not optional hardening but the load-bearing safety net.
+
+## FPA-P14-S10 — Generalize Love across Album, Event and Story
+
+Add a new, typed-exactly-one-target `reactions` table for Album/Event/Story
+Love, leaving the already-shipped `photo_reactions` table untouched for Photo
+Love — Photo Love keeps its existing, more specific authority
+(`PhotoPolicy::interact()` plus, for Contributor, `AlbumPolicy::contribute()`
+on the reaction's Album context; never merely `view()`, and this stage does
+not widen it). Album/Event/Story Love each require their own target's
+existing view authority. Gate a reactor's linked-Person disclosure behind the
+current viewer's own authorization to see that specific Person. Add a new
+`Love` notification category and two small, normalized tables:
+`love_notification_groups` (typed, nullable `photo_id`/`album_id`/`event_id`/
+`story_id` columns with an exactly-one `CHECK`, tenant-consistent composite
+FKs, cascadeOnDelete — never a generic, unvalidated `target_type`/`target_id`
+pair) and `love_notification_group_actors` (`UNIQUE(group_id, actor_user_id)`,
+tracking distinct contributing actors — never inferred from
+`NotificationCandidate` recipient rows) — reusing the Phase 12 candidate/
+evaluation *architecture* `ContributionGroup` established, not its
+actor-and-upload-batch-centric schema, since Love's batching dimension
+(several different actors Loving one target) is the opposite of
+Contribution's (one actor's simultaneous uploads). A repeated Love from the
+same actor is an idempotent no-op against the actor table; self-Love never
+inserts an actor row when the actor is the notification's own recipient; a
+Love removed before the group finalizes removes its actor row with it; the
+finalized message reflects the current distinct-actor count exactly ("Sarah
+loved your Story" for one, "Sarah and 4 others loved your Story" for more,
+nothing at all if the count reaches zero) — with no family-activity feed
+entry for any Love. Event Love exercises the exact same Event-notification
+authorization boundary `FPA-P14-S08` already establishes; this stage does not
+introduce a second one.
+
+## FPA-P14-S11 — Implement the nondestructive Photo editor, version model and Restore
+
+Add `photo_versions`/`active_photo_version_id`, keeping every original and
+canonical asset exactly as ADR-0007 already requires.
+`photos.active_photo_version_id` uses a database-enforced composite foreign
+key — `FOREIGN KEY (active_photo_version_id, id, family_space_id) REFERENCES
+photo_versions (id, photo_id, family_space_id)`, backed by a new
+`photo_versions` `UNIQUE(id, photo_id, family_space_id)` constraint — so the
+database itself proves an active version belongs to the *same* Photo and
+Family Space, not merely a transitive guarantee. This FK uses `ON DELETE
+RESTRICT`, never `SET NULL` (which would null `photos.id`, a primary key, and
+`family_space_id`, both required); deleting a still-active `photo_versions`
+row is rejected until the application explicitly clears or replaces
+`active_photo_version_id` first. Family Space teardown must explicitly clear
+every Photo's `active_photo_version_id` to `null` *before*
+`Photo::withTrashed()->forceDelete()` runs, so the `RESTRICT`-guarded FK never
+blocks the cascade that follows. Add a new, Photo-authorized delivery method
+for rendered `photo_versions` assets — existing `MediaDeliveryManager`
+canonical/variant/original methods authorize against `MediaUpload` and cannot
+serve them — shared by both the editor and Restore preview workflows. Define
+the closed, versioned `edit_recipe` vocabulary (crop, rotate, straighten,
+flip, brightness/contrast/saturation/warmth, and exactly five named filters)
+behind a Fambam-owned adapter, never coupled to a specific editor library.
+Every edit derives fresh from the canonical asset plus the complete current
+recipe, never from a prior derived version. Implement Restore as one more
+operation in this same model — conservative and deterministic only, storing
+bounded structured provenance (algorithm version, processing mode, chosen
+parameters — never a bare `restore_applied: true` boolean, and never an
+opaque blob or editor-specific state), with a fully specified preview →
+authorized-delivery → keep-or-apply → persist lifecycle, an explicit "no
+meaningful improvement" outcome, and safe, idempotent retries.
+
+## FPA-P14-S12 — Reconcile export/download semantics onto active presentation versions
+
+Make ordinary Photo/Album/Event/Collection download and export resolve to
+each Photo's active presentation version by default. Leave `Download
+original` and the Family/Personal archival export's authority and
+`original_included` computation unchanged, adding only an additive
+version-provenance field so an archive can convey the relationship between a
+preserved original and its current active derivative. Complete Collection
+export's Collection-specific behaviour left open by `FPA-P14-S09`: selection
+is re-authorized against the requester's current visibility at build time
+(never treating Collection membership as retained authorization), packaging
+defaults to active presentation versions rather than originals merely because
+archival export includes them, and `selection_checksum` is computed from the
+final set of Photo ids `FamilyArchiveBuilder` actually packaged after its own
+reconciliation/deduplication — never from the earlier pre-build selection.
+A `Ready` Collection archive is revalidated against this checksum at
+`FamilyExportManager::authorizeDownload()`'s existing re-check-at-download
+checkpoint and denied, requiring regeneration, if the requester's authorized
+selection no longer matches it. Because `FamilyArchiveBuilder::buildAndStore()`
+writes the archive object before `generate()` calls `markReady()`, a
+`Processing` export can already have a real storage object: `generate()`
+should still re-check a durable, dedicated `cancelled_at` fence (not
+`state`/`failure_reason` text) immediately after the object is written and
+before calling `markReady()`, deleting the object itself and setting
+`generation_finished_at` if fenced, as a promptness optimization. Collection
+deletion itself fences every associated export (`Pending`/`Processing`/`Ready`
+alike) by setting `cancelled_at` and moving `state` to `Failed`, then makes
+its own immediate, best-effort attempt to delete each export's object using
+its deterministic, request-time-assigned key, before clearing `collection_id`
+(an explicit, single-column service-level `UPDATE`, never an FK action) and
+only then removing the Collection row. **Neither the worker's recheck nor
+deletion's own immediate attempt is the crash-safety guarantee, and
+"the object was absent when checked" must never be treated as proof it can
+never be written later** — a worker can write the object *after* deletion's
+attempt already ran and then crash before its own recheck, leaving no live
+process to clean it up; an early absent-object observation must not
+permanently exclude the export from reconciliation.
+
+**This stage must therefore add a durable, quiescence-gated scheduled
+reconciliation mechanism**, extending the existing `app_due_family_exports()`
+SQL function and `DispatchDueFamilyExports` command with a second query
+branch — `cancelled_at IS NOT NULL AND storage_reconciled_at IS NULL`
+(`family_exports` gains `generation_started_at` (set by `beginGeneration()`),
+`generation_finished_at` (set whenever generation for the *current* attempt
+concludes for any reason, including the worker's own cancellation-observed
+cleanup), and `storage_reconciled_at`) — **rather than a separate command or
+subsystem**. **`beginGeneration()` must atomically clear `generation_finished_at`
+back to `null` every time it starts a new attempt — including a retry of an
+ordinary `Failed` export — in the same transition as setting
+`generation_started_at`**, never leaving a prior, already-superseded
+attempt's completion timestamp in place: otherwise a quiescence check run
+while a retry's own worker is still writing could misread that stale value
+as proof the current attempt had already concluded. For each discovered
+export, every scheduled run first evaluates generation quiescence —
+`generation_started_at` still null, or `generation_finished_at` set for the
+current attempt, or `GenerateFamilyExport`'s own existing `$timeout`/
+`WithoutOverlapping(...)->expireAfter(...)` bound has elapsed since the
+current `generation_started_at` — and **only once quiescent** does a
+confirmed object-deletion outcome set `storage_reconciled_at`; while not yet
+quiescent, the run may still attempt a best-effort delete, but must leave
+`storage_reconciled_at` null regardless of what that attempt finds, so the
+export remains eligible for the next run. This uses nothing but the
+export's own permanently-retained metadata, whether or not `collection_id`
+has been cleared or the Collection row itself still exists. `beginGeneration()`
+rejects any `cancelled_at`-fenced export outright, even though its `state`
+is `Failed`, while an ordinary, unrelated `Failed` export remains retryable
+exactly as today. The existing expired-`Ready`-export branch of
+`app_due_family_exports()`/`DispatchDueFamilyExports` is unchanged. This
+quiescence-gated scheduled reconciliation mechanism — not merely the fence
+and immediate attempts, and not a reconciliation that trusts a single
+delete outcome — is what makes `FPA-P14-S12` complete; it is the
+load-bearing safety net, not optional hardening.
+
+## FPA-P14-S13 — Implement the product shell and Family Space context
 
 Integrate global navigation, Family Space switching/context and the family
 homepage into a consistent responsive shell with clear loading, empty, error
 and success states.
 
-## FPA-P14-S08 — Integrate Photo, upload, Album and Event journeys
+## FPA-P14-S14 — Integrate Photo, upload, Album and Event journeys
 
 Make browsing, Photo detail, ready-upload selection and promotion, upload
 progress/recovery, Albums, Events and the Guest experience coherent without
-requiring internal IDs, API knowledge or developer tooling.
+requiring internal IDs, API knowledge or developer tooling. This is where the
+new Album cover, metadata, and Event RSVP surfaces from `FPA-P14-S07`-`S08`
+are built into the product journeys.
 
-## FPA-P14-S09 — Integrate People, recognition, duplicate and discovery journeys
+## FPA-P14-S15 — Integrate People, recognition, duplicate and discovery journeys
 
 Connect People and Person pages, Photo tagging, face suggestions and human
 confirmation, duplicate prompts/review, search, discovery, memories and
 history surfaces into understandable family workflows.
 
-## FPA-P14-S10 — Integrate collaboration and Family Space management journeys
+## FPA-P14-S16 — Integrate collaboration and Family Space management journeys
 
-Complete comments, reactions, stories, invitations, membership, personal and
-Family Space export/portability, and the normal Owner/Administrator Family
-Space controls. Keep these customer-facing controls strictly distinct from
-Phase 15 Platform Administration.
+Complete comments, Love, stories, Collections, invitations, membership,
+personal and Family Space export/portability, and the normal
+Owner/Administrator Family Space controls — by this stage the Love and
+Collection domains (`FPA-P14-S09`-`S10`) already exist to integrate UI
+against. Keep these customer-facing controls strictly distinct from Phase 15
+Platform Administration.
 
-## FPA-P14-S11 — Complete responsive, visual and state integration
+## FPA-P14-S17 — Complete responsive, visual and state integration
 
 Reconcile mobile and desktop behaviour, visual consistency, keyboard and
 assistive-technology operation, and loading, empty, error and success states
-across all important journeys.
+across all important journeys, including the nondestructive Photo editor and
+Restore surfaces from `FPA-P14-S11`.
 
-## FPA-P14-S12 — Conduct role-based product journey acceptance
+## FPA-P14-S18 — Conduct role-based product journey acceptance
 
 Test Owner, Administrator, Member, Contributor and Guest through their real
 product experiences with non-technical participants where practical. Resolve
@@ -4496,6 +4752,55 @@ developer tooling as user-facing workarounds.
 - No normal product journey requires knowledge of internal identifiers or
   developer interfaces.
 - Family Space management is clearly separated from platform operations.
+- Album metadata, cover, Event RSVP, Collections, and Love never widen any
+  existing authorization boundary, and none produces family-activity feed
+  spam.
+- A Love reactor's linked Person is disclosed only to a viewer independently
+  authorized to see that Person.
+- Ordinary Photo/Album/Event/Collection export and download reflect the
+  active presentation version; `Download original` and archival export
+  authority are unchanged.
+- An Album cover always resolves to a Photo currently, validly, in that
+  Album, across every deletion/restoration/teardown path — never a broken or
+  stale reference.
+- A revoked Event admission's RSVP is excluded from active groupings; a
+  genuine readmission resets RSVP to pending; an idempotent re-admit never
+  disturbs an in-progress RSVP.
+- Photo Love continues to require its existing Album-context interaction
+  authority, never merely Photo view authority; Album/Event/Story Love each
+  use their own target's existing view authority.
+- An Event-linked notification (Attendance, Event Love) is deliverable and
+  inbox-visible only while the recipient currently holds Event view
+  authority, and disappears from both the moment that authority is
+  withdrawn.
+- A `Ready` Collection export becomes undownloadable, requiring
+  regeneration, once the owner's authorized Photo selection no longer
+  matches what was actually packaged; deleting a Collection never strands a
+  stored export object permanently, in any state, including when a worker
+  writes its object after deletion's own attempt already ran and then
+  crashes before its own post-write recheck — scheduled reconciliation
+  keeps re-examining such an export until generation is conclusively
+  quiescent, then cleans it and records that fact permanently; a
+  deletion-fenced export can never be retried.
+- `family_exports.collection_id` is rejected by the database itself, not
+  only application code, if it would ever reference a Collection in a
+  different Family Space.
+- A superseded, failed, or cancelled cover upload never overwrites an
+  Album's already-current cover or a newer cover choice; setting or
+  replacing the cover intent itself requires Album-update authority, not
+  merely the contribution authority that gates the underlying upload; the
+  requesting actor's Album-update authority is separately re-verified at
+  cover finalization.
+- A Love notification's actor count reflects only current, distinct,
+  qualifying actors — a retry never inflates it, self-Love is excluded, and
+  a Love removed before finalization is not counted.
+- `photos.active_photo_version_id` is rejected by the database itself, not
+  only application code, if it would ever point at another Photo's version
+  or another tenant's.
+- Person merge correctly repoints and, on reversal, restores
+  `album_people`/`event_people`, each fully integrated in the same stage
+  that introduces it, with the existing active-chained-merge prohibition
+  unaffected.
 
 ---
 

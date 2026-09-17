@@ -7,9 +7,9 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P14",
-    "current_stage": "FPA-P14-S04",
+    "current_stage": "FPA-P14-S07",
     "created_at": "2026-07-31",
-    "updated_at": "2026-09-13"
+    "updated_at": "2026-09-17"
   },
   "conventions": {
     "phase_id_format": "P##",
@@ -1040,7 +1040,7 @@
         {
           "id": "FPA-P14-S06",
           "title": "Accept family product UI/UX integration ADR",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P14-S05"
           ],
@@ -1048,8 +1048,8 @@
         },
         {
           "id": "FPA-P14-S07",
-          "title": "Implement the product shell and Family Space context",
-          "status": "planned",
+          "title": "Implement Album metadata, cover and People association",
+          "status": "ready",
           "dependencies": [
             "FPA-P14-S06"
           ],
@@ -1057,7 +1057,7 @@
         },
         {
           "id": "FPA-P14-S08",
-          "title": "Integrate Photo, upload, Album and Event journeys",
+          "title": "Implement Event RSVP",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S07"
@@ -1066,7 +1066,7 @@
         },
         {
           "id": "FPA-P14-S09",
-          "title": "Integrate People, recognition, duplicate and discovery journeys",
+          "title": "Implement the Collection domain",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S08"
@@ -1075,7 +1075,7 @@
         },
         {
           "id": "FPA-P14-S10",
-          "title": "Integrate collaboration and Family Space management journeys",
+          "title": "Generalize Love across Album, Event and Story",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S09"
@@ -1084,7 +1084,7 @@
         },
         {
           "id": "FPA-P14-S11",
-          "title": "Complete responsive, visual and state integration",
+          "title": "Implement the nondestructive Photo editor, version model and Restore",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S10"
@@ -1093,10 +1093,64 @@
         },
         {
           "id": "FPA-P14-S12",
-          "title": "Conduct role-based product journey acceptance",
+          "title": "Reconcile export/download semantics onto active presentation versions",
           "status": "planned",
           "dependencies": [
             "FPA-P14-S11"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S13",
+          "title": "Implement the product shell and Family Space context",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S12"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S14",
+          "title": "Integrate Photo, upload, Album and Event journeys",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S13"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S15",
+          "title": "Integrate People, recognition, duplicate and discovery journeys",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S14"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S16",
+          "title": "Integrate collaboration and Family Space management journeys",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S15"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S17",
+          "title": "Complete responsive, visual and state integration",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S16"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S18",
+          "title": "Conduct role-based product journey acceptance",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S17"
           ],
           "notes": []
         }
@@ -1112,7 +1166,7 @@
           "title": "Accept platform administration authorization and operations ADR",
           "status": "planned",
           "dependencies": [
-            "FPA-P14-S12"
+            "FPA-P14-S18"
           ],
           "notes": []
         },
@@ -1513,7 +1567,7 @@
       {
         "id": "ADR-0019",
         "title": "Family product UI/UX integration",
-        "status": "planned",
+        "status": "accepted",
         "roadmap_phase": "P14",
         "required_by_stage": "FPA-P14-S06"
       },

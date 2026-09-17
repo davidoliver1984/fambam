@@ -545,15 +545,21 @@ Guest roles.
 - Global product navigation and Family Space switching/context.
 - Family homepage, Photo browsing and Photo detail.
 - Ready-upload discovery, Photo creation, progress, recovery and error journeys.
-- Albums, Events and the Event Guest experience.
+- Albums (including date/location/tags/People metadata and an optional
+  cover), Events (including RSVP as a concept independent of admission) and
+  the Event Guest experience.
 - People and Person pages, Photo tagging, face suggestions and confirmation.
 - Duplicate prompts and duplicate review.
-- Comments, reactions and stories.
+- Comments, a shared Love reaction (Photo, Album, Event, Story) and stories.
+- A private, per-User Collection domain for personal Photo curation.
+- A nondestructive Photo editor (crop/rotate/adjustments/filters) with an
+  automatic, conservative Restore operation, both built on a Fambam-owned
+  version model that never touches the immutable original.
 - Invitations, membership and role-appropriate collaboration.
 - Owner/Administrator Family Space controls as normal customer-facing product
   functionality.
 - Search, discovery, memories and history surfaces.
-- Personal and Family Space export/portability journeys.
+- Personal, Family Space and Collection export/portability journeys.
 - Mobile and responsive behaviour.
 - Consistent loading, empty, error and success states.
 - Visual consistency and accessibility across the complete product journey.
@@ -569,7 +575,11 @@ it is not the separate Platform Administrator role introduced in Phase 15.
   subject (Person, Album, Event, or Photo) and extending constrained
   rich-text/typed-mention support to Person biography, Album description,
   Event description, and Photo comments.
-- ADR-0019: Family product UI/UX integration.
+- ADR-0019: Family product UI/UX integration — also reconciles the frozen
+  Phase 14 UI Reference V1 against the live domain model, adding the
+  minimum domain/API support it requires: Album metadata and cover, Event
+  RSVP, the Collection domain, the shared Love reaction, an ADR-0021 Story
+  restatement, and the nondestructive Photo editor with Restore.
 
 ## Exit criteria
 
