@@ -8,6 +8,9 @@ use App\Media\MediaDeliveryUrlSigner;
 use App\Media\MediaSigningAudience;
 use App\Models\MediaUpload;
 use App\Models\MediaVariant;
+use App\Models\Photo;
+use App\Models\PhotoEditPreview;
+use App\Models\PhotoVersion;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -70,6 +73,25 @@ class MediaDeliveryManager
         );
 
         return $authorization;
+    }
+
+    public function photoVersion(Photo $photo, PhotoVersion $version): MediaDeliveryAuthorization
+    {
+        if ($version->photo_id !== $photo->id || $version->family_space_id !== $photo->family_space_id) {
+            throw new NotFoundHttpException;
+        }
+
+        return $this->authorize($version->derived_object_key, 'image/webp');
+    }
+
+    public function photoEditPreview(Photo $photo, PhotoEditPreview $preview): MediaDeliveryAuthorization
+    {
+        if ($preview->photo_id !== $photo->id || $preview->family_space_id !== $photo->family_space_id
+            || $preview->expires_at->isPast()) {
+            throw new NotFoundHttpException;
+        }
+
+        return $this->authorize($preview->object_key, 'image/webp');
     }
 
     private function authorize(string $key, string $responseContentType): MediaDeliveryAuthorization

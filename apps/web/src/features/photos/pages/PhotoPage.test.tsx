@@ -7,6 +7,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 
 import { getPeople } from "@/features/people/api/personApi";
 import { getMediaVariantDelivery } from "@/features/media-uploads/api/mediaUploadApi";
+import { getPhotoVersions } from "../api/photoEditorApi";
 import type { Person } from "@/features/people/types/person";
 
 import {
@@ -41,6 +42,16 @@ vi.mock("../api/photoApi", () => ({
 vi.mock("@/features/people/api/personApi", () => ({ getPeople: vi.fn() }));
 vi.mock("@/features/media-uploads/api/mediaUploadApi", () => ({
   getMediaVariantDelivery: vi.fn(),
+}));
+vi.mock("../api/photoEditorApi", () => ({
+  getPhotoVersions: vi.fn(),
+  getPhotoVersionDelivery: vi.fn(),
+  getPhotoEditPreviewDelivery: vi.fn(),
+  createPhotoEditPreview: vi.fn(),
+  createRestorePreview: vi.fn(),
+  applyPhotoEditPreview: vi.fn(),
+  discardPhotoEditPreview: vi.fn(),
+  activatePhotoVersion: vi.fn(),
 }));
 
 const person: Person = {
@@ -156,6 +167,11 @@ function renderPage() {
 
 beforeEach(() => {
   vi.mocked(getPhoto).mockResolvedValue(photo);
+  vi.mocked(getPhotoVersions).mockResolvedValue({
+    active_photo_version_id: null,
+    can_edit: false,
+    versions: [],
+  });
   vi.mocked(getMediaVariantDelivery).mockResolvedValue({
     asset: "variant",
     transform_name: "display",

@@ -213,6 +213,9 @@ class FamilySpaceDeletionManager
                 ->delete();
             Photo::withTrashed()
                 ->where('family_space_id', $familySpace->id)
+                ->update(['active_photo_version_id' => null]);
+            Photo::withTrashed()
+                ->where('family_space_id', $familySpace->id)
                 ->forceDelete();
             FamilyEvent::withTrashed()
                 ->where('family_space_id', $familySpace->id)

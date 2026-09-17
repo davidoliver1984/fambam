@@ -7,6 +7,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 
 import { getFamilySpace } from "@/features/family-spaces/api/familySpaceApi";
 import { getMediaVariantDelivery } from "@/features/media-uploads/api/mediaUploadApi";
+import { getPhotoVersions } from "@/features/photos/api/photoEditorApi";
 import {
   addPhotoToAlbum,
   createAlbum,
@@ -29,6 +30,10 @@ vi.mock("@/features/family-spaces/api/familySpaceApi", () => ({
 }));
 vi.mock("@/features/media-uploads/api/mediaUploadApi", () => ({
   getMediaVariantDelivery: vi.fn(),
+}));
+vi.mock("@/features/photos/api/photoEditorApi", () => ({
+  getPhotoVersions: vi.fn(),
+  getPhotoVersionDelivery: vi.fn(),
 }));
 
 const album: Album = {
@@ -67,6 +72,11 @@ function renderPage() {
 }
 
 beforeEach(() => {
+  vi.mocked(getPhotoVersions).mockResolvedValue({
+    active_photo_version_id: null,
+    can_edit: false,
+    versions: [],
+  });
   vi.mocked(getAlbums).mockResolvedValue([album]);
   vi.mocked(getFamilySpace).mockResolvedValue({
     id: "01K90000000000000000000000",

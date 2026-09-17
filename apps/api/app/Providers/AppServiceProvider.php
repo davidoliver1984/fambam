@@ -30,6 +30,8 @@ use App\Media\PresentationVariantGenerator;
 use App\Media\S3FamilyMediaStorageCleaner;
 use App\Media\S3MediaDeliveryUrlSigner;
 use App\Media\S3MediaObjectStorage;
+use App\PhotoEditing\ImageMagickPhotoEditRenderer;
+use App\PhotoEditing\PhotoEditRenderer;
 use App\Search\DatabaseDiscoveryService;
 use App\Search\DatabaseSearchService;
 use App\Search\DiscoveryService;
@@ -64,6 +66,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(MediaMetadataExtractor::class, ExifToolMediaMetadataExtractor::class);
         $this->app->bind(CanonicalImageGenerator::class, ImageMagickCanonicalImageGenerator::class);
         $this->app->bind(PresentationVariantGenerator::class, ImageMagickPresentationVariantGenerator::class);
+        $this->app->bind(PhotoEditRenderer::class, ImageMagickPhotoEditRenderer::class);
         $this->app->bind(PerceptualHasher::class, ImageMagickDifferenceHasher::class);
         $this->app->singleton(SqsFaceAnalysisTransport::class);
         $this->app->bind(FaceAnalysisRequestPublisher::class, SqsFaceAnalysisTransport::class);

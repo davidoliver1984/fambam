@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 
-import { MediaVariantImage } from "@/features/media-uploads/components/MediaVariantImage";
+import { PhotoPresentationImage } from "@/features/photos/components/PhotoPresentationImage";
 
 import type { AlbumPhoto } from "../types/album";
 
@@ -40,10 +40,11 @@ export function AlbumPhotoGrid({
       {photos.map((photo) => (
         <li key={photo.id}>
           <Link to={photoPath(familySlug, albumId, photo.id, eventId)}>
-            <MediaVariantImage
+            <PhotoPresentationImage
               familySlug={familySlug}
+              photoId={photo.id}
               mediaUploadId={photo.media_upload_id}
-              transform="thumbnail"
+              fallbackTransform="thumbnail"
               alt={photo.caption ?? photo.client_filename}
               className="album-photo-thumbnail"
             />

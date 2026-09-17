@@ -43,6 +43,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'location_description',
     'deleted_by',
     'primary_event_id',
+    'active_photo_version_id',
 ])]
 class Photo extends Model
 {
@@ -149,6 +150,18 @@ class Photo extends Model
     public function reactions(): HasMany
     {
         return $this->hasMany(PhotoReaction::class);
+    }
+
+    /** @return HasMany<PhotoVersion, $this> */
+    public function versions(): HasMany
+    {
+        return $this->hasMany(PhotoVersion::class);
+    }
+
+    /** @return BelongsTo<PhotoVersion, $this> */
+    public function activeVersion(): BelongsTo
+    {
+        return $this->belongsTo(PhotoVersion::class, 'active_photo_version_id');
     }
 
     /** @return array<string, string> */

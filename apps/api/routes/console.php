@@ -20,6 +20,10 @@ Schedule::command('fambam:dispatch-due-abandoned-media-uploads')
     ->hourly()
     ->withoutOverlapping();
 
+Schedule::command('fambam:dispatch-expired-photo-edit-previews')
+    ->hourly()
+    ->withoutOverlapping();
+
 Schedule::command('fambam:dispatch-due-event-exports')
     ->hourly()
     ->withoutOverlapping();

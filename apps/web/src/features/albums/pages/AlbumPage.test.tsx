@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router";
 
 import { getMediaVariantDelivery } from "@/features/media-uploads/api/mediaUploadApi";
+import { getPhotoVersions } from "@/features/photos/api/photoEditorApi";
 
 import { getAlbum } from "../api/albumApi";
 import { AlbumPage } from "./AlbumPage";
@@ -16,6 +17,10 @@ vi.mock("../api/albumApi", () => ({
 vi.mock("@/features/media-uploads/api/mediaUploadApi", () => ({
   getMediaVariantDelivery: vi.fn(),
 }));
+vi.mock("@/features/photos/api/photoEditorApi", () => ({
+  getPhotoVersions: vi.fn(),
+  getPhotoVersionDelivery: vi.fn(),
+}));
 
 afterEach(() => {
   cleanup();
@@ -24,6 +29,11 @@ afterEach(() => {
 
 describe("AlbumPage", () => {
   it("renders ordered thumbnail cards that navigate to Photo detail", async () => {
+    vi.mocked(getPhotoVersions).mockResolvedValue({
+      active_photo_version_id: null,
+      can_edit: false,
+      versions: [],
+    });
     vi.mocked(getAlbum).mockResolvedValue({
       id: "album-1",
       name: "Wedding photographs",

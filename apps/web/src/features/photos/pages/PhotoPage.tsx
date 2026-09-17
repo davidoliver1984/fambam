@@ -1,7 +1,6 @@
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 
 import { toAppError } from "@/api/errors";
-import { MediaVariantImage } from "@/features/media-uploads/components/MediaVariantImage";
 import { usePeopleQuery } from "@/features/people/hooks/usePeopleQuery";
 import { PhotoDuplicateFlagPanel } from "@/features/duplicates/components/PhotoDuplicateFlagPanel";
 import { useFlagPhotoDuplicateMutation } from "@/features/duplicates/hooks/useDuplicateReview";
@@ -15,6 +14,8 @@ import { PhotoProvenanceProposals } from "../components/PhotoProvenanceProposals
 import { PhotoResurfacingControl } from "../components/PhotoResurfacingControl";
 import { PhotoTagsForm } from "../components/PhotoTagsForm";
 import { PhotoConversationPanel } from "../components/PhotoConversationPanel";
+import { PhotoEditorPanel } from "../components/PhotoEditorPanel";
+import { PhotoPresentationImage } from "../components/PhotoPresentationImage";
 import {
   useReplacePhotoTagsMutation,
   useDeletePhotoMutation,
@@ -72,10 +73,10 @@ export function PhotoPage() {
       </h1>
       {photo.description !== null && <p>{photo.description}</p>}
       <figure className="photo-display">
-        <MediaVariantImage
+        <PhotoPresentationImage
           familySlug={familySlug}
+          photoId={photo.id}
           mediaUploadId={photo.media_upload.id}
-          transform="display"
           alt={photo.caption ?? photo.media_upload.client_filename}
           className="photo-display-image"
         />
@@ -130,6 +131,8 @@ export function PhotoPage() {
           excluded={photo.do_not_resurface}
         />
       )}
+
+      <PhotoEditorPanel familySlug={familySlug} photoId={photo.id} />
 
       {photo.permissions.can_update && (
         <section aria-labelledby="edit-photo-title">

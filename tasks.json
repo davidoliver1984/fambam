@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P14",
-    "current_stage": "FPA-P14-S11",
+    "current_stage": "FPA-P14-S12",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-17"
   },
@@ -1093,16 +1093,18 @@
         {
           "id": "FPA-P14-S11",
           "title": "Implement the nondestructive Photo editor, version model and Restore",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P14-S10"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-17. Added immutable Photo presentation versions with same-Photo composite constraints and forced RLS, authorized edit/Restore previews, deterministic conservative Restore, server-side rendering from canonical assets, explicit apply/revert, expiry cleanup, and Photo/Album presentation integration. Export and download reconciliation remains FPA-P14-S12."
+          ]
         },
         {
           "id": "FPA-P14-S12",
           "title": "Reconcile export/download semantics onto active presentation versions",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P14-S11"
           ],
