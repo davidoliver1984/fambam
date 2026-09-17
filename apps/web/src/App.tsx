@@ -1,8 +1,9 @@
-import "./App.css";
+import { lazy, Suspense } from "react";
 import { Link, Route, Routes } from "react-router";
 
 import { FamilyExportsPage } from "@/features/exports/pages/FamilyExportsPage";
 
+import "./App.css";
 import {
   AccountPage,
   ForgotPasswordPage,
@@ -27,6 +28,14 @@ import { FaceClustersPage } from "./features/face-recognition/pages/FaceClusters
 import { FaceRecognitionReviewPage } from "./features/face-recognition/pages/FaceRecognitionReviewPage";
 import { SearchPage } from "./features/search/pages/SearchPage";
 import { DiscoveryPage } from "./features/search/pages/DiscoveryPage";
+
+const DevUiPlaygroundPage = import.meta.env.DEV
+  ? lazy(() =>
+      import("./features/design-system/pages/UiPlaygroundPage").then(
+        ({ UiPlaygroundPage }) => ({ default: UiPlaygroundPage }),
+      ),
+    )
+  : null;
 
 function WelcomePage() {
   return (
@@ -64,6 +73,16 @@ export function App() {
         path="/two-factor-challenge"
         element={<TwoFactorChallengePage />}
       />
+      {DevUiPlaygroundPage !== null && (
+        <Route
+          path="/ui-playground"
+          element={
+            <Suspense fallback={<p>Loading the UI playground…</p>}>
+              <DevUiPlaygroundPage />
+            </Suspense>
+          }
+        />
+      )}
       <Route element={<RequireAuth />}>
         <Route path="/account" element={<AccountPage />} />
         <Route path="/families/:familySlug" element={<FamilySpacePage />} />

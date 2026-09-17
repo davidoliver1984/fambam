@@ -52,6 +52,14 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
+  it("exposes the UI playground only in development", async () => {
+    renderWithQuery(<App />, "/ui-playground");
+
+    expect(
+      await screen.findByRole("heading", { name: "Interface elements" }),
+    ).toBeInTheDocument();
+  });
+
   it("renders password-manager-friendly login fields", () => {
     renderWithQuery(<App />, "/login");
 
