@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -46,6 +47,13 @@ class FamilyEvent extends Model
     public function albums(): HasMany
     {
         return $this->hasMany(Album::class, 'event_id');
+    }
+
+    /** @return BelongsToMany<Person, $this> */
+    public function people(): BelongsToMany
+    {
+        return $this->belongsToMany(Person::class, 'event_people', 'event_id', 'person_id')
+            ->withPivot(['id', 'family_space_id', 'added_by', 'created_at']);
     }
 
     /** @return HasMany<Photo, $this> */

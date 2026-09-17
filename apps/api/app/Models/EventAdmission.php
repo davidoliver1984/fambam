@@ -11,11 +11,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property CarbonImmutable $admitted_at
  * @property CarbonImmutable|null $revoked_at
+ * @property CarbonImmutable|null $rsvp_responded_at
  * @property-read FamilyEvent $event
  * @property-read FamilySpaceMembership $membership
  * @property-read User|null $revoker
  */
-#[Fillable(['family_space_id', 'event_id', 'family_space_membership_id', 'admitted_at', 'revoked_at', 'revoked_by'])]
+#[Fillable(['family_space_id', 'event_id', 'family_space_membership_id', 'admitted_at', 'revoked_at', 'revoked_by', 'rsvp_status', 'rsvp_responded_at'])]
 class EventAdmission extends Model
 {
     use HasUlids;
@@ -44,6 +45,7 @@ class EventAdmission extends Model
 
     protected function casts(): array
     {
-        return ['admitted_at' => 'immutable_datetime', 'revoked_at' => 'immutable_datetime'];
+        return ['admitted_at' => 'immutable_datetime', 'revoked_at' => 'immutable_datetime',
+            'rsvp_responded_at' => 'immutable_datetime'];
     }
 }

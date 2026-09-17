@@ -29,7 +29,8 @@ class FamilyEventPolicy
         }
 
         return $this->ordinaryMember($user)
-            || ($this->tenantContext->membership()->role === FamilySpaceRole::Guest
+            || (in_array($this->tenantContext->membership()->role,
+                [FamilySpaceRole::Guest, FamilySpaceRole::Contributor], true)
                 && $this->access->hasValidAdmission($event, $this->tenantContext->membership()));
     }
 

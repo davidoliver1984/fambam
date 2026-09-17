@@ -217,6 +217,7 @@ class NotificationManager
             NotificationCategory::Story => ['story_id' => $subject['story_id']],
             NotificationCategory::Identity => ['photo_id' => $subject['photo_id'], 'person_id' => $subject['person_id']],
             NotificationCategory::Export => ['family_export_id' => $subject['family_export_id']],
+            NotificationCategory::Attendance => ['event_id' => $subject['event_id']],
         };
     }
 
@@ -271,6 +272,10 @@ class NotificationManager
             }
         }
 
+        if ($category === NotificationCategory::Attendance) {
+            $ids = collect([FamilyEvent::query()->find($subject['event_id'])?->created_by]);
+        }
+
         return User::query()->whereIn('id', $ids->filter()->unique())->whereNull('revoked_at')->get();
     }
 
@@ -299,6 +304,13 @@ class NotificationManager
             if (isset($subject['story_id'])) {
                 $story = Story::find($subject['story_id']);
                 if ($story === null || ! Gate::forUser($user)->allows('view', $story)) {
+                    return false;
+                }
+            }
+
+            if (isset($subject['event_id'])) {
+                $event = FamilyEvent::query()->find($subject['event_id']);
+                if ($event === null || ! Gate::forUser($user)->allows('view', $event)) {
                     return false;
                 }
             }
@@ -345,6 +357,7 @@ class NotificationManager
             NotificationCategory::Story => 'A new family story was added.',
             NotificationCategory::Identity => 'Your identity was confirmed in a photograph.',
             NotificationCategory::Export => 'Your fambam export status changed.',
+            NotificationCategory::Attendance => 'Someone responded to an Event invitation.',
         };
     }
 
@@ -354,8 +367,9 @@ class NotificationManager
         $slug = FamilySpace::query()->whereKey($familyId)->value('slug');
         $base = rtrim((string) config('app.web_url'), '/')."/families/{$slug}";
 
-        return isset($subject['story_id']) ? $base.'/stories/'.$subject['story_id']
+        return isset($subject['event_id']) ? $base.'/events/'.$subject['event_id']
+            : (isset($subject['story_id']) ? $base.'/stories/'.$subject['story_id']
             : (isset($subject['photo_id']) ? $base.'/photos/'.$subject['photo_id']
-                : (isset($subject['album_id']) ? $base.'/albums/'.$subject['album_id'] : $base));
+                : (isset($subject['album_id']) ? $base.'/albums/'.$subject['album_id'] : $base)));
     }
 }

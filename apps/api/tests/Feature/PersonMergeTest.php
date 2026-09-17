@@ -12,6 +12,7 @@ use App\Models\FaceIdentitySuppression;
 use App\Models\FaceObservation;
 use App\Models\FamilyCircle;
 use App\Models\FamilyCirclePerson;
+use App\Models\FamilyEvent;
 use App\Models\FamilyNotification;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
@@ -39,6 +40,41 @@ use Tests\TestCase;
 class PersonMergeTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_event_people_merge_collision_and_noncollision_are_guardedly_reversed(): void
+    {
+        [$family, $owner] = $this->familyWithRole(FamilySpaceRole::Owner, 'event-people-merge');
+        $absorbed = $this->person($family, 'Absorbed');
+        $survivor = $this->person($family, 'Survivor');
+        $collisionEvent = FamilyEvent::query()->create(['family_space_id' => $family->id,
+            'created_by' => $owner->id, 'name' => 'Both']);
+        $singleEvent = FamilyEvent::query()->create(['family_space_id' => $family->id,
+            'created_by' => $owner->id, 'name' => 'One']);
+        $rows = [];
+        foreach ([[$collisionEvent, $absorbed], [$collisionEvent, $survivor], [$singleEvent, $absorbed]] as [$event, $person]) {
+            $id = (string) Str::ulid();
+            DB::table('event_people')->insert(['id' => $id, 'family_space_id' => $family->id,
+                'event_id' => $event->id, 'person_id' => $person->id,
+                'added_by' => $owner->id, 'created_at' => now()]);
+            $rows[] = $id;
+        }
+
+        $mergeId = $this->actingAs($owner)->postJson("/api/families/{$family->slug}/people/{$absorbed->id}/merge", [
+            'survivor_person_id' => $survivor->id,
+        ])->assertCreated()->json('data.id');
+        $this->assertDatabaseMissing('event_people', ['id' => $rows[0]]);
+        $this->assertDatabaseHas('event_people', ['id' => $rows[1], 'person_id' => $survivor->id]);
+        $this->assertDatabaseHas('event_people', ['id' => $rows[2], 'person_id' => $survivor->id]);
+        $provenance = PersonMerge::findOrFail($mergeId)->provenance;
+        $this->assertCount(3, $provenance['before']['event_people']);
+        $this->assertCount(2, $provenance['after']['event_people']);
+
+        $this->actingAs($owner)->postJson("/api/families/{$family->slug}/person-merges/{$mergeId}/reverse")
+            ->assertOk();
+        $this->assertDatabaseHas('event_people', ['id' => $rows[0], 'person_id' => $absorbed->id]);
+        $this->assertDatabaseHas('event_people', ['id' => $rows[1], 'person_id' => $survivor->id]);
+        $this->assertDatabaseHas('event_people', ['id' => $rows[2], 'person_id' => $absorbed->id]);
+    }
 
     public function test_album_people_merge_collision_is_recorded_and_guardedly_restored(): void
     {

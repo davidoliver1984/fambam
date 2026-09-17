@@ -21,6 +21,28 @@ class FamilyEventTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_event_people_are_descriptive_tenant_scoped_and_managed_by_event_editors(): void
+    {
+        $family = FamilySpace::factory()->create(['slug' => 'event-people']);
+        [$owner] = $this->member($family, FamilySpaceRole::Owner);
+        [$member] = $this->member($family, FamilySpaceRole::Member);
+        $person = Person::factory()->create(['family_space_id' => $family->id]);
+        $otherFamily = FamilySpace::factory()->create();
+        $foreign = Person::factory()->create(['family_space_id' => $otherFamily->id]);
+        $base = '/api/families/event-people/events';
+
+        $eventId = $this->actingAs($owner)->postJson($base, ['name' => 'Reunion',
+            'person_ids' => [$person->id]])->assertCreated()->json('data.id');
+        $this->actingAs($owner)->getJson("{$base}/{$eventId}")
+            ->assertOk()->assertJsonPath('data.people.0.id', $person->id);
+        $this->actingAs($member)->patchJson("{$base}/{$eventId}", ['person_ids' => []])->assertForbidden();
+        $this->actingAs($owner)->patchJson("{$base}/{$eventId}", ['person_ids' => [$foreign->id]])
+            ->assertUnprocessable()->assertJsonValidationErrors('person_ids');
+        $this->assertDatabaseHas('event_people', ['event_id' => $eventId, 'person_id' => $person->id]);
+        $this->actingAs($owner)->patchJson("{$base}/{$eventId}", ['person_ids' => []])->assertOk();
+        $this->assertDatabaseMissing('event_people', ['event_id' => $eventId, 'person_id' => $person->id]);
+    }
+
     public function test_event_authority_follows_role_and_creator_rules(): void
     {
         $family = FamilySpace::factory()->create(['slug' => 'events-authority']);

@@ -20,10 +20,15 @@ class EventAdmissionManager
             $existing = EventAdmission::query()->where('event_id', $event->id)
                 ->where('family_space_membership_id', $membership->id)->lockForUpdate()->first();
             $action = $existing === null ? 'event.admitted' : 'event.re_admitted';
+            $values = ['family_space_id' => $event->family_space_id, 'admitted_at' => now(),
+                'revoked_at' => null, 'revoked_by' => null];
+            if ($existing?->revoked_at !== null) {
+                $values['rsvp_status'] = 'pending';
+                $values['rsvp_responded_at'] = null;
+            }
             $admission = EventAdmission::query()->updateOrCreate(
                 ['event_id' => $event->id, 'family_space_membership_id' => $membership->id],
-                ['family_space_id' => $event->family_space_id, 'admitted_at' => now(),
-                    'revoked_at' => null, 'revoked_by' => null],
+                $values,
             );
             $this->audit->record($action, $admission, $actor, $request);
 

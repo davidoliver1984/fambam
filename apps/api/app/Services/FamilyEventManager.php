@@ -6,12 +6,14 @@ use App\Enums\EventStatus;
 use App\Enums\FamilyActivityType;
 use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
+use App\Models\Person;
 use App\Models\User;
 use App\Stories\MentionAuthorizer;
 use App\Stories\RichTextFieldWriter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class FamilyEventManager
@@ -39,6 +41,9 @@ class FamilyEventManager
                 $description = $this->richText->synchronize($event, 'event_description_mentions', 'event_id',
                     $input['description'], $this->mentionAuthorizer->for($actor, $event));
                 $event->update(['description' => $description]);
+            }
+            if (array_key_exists('person_ids', $input)) {
+                $this->syncPeople($event, $actor, $input['person_ids']);
             }
             $this->audit->record('event.created', $event, $actor, $request);
             $this->activities->record(
@@ -71,6 +76,10 @@ class FamilyEventManager
                     $input['description'], $this->mentionAuthorizer->for($actor, $locked));
                 $locked->update(['description' => $description]);
                 $changedFields = array_values(array_unique([...$changedFields, ...array_keys($locked->getChanges())]));
+            }
+            if (array_key_exists('person_ids', $input)) {
+                $this->syncPeople($locked, $actor, $input['person_ids']);
+                $changedFields[] = 'person_ids';
             }
             $this->audit->record('event.updated', $locked, $actor, $request, [
                 'changed_fields' => $changedFields,
@@ -117,5 +126,20 @@ class FamilyEventManager
         }
 
         return $attributes;
+    }
+
+    /** @param list<string> $personIds */
+    private function syncPeople(FamilyEvent $event, User $actor, array $personIds): void
+    {
+        $ids = array_values(array_unique($personIds));
+        if (Person::query()->where('family_space_id', $event->family_space_id)->whereIn('id', $ids)->count() !== count($ids)) {
+            throw ValidationException::withMessages(['person_ids' => ['One or more selected People are unavailable in this Family Space.']]);
+        }
+        DB::table('event_people')->where('event_id', $event->id)->whereNotIn('person_id', $ids)->delete();
+        foreach ($ids as $id) {
+            DB::table('event_people')->insertOrIgnore(['id' => (string) Str::ulid(),
+                'family_space_id' => $event->family_space_id, 'event_id' => $event->id,
+                'person_id' => $id, 'added_by' => $actor->id, 'created_at' => now()]);
+        }
     }
 }

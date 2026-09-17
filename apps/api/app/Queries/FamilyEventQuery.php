@@ -33,7 +33,7 @@ class FamilyEventQuery
         ], true)) {
             return $query;
         }
-        if ($membership->role !== FamilySpaceRole::Guest) {
+        if (! in_array($membership->role, [FamilySpaceRole::Guest, FamilySpaceRole::Contributor], true)) {
             return $query->whereRaw('1 = 0');
         }
 

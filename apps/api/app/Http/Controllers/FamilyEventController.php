@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\FamilySpaceRole;
 use App\Http\Requests\StoreFamilyEventRequest;
 use App\Http\Requests\UpdateFamilyEventRequest;
+use App\Models\Album;
 use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\Person;
@@ -145,8 +146,7 @@ class FamilyEventController extends Controller
                 'can_manage_exports' => Gate::allows('manageExports', $event),
                 'can_delete' => ! $event->trashed() && Gate::allows('delete', $event),
                 'can_restore' => $event->trashed() && Gate::allows('restore', $event),
-                'can_create_album' => ! $event->trashed()
-                    && $this->tenantContext->membership()->role !== FamilySpaceRole::Guest],
+                'can_create_album' => ! $event->trashed() && Gate::allows('create', Album::class)],
         ];
         if (! $detailed) {
             return $payload;
@@ -157,14 +157,22 @@ class FamilyEventController extends Controller
         if ($this->tenantContext->membership()->role === FamilySpaceRole::Guest) {
             $membership = $this->tenantContext->membership();
             $albums = $albums->filter(fn ($album): bool => $this->access->guestMayViewAlbum($album, $membership));
+        } elseif ($this->tenantContext->membership()->role === FamilySpaceRole::Contributor) {
+            $albums = $albums->filter(fn ($album): bool => Gate::allows('view', $album));
         }
         $payload['albums'] = $albums->map(fn ($album): array => [
             'id' => $album->id, 'name' => $album->name, 'visibility' => $album->visibility->value,
             'guest_participation' => $album->guest_participation->value,
         ])->values();
-        $payload['attendees'] = $this->tenantContext->membership()->role === FamilySpaceRole::Guest
+        $payload['attendees'] = in_array($this->tenantContext->membership()->role,
+            [FamilySpaceRole::Guest, FamilySpaceRole::Contributor], true)
             ? [] : $this->events->attendees($event)->map(fn (Person $person): array => [
                 'id' => $person->id, 'preferred_name' => $person->preferred_name,
+            ])->values();
+        $payload['people'] = in_array($this->tenantContext->membership()->role,
+            [FamilySpaceRole::Guest, FamilySpaceRole::Contributor], true)
+            ? [] : $event->people()->get(['people.id', 'preferred_name'])->map(fn (Person $person): array => [
+                'id' => $person->id, 'name' => $person->preferred_name,
             ])->values();
 
         return $payload;

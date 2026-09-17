@@ -9,13 +9,14 @@ use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\User;
 use App\Services\EventAdmissionManager;
+use App\Services\EventRsvpManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class EventAdmissionController extends Controller
 {
-    public function __construct(private readonly EventAdmissionManager $manager) {}
+    public function __construct(private readonly EventAdmissionManager $manager, private readonly EventRsvpManager $rsvpManager) {}
 
     public function index(FamilySpace $familySpace, string $event): JsonResponse
     {
@@ -54,6 +55,40 @@ class EventAdmissionController extends Controller
         )]);
     }
 
+    public function rsvp(FamilySpace $familySpace, string $event, Request $request): JsonResponse
+    {
+        $target = $this->event($familySpace, $event);
+        $status = $request->validate(['status' => ['required', 'in:pending,going,not_attending']])['status'];
+        /** @var User $actor */
+        $actor = $request->user();
+        $membership = FamilySpaceMembership::query()->where('family_space_id', $familySpace->id)
+            ->where('user_id', $actor->id)->where('state', 'active')->firstOrFail();
+
+        return response()->json(['data' => $this->payload(
+            $this->rsvpManager->respond($target, $membership, $actor, $status, $request),
+        )]);
+    }
+
+    public function rsvps(FamilySpace $familySpace, string $event): JsonResponse
+    {
+        $target = $this->event($familySpace, $event);
+        Gate::authorize('view', $target);
+        $rows = EventAdmission::query()->with('membership.user:id,name,email')
+            ->where('event_id', $target->id)->whereNull('revoked_at')
+            ->where('admitted_at', '>', now()->subDays((int) config('events.admission_lifetime_days')))
+            ->orderBy('id')->get();
+        $groups = ['going' => [], 'pending' => [], 'not_attending' => []];
+        foreach ($rows as $row) {
+            if ($row->membership->state->value !== 'active') {
+                continue;
+            }
+            $groups[$row->rsvp_status][] = ['id' => $row->id,
+                'user' => ['id' => $row->membership->user->id, 'name' => $row->membership->user->name]];
+        }
+
+        return response()->json(['data' => $groups]);
+    }
+
     private function event(FamilySpace $family, string $id): FamilyEvent
     {
         return FamilyEvent::query()->where('family_space_id', $family->id)->findOrFail($id);
@@ -69,6 +104,8 @@ class EventAdmissionController extends Controller
                 'email' => $admission->membership->user->email],
             'role' => $admission->membership->role->value, 'admitted_at' => $admission->admitted_at->toAtomString(),
             'revoked_at' => $admission->revoked_at?->toAtomString(),
+            'rsvp_status' => $admission->rsvp_status,
+            'rsvp_responded_at' => $admission->rsvp_responded_at?->toAtomString(),
             'valid_until' => $admission->admitted_at->addDays((int) config('events.admission_lifetime_days'))->toAtomString()];
     }
 }

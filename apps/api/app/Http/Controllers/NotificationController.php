@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\NotificationCategory;
 use App\Enums\NotificationChannel;
 use App\Models\Album;
+use App\Models\FamilyEvent;
 use App\Models\FamilyNotification;
 use App\Models\FamilySpace;
 use App\Models\NotificationPreference;
@@ -52,7 +53,7 @@ class NotificationController extends Controller
 
     public function updatePreferences(FamilySpace $familySpace, Request $request): JsonResponse
     {
-        $data = $request->validate(['preferences' => 'required|array|max:8', 'preferences.*.category' => ['required', Rule::in(array_map(fn (NotificationCategory $category): string => $category->value, NotificationCategory::preferenceCases()))], 'preferences.*.channel' => ['required', Rule::enum(NotificationChannel::class)], 'preferences.*.enabled' => 'required|boolean']);
+        $data = $request->validate(['preferences' => 'required|array|max:10', 'preferences.*.category' => ['required', Rule::in(array_map(fn (NotificationCategory $category): string => $category->value, NotificationCategory::preferenceCases()))], 'preferences.*.channel' => ['required', Rule::enum(NotificationChannel::class)], 'preferences.*.enabled' => 'required|boolean']);
         foreach ($data['preferences'] as $preference) {
             NotificationPreference::query()->updateOrCreate(['family_space_id' => $familySpace->id, 'user_id' => $request->user()->id, 'category' => $preference['category'], 'channel' => $preference['channel']], ['enabled' => $preference['enabled']]);
         }
@@ -84,6 +85,13 @@ class NotificationController extends Controller
             return $row->recipient_user_id === $request->user()->id;
         }
 
+        if ($row->event_id) {
+            $event = FamilyEvent::query()->find($row->event_id);
+            if ($event === null || ! Gate::forUser($request->user())->allows('view', $event)) {
+                return false;
+            }
+        }
+
         return true;
     }
 
@@ -102,6 +110,7 @@ class NotificationController extends Controller
             'comment_id' => $row->comment_id,
             'story_comment_id' => $row->story_comment_id,
             'family_export_id' => $row->family_export_id,
+            'event_id' => $row->event_id,
             'read_at' => $row->read_at?->toIso8601String(),
             'created_at' => $row->created_at->toIso8601String(),
         ];

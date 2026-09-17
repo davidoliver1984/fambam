@@ -177,6 +177,8 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::get('/events/{event}/admissions', [EventAdmissionController::class, 'index']);
         Route::post('/events/{event}/admissions', [EventAdmissionController::class, 'store']);
         Route::delete('/events/{event}/admissions/{membership}', [EventAdmissionController::class, 'destroy']);
+        Route::patch('/events/{event}/rsvp', [EventAdmissionController::class, 'rsvp']);
+        Route::get('/events/{event}/rsvps', [EventAdmissionController::class, 'rsvps']);
         Route::get('/events/{event}/exports', [EventExportController::class, 'index']);
         Route::post('/events/{event}/exports', [EventExportController::class, 'store']);
         Route::get('/events/{event}/exports/{eventExport}/download', [EventExportController::class, 'download']);
