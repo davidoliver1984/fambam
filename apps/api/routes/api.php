@@ -22,6 +22,7 @@ use App\Http\Controllers\FamilySpaceMembershipController;
 use App\Http\Controllers\HomepageMemoryController;
 use App\Http\Controllers\InvitationAcceptanceController;
 use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\LoveController;
 use App\Http\Controllers\MediaUploadController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PersonAccountLinkController;
@@ -85,6 +86,9 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
             ->whereIn('type', ['people', 'photos', 'albums', 'events']);
         Route::post('/stories', [StoryController::class, 'store']);
         Route::get('/stories/{story}', [StoryController::class, 'show']);
+        Route::get('/stories/{story}/love', [LoveController::class, 'story']);
+        Route::put('/stories/{story}/love', [LoveController::class, 'loveStory']);
+        Route::delete('/stories/{story}/love', [LoveController::class, 'unloveStory']);
         Route::patch('/stories/{story}', [StoryController::class, 'update']);
         Route::delete('/stories/{story}', [StoryController::class, 'destroy']);
         Route::post('/stories/{story}/restore', [StoryController::class, 'restore']);
@@ -149,6 +153,7 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::post('/photos/{photo}/people/{association}/approve', [PhotoController::class, 'approvePhotoPerson']);
         Route::post('/photos/{photo}/people/{association}/reject', [PhotoController::class, 'rejectPhotoPerson']);
         Route::get('/photos/{photo}/conversation', [PhotoConversationController::class, 'index']);
+        Route::get('/photos/{photo}/love', [LoveController::class, 'photo']);
         Route::post('/photos/{photo}/stories', [StoryController::class, 'storeForPhoto']);
         Route::patch('/photos/{photo}/stories/{story}', [StoryController::class, 'updateForPhoto']);
         Route::delete('/photos/{photo}/stories/{story}', [StoryController::class, 'removeForPhoto']);
@@ -167,6 +172,9 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::delete('/albums/{album}/photos/{photo}', [AlbumController::class, 'removePhoto']);
         Route::put('/albums/{album}/cover', [AlbumController::class, 'setCover']);
         Route::post('/albums/{album}/media-uploads', [AlbumController::class, 'initiateUpload']);
+        Route::get('/albums/{album}/love', [LoveController::class, 'album']);
+        Route::put('/albums/{album}/love', [LoveController::class, 'loveAlbum']);
+        Route::delete('/albums/{album}/love', [LoveController::class, 'unloveAlbum']);
         Route::get('/collections', [CollectionController::class, 'index']);
         Route::post('/collections', [CollectionController::class, 'store']);
         Route::get('/collections/{collection}', [CollectionController::class, 'show']);
@@ -180,6 +188,9 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::post('/events', [FamilyEventController::class, 'store']);
         Route::get('/events/deleted', [FamilyEventController::class, 'deleted']);
         Route::get('/events/{event}', [FamilyEventController::class, 'show']);
+        Route::get('/events/{event}/love', [LoveController::class, 'event']);
+        Route::put('/events/{event}/love', [LoveController::class, 'loveEvent']);
+        Route::delete('/events/{event}/love', [LoveController::class, 'unloveEvent']);
         Route::patch('/events/{event}', [FamilyEventController::class, 'update']);
         Route::get('/events/{event}/duplicate-candidates', [FamilyEventController::class, 'duplicateCandidates']);
         Route::delete('/events/{event}', [FamilyEventController::class, 'destroy']);

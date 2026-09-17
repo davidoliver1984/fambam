@@ -17,6 +17,8 @@ use App\Models\FamilyEvent;
 use App\Models\FamilyNotification;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
+use App\Models\LoveNotificationGroup;
+use App\Models\LoveNotificationGroupActor;
 use App\Models\NotificationCandidate;
 use App\Models\NotificationDelivery;
 use App\Models\NotificationPreference;
@@ -129,6 +131,38 @@ class NotificationManager
         }
     }
 
+    /** @param array{family_space_id:string,actor_user_id:int,correlation_id:string,traceparent:string} $rawContext */
+    public function finalizeLove(array $rawContext, string $groupId): void
+    {
+        $pending = DB::transaction(function () use ($rawContext, $groupId): ?array {
+            $this->establish($rawContext);
+            $group = LoveNotificationGroup::query()->find($groupId);
+            if ($group === null) {
+                return null;
+            }
+
+            return [
+                'subject' => array_filter([
+                    'photo_id' => $group->photo_id,
+                    'album_id' => $group->album_id,
+                    'event_id' => $group->event_id,
+                    'story_id' => $group->story_id,
+                ]),
+                'recipients' => NotificationCandidate::query()
+                    ->where('category', NotificationCategory::Love->value)
+                    ->where('source_action_id', $groupId)->whereNull('evaluated_at')
+                    ->pluck('recipient_user_id')->all(),
+            ];
+        });
+        if ($pending === null) {
+            return;
+        }
+        foreach ($pending['recipients'] as $recipientId) {
+            $this->evaluate($rawContext, (int) $recipientId, NotificationCategory::Love,
+                $groupId, $pending['subject'], true);
+        }
+    }
+
     /**
      * @param  array{family_space_id:string,actor_user_id:int,correlation_id:string,traceparent:string}  $rawContext
      * @param  array<string, mixed>  $subject
@@ -142,12 +176,20 @@ class NotificationManager
                 return null;
             }
             $candidate = NotificationCandidate::query()->lockForUpdate()->firstOrCreate($this->identity($context, $recipient, $category, $sourceActionId), $this->pendingOutcomes());
+            $message = $this->message($category, $sourceActionId, $subject);
             if ($candidate->evaluated_at !== null) {
                 $delivery = NotificationDelivery::query()->where($this->identity($context, $recipient, $category, $sourceActionId))->whereIn('status', ['pending', 'failed'])->first();
 
-                return $delivery === null ? null : ['recipient' => $recipient, 'delivery_id' => $delivery->id, 'url' => $this->url($context->familySpaceId, $subject)];
+                return $delivery === null ? null : ['recipient' => $recipient, 'delivery_id' => $delivery->id,
+                    'url' => $this->url($context->familySpaceId, $subject), 'message' => $message];
             }
             if (! $candidate->wasRecentlyCreated && ! $allowPending) {
+                return null;
+            }
+            if ($category === NotificationCategory::Love && $message === null) {
+                $candidate->update(['in_app_outcome' => NotificationOutcome::SkippedNoActors,
+                    'email_outcome' => NotificationOutcome::SkippedNoActors, 'evaluated_at' => now()]);
+
                 return null;
             }
             if (! $this->authorized($context->familySpaceId, $recipient, $subject)) {
@@ -165,7 +207,8 @@ class NotificationManager
             }
             $candidate->update(['in_app_outcome' => $inApp ? NotificationOutcome::Created : NotificationOutcome::SkippedPreference, 'email_outcome' => $email ? NotificationOutcome::Created : NotificationOutcome::SkippedPreference, 'evaluated_at' => now()]);
 
-            return $delivery === null ? null : ['recipient' => $recipient, 'delivery_id' => $delivery->id, 'url' => $this->url($context->familySpaceId, $subject)];
+            return $delivery === null ? null : ['recipient' => $recipient, 'delivery_id' => $delivery->id,
+                'url' => $this->url($context->familySpaceId, $subject), 'message' => $message];
         });
         if ($prepared === null) {
             return;
@@ -183,7 +226,7 @@ class NotificationManager
             return;
         }
         try {
-            $this->dispatcher->send($recipient, new FamilyActivityNotification($this->message($category), $prepared['url']));
+            $this->dispatcher->send($recipient, new FamilyActivityNotification($prepared['message'], $prepared['url']));
             $this->updateDelivery($rawContext, $prepared['delivery_id'], ['status' => 'sent', 'attempted_at' => now(), 'sent_at' => now(), 'failure_reason' => null]);
         } catch (\Throwable $exception) {
             $this->updateDelivery($rawContext, $prepared['delivery_id'], ['status' => 'failed', 'attempted_at' => now(), 'failure_reason' => 'delivery_failed']);
@@ -218,6 +261,7 @@ class NotificationManager
             NotificationCategory::Identity => ['photo_id' => $subject['photo_id'], 'person_id' => $subject['person_id']],
             NotificationCategory::Export => ['family_export_id' => $subject['family_export_id']],
             NotificationCategory::Attendance => ['event_id' => $subject['event_id']],
+            NotificationCategory::Love => $subject,
         };
     }
 
@@ -349,8 +393,27 @@ class NotificationManager
         return ['in_app_outcome' => NotificationOutcome::SkippedAuthorization, 'email_outcome' => NotificationOutcome::SkippedAuthorization];
     }
 
-    private function message(NotificationCategory $category): string
+    /** @param array<string, mixed> $subject */
+    private function message(NotificationCategory $category, string $sourceActionId, array $subject): ?string
     {
+        if ($category === NotificationCategory::Love) {
+            $actors = User::query()->whereIn('id', LoveNotificationGroupActor::query()
+                ->where('group_id', $sourceActionId)->orderBy('actor_user_id')->pluck('actor_user_id'))
+                ->orderBy('id')->get();
+            if ($actors->isEmpty()) {
+                return null;
+            }
+            $target = match (true) {
+                isset($subject['photo_id']) => 'Photo',
+                isset($subject['album_id']) => 'Album',
+                isset($subject['event_id']) => 'Event',
+                default => 'Story',
+            };
+            $others = $actors->count() - 1;
+
+            return $actors->first()->name.($others > 0 ? " and {$others} others" : '')." loved your {$target}.";
+        }
+
         return match ($category) {
             NotificationCategory::Comment => 'Someone joined a family conversation.',
             NotificationCategory::Contribution => 'New photographs were added.',

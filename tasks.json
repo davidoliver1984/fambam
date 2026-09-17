@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P14",
-    "current_stage": "FPA-P14-S10",
+    "current_stage": "FPA-P14-S11",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-17"
   },
@@ -1082,16 +1082,18 @@
         {
           "id": "FPA-P14-S10",
           "title": "Generalize Love across Album, Event and Story",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P14-S09"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-17. Added tenant-scoped single-value Love for Albums, Events and Stories; retained Album-scoped Photo reactions; added target-centered, distinct-actor notification grouping with live authorization and Person-link disclosure checks, backed by PostgreSQL constraints and RLS."
+          ]
         },
         {
           "id": "FPA-P14-S11",
           "title": "Implement the nondestructive Photo editor, version model and Restore",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P14-S10"
           ],

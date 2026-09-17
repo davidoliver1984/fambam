@@ -53,7 +53,7 @@ class NotificationController extends Controller
 
     public function updatePreferences(FamilySpace $familySpace, Request $request): JsonResponse
     {
-        $data = $request->validate(['preferences' => 'required|array|max:10', 'preferences.*.category' => ['required', Rule::in(array_map(fn (NotificationCategory $category): string => $category->value, NotificationCategory::preferenceCases()))], 'preferences.*.channel' => ['required', Rule::enum(NotificationChannel::class)], 'preferences.*.enabled' => 'required|boolean']);
+        $data = $request->validate(['preferences' => 'required|array|max:12', 'preferences.*.category' => ['required', Rule::in(array_map(fn (NotificationCategory $category): string => $category->value, NotificationCategory::preferenceCases()))], 'preferences.*.channel' => ['required', Rule::enum(NotificationChannel::class)], 'preferences.*.enabled' => 'required|boolean']);
         foreach ($data['preferences'] as $preference) {
             NotificationPreference::query()->updateOrCreate(['family_space_id' => $familySpace->id, 'user_id' => $request->user()->id, 'category' => $preference['category'], 'channel' => $preference['channel']], ['enabled' => $preference['enabled']]);
         }

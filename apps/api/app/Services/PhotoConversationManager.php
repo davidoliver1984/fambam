@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\NotificationCategory;
+use App\Enums\PhotoReactionType;
 use App\Jobs\ProcessNotificationCandidate;
 use App\Models\Album;
 use App\Models\Photo;
@@ -23,6 +24,7 @@ class PhotoConversationManager
         private readonly AuditRecorder $audit,
         private readonly RichTextFieldWriter $richText,
         private readonly MentionAuthorizer $mentionAuthorizer,
+        private readonly LoveNotificationManager $loveNotifications,
     ) {}
 
     public function createComment(Photo $photo, Album $album, User $actor, mixed $body, Request $request): PhotoComment
@@ -75,11 +77,19 @@ class PhotoConversationManager
     public function react(Photo $photo, Album $album, User $actor, string $reaction, Request $request): PhotoReaction
     {
         return DB::transaction(function () use ($photo, $album, $actor, $reaction, $request): PhotoReaction {
+            $previous = PhotoReaction::query()->where('photo_id', $photo->id)
+                ->where('album_id', $album->id)->where('user_id', $actor->id)->first();
+            $wasLove = $previous?->reaction === PhotoReactionType::Love;
             $model = PhotoReaction::query()->updateOrCreate(
                 ['photo_id' => $photo->id, 'album_id' => $album->id, 'user_id' => $actor->id],
                 ['family_space_id' => $photo->family_space_id, 'reaction' => $reaction],
             );
             $this->audit->record('photo.reaction_saved', $model, $actor, $request, ['album_id' => $album->id]);
+            if ($reaction === PhotoReactionType::Love->value && ! $wasLove) {
+                $this->loveNotifications->added($photo, $actor, $request);
+            } elseif ($wasLove && $reaction !== PhotoReactionType::Love->value) {
+                $this->loveNotifications->removed($photo, $actor);
+            }
 
             return $model;
         });
@@ -92,6 +102,9 @@ class PhotoConversationManager
                 ->where('album_id', $album->id)->where('user_id', $actor->id)->firstOrFail();
             $this->audit->record('photo.reaction_removed', $reaction, $actor, $request, ['album_id' => $album->id]);
             $reaction->delete();
+            if ($reaction->reaction === PhotoReactionType::Love) {
+                $this->loveNotifications->removed($photo, $actor);
+            }
         });
     }
 }

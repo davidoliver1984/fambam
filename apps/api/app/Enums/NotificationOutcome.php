@@ -8,4 +8,5 @@ enum NotificationOutcome: string
     case Created = 'created';
     case SkippedPreference = 'skipped_preference';
     case SkippedAuthorization = 'skipped_authorization';
+    case SkippedNoActors = 'skipped_no_actors';
 }
