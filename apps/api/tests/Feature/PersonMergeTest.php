@@ -11,9 +11,11 @@ use App\Models\FaceIdentitySuppression;
 use App\Models\FaceObservation;
 use App\Models\FamilyCircle;
 use App\Models\FamilyCirclePerson;
+use App\Models\FamilyNotification;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\MediaUpload;
+use App\Models\NotificationDelivery;
 use App\Models\Person;
 use App\Models\PersonAccountLink;
 use App\Models\PersonMerge;
@@ -29,6 +31,7 @@ use App\Models\User;
 use App\Stories\StoryWriter;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class PersonMergeTest extends TestCase
@@ -96,6 +99,65 @@ class PersonMergeTest extends TestCase
             'event_description_mentions', 'photo_comment_person_mentions'] as $table) {
             $this->assertDatabaseMissing($table, ['person_id' => $last->id]);
         }
+    }
+
+    public function test_merge_repoints_identity_notification_and_delivery_to_the_survivor(): void
+    {
+        [$family, $owner] = $this->familyWithRole(FamilySpaceRole::Owner, 'notification-merge');
+        $survivor = $this->person($family, 'Survivor');
+        $absorbed = $this->person($family, 'Duplicate');
+        $upload = MediaUpload::factory()->create([
+            'family_space_id' => $family->id,
+            'user_id' => $owner->id,
+            'state' => MediaUploadState::Ready,
+        ]);
+        $photo = Photo::factory()->create([
+            'family_space_id' => $family->id,
+            'media_upload_id' => $upload->id,
+            'created_by' => $owner->id,
+        ]);
+        $sourceActionId = (string) Str::ulid();
+        $notification = FamilyNotification::query()->create([
+            'family_space_id' => $family->id,
+            'recipient_user_id' => $owner->id,
+            'category' => 'identity',
+            'source_action_id' => $sourceActionId,
+            'photo_id' => $photo->id,
+            'person_id' => $absorbed->id,
+        ]);
+        $delivery = NotificationDelivery::query()->create([
+            'family_space_id' => $family->id,
+            'recipient_user_id' => $owner->id,
+            'category' => 'identity',
+            'source_action_id' => $sourceActionId,
+            'notification_id' => $notification->id,
+            'photo_id' => $photo->id,
+            'person_id' => $absorbed->id,
+            'channel' => 'mail',
+            'status' => 'sent',
+        ]);
+
+        $this->actingAs($owner)
+            ->postJson("/api/families/{$family->slug}/people/{$absorbed->id}/merge", [
+                'survivor_person_id' => $survivor->id,
+            ])->assertCreated();
+
+        $this->assertDatabaseHas('notifications', [
+            'id' => $notification->id,
+            'person_id' => $survivor->id,
+        ]);
+        $this->assertDatabaseHas('notification_deliveries', [
+            'id' => $delivery->id,
+            'person_id' => $survivor->id,
+        ]);
+        $this->assertDatabaseMissing('notifications', [
+            'id' => $notification->id,
+            'person_id' => $absorbed->id,
+        ]);
+        $this->assertDatabaseMissing('notification_deliveries', [
+            'id' => $delivery->id,
+            'person_id' => $absorbed->id,
+        ]);
     }
 
     public function test_merge_and_guarded_reversal_reconcile_saved_search_person_collisions(): void

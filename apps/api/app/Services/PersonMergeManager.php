@@ -13,6 +13,7 @@ use App\Models\FaceIdentitySuppression;
 use App\Models\FamilyActivity;
 use App\Models\FamilyCirclePerson;
 use App\Models\FamilyNotification;
+use App\Models\NotificationDelivery;
 use App\Models\Person;
 use App\Models\PersonAccountLink;
 use App\Models\PersonMerge;
@@ -562,6 +563,8 @@ class PersonMergeManager
         FamilyActivity::query()->where('subject_person_id', $absorbed->id)
             ->update(['subject_person_id' => $survivor->id]);
         FamilyNotification::query()->where('person_id', $absorbed->id)
+            ->update(['person_id' => $survivor->id, 'updated_at' => now()]);
+        NotificationDelivery::query()->where('person_id', $absorbed->id)
             ->update(['person_id' => $survivor->id, 'updated_at' => now()]);
     }
 
