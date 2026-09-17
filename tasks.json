@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P14",
-    "current_stage": "FPA-P14-S09",
+    "current_stage": "FPA-P14-S10",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-17"
   },
@@ -1071,16 +1071,18 @@
         {
           "id": "FPA-P14-S09",
           "title": "Implement the Collection domain",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P14-S08"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-17. Added private owner-only Collections and ordered Photo membership with tenant-composite constraints and forced RLS, live Photo visibility checks, authorized Album/Event bulk population, and Family Space teardown coverage. Collection export packaging and crash-safe deletion reconciliation remain assigned to FPA-P14-S12."
+          ]
         },
         {
           "id": "FPA-P14-S10",
           "title": "Generalize Love across Album, Event and Story",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P14-S09"
           ],

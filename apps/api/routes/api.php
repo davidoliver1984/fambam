@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountSecurityController;
 use App\Http\Controllers\AlbumController;
+use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\CurrentUserController;
 use App\Http\Controllers\DateMemoryController;
 use App\Http\Controllers\DiscoveryController;
@@ -166,6 +167,15 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::delete('/albums/{album}/photos/{photo}', [AlbumController::class, 'removePhoto']);
         Route::put('/albums/{album}/cover', [AlbumController::class, 'setCover']);
         Route::post('/albums/{album}/media-uploads', [AlbumController::class, 'initiateUpload']);
+        Route::get('/collections', [CollectionController::class, 'index']);
+        Route::post('/collections', [CollectionController::class, 'store']);
+        Route::get('/collections/{collection}', [CollectionController::class, 'show']);
+        Route::patch('/collections/{collection}', [CollectionController::class, 'update']);
+        Route::delete('/collections/{collection}', [CollectionController::class, 'destroy']);
+        Route::post('/collections/{collection}/photos', [CollectionController::class, 'addPhoto']);
+        Route::delete('/collections/{collection}/photos/{photo}', [CollectionController::class, 'removePhoto']);
+        Route::put('/collections/{collection}/order', [CollectionController::class, 'reorder']);
+        Route::post('/collections/{collection}/populate', [CollectionController::class, 'populate']);
         Route::get('/events', [FamilyEventController::class, 'index']);
         Route::post('/events', [FamilyEventController::class, 'store']);
         Route::get('/events/deleted', [FamilyEventController::class, 'deleted']);

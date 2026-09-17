@@ -9,6 +9,8 @@ use App\Enums\MembershipState;
 use App\Jobs\DeleteFamilySpace;
 use App\Media\FamilyMediaStorageCleaner;
 use App\Models\Album;
+use App\Models\Collection;
+use App\Models\CollectionPhoto;
 use App\Models\ContributionGroup;
 use App\Models\FamilyExport;
 use App\Models\FamilyNotification;
@@ -151,6 +153,17 @@ class FamilySpaceDeletionTest extends TestCase
             'media_upload_id' => $upload->id,
             'created_by' => $owner->id,
         ]);
+        $collection = Collection::query()->create([
+            'family_space_id' => $familySpace->id,
+            'owner_user_id' => $owner->id,
+            'name' => 'Private working set',
+        ]);
+        CollectionPhoto::query()->create([
+            'family_space_id' => $familySpace->id,
+            'collection_id' => $collection->id,
+            'photo_id' => $photo->id,
+            'position' => 1,
+        ]);
         PerceptualHash::query()->create([
             'family_space_id' => $familySpace->id,
             'media_upload_id' => $upload->id,
@@ -237,6 +250,8 @@ class FamilySpaceDeletionTest extends TestCase
         $this->assertDatabaseMissing('media_variants', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('perceptual_hashes', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('photos', ['family_space_id' => $familySpace->id]);
+        $this->assertDatabaseMissing('collections', ['family_space_id' => $familySpace->id]);
+        $this->assertDatabaseMissing('collection_photos', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('photo_metadata_proposals', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('photo_people', ['family_space_id' => $familySpace->id]);
         $this->assertDatabaseMissing('tags', ['family_space_id' => $familySpace->id]);
