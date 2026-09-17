@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router";
 
 import { getPeople } from "@/features/people/api/personApi";
+import { getMediaVariantDelivery } from "@/features/media-uploads/api/mediaUploadApi";
 import type { Person } from "@/features/people/types/person";
 
 import {
@@ -38,6 +39,9 @@ vi.mock("../api/photoApi", () => ({
   updatePhoto: vi.fn(),
 }));
 vi.mock("@/features/people/api/personApi", () => ({ getPeople: vi.fn() }));
+vi.mock("@/features/media-uploads/api/mediaUploadApi", () => ({
+  getMediaVariantDelivery: vi.fn(),
+}));
 
 const person: Person = {
   id: "01K30000000000000000000000",
@@ -152,6 +156,14 @@ function renderPage() {
 
 beforeEach(() => {
   vi.mocked(getPhoto).mockResolvedValue(photo);
+  vi.mocked(getMediaVariantDelivery).mockResolvedValue({
+    asset: "variant",
+    transform_name: "display",
+    processing_version: 1,
+    url: "https://storage.test/signed-display",
+    method: "GET",
+    expires_at: "2026-08-10T12:05:00+00:00",
+  });
   vi.mocked(getPeople).mockResolvedValue([person]);
   vi.mocked(submitPhotoProvenance).mockResolvedValue(proposal);
   vi.mocked(submitPhotoMetadata).mockResolvedValue(metadataProposal);
@@ -169,6 +181,20 @@ afterEach(() => {
 });
 
 describe("PhotoPage", () => {
+  it("renders the display presentation variant above the Photo metadata", async () => {
+    renderPage();
+
+    expect(
+      await screen.findByRole("img", { name: "Family picnic" }),
+    ).toHaveAttribute("src", "https://storage.test/signed-display");
+    expect(getMediaVariantDelivery).toHaveBeenCalledWith(
+      "oliver-family",
+      photo.media_upload.id,
+      "display",
+      expect.any(AbortSignal),
+    );
+  });
+
   it("keeps archive source and identity-bearing physical owner visibly separate", async () => {
     renderPage();
     expect(

@@ -1,11 +1,12 @@
 import "@testing-library/jest-dom/vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router";
 
 import { getFamilySpace } from "@/features/family-spaces/api/familySpaceApi";
+import { getMediaVariantDelivery } from "@/features/media-uploads/api/mediaUploadApi";
 import {
   addPhotoToAlbum,
   createAlbum,
@@ -25,6 +26,9 @@ vi.mock("../api/albumApi", () => ({
 }));
 vi.mock("@/features/family-spaces/api/familySpaceApi", () => ({
   getFamilySpace: vi.fn(),
+}));
+vi.mock("@/features/media-uploads/api/mediaUploadApi", () => ({
+  getMediaVariantDelivery: vi.fn(),
 }));
 
 const album: Album = {
@@ -79,6 +83,46 @@ afterEach(() => {
 });
 
 describe("AlbumsPage", () => {
+  it("shows authorised thumbnails in the general Album listing", async () => {
+    vi.mocked(getAlbums).mockResolvedValue([
+      {
+        ...album,
+        photos: [
+          {
+            id: "photo-1",
+            media_upload_id: "upload-1",
+            caption: "Family wedding",
+            client_filename: "wedding.jpg",
+            visibility: "family_space",
+            position: 1,
+          },
+        ],
+      },
+    ]);
+    vi.mocked(getMediaVariantDelivery).mockResolvedValue({
+      asset: "variant",
+      transform_name: "thumbnail",
+      processing_version: 1,
+      url: "https://storage.test/signed-thumbnail",
+      method: "GET",
+      expires_at: "2026-08-10T12:05:00+00:00",
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("img", { name: "Family wedding" }),
+      ).toHaveAttribute("src", "https://storage.test/signed-thumbnail");
+    });
+    expect(
+      screen.getByRole("link", { name: /Family wedding/ }),
+    ).toHaveAttribute(
+      "href",
+      `/families/family-archive/photos/photo-1?albumId=${album.id}&eventId=${album.event?.id ?? ""}`,
+    );
+  });
+
   it("shows scoped Event Album contribution controls without offering Contributor album creation", async () => {
     renderPage();
     expect(await screen.findByText("Selected memories")).toBeInTheDocument();

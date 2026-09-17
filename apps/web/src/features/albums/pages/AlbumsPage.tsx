@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router";
 
 import { useFamilySpaceQuery } from "@/features/family-spaces/hooks/useFamilySpaceQuery";
 
+import { AlbumPhotoGrid } from "../components/AlbumPhotoGrid";
 import {
   useAddAlbumPhotoMutation,
   useAlbumsQuery,
@@ -49,30 +50,20 @@ export function AlbumsPage() {
         <section key={album.id} aria-labelledby={`album-${album.id}`}>
           <h2 id={`album-${album.id}`}>{album.name}</h2>
           <p>{album.visibility.replace("_", " ")}</p>
-          <ul>
-            {album.photos.map((photo) => (
-              <li key={photo.id}>
-                <Link
-                  to={`/families/${encodeURIComponent(familySlug)}/photos/${photo.id}`}
-                >
-                  {photo.caption ?? photo.client_filename}
-                </Link>{" "}
-                {album.permissions.can_contribute && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      removePhoto.mutate({
-                        albumId: album.id,
-                        photoId: photo.id,
-                      });
-                    }}
-                  >
-                    Remove
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
+          {album.photos.length === 0 ? (
+            <p>No photographs have been shared yet.</p>
+          ) : (
+            <AlbumPhotoGrid
+              familySlug={familySlug}
+              albumId={album.id}
+              eventId={album.event?.id}
+              photos={album.photos}
+              canRemove={album.permissions.can_contribute}
+              onRemove={(photoId) => {
+                removePhoto.mutate({ albumId: album.id, photoId });
+              }}
+            />
+          )}
           {album.permissions.can_contribute && (
             <>
               <form

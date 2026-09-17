@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 
+import { AlbumPhotoGrid } from "../components/AlbumPhotoGrid";
 import {
   useAlbumQuery,
   useAlbumUploadMutation,
@@ -24,17 +25,12 @@ export function AlbumPage() {
       {album.data.photos.length === 0 ? (
         <p>No photographs have been shared yet.</p>
       ) : (
-        <ul>
-          {album.data.photos.map((photo) => (
-            <li key={photo.id}>
-              <Link
-                to={`/families/${encodeURIComponent(familySlug)}/photos/${photo.id}?eventId=${encodeURIComponent(album.data.event?.id ?? "")}&albumId=${encodeURIComponent(album.data.id)}`}
-              >
-                {photo.caption ?? photo.client_filename}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <AlbumPhotoGrid
+          familySlug={familySlug}
+          albumId={album.data.id}
+          eventId={album.data.event?.id}
+          photos={album.data.photos}
+        />
       )}
       {album.data.permissions.can_contribute && (
         <form

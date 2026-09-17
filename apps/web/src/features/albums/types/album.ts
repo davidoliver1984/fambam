@@ -3,6 +3,7 @@ export type GuestParticipation = "none" | "view" | "contribute";
 
 export type AlbumPhoto = {
   id: string;
+  media_upload_id: string;
   caption: string | null;
   client_filename: string;
   visibility: "private" | "family_space";

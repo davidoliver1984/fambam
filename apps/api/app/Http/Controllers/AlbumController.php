@@ -125,6 +125,7 @@ class AlbumController extends Controller
             'event' => $album->event === null ? null : ['id' => $album->event->id,
                 'name' => $album->event->name, 'starts_on' => $album->event->starts_on?->format('Y-m-d')],
             'photos' => $album->albumPhotos->map(fn ($link) => ['id' => $link->photo->id,
+                'media_upload_id' => $link->photo->media_upload_id,
                 'caption' => $link->photo->caption, 'visibility' => $link->photo->visibility->value,
                 'client_filename' => $link->photo->mediaUpload->client_filename,
                 'position' => $link->position])->values(),

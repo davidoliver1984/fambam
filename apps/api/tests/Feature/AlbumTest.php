@@ -100,6 +100,9 @@ class AlbumTest extends TestCase
         $album->photos()->attach($photo->id, ['id' => (string) Str::ulid(),
             'family_space_id' => $family->id, 'position' => 1, 'added_by' => $owner->id]);
 
+        $this->actingAs($contributor)->getJson("/api/families/album-original/albums/{$album->id}")
+            ->assertOk()
+            ->assertJsonPath('data.photos.0.media_upload_id', $photo->media_upload_id);
         $this->actingAs($contributor)->getJson("/api/families/album-original/photos/{$photo->id}")->assertOk();
         $this->actingAs($contributor)->getJson("/api/families/album-original/media-uploads/{$photo->media_upload_id}/canonical")->assertOk();
         $this->actingAs($contributor)->getJson("/api/families/album-original/media-uploads/{$photo->media_upload_id}/original")->assertForbidden();

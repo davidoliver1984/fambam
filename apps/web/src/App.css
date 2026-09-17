@@ -225,6 +225,73 @@
   color: #68412f;
 }
 
+.album-photo-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  list-style: none;
+  padding: 0;
+}
+
+.album-photo-grid li {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.album-photo-grid li > button {
+  margin-top: 0;
+}
+
+.album-photo-grid a {
+  color: #30261f;
+  display: grid;
+  gap: 0.5rem;
+  text-decoration-thickness: 0.08em;
+}
+
+.album-photo-thumbnail,
+.media-image-state {
+  aspect-ratio: 1;
+  border-radius: 0.5rem;
+  width: 100%;
+}
+
+.album-photo-thumbnail {
+  background: #f1eee8;
+  display: block;
+  object-fit: cover;
+}
+
+.media-image-state {
+  align-items: center;
+  background: #f1eee8;
+  box-sizing: border-box;
+  color: #68412f;
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+  text-align: center;
+}
+
+.photo-display {
+  margin: 1.5rem 0;
+}
+
+.photo-display-image {
+  background: #f1eee8;
+  border-radius: 0.5rem;
+  display: block;
+  height: auto;
+  max-height: 70vh;
+  object-fit: contain;
+  width: 100%;
+}
+
+.photo-display .media-image-state {
+  aspect-ratio: 4 / 3;
+}
+
 .photo-details div {
   border-top: 1px solid #ede5df;
   display: grid;

@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 
 import { toAppError } from "@/api/errors";
+import { MediaVariantImage } from "@/features/media-uploads/components/MediaVariantImage";
 import { usePeopleQuery } from "@/features/people/hooks/usePeopleQuery";
 import { PhotoDuplicateFlagPanel } from "@/features/duplicates/components/PhotoDuplicateFlagPanel";
 import { useFlagPhotoDuplicateMutation } from "@/features/duplicates/hooks/useDuplicateReview";
@@ -70,6 +71,15 @@ export function PhotoPage() {
         {photo.caption ?? photo.media_upload.client_filename}
       </h1>
       {photo.description !== null && <p>{photo.description}</p>}
+      <figure className="photo-display">
+        <MediaVariantImage
+          familySlug={familySlug}
+          mediaUploadId={photo.media_upload.id}
+          transform="display"
+          alt={photo.caption ?? photo.media_upload.client_filename}
+          className="photo-display-image"
+        />
+      </figure>
       <dl className="photo-details">
         <div>
           <dt>Uploaded by</dt>
