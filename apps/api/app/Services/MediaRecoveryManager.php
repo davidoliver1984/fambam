@@ -15,7 +15,10 @@ use Illuminate\Support\Facades\DB;
 
 class MediaRecoveryManager
 {
-    public function __construct(private readonly DatabaseTenantContext $databaseTenantContext) {}
+    public function __construct(
+        private readonly DatabaseTenantContext $databaseTenantContext,
+        private readonly AlbumManager $albums,
+    ) {}
 
     public function markCanonicalDegraded(
         TenantOperationContext $context,
@@ -24,11 +27,15 @@ class MediaRecoveryManager
     ): void {
         DB::transaction(function () use ($context, $mediaUploadId, $sourceSha256): void {
             $this->establishContext($context);
-            MediaUpload::query()
+            $upload = MediaUpload::query()
                 ->whereKey($mediaUploadId)
                 ->where('state', MediaUploadState::Preserved->value)
                 ->where('original_sha256', $sourceSha256)
-                ->update(['state' => MediaUploadState::Degraded->value]);
+                ->lockForUpdate()->first();
+            if ($upload !== null) {
+                $upload->update(['state' => MediaUploadState::Degraded]);
+                $this->albums->clearCoverIntentIfCurrent($upload);
+            }
         });
     }
 

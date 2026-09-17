@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\FaceAnalysisRunStatus;
 use App\Enums\FamilySpaceRole;
 use App\Enums\MediaUploadState;
+use App\Models\Album;
 use App\Models\FaceAnalysisRun;
 use App\Models\FaceIdentityAssignment;
 use App\Models\FaceIdentitySuppression;
@@ -31,12 +32,64 @@ use App\Models\User;
 use App\Stories\StoryWriter;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class PersonMergeTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_album_people_merge_collision_is_recorded_and_guardedly_restored(): void
+    {
+        [$family, $owner] = $this->familyWithRole(FamilySpaceRole::Owner, 'album-people-merge');
+        $absorbed = $this->person($family, 'Absorbed');
+        $survivor = $this->person($family, 'Survivor');
+        $album = Album::query()->create(['family_space_id' => $family->id,
+            'created_by' => $owner->id, 'name' => 'Family']);
+        $absorbedRow = (string) Str::ulid();
+        $survivorRow = (string) Str::ulid();
+        foreach ([[$absorbedRow, $absorbed->id], [$survivorRow, $survivor->id]] as [$id, $personId]) {
+            DB::table('album_people')->insert(['id' => $id,
+                'family_space_id' => $family->id, 'album_id' => $album->id,
+                'person_id' => $personId, 'added_by' => $owner->id, 'created_at' => now()]);
+        }
+
+        $mergeId = $this->actingAs($owner)->postJson("/api/families/{$family->slug}/people/{$absorbed->id}/merge", [
+            'survivor_person_id' => $survivor->id,
+        ])->assertCreated()->json('data.id');
+        $this->assertDatabaseMissing('album_people', ['id' => $absorbedRow]);
+        $this->assertDatabaseHas('album_people', ['id' => $survivorRow, 'person_id' => $survivor->id]);
+        $provenance = PersonMerge::findOrFail($mergeId)->provenance;
+        $this->assertCount(2, $provenance['before']['album_people']);
+        $this->assertCount(1, $provenance['after']['album_people']);
+
+        $this->actingAs($owner)->postJson("/api/families/{$family->slug}/person-merges/{$mergeId}/reverse")
+            ->assertOk();
+        $this->assertDatabaseHas('album_people', ['id' => $absorbedRow, 'person_id' => $absorbed->id]);
+        $this->assertDatabaseHas('album_people', ['id' => $survivorRow, 'person_id' => $survivor->id]);
+    }
+
+    public function test_album_people_noncolliding_reference_repoints_and_reverses(): void
+    {
+        [$family, $owner] = $this->familyWithRole(FamilySpaceRole::Owner, 'album-people-repoint');
+        $first = $this->person($family, 'First');
+        $second = $this->person($family, 'Second');
+        $album = Album::query()->create(['family_space_id' => $family->id,
+            'created_by' => $owner->id, 'name' => 'Family']);
+        $rowId = (string) Str::ulid();
+        DB::table('album_people')->insert(['id' => $rowId, 'family_space_id' => $family->id,
+            'album_id' => $album->id, 'person_id' => $first->id,
+            'added_by' => $owner->id, 'created_at' => now()]);
+
+        $firstMerge = $this->actingAs($owner)->postJson("/api/families/{$family->slug}/people/{$first->id}/merge", [
+            'survivor_person_id' => $second->id,
+        ])->assertCreated()->json('data.id');
+        $this->assertDatabaseHas('album_people', ['id' => $rowId, 'person_id' => $second->id]);
+        $this->actingAs($owner)->postJson("/api/families/{$family->slug}/person-merges/{$firstMerge}/reverse")
+            ->assertOk();
+        $this->assertDatabaseHas('album_people', ['id' => $rowId, 'person_id' => $first->id]);
+    }
 
     public function test_merge_and_reversal_repoint_story_subjects_and_mentions_from_the_operation_snapshot(): void
     {

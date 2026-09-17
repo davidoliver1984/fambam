@@ -198,6 +198,50 @@ class ExactDuplicateDetectionTest extends TestCase
         $this->assertNotNull($hold->refresh()->resolved_at);
     }
 
+    public function test_duplicate_hold_cover_intent_follows_use_existing_create_new_and_cancel(): void
+    {
+        [$family, $owner] = $this->family('cover-exact-hold', FamilySpaceRole::Owner);
+        $album = Album::query()->create(['family_space_id' => $family->id,
+            'created_by' => $owner->id, 'name' => 'Cover duplicates']);
+        $checksum = hash('sha256', 'cover-held-original');
+        $existing = $this->photo($family, $owner, $checksum, 'Existing');
+        $album->photos()->attach($existing->id, ['id' => (string) Str::ulid(),
+            'family_space_id' => $family->id, 'position' => 1, 'added_by' => $owner->id]);
+
+        $createdId = null;
+        foreach (['use_existing', 'create_new', 'cancel'] as $resolution) {
+            $upload = $this->upload($family, $owner, $checksum, $album);
+            $album->update(['current_cover_intent_id' => $upload->id]);
+            app(AlbumContributionFinalizer::class)->finalize($upload, new TenantOperationContext(
+                $family->id, $owner->id, "cover-hold-{$resolution}", TenantOperationContext::newTraceparent(),
+            ));
+            $hold = MediaUploadDuplicateHold::query()->where('media_upload_id', $upload->id)->sole();
+            $this->assertSame($upload->id, $album->refresh()->current_cover_intent_id);
+            $input = ['resolution' => $resolution];
+            if ($resolution === 'use_existing') {
+                $input['existing_photo_id'] = $existing->id;
+            } elseif ($resolution === 'create_new') {
+                $input['disclosed_photo_ids'] = [$existing->id];
+            }
+            $response = $this->actingAs($owner)->postJson(
+                "/api/families/{$family->slug}/media-upload-duplicate-holds/{$hold->id}/resolve", $input,
+            )->assertOk();
+            $this->assertNull($album->refresh()->current_cover_intent_id);
+            if ($resolution === 'cancel') {
+                $this->assertSame($createdId, $album->cover_photo_id);
+            } else {
+                $expectedId = $response->json('data.photo_id');
+                $this->assertSame($expectedId, $album->cover_photo_id);
+                if ($resolution === 'use_existing') {
+                    $this->assertSame($existing->id, $expectedId);
+                } else {
+                    $createdId = $expectedId;
+                    $this->assertNotSame($existing->id, $createdId);
+                }
+            }
+        }
+    }
+
     public function test_guest_resolves_only_their_authorised_event_album_holds_without_general_photo_creation(): void
     {
         [$family, $owner] = $this->family('guest-exact-hold', FamilySpaceRole::Owner);

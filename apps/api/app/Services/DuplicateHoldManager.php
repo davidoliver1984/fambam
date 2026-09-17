@@ -85,6 +85,12 @@ class DuplicateHoldManager
                 $this->duplicates->generateCandidatesFor($photo);
             }
 
+            if ($photo !== null) {
+                $this->albums->finalizeCoverIntent($upload, $photo);
+            } else {
+                $this->albums->clearCoverIntentIfCurrent($upload);
+            }
+
             $locked->update([
                 'resolution' => $resolution,
                 'chosen_photo_id' => $resolution === DuplicateResolution::UseExisting ? $photo->id : null,

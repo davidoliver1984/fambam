@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P14",
-    "current_stage": "FPA-P14-S07",
+    "current_stage": "FPA-P14-S08",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-17"
   },
@@ -1049,16 +1049,18 @@
         {
           "id": "FPA-P14-S07",
           "title": "Implement Album metadata, cover and People association",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P14-S06"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-17. Added tenant-scoped Album dates, location, shared Tags, descriptive People links with Person-merge reversal, and optional Photo covers with focal position and supersession-safe upload intent. Cover lifecycle, duplicate resolution, failure cleanup, PostgreSQL constraints/RLS and regression tests are included."
+          ]
         },
         {
           "id": "FPA-P14-S08",
           "title": "Implement Event RSVP",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P14-S07"
           ],

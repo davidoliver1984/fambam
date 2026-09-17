@@ -20,6 +20,7 @@ use App\Tenancy\TenantOperationContext;
 class AlbumContributionFinalizer
 {
     public function __construct(
+        private readonly AlbumManager $albums,
         private readonly AuditRecorder $audit,
         private readonly EventAccess $eventAccess,
         private readonly EventContributionNotifier $eventNotifications,
@@ -37,6 +38,8 @@ class AlbumContributionFinalizer
         $membership = FamilySpaceMembership::query()->where('family_space_id', $upload->family_space_id)
             ->where('user_id', $upload->user_id)->where('state', MembershipState::Active->value)->first();
         if ($album === null || $membership === null || ! $this->mayContribute($album, $membership)) {
+            $this->albums->clearCoverIntentIfCurrent($upload);
+
             return;
         }
 
@@ -46,6 +49,8 @@ class AlbumContributionFinalizer
 
         $actor = User::query()->find($upload->user_id);
         if ($actor === null) {
+            $this->albums->clearCoverIntentIfCurrent($upload);
+
             return;
         }
         $this->duplicates->lock($upload);
@@ -99,6 +104,8 @@ class AlbumContributionFinalizer
         if ($generateCandidates) {
             $this->duplicates->generateCandidatesFor($photo);
         }
+
+        $this->albums->finalizeCoverIntent($upload, $photo);
 
         return $photo;
     }

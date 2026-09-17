@@ -164,6 +164,7 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::delete('/albums/{album}/grants/{membership}', [AlbumController::class, 'revokeGrant']);
         Route::post('/albums/{album}/photos', [AlbumController::class, 'addPhoto']);
         Route::delete('/albums/{album}/photos/{photo}', [AlbumController::class, 'removePhoto']);
+        Route::put('/albums/{album}/cover', [AlbumController::class, 'setCover']);
         Route::post('/albums/{album}/media-uploads', [AlbumController::class, 'initiateUpload']);
         Route::get('/events', [FamilyEventController::class, 'index']);
         Route::post('/events', [FamilyEventController::class, 'store']);

@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\InitiateMediaUploadRequest;
+use App\Http\Requests\SetAlbumCoverRequest;
 use App\Http\Requests\StoreAlbumGrantRequest;
 use App\Http\Requests\StoreAlbumPhotoRequest;
 use App\Http\Requests\StoreAlbumRequest;
 use App\Http\Requests\UpdateAlbumRequest;
 use App\Models\Album;
 use App\Models\FamilySpace;
+use App\Models\Person;
 use App\Models\Photo;
 use App\Models\User;
 use App\Queries\AlbumQuery;
@@ -17,6 +19,7 @@ use App\Services\MediaUploadManager;
 use App\Stories\RichTextPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class AlbumController extends Controller
@@ -94,16 +97,46 @@ class AlbumController extends Controller
         return response()->json(null, 204);
     }
 
+    public function setCover(FamilySpace $familySpace, string $album, SetAlbumCoverRequest $request): JsonResponse
+    {
+        $target = $this->album($familySpace, $album);
+        Gate::authorize('update', $target);
+        $input = $request->validated();
+        $updated = $this->manager->setCover($target, $request->user(), $input['photo_id'],
+            (bool) ($input['confirm_visibility_widening'] ?? false),
+            isset($input['focal_x']) ? (float) $input['focal_x'] : null,
+            isset($input['focal_y']) ? (float) $input['focal_y'] : null, $request);
+
+        return response()->json(['data' => $this->payload($updated)]);
+    }
+
     public function initiateUpload(FamilySpace $familySpace, string $album, InitiateMediaUploadRequest $request): JsonResponse
     {
         $target = $this->album($familySpace, $album);
         Gate::authorize('contribute', $target);
         $key = trim((string) $request->header('Idempotency-Key'));
         abort_if($key === '' || strlen($key) > 100, 422, 'A valid Idempotency-Key header is required.');
-        $result = $this->uploads->initiate($familySpace, $request->user(), $key, $request->validated(), $request, $target->id);
+        $input = $request->validated();
+        $coverRequested = (bool) ($input['as_cover'] ?? false);
+        $coverAllowed = $coverRequested && $request->user()->can('update', $target);
+        $coverAccepted = false;
+        $result = DB::transaction(function () use ($familySpace, $target, $input, $request, $key, $coverAllowed, &$coverAccepted) {
+            $result = $this->uploads->initiate($familySpace, $request->user(), $key, $input, $request, $target->id);
+            if ($coverAllowed) {
+                $coverAccepted = $result->created
+                    ? $this->manager->beginCoverIntent($target, $result->upload, $request->user())
+                    : Album::query()->whereKey($target->id)
+                        ->where('current_cover_intent_id', $result->upload->id)->exists();
+            }
+
+            return $result;
+        });
 
         return response()->json(['data' => ['id' => $result->upload->id, 'state' => $result->upload->state->value,
-            'target_album_id' => $target->id, 'upload_authorization' => $result->authorization === null ? null : [
+            'target_album_id' => $target->id, 'cover_intent_accepted' => $coverAccepted,
+            'cover_intent_reason' => $coverRequested && ! $coverAccepted
+                ? ($coverAllowed ? 'cover_intent_not_current' : 'album_update_forbidden') : null,
+            'upload_authorization' => $result->authorization === null ? null : [
                 'url' => $result->authorization->url, 'method' => 'PUT', 'headers' => $result->authorization->headers,
                 'expires_at' => $result->authorization->expiresAt->toAtomString()]]], $result->created ? 201 : 200);
     }
@@ -111,15 +144,30 @@ class AlbumController extends Controller
     /** @return array<string, mixed> */
     private function payload(Album $album): array
     {
-        $album->load(['creator:id,name', 'event:id,name,starts_on',
+        $album->load(['creator:id,name', 'event:id,name,starts_on', 'tags:id,label', 'coverPhoto.mediaUpload',
             'albumPhotos' => fn ($query) => $query->whereHas('photo')->with('photo.mediaUpload'),
             'grants.membership.user:id,name']);
+        if (Gate::allows('viewAny', Person::class)) {
+            $album->load('people:id,preferred_name');
+        }
 
         return ['id' => $album->id, 'name' => $album->name, 'description' => $album->description_plain_text,
             'description_document' => $album->description,
             'description_html' => $this->presenter->html($album->description, $album, 'album_description_mentions',
                 'album_id', $this->familySlug(), $this->actor(), $album),
             'visibility' => $album->visibility->value, 'created_by' => $album->created_by,
+            'starts_on' => $album->starts_on?->format('Y-m-d'),
+            'ends_on' => $album->ends_on?->format('Y-m-d'), 'location' => $album->location,
+            'tags' => $album->tags->map(fn ($tag) => ['id' => $tag->id, 'label' => $tag->label])->values(),
+            'people' => $album->relationLoaded('people')
+                ? $album->people->map(fn ($person) => ['id' => $person->id, 'name' => $person->preferred_name])->values() : [],
+            'cover' => $album->coverPhoto === null ? null : [
+                'photo_id' => $album->coverPhoto->id,
+                'media_upload_id' => $album->coverPhoto->media_upload_id,
+                'focal_x' => (float) $album->cover_focal_x,
+                'focal_y' => (float) $album->cover_focal_y,
+            ],
+            'cover_pending' => $album->current_cover_intent_id !== null,
             'event_id' => $album->event_id,
             'guest_participation' => $album->guest_participation->value,
             'event' => $album->event === null ? null : ['id' => $album->event->id,

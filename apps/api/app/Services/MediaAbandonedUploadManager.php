@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 class MediaAbandonedUploadManager
 {
     public function __construct(
+        private readonly AlbumManager $albums,
         private readonly MediaObjectStorage $storage,
         private readonly DatabaseTenantContext $databaseTenantContext,
     ) {}
@@ -31,6 +32,7 @@ class MediaAbandonedUploadManager
                     return null;
                 }
                 $upload->update(['state' => MediaUploadState::Abandoned]);
+                $this->albums->clearCoverIntentIfCurrent($upload);
             } elseif ($upload->state !== MediaUploadState::Abandoned) {
                 return null;
             }

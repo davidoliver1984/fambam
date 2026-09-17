@@ -21,6 +21,7 @@ class MediaVariantManager
         private readonly PresentationVariantGenerator $generator,
         private readonly DatabaseTenantContext $databaseTenantContext,
         private readonly AlbumContributionFinalizer $albumContributionFinalizer,
+        private readonly AlbumManager $albums,
     ) {}
 
     public function generate(
@@ -74,11 +75,15 @@ class MediaVariantManager
     ): void {
         DB::transaction(function () use ($context, $mediaUploadId, $canonicalSha256): void {
             $this->establishContext($context);
-            MediaUpload::query()
+            $upload = MediaUpload::query()
                 ->whereKey($mediaUploadId)
                 ->where('state', MediaUploadState::Processing->value)
                 ->where('canonical_sha256', $canonicalSha256)
-                ->update(['state' => MediaUploadState::Degraded->value]);
+                ->lockForUpdate()->first();
+            if ($upload !== null) {
+                $upload->update(['state' => MediaUploadState::Degraded]);
+                $this->albums->clearCoverIntentIfCurrent($upload);
+            }
         });
     }
 

@@ -23,6 +23,7 @@ use Throwable;
 class MediaValidationManager
 {
     public function __construct(
+        private readonly AlbumManager $albums,
         private readonly MediaObjectStorage $storage,
         private readonly MediaFormatDetector $formats,
         private readonly ImageDecoderValidator $decoder,
@@ -83,6 +84,7 @@ class MediaValidationManager
                 'state' => MediaUploadState::Quarantined,
                 'rejection_reason' => 'validation_job_failed',
             ]);
+            $this->albums->clearCoverIntentIfCurrent($upload);
             $this->auditRejected($context, $upload, 'validation_job_failed');
         });
     }
@@ -210,6 +212,7 @@ class MediaValidationManager
                 'detected_mime_type' => $format?->mimeType(),
                 'rejection_reason' => $reason,
             ]);
+            $this->albums->clearCoverIntentIfCurrent($locked);
             $this->auditRejected($context, $locked, $reason);
 
             return true;

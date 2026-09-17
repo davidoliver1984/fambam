@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Album;
 use App\Models\Photo;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -15,6 +16,9 @@ class PhotoDeletionManager
     {
         DB::transaction(function () use ($photo, $actor, $request): void {
             $locked = Photo::query()->lockForUpdate()->findOrFail($photo->id);
+            Album::query()->where('cover_photo_id', $locked->id)->update([
+                'cover_photo_id' => null, 'cover_focal_x' => null, 'cover_focal_y' => null,
+            ]);
             $locked->update(['deleted_by' => $actor->id]);
             $locked->delete();
             $this->audit->record('photo.deleted', $locked, $actor, $request);

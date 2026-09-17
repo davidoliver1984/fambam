@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Casts\RichTextDocumentCast;
 use App\Enums\AlbumVisibility;
 use App\Enums\GuestParticipation;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -17,8 +18,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property GuestParticipation $guest_participation
  * @property array<string, mixed>|null $description
  * @property string|null $description_plain_text
+ * @property CarbonImmutable|null $starts_on
+ * @property CarbonImmutable|null $ends_on
  */
-#[Fillable(['family_space_id', 'created_by', 'name', 'description', 'visibility', 'event_id', 'guest_participation'])]
+#[Fillable(['family_space_id', 'created_by', 'name', 'description', 'visibility', 'event_id', 'guest_participation',
+    'starts_on', 'ends_on', 'location', 'cover_photo_id', 'cover_focal_x', 'cover_focal_y', 'current_cover_intent_id'])]
 class Album extends Model
 {
     use HasUlids;
@@ -66,10 +70,29 @@ class Album extends Model
             ->orderByPivot('position');
     }
 
+    /** @return BelongsTo<Photo, $this> */
+    public function coverPhoto(): BelongsTo
+    {
+        return $this->belongsTo(Photo::class, 'cover_photo_id');
+    }
+
+    /** @return BelongsToMany<Tag, $this> */
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class, 'album_tag')->withPivot(['family_space_id', 'added_by', 'created_at']);
+    }
+
+    /** @return BelongsToMany<Person, $this> */
+    public function people(): BelongsToMany
+    {
+        return $this->belongsToMany(Person::class, 'album_people')->withPivot(['id', 'family_space_id', 'added_by', 'created_at']);
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {
         return ['visibility' => AlbumVisibility::class, 'guest_participation' => GuestParticipation::class,
-            'description' => RichTextDocumentCast::class.':full,description_plain_text'];
+            'description' => RichTextDocumentCast::class.':full,description_plain_text',
+            'starts_on' => 'immutable_date', 'ends_on' => 'immutable_date'];
     }
 }
