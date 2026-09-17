@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help up down restart status logs infrastructure-smoke media-validation-smoke media-processing-smoke observability-smoke foundation-check docs-check contracts-check compose-check format format-check lint typecheck test test-api test-api-postgres-rls test-web test-ai test-e2e security-check
+.PHONY: help up down restart status logs demo-seed demo-reset infrastructure-smoke media-validation-smoke media-processing-smoke observability-smoke foundation-check docs-check contracts-check compose-check format format-check lint typecheck test test-api test-api-postgres-rls test-web test-ai test-e2e security-check
 
 help: ## List supported repository commands
 	@awk 'BEGIN {FS = ":.*## "; printf "fambam commands:\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -18,6 +18,12 @@ status: ## Show local platform service status
 
 logs: ## Follow logs from all local platform services
 	@docker compose logs --follow
+
+demo-seed: ## Create or verify the guarded synthetic Mercer Family Demo
+	@docker compose exec api php artisan fambam:demo-family:seed
+
+demo-reset: ## Remove only the synthetic Mercer Family Demo (destructive)
+	@docker compose exec api php artisan fambam:demo-family:reset --force
 
 infrastructure-smoke: ## Verify PostgreSQL, Redis, S3 and SQS locally
 	@scripts/smoke-infrastructure.sh

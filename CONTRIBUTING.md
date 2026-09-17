@@ -107,6 +107,22 @@ ADR-0001's Decision section — not open.
 Specific Compose service names and setup commands are established by ADR-0003 and
 `docs/IMPLEMENTATION_GUIDE.md`; do not invent a substitute here.
 
+### Synthetic demo family
+
+The local-only `Mercer Family Demo` provides safe, generated data for product
+visualisation and Phase 12/14 UX work. Set `FAMBAM_DEMO_SEEDING_ENABLED=true`,
+restart the API container, then run `make demo-seed`. Sign in with
+`mercer.owner@fambam.test`, `mercer.admin@fambam.test` or
+`mercer.member@fambam.test`; each uses `Local-demo-only!2026`.
+
+Run `make demo-reset` to remove only that demo Family Space through the normal
+tenant teardown lifecycle. The normal deleted tombstone is retained and reused
+by the next demo seed; no production deletion behaviour is changed. Both commands
+hard-fail outside `APP_ENV=local` or without the explicit environment opt-in. The
+seeder generates deterministic PNG archive illustrations during the run, contains
+no real photographs or biometric data, is never called by `DatabaseSeeder`, and
+never reads or changes the private `Family Archive`.
+
 ## Engineering workflow
 
 This follows the working cycle defined in `PRODUCT_VISION.md`. In summary, a
