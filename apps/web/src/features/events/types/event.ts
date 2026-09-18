@@ -35,8 +35,16 @@ export type EventAdmission = {
   role: "owner" | "administrator" | "member" | "contributor" | "guest";
   admitted_at: string;
   revoked_at: string | null;
+  rsvp_status?: EventRsvpStatus;
+  rsvp_responded_at?: string | null;
   valid_until: string;
 };
+
+export type EventRsvpStatus = "pending" | "going" | "not_attending";
+export type EventRsvpGroups = Record<
+  EventRsvpStatus,
+  Array<{ id: string; user: { id: number; name: string } }>
+>;
 
 export type EventInput = {
   name: string;

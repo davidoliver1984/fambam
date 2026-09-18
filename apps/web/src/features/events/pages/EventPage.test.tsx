@@ -16,7 +16,10 @@ import {
   getEventAdmissions,
   getEventExports,
   requestEventExport,
+  getEventRsvps,
 } from "../api/eventApi";
+import { getCurrentUser } from "@/features/account/api/accountApi";
+import { getFamilyMemberships } from "@/features/people/api/accountLinkApi";
 import { EventPage } from "./EventPage";
 
 vi.mock("../api/eventApi", () => ({
@@ -26,6 +29,7 @@ vi.mock("../api/eventApi", () => ({
   getDuplicateEventCandidates: vi.fn(),
   getEvent: vi.fn(),
   getEventAdmissions: vi.fn(),
+  getEventRsvps: vi.fn(),
   getEventExports: vi.fn(),
   getDeletedEvents: vi.fn(),
   getEvents: vi.fn(),
@@ -35,6 +39,13 @@ vi.mock("../api/eventApi", () => ({
   revokeEventAdmission: vi.fn(),
   restoreEvent: vi.fn(),
   updateEvent: vi.fn(),
+  updateEventRsvp: vi.fn(),
+}));
+vi.mock("@/features/account/api/accountApi", () => ({
+  getCurrentUser: vi.fn(),
+}));
+vi.mock("@/features/people/api/accountLinkApi", () => ({
+  getFamilyMemberships: vi.fn(),
 }));
 vi.mock("@/features/albums/api/albumApi", () => ({ createAlbum: vi.fn() }));
 vi.mock("@/features/invitations/api/invitationApi", () => ({
@@ -45,6 +56,22 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
+
+vi.mocked(getCurrentUser).mockResolvedValue({
+  id: 1,
+  name: "David",
+  email: "david@example.test",
+  timezone: "Europe/London",
+  email_verified_at: null,
+  can_create_family_spaces: false,
+  two_factor_enabled: false,
+});
+vi.mocked(getEventRsvps).mockResolvedValue({
+  going: [],
+  pending: [],
+  not_attending: [],
+});
+vi.mocked(getFamilyMemberships).mockResolvedValue([]);
 
 describe("EventPage", () => {
   it("renders the narrow Guest landing path without family management queries", async () => {
@@ -113,6 +140,15 @@ describe("EventPage", () => {
   });
 
   it("uses the typed Event export hooks for the manager archive surface", async () => {
+    vi.mocked(getFamilyMemberships).mockResolvedValue([
+      {
+        id: "membership-2",
+        user: { id: 2, name: "Guest Mercer", email: "guest@example.test" },
+        role: "guest",
+        state: "active",
+        removed_at: null,
+      },
+    ]);
     vi.mocked(getEvent).mockResolvedValue({
       id: "event-1",
       name: "Family wedding",
@@ -188,6 +224,12 @@ describe("EventPage", () => {
     expect(
       await screen.findByRole("heading", { name: "Event archives" }),
     ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: "Guest Mercer (guest)" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Admit an existing membership ID"),
+    ).not.toBeInTheDocument();
     expect(
       await screen.findByText(/Archive requested by David: ready/),
     ).toBeInTheDocument();

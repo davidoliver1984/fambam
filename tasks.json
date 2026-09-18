@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P14",
-    "current_stage": "FPA-P14-S14",
+    "current_stage": "FPA-P14-S15",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-18"
   },
@@ -1126,16 +1126,18 @@
         {
           "id": "FPA-P14-S14",
           "title": "Integrate Photo, upload, Album and Event journeys",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P14-S13"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-18. Integrated Photo browsing/detail, ready-upload promotion and upload recovery links, Album covers and Photo selection, Event browsing and RSVP, and role-aware Guest navigation with existing typed feature APIs and authorised media delivery. Verified the Mercer Photo/Album/Event journeys after applying the approved legacy-schema migration and restoring only checksum-matched missing local demo objects. Frontend lint, typecheck, 145 tests, production build and Prettier passed."
+          ]
         },
         {
           "id": "FPA-P14-S15",
           "title": "Integrate People, recognition, duplicate and discovery journeys",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P14-S14"
           ],

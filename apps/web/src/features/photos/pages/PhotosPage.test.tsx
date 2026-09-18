@@ -4,6 +4,8 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router";
+import { getMediaVariantDelivery } from "@/features/media-uploads/api/mediaUploadApi";
+import { getPhotoVersions } from "../api/photoEditorApi";
 
 import {
   createPhoto,
@@ -27,6 +29,10 @@ vi.mock("../api/photoApi", () => ({
 vi.mock("../api/photoDuplicateApi", () => ({
   getDuplicateHolds: vi.fn(),
   resolveDuplicateHold: vi.fn(),
+}));
+vi.mock("../api/photoEditorApi", () => ({ getPhotoVersions: vi.fn() }));
+vi.mock("@/features/media-uploads/api/mediaUploadApi", () => ({
+  getMediaVariantDelivery: vi.fn(),
 }));
 
 const photo: Photo = {
@@ -84,6 +90,19 @@ function renderPage() {
 }
 
 beforeEach(() => {
+  vi.mocked(getPhotoVersions).mockResolvedValue({
+    active_photo_version_id: null,
+    can_edit: false,
+    versions: [],
+  });
+  vi.mocked(getMediaVariantDelivery).mockResolvedValue({
+    asset: "variant",
+    transform_name: "thumbnail",
+    processing_version: 1,
+    url: "https://storage.test/signed-thumbnail",
+    method: "GET",
+    expires_at: "2026-09-18T09:00:00Z",
+  });
   vi.mocked(getPhotos).mockResolvedValue([photo]);
   vi.mocked(getDeletedPhotos).mockResolvedValue([]);
   vi.mocked(getPromotableMediaUploads).mockResolvedValue([promotableUpload]);
@@ -106,6 +125,23 @@ afterEach(() => {
 });
 
 describe("PhotosPage", () => {
+  it("renders authorized thumbnail cards that open Photo detail", async () => {
+    renderPage();
+    expect(
+      await screen.findByRole("img", { name: "Family picnic" }),
+    ).toHaveAttribute("src", "https://storage.test/signed-thumbnail");
+    expect(screen.getByRole("link", { name: /Family picnic/ })).toHaveAttribute(
+      "href",
+      `/families/oliver-family/photos/${photo.id}`,
+    );
+    expect(getMediaVariantDelivery).toHaveBeenCalledWith(
+      "oliver-family",
+      photo.media_upload.id,
+      "thumbnail",
+      expect.any(AbortSignal),
+    );
+  });
+
   it("shows restorable tombstones without presenting them in the active archive", async () => {
     vi.mocked(getDeletedPhotos).mockResolvedValue([
       {

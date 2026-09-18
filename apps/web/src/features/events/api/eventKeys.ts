@@ -9,6 +9,8 @@ export const eventKeys = {
     [...eventKeys.detail(familySlug, eventId), "duplicates"] as const,
   admissions: (familySlug: string, eventId: string) =>
     [...eventKeys.detail(familySlug, eventId), "admissions"] as const,
+  rsvps: (familySlug: string, eventId: string) =>
+    [...eventKeys.detail(familySlug, eventId), "rsvps"] as const,
   exports: (familySlug: string, eventId: string) =>
     [...eventKeys.detail(familySlug, eventId), "exports"] as const,
   person: (familySlug: string, personId: string) =>

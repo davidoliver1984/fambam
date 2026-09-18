@@ -14,6 +14,18 @@ export type Album = {
   id: string;
   name: string;
   description: string | null;
+  starts_on?: string | null;
+  ends_on?: string | null;
+  location?: string | null;
+  tags?: Array<{ id: string; label: string }>;
+  people?: Array<{ id: string; name: string }>;
+  cover?: {
+    photo_id: string;
+    media_upload_id: string;
+    focal_x: number;
+    focal_y: number;
+  } | null;
+  cover_pending?: boolean;
   visibility: AlbumVisibility;
   created_by: number | null;
   event_id?: string | null;
@@ -35,4 +47,11 @@ export type CreateAlbumInput = {
   visibility: AlbumVisibility;
   event_id?: string | null;
   guest_participation?: GuestParticipation;
+};
+
+export type SetAlbumCoverInput = {
+  photoId: string | null;
+  confirmVisibilityWidening?: boolean;
+  focalX?: number;
+  focalY?: number;
 };

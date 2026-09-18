@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 
+import { PhotoPresentationImage } from "../components/PhotoPresentationImage";
 import { PhotoForm } from "../components/PhotoForm";
 import { PhotoDuplicateHolds } from "../components/PhotoDuplicateHolds";
 import {
@@ -33,9 +34,20 @@ export function PhotosPage() {
     return <p role="alert">The photograph archive could not be loaded.</p>;
 
   return (
-    <main className="auth people" aria-labelledby="photos-title">
+    <main className="journey-page" aria-labelledby="photos-title">
       <p className="eyebrow">Family archive</p>
-      <h1 id="photos-title">Photographs</h1>
+      <div className="journey-heading">
+        <div>
+          <h1 id="photos-title">Photographs</h1>
+          <p>{photos.data.length} photographs in this view.</p>
+        </div>
+        <Link
+          className="journey-action"
+          to={`/families/${encodeURIComponent(familySlug)}/uploads`}
+        >
+          Add photos
+        </Link>
+      </div>
       <section aria-labelledby="dynamic-view-title">
         <h2 id="dynamic-view-title">Filter this view</h2>
         <label htmlFor="photo-tag-filter">Tag</label>
@@ -80,15 +92,24 @@ export function PhotosPage() {
       {photos.data.length === 0 ? (
         <p>No Photo records have been created yet.</p>
       ) : (
-        <ul className="photo-list">
+        <ul className="journey-photo-grid">
           {photos.data.map((photo) => (
             <li key={photo.id}>
               <Link
                 to={`/families/${encodeURIComponent(familySlug)}/photos/${photo.id}`}
               >
-                {photo.caption ?? photo.media_upload.client_filename}
+                <PhotoPresentationImage
+                  familySlug={familySlug}
+                  photoId={photo.id}
+                  mediaUploadId={photo.media_upload.id}
+                  fallbackTransform="thumbnail"
+                  alt={photo.caption ?? photo.media_upload.client_filename}
+                />
+                <strong>
+                  {photo.caption ?? photo.media_upload.client_filename}
+                </strong>
               </Link>
-              <span>
+              <span className="journey-photo-visibility">
                 {photo.visibility === "private" ? "Private" : "Family Space"}
               </span>
               {photo.tags.length > 0 && (

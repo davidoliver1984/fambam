@@ -54,12 +54,13 @@ export function MediaUploadPage() {
   }
 
   return (
-    <main className="auth media-upload" aria-labelledby="media-upload-title">
+    <main className="journey-page" aria-labelledby="media-upload-title">
       <p className="eyebrow">fambam</p>
       <h1 id="media-upload-title">Upload family photographs</h1>
       <p>
         The original uploads directly to private object storage and will be
-        checked before it can be used.
+        checked before it can be used. Once processing is ready, choose the
+        upload on the Photographs page to create a Photo.
       </p>
       <form onSubmit={submit}>
         <label htmlFor="media-file">Photographs</label>
@@ -105,6 +106,14 @@ export function MediaUploadPage() {
       )}
       {processingRetry.isError && (
         <p role="alert">Processing could not be retried.</p>
+      )}
+      {batchQuery.data?.items.some((item) => item.state === "ready") && (
+        <p role="status">
+          Ready photographs can now be selected for Photo creation.{" "}
+          <Link to={`/families/${encodeURIComponent(familySlug)}/photos`}>
+            Continue to Photographs
+          </Link>
+        </p>
       )}
       <Link to={`/families/${encodeURIComponent(familySlug)}`}>
         Back to Family Space

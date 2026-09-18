@@ -8,13 +8,14 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { getMediaVariantDelivery } from "@/features/media-uploads/api/mediaUploadApi";
 import { getPhotoVersions } from "@/features/photos/api/photoEditorApi";
 
-import { getAlbum, requestAlbumExport } from "../api/albumApi";
+import { getAlbum, requestAlbumExport, setAlbumCover } from "../api/albumApi";
 import { AlbumPage } from "./AlbumPage";
 
 vi.mock("../api/albumApi", () => ({
   getAlbum: vi.fn(),
   requestAlbumExport: vi.fn(),
   uploadPhotoToAlbum: vi.fn(),
+  setAlbumCover: vi.fn(),
 }));
 vi.mock("@/features/media-uploads/api/mediaUploadApi", () => ({
   getMediaVariantDelivery: vi.fn(),
@@ -30,6 +31,61 @@ afterEach(() => {
 });
 
 describe("AlbumPage", () => {
+  it("uses the authorized cover endpoint with a named Photo choice", async () => {
+    vi.mocked(getAlbum).mockResolvedValue({
+      id: "album-1",
+      name: "Summer memories",
+      description: null,
+      visibility: "family_space",
+      created_by: 1,
+      guest_participation: "none",
+      photos: [
+        {
+          id: "photo-1",
+          media_upload_id: "upload-1",
+          caption: "Garden party",
+          client_filename: "garden.jpg",
+          visibility: "family_space",
+          position: 1,
+        },
+      ],
+      grants: [],
+      permissions: { can_manage: true, can_contribute: false },
+    });
+    vi.mocked(getPhotoVersions).mockResolvedValue({
+      active_photo_version_id: null,
+      can_edit: false,
+      versions: [],
+    });
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/families/:familySlug/albums/:albumId",
+          element: <AlbumPage />,
+        },
+      ],
+      { initialEntries: ["/families/family-archive/albums/album-1"] },
+    );
+    render(
+      <QueryClientProvider client={client}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    await userEvent
+      .setup()
+      .selectOptions(await screen.findByLabelText("Album cover"), "photo-1");
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "Save cover" }));
+    expect(setAlbumCover).toHaveBeenCalledWith("family-archive", "album-1", {
+      photoId: "photo-1",
+      confirmVisibilityWidening: false,
+    });
+  });
+
   it("renders ordered thumbnail cards that navigate to Photo detail", async () => {
     vi.mocked(requestAlbumExport).mockResolvedValue({ id: "export-1" });
     vi.mocked(getPhotoVersions).mockResolvedValue({
@@ -164,7 +220,7 @@ describe("AlbumPage", () => {
       await screen.findByRole("heading", { name: "Wedding photographs" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByLabelText("Add photographs to this Event"),
+      screen.getByLabelText("Add photographs to this Album"),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Back to Family wedding" }),

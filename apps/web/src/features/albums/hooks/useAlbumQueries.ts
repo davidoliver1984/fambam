@@ -8,9 +8,10 @@ import {
   removePhotoFromAlbum,
   uploadPhotoToAlbum,
   requestAlbumExport,
+  setAlbumCover,
 } from "../api/albumApi";
 import { albumKeys } from "../api/albumKeys";
-import type { CreateAlbumInput } from "../types/album";
+import type { CreateAlbumInput, SetAlbumCoverInput } from "../types/album";
 
 export function useAlbumsQuery(familySlug: string) {
   return useQuery({
@@ -50,6 +51,16 @@ export function useCreateAlbumMutation(familySlug: string) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateAlbumInput) => createAlbum(familySlug, input),
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: albumKeys.all(familySlug) }),
+  });
+}
+
+export function useAlbumCoverMutation(familySlug: string, albumId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SetAlbumCoverInput) =>
+      setAlbumCover(familySlug, albumId, input),
     onSuccess: () =>
       client.invalidateQueries({ queryKey: albumKeys.all(familySlug) }),
   });

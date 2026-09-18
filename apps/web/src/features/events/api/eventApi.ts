@@ -6,6 +6,8 @@ import type {
   EventExport,
   EventExportDownload,
   EventInput,
+  EventRsvpGroups,
+  EventRsvpStatus,
   FamilyEvent,
 } from "../types/event";
 
@@ -127,6 +129,33 @@ export async function getEventAdmissions(
     await apiClient.get<ApiEnvelope<EventAdmission[]>>(
       `${base(familySlug)}/${encodeURIComponent(eventId)}/admissions`,
       { signal },
+    ),
+  );
+}
+
+export async function getEventRsvps(
+  familySlug: string,
+  eventId: string,
+  signal?: AbortSignal,
+): Promise<EventRsvpGroups> {
+  return unwrap(
+    await apiClient.get<ApiEnvelope<EventRsvpGroups>>(
+      `${base(familySlug)}/${encodeURIComponent(eventId)}/rsvps`,
+      { signal },
+    ),
+  );
+}
+
+export async function updateEventRsvp(
+  familySlug: string,
+  eventId: string,
+  status: EventRsvpStatus,
+): Promise<EventAdmission> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.patch<ApiEnvelope<EventAdmission>>(
+      `${base(familySlug)}/${encodeURIComponent(eventId)}/rsvp`,
+      { status },
     ),
   );
 }

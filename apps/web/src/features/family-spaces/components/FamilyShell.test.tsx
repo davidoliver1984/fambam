@@ -149,7 +149,9 @@ describe("FamilyShell", () => {
     expect(
       screen.queryByRole("link", { name: "Photos" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Events" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Events" }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps the active family available when the switcher list is empty or fails", async () => {

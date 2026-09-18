@@ -13,7 +13,9 @@ import {
   useUpdateEventMutation,
 } from "../hooks/useEventQueries";
 import { useIssueInvitationMutation } from "@/features/invitations/hooks/useInvitationMutations";
+import { useFamilyMembershipsQuery } from "@/features/people/hooks/useAccountLinkQueries";
 import type { GuestParticipation } from "@/features/albums/types/album";
+import { EventRsvpPanel } from "../components/EventRsvpPanel";
 
 export function EventPage() {
   const { familySlug = "", eventId = "" } = useParams();
@@ -34,6 +36,10 @@ export function EventPage() {
     eventId,
     canManageAdmissions,
   );
+  const memberships = useFamilyMembershipsQuery(
+    familySlug,
+    canManageAdmissions,
+  );
   const admissionMutations = useEventAdmissionMutations(familySlug, eventId);
   const exports = useEventExportsQuery(familySlug, eventId, canManageExports);
   const exportMutations = useEventExportMutations(familySlug, eventId);
@@ -50,7 +56,7 @@ export function EventPage() {
   if (event.isError) return <p role="alert">This Event could not be loaded.</p>;
   const item = event.data;
   return (
-    <main className="auth people" aria-labelledby="event-title">
+    <main className="journey-page journey-detail" aria-labelledby="event-title">
       <p className="eyebrow">Event</p>
       <h1 id="event-title">{item.name}</h1>
       <p>
@@ -60,6 +66,7 @@ export function EventPage() {
       <p>{item.location ?? "Location not recorded"}</p>
       <p>Status: {item.status}</p>
       {item.description !== null && <p>{item.description}</p>}
+      <EventRsvpPanel familySlug={familySlug} eventId={eventId} />
       {item.permissions.can_delete && (
         <button
           type="button"
@@ -209,17 +216,38 @@ export function EventPage() {
                 });
             }}
           >
-            <label htmlFor="event-membership-id">
-              Admit an existing membership ID
-            </label>
-            <input
+            <label htmlFor="event-membership-id">Admit a family member</label>
+            <select
               id="event-membership-id"
               value={membershipId}
               onChange={(changeEvent) => {
                 setMembershipId(changeEvent.target.value);
               }}
               required
-            />
+            >
+              <option value="">Choose a person</option>
+              {memberships.data
+                ?.filter(
+                  (membership) =>
+                    membership.state === "active" &&
+                    !admissions.data?.some(
+                      (admission) =>
+                        admission.membership_id === membership.id &&
+                        admission.revoked_at === null,
+                    ),
+                )
+                .map((membership) => (
+                  <option key={membership.id} value={membership.id}>
+                    {membership.user.name} ({membership.role})
+                  </option>
+                ))}
+            </select>
+            {memberships.isPending && (
+              <p role="status">Loading family members…</p>
+            )}
+            {memberships.isError && (
+              <p role="alert">Family members could not be loaded.</p>
+            )}
             <button type="submit" disabled={admissionMutations.admit.isPending}>
               Admit to Event
             </button>

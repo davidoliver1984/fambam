@@ -10,18 +10,20 @@ import {
   getDeletedEvents,
   getDuplicateEventCandidates,
   getEventAdmissions,
+  getEventRsvps,
   getEventExports,
   getEvent,
   getEvents,
   getPersonEvents,
   updateEvent,
+  updateEventRsvp,
   revokeEventAdmission,
   restoreEvent,
   requestEventExport,
   authorizeEventExportDownload,
 } from "../api/eventApi";
 import { eventKeys } from "../api/eventKeys";
-import type { EventInput } from "../types/event";
+import type { EventInput, EventRsvpStatus } from "../types/event";
 import type { GuestParticipation } from "@/features/albums/types/album";
 
 export function useEventsQuery(familySlug: string) {
@@ -72,6 +74,27 @@ export function useEventAdmissionsQuery(
     queryFn: ({ signal }) => getEventAdmissions(familySlug, eventId, signal),
     enabled: enabled && familySlug !== "" && eventId !== "",
     retry: false,
+  });
+}
+
+export function useEventRsvpsQuery(familySlug: string, eventId: string) {
+  return useQuery({
+    queryKey: eventKeys.rsvps(familySlug, eventId),
+    queryFn: ({ signal }) => getEventRsvps(familySlug, eventId, signal),
+    enabled: familySlug !== "" && eventId !== "",
+    retry: false,
+  });
+}
+
+export function useEventRsvpMutation(familySlug: string, eventId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (status: EventRsvpStatus) =>
+      updateEventRsvp(familySlug, eventId, status),
+    onSuccess: () =>
+      client.invalidateQueries({
+        queryKey: eventKeys.rsvps(familySlug, eventId),
+      }),
   });
 }
 

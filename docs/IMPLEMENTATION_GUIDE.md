@@ -4725,6 +4725,15 @@ requiring internal IDs, API knowledge or developer tooling. This is where the
 new Album cover, metadata, and Event RSVP surfaces from `FPA-P14-S07`-`S08`
 are built into the product journeys.
 
+Implementation record (2026-09-18): Integrated the Photo grid/detail and
+ready-upload continuation, Album cover and Photo-selection journeys, Event
+browsing and RSVP, and role-aware Guest navigation using the existing typed
+feature APIs and authorised media delivery. The Mercer demo Photo, Album and
+Event views were checked after an approved local schema migration and a
+checksum-verified restoration of missing synthetic demo media. Frontend lint,
+typecheck, 145 tests, production build and Prettier passed. Cross-route visual,
+responsive and state polish remains FPA-P14-S17.
+
 ## FPA-P14-S15 — Integrate People, recognition, duplicate and discovery journeys
 
 Connect People and Person pages, Photo tagging, face suggestions and human

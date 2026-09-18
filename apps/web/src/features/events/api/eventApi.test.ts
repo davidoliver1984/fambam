@@ -10,11 +10,13 @@ import {
   getDuplicateEventCandidates,
   getEvent,
   getEventAdmissions,
+  getEventRsvps,
   getEventExports,
   getDeletedEvents,
   getEvents,
   getPersonEvents,
   updateEvent,
+  updateEventRsvp,
   revokeEventAdmission,
   restoreEvent,
   requestEventExport,
@@ -96,6 +98,21 @@ describe("eventApi", () => {
       http.get(`${detail}/admissions`, () =>
         HttpResponse.json({ data: [admission] }),
       ),
+      http.get(`${detail}/rsvps`, () =>
+        HttpResponse.json({
+          data: {
+            going: [],
+            pending: [{ id: admission.id, user: { id: 2, name: "Guest" } }],
+            not_attending: [],
+          },
+        }),
+      ),
+      http.patch(`${detail}/rsvp`, async ({ request }) => {
+        const body = (await request.json()) as { status: string };
+        return HttpResponse.json({
+          data: { ...admission, rsvp_status: body.status },
+        });
+      }),
       http.post(`${detail}/admissions`, () =>
         HttpResponse.json({ data: admission }, { status: 201 }),
       ),
@@ -148,6 +165,16 @@ describe("eventApi", () => {
     await expect(
       getEventAdmissions("family-archive", event.id),
     ).resolves.toEqual([admission]);
+    await expect(
+      getEventRsvps("family-archive", event.id),
+    ).resolves.toMatchObject({
+      pending: [{ user: { name: "Guest" } }],
+    });
+    await expect(
+      updateEventRsvp("family-archive", event.id, "going"),
+    ).resolves.toMatchObject({
+      rsvp_status: "going",
+    });
     await expect(
       admitEventMembership("family-archive", event.id, admission.membership_id),
     ).resolves.toEqual(admission);

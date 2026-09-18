@@ -1,7 +1,11 @@
 import { apiClient, ensureCsrfCookie } from "@/api/client";
 import { type ApiEnvelope, unwrap } from "@/api/envelope";
 
-import type { Album, CreateAlbumInput } from "../types/album";
+import type {
+  Album,
+  CreateAlbumInput,
+  SetAlbumCoverInput,
+} from "../types/album";
 import type { MediaUpload } from "@/features/media-uploads/types/mediaUpload";
 
 function albumsPath(familySlug: string) {
@@ -45,6 +49,25 @@ export async function createAlbum(familySlug: string, input: CreateAlbumInput) {
   await ensureCsrfCookie();
   return unwrap(
     await apiClient.post<ApiEnvelope<Album>>(albumsPath(familySlug), input),
+  );
+}
+
+export async function setAlbumCover(
+  familySlug: string,
+  albumId: string,
+  input: SetAlbumCoverInput,
+): Promise<Album> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.put<ApiEnvelope<Album>>(
+      `${albumsPath(familySlug)}/${encodeURIComponent(albumId)}/cover`,
+      {
+        photo_id: input.photoId,
+        confirm_visibility_widening: input.confirmVisibilityWidening ?? false,
+        ...(input.focalX === undefined ? {} : { focal_x: input.focalX }),
+        ...(input.focalY === undefined ? {} : { focal_y: input.focalY }),
+      },
+    ),
   );
 }
 

@@ -69,7 +69,7 @@ export function PhotoPage() {
   const photo = photoQuery.data;
 
   return (
-    <main className="auth people" aria-labelledby="photo-title">
+    <main className="journey-page journey-detail" aria-labelledby="photo-title">
       <p className="eyebrow">
         {photo.visibility === "private" ? "Private Photo" : "Family Photo"}
       </p>

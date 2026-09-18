@@ -97,7 +97,7 @@ export function FamilyShell() {
     { label: "People", to: `${base}/people`, visible: canBrowseArchive },
     { label: "Photos", to: `${base}/photos`, visible: canBrowseArchive },
     { label: "Albums", to: `${base}/albums`, visible: canBrowseAlbums },
-    { label: "Events", to: `${base}/events`, visible: true },
+    { label: "Events", to: `${base}/events`, visible: canBrowseArchive },
   ].filter((item) => item.visible);
 
   async function signOut() {

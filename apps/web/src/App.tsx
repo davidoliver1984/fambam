@@ -23,6 +23,7 @@ import { DiscoveryPage } from "@/features/search/pages/DiscoveryPage";
 import { SearchPage } from "@/features/search/pages/SearchPage";
 
 import "./App.css";
+import "./journey.css";
 import {
   AccountPage,
   ForgotPasswordPage,

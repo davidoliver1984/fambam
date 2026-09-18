@@ -1,5 +1,6 @@
 import { useState, type SyntheticEvent } from "react";
 import { Link, useParams } from "react-router";
+import { useFamilySpaceQuery } from "@/features/family-spaces/hooks/useFamilySpaceQuery";
 
 import {
   useCreateEventMutation,
@@ -10,9 +11,14 @@ import {
 
 export function EventsPage() {
   const { familySlug = "" } = useParams();
+  const family = useFamilySpaceQuery(familySlug);
   const events = useEventsQuery(familySlug);
-  const canManage =
-    events.data?.some((item) => item.permissions.can_delete) === true;
+  const canManage = ["owner", "administrator"].includes(
+    family.data?.role ?? "",
+  );
+  const canCreate = ["owner", "administrator", "member"].includes(
+    family.data?.role ?? "",
+  );
   const deleted = useDeletedEventsQuery(familySlug, canManage);
   const restore = useRestoreEventMutation(familySlug);
   const create = useCreateEventMutation(familySlug);
@@ -33,52 +39,69 @@ export function EventsPage() {
     );
   };
   return (
-    <main className="auth people" aria-labelledby="events-title">
+    <main className="journey-page" aria-labelledby="events-title">
       <p className="eyebrow">Family archive</p>
-      <h1 id="events-title">Events</h1>
+      <div className="journey-heading">
+        <div>
+          <h1 id="events-title">Events</h1>
+          <p>Gatherings, celebrations, and shared family moments.</p>
+        </div>
+        {canCreate && (
+          <a className="journey-action" href="#create-event-title">
+            Create Event
+          </a>
+        )}
+      </div>
       {events.data.length === 0 ? (
         <p>No events have been created yet.</p>
       ) : (
-        <ul>
+        <ul className="journey-event-grid">
           {events.data.map((item) => (
             <li key={item.id}>
+              <span className="journey-event-date">
+                {item.starts_on ?? "Date to be added"}
+              </span>
               <Link
                 to={`/families/${encodeURIComponent(familySlug)}/events/${item.id}`}
               >
                 {item.name}
               </Link>
-              {item.starts_on === null ? "" : ` — ${item.starts_on}`}
+              <span>{item.location ?? "Family gathering"}</span>
             </li>
           ))}
         </ul>
       )}
-      <section aria-labelledby="create-event-title">
-        <h2 id="create-event-title">Create an Event</h2>
-        <form onSubmit={submit}>
-          <label htmlFor="event-name">Name</label>
-          <input
-            id="event-name"
-            value={name}
-            onChange={(event) => {
-              setName(event.target.value);
-            }}
-            required
-          />
-          <label htmlFor="event-start">Start date</label>
-          <input
-            id="event-start"
-            type="date"
-            value={startsOn}
-            onChange={(event) => {
-              setStartsOn(event.target.value);
-            }}
-          />
-          <button type="submit" disabled={create.isPending}>
-            Create Event
-          </button>
-        </form>
-        {create.isError && <p role="alert">The Event could not be created.</p>}
-      </section>
+      {canCreate && (
+        <section aria-labelledby="create-event-title">
+          <h2 id="create-event-title">Create an Event</h2>
+          <form onSubmit={submit}>
+            <label htmlFor="event-name">Name</label>
+            <input
+              id="event-name"
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value);
+              }}
+              required
+            />
+            <label htmlFor="event-start">Start date</label>
+            <input
+              id="event-start"
+              type="date"
+              value={startsOn}
+              onChange={(event) => {
+                setStartsOn(event.target.value);
+              }}
+            />
+            <button type="submit" disabled={create.isPending}>
+              Create Event
+            </button>
+          </form>
+          {create.isError && (
+            <p role="alert">The Event could not be created.</p>
+          )}
+        </section>
+      )}
       {canManage && (
         <section aria-labelledby="removed-events-title">
           <h2 id="removed-events-title">Removed Events</h2>

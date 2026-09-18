@@ -174,6 +174,9 @@ describe("MediaUploadPage", () => {
       ),
     ).toBeInTheDocument();
     expect(await screen.findByText("first.jpg: ready")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Continue to Photographs" }),
+    ).toHaveAttribute("href", "/families/oliver-family/photos");
   });
 
   it("keeps partial failures visible and offers a duplicate-safe retry", async () => {
