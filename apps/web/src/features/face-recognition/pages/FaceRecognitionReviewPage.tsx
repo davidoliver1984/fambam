@@ -37,7 +37,10 @@ export function FaceRecognitionReviewPage() {
   const actionFailed = approve.isError || reject.isError || reopen.isError;
 
   return (
-    <main className="auth people" aria-labelledby="face-review-title">
+    <main
+      className="journey-page review-journey"
+      aria-labelledby="face-review-title"
+    >
       <p className="eyebrow">Family archive</p>
       <h1 id="face-review-title">Face identity review</h1>
       <p>
@@ -52,20 +55,22 @@ export function FaceRecognitionReviewPage() {
         {assignments.data.length === 0 ? (
           <p>No face identity suggestions are waiting for review.</p>
         ) : (
-          assignments.data.map((assignment) => (
-            <FaceSuggestionCard
-              key={assignment.id}
-              assignment={assignment}
-              canResolve={canResolve}
-              pending={approve.isPending || reject.isPending}
-              onApprove={() => {
-                approve.mutate(assignment.id);
-              }}
-              onReject={() => {
-                reject.mutate(assignment.id);
-              }}
-            />
-          ))
+          <div className="review-grid">
+            {assignments.data.map((assignment) => (
+              <FaceSuggestionCard
+                key={assignment.id}
+                assignment={assignment}
+                canResolve={canResolve}
+                pending={approve.isPending || reject.isPending}
+                onApprove={() => {
+                  approve.mutate(assignment.id);
+                }}
+                onReject={() => {
+                  reject.mutate(assignment.id);
+                }}
+              />
+            ))}
+          </div>
         )}
       </section>
       <FaceSuppressionsPanel
@@ -79,6 +84,11 @@ export function FaceRecognitionReviewPage() {
       <Link to={`/families/${encodeURIComponent(familySlug)}/face-clusters`}>
         Review unknown face groups
       </Link>
+      <p>
+        <Link to={`/families/${encodeURIComponent(familySlug)}/people`}>
+          Back to People
+        </Link>
+      </p>
     </main>
   );
 }

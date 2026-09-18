@@ -53,7 +53,10 @@ export function FaceClustersPage() {
     (suggestions.isError && suggestions.processingDisabledMessage === null);
 
   return (
-    <main className="auth people" aria-labelledby="face-clusters-title">
+    <main
+      className="journey-page review-journey"
+      aria-labelledby="face-clusters-title"
+    >
       <p className="eyebrow">Family archive</p>
       <h1 id="face-clusters-title">Unknown face groups</h1>
       <p>
@@ -81,49 +84,56 @@ export function FaceClustersPage() {
       {clusters.data.clusters.length === 0 ? (
         <p>No active unknown-face groups are available.</p>
       ) : (
-        clusters.data.clusters.map((cluster) => (
-          <FaceClusterCard
-            key={cluster.id}
-            cluster={cluster}
-            people={people.data}
-            canResolve={canResolve}
-            pending={pending}
-            selected={selected.includes(cluster.id)}
-            onSelectionChange={(checked) => {
-              setSelected(
-                checked
-                  ? [...selected, cluster.id]
-                  : selected.filter((id) => id !== cluster.id),
-              );
-            }}
-            onName={(personId) => {
-              nameCluster.mutate({
-                clusterId: cluster.id,
-                personId,
-                confirm: canResolve,
-              });
-            }}
-            onProposeFace={(faceObservationId, personId) => {
-              proposeFace.mutate({ faceObservationId, personId });
-            }}
-            onFindSuggestions={(faceObservationId) => {
-              suggestions.mutate(faceObservationId);
-            }}
-            recognitionProcessingEnabled={
-              clusters.data.recognition_processing_enabled
-            }
-            suggestionErrorObservationId={suggestions.variables ?? null}
-            suggestionErrorMessage={suggestions.processingDisabledMessage}
-            suggestion={suggestions.data ?? null}
-            onSplit={(groups) => {
-              split.mutate({ clusterId: cluster.id, groups });
-            }}
-          />
-        ))
+        <div className="review-grid">
+          {clusters.data.clusters.map((cluster) => (
+            <FaceClusterCard
+              key={cluster.id}
+              cluster={cluster}
+              people={people.data}
+              canResolve={canResolve}
+              pending={pending}
+              selected={selected.includes(cluster.id)}
+              onSelectionChange={(checked) => {
+                setSelected(
+                  checked
+                    ? [...selected, cluster.id]
+                    : selected.filter((id) => id !== cluster.id),
+                );
+              }}
+              onName={(personId) => {
+                nameCluster.mutate({
+                  clusterId: cluster.id,
+                  personId,
+                  confirm: canResolve,
+                });
+              }}
+              onProposeFace={(faceObservationId, personId) => {
+                proposeFace.mutate({ faceObservationId, personId });
+              }}
+              onFindSuggestions={(faceObservationId) => {
+                suggestions.mutate(faceObservationId);
+              }}
+              recognitionProcessingEnabled={
+                clusters.data.recognition_processing_enabled
+              }
+              suggestionErrorObservationId={suggestions.variables ?? null}
+              suggestionErrorMessage={suggestions.processingDisabledMessage}
+              suggestion={suggestions.data ?? null}
+              onSplit={(groups) => {
+                split.mutate({ clusterId: cluster.id, groups });
+              }}
+            />
+          ))}
+        </div>
       )}
       <Link to={`/families/${encodeURIComponent(familySlug)}/face-recognition`}>
         Review identity suggestions
       </Link>
+      <p>
+        <Link to={`/families/${encodeURIComponent(familySlug)}/people`}>
+          Back to People
+        </Link>
+      </p>
     </main>
   );
 }

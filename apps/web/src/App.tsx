@@ -24,6 +24,7 @@ import { SearchPage } from "@/features/search/pages/SearchPage";
 
 import "./App.css";
 import "./journey.css";
+import "./explore.css";
 import {
   AccountPage,
   ForgotPasswordPage,

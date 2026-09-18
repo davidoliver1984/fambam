@@ -8,6 +8,10 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { getSearchSuggestions, searchArchive } from "../api/searchApi";
 import { SearchPage } from "./SearchPage";
 
+vi.mock("@/features/photos/components/PhotoPresentationImage", () => ({
+  PhotoPresentationImage: () => <img alt="" src="/authorised-photo-preview" />,
+}));
+
 vi.mock("@/features/family-spaces/hooks/useFamilySpaceQuery", () => ({
   useFamilySpaceQuery: () => ({
     data: {
@@ -104,10 +108,9 @@ describe("SearchPage", () => {
         items: [
           {
             id: "story-1",
-            photo_id: "photo-1",
-            photo_caption: "Summer beach",
-            media_upload_id: "upload-1",
+            heading: "Our day at the sea",
             excerpt: "A day by the sea",
+            subject: { type: "photo", id: "photo-1" },
             created_at: "2026-09-08T10:00:00Z",
           },
         ],
@@ -152,6 +155,10 @@ describe("SearchPage", () => {
     expect(
       (await screen.findAllByRole("link", { name: "Summer beach" }))[0],
     ).toHaveAttribute("href", "/families/family-archive/photos/photo-1");
+    expect(screen.getByAltText("")).toHaveAttribute(
+      "src",
+      "/authorised-photo-preview",
+    );
     expect(screen.getByRole("link", { name: "Beach days" })).toHaveAttribute(
       "href",
       "/families/family-archive/albums/album-1",
@@ -165,6 +172,10 @@ describe("SearchPage", () => {
       "/families/family-archive/events/event-1",
     );
     expect(screen.getByText("A day by the sea")).toBeInTheDocument();
+    expect(screen.getByText("Our day at the sea")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /view the photo this story is about/i }),
+    ).toHaveAttribute("href", "/families/family-archive/photos/photo-1");
     expect(searchArchive).toHaveBeenCalledTimes(5);
     expect(searchArchive).toHaveBeenCalledWith(
       "family-archive",

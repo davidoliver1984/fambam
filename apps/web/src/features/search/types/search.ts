@@ -1,3 +1,5 @@
+import type { FamilyEntity } from "@/navigation/familyEntityPath";
+
 export type SearchGroup = "people" | "photos" | "albums" | "events" | "stories";
 
 export type SearchCriteria = {
@@ -39,10 +41,9 @@ export type AlbumSearchSummary = {
 
 export type StorySearchSummary = {
   id: string;
-  photo_id: string;
-  photo_caption: string | null;
-  media_upload_id: string;
+  heading: string;
   excerpt: string;
+  subject: FamilyEntity;
   created_at: string;
 };
 

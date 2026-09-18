@@ -44,25 +44,51 @@ export function PersonPage() {
   const canSubmit = authoritative || person.permissions.can_propose_changes;
 
   return (
-    <main className="auth people" aria-labelledby="person-title">
+    <main
+      className="journey-page journey-detail people-journey"
+      aria-labelledby="person-title"
+    >
       <p className="eyebrow">{person.identity_status} Person</p>
-      <h1 id="person-title">{person.preferred_name}</h1>
-      {person.alternate_names.length > 0 && (
-        <p>Also known as {person.alternate_names.join(", ")}</p>
+      <header className="person-hero">
+        <span className="people-avatar" aria-hidden="true">
+          {person.preferred_name.slice(0, 1).toUpperCase()}
+        </span>
+        <div>
+          <h1 id="person-title">{person.preferred_name}</h1>
+          {person.alternate_names.length > 0 && (
+            <p>Also known as {person.alternate_names.join(", ")}</p>
+          )}
+          <p>
+            Born:{" "}
+            {formatUncertainDate(
+              person.birth_date.precision,
+              person.birth_date.value,
+            )}
+          </p>
+          {person.is_deceased && (
+            <p>
+              Died:{" "}
+              {formatUncertainDate(
+                person.death_date.precision,
+                person.death_date.value,
+              )}
+            </p>
+          )}
+        </div>
+      </header>
+      {person.biography ? (
+        <p className="person-biography">{person.biography}</p>
+      ) : (
+        <p>
+          No biography has been added yet. This Person can still appear in
+          photographs and family connections.
+        </p>
       )}
-      <p>
-        Born:{" "}
-        {formatUncertainDate(
-          person.birth_date.precision,
-          person.birth_date.value,
-        )}
-      </p>
-      <p>
-        {person.is_deceased
-          ? `Died: ${formatUncertainDate(person.death_date.precision, person.death_date.value)}`
-          : "Living or not marked as deceased"}
-      </p>
-      {person.biography && <p>{person.biography}</p>}
+      <Link
+        to={`/families/${encodeURIComponent(familySlug)}/discover/people/${encodeURIComponent(person.id)}`}
+      >
+        Explore related photographs, stories and events
+      </Link>
       {person.redirected_from_person_id && (
         <p role="status">
           This is the surviving Person record. You were redirected from a merged

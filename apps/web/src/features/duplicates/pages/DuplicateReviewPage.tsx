@@ -33,7 +33,10 @@ export function DuplicateReviewPage() {
   );
 
   return (
-    <main className="auth people" aria-labelledby="duplicate-review-title">
+    <main
+      className="journey-page review-journey"
+      aria-labelledby="duplicate-review-title"
+    >
       <p className="eyebrow">Family archive</p>
       <h1 id="duplicate-review-title">Duplicate review</h1>
       <p>
@@ -46,20 +49,22 @@ export function DuplicateReviewPage() {
       {visible.length === 0 ? (
         <p>No unresolved duplicate suggestions are waiting for review.</p>
       ) : (
-        visible.map((candidate) => (
-          <DuplicateCandidateCard
-            key={candidate.id}
-            candidate={candidate}
-            familySlug={familySlug}
-            pending={dismiss.isPending}
-            onIgnore={() => {
-              setIgnored([...ignored, candidate.id]);
-            }}
-            onDismiss={() => {
-              dismiss.mutate(candidate.id);
-            }}
-          />
-        ))
+        <div className="review-grid">
+          {visible.map((candidate) => (
+            <DuplicateCandidateCard
+              key={candidate.id}
+              candidate={candidate}
+              familySlug={familySlug}
+              pending={dismiss.isPending}
+              onIgnore={() => {
+                setIgnored([...ignored, candidate.id]);
+              }}
+              onDismiss={() => {
+                dismiss.mutate(candidate.id);
+              }}
+            />
+          ))}
+        </div>
       )}
 
       <section aria-labelledby="settled-duplicates-title">

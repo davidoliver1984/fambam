@@ -1,8 +1,8 @@
 import { Link } from "react-router";
 
-import { MediaVariantImage } from "@/features/media-uploads/components/MediaVariantImage";
 import { useHomepageMemoriesQuery } from "@/features/memories/hooks/useHomepageMemoriesQuery";
 import type { MemoryContext } from "@/features/memories/types/homepageMemory";
+import { familyEntityPath } from "@/navigation/familyEntityPath";
 
 type Props = {
   familySlug: string;
@@ -71,19 +71,12 @@ export function PersonAndStoryMemories({ familySlug }: Props) {
           <ol className="memory-list">
             {query.data.stories.map((story) => (
               <li key={story.id}>
-                <Link
-                  to={`/families/${encodeURIComponent(familySlug)}/photos/${encodeURIComponent(story.photo_id)}`}
-                >
-                  <MediaVariantImage
-                    familySlug={familySlug}
-                    mediaUploadId={story.media_upload_id}
-                    transform="thumbnail"
-                    alt={story.photo_caption ?? "Family photograph"}
-                  />
-                  <strong>{story.photo_caption ?? "Untitled Photo"}</strong>
-                </Link>
+                <strong>{story.heading}</strong>
                 <p>{story.excerpt}</p>
                 <p>Story by {story.author.name}</p>
+                <Link to={familyEntityPath(familySlug, story.subject)}>
+                  View the {story.subject.type} this Story is about
+                </Link>
                 <ul aria-label="Story context">
                   <ContextList label="People" items={story.people} />
                   <ContextList label="Albums" items={story.albums} />

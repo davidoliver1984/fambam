@@ -1,6 +1,9 @@
 import { type ReactNode } from "react";
 import { Link, useParams } from "react-router";
 
+import { familyEntityPath } from "@/navigation/familyEntityPath";
+
+import { SearchPhotoCard } from "../components/SearchPhotoCard";
 import { useDiscoveryQuery } from "../hooks/useArchiveSearchQuery";
 import type { DiscoveryResponse } from "../types/search";
 
@@ -37,7 +40,10 @@ function DiscoveryResults({
   const related = discovery.data.related;
 
   return (
-    <main className="auth people" aria-labelledby="discovery-title">
+    <main
+      className="journey-page discovery-journey"
+      aria-labelledby="discovery-title"
+    >
       <p className="eyebrow">Family archive</p>
       <h1 id="discovery-title">Related family memories</h1>
       <DiscoverySection title="People">
@@ -49,13 +55,13 @@ function DiscoveryResults({
           </li>
         ))}
       </DiscoverySection>
-      <DiscoverySection title="Photos">
+      <DiscoverySection title="Photos" visual>
         {related.photos?.map((photo) => (
-          <li key={photo.id}>
-            <Link to={`${base}/photos/${photo.id}`}>
-              {photo.caption ?? "Untitled Photo"}
-            </Link>
-          </li>
+          <SearchPhotoCard
+            key={photo.id}
+            familySlug={familySlug}
+            photo={photo}
+          />
         ))}
       </DiscoverySection>
       <DiscoverySection title="Albums">
@@ -77,10 +83,11 @@ function DiscoveryResults({
       <DiscoverySection title="Stories">
         {related.stories?.map((story) => (
           <li key={story.id}>
-            <Link to={`${base}/photos/${story.photo_id}`}>
-              {story.photo_caption ?? "Story on an untitled Photo"}
-            </Link>
+            <strong>{story.heading}</strong>
             <p>{story.excerpt}</p>
+            <Link to={familyEntityPath(familySlug, story.subject)}>
+              View the {story.subject.type} this Story is about
+            </Link>
           </li>
         ))}
       </DiscoverySection>
@@ -92,9 +99,11 @@ function DiscoveryResults({
 function DiscoverySection({
   title,
   children,
+  visual = false,
 }: {
   title: string;
   children: ReactNode;
+  visual?: boolean;
 }) {
   const items = Array.isArray(children) ? children.filter(Boolean) : children;
   if (!items || (Array.isArray(items) && items.length === 0)) return null;
@@ -102,7 +111,9 @@ function DiscoverySection({
   return (
     <section>
       <h2>{title}</h2>
-      <ul>{items}</ul>
+      <ul className={visual ? "search-photo-grid" : "search-result-list"}>
+        {items}
+      </ul>
     </section>
   );
 }

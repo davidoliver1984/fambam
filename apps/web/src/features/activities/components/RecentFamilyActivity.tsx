@@ -2,6 +2,7 @@ import { Link } from "react-router";
 
 import type { FamilyActivity } from "@/features/activities/types/familyActivity";
 import { useRecentFamilyActivitiesQuery } from "@/features/activities/hooks/useRecentFamilyActivitiesQuery";
+import { familyEntityPath } from "@/navigation/familyEntityPath";
 
 type RecentFamilyActivityProps = {
   familySlug: string;
@@ -32,7 +33,12 @@ function activityPath(familySlug: string, activity: FamilyActivity): string {
     case "person":
       return `${family}/people/${encodeURIComponent(activity.subject.id)}`;
     case "story":
-      return `${family}/photos/${encodeURIComponent(activity.subject.photo_id ?? "")}`;
+      return activity.subject.subject_type && activity.subject.subject_id
+        ? familyEntityPath(familySlug, {
+            type: activity.subject.subject_type,
+            id: activity.subject.subject_id,
+          })
+        : family;
   }
 }
 

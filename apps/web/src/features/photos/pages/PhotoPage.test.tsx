@@ -246,6 +246,9 @@ describe("PhotoPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Green family album")).toBeInTheDocument();
     expect(screen.getAllByText("Aunt May").length).toBeGreaterThanOrEqual(2);
+    expect(
+      await screen.findByRole("link", { name: "Aunt May" }),
+    ).toHaveAttribute("href", `/families/oliver-family/people/${person.id}`);
     expect(screen.getByText("decade: 1980s")).toBeInTheDocument();
     expect(screen.getByText("Blackpool")).toBeInTheDocument();
     expect(screen.getByText("Unknown studio")).toBeInTheDocument();

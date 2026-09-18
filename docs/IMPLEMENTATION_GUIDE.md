@@ -4740,6 +4740,16 @@ Connect People and Person pages, Photo tagging, face suggestions and human
 confirmation, duplicate prompts/review, search, discovery, memories and
 history surfaces into understandable family workflows.
 
+Implementation record (2026-09-18): The People directory now supports name
+and alternate-name filtering and links to sparse Person details and Owner/
+Administrator identity review. Confirmed People link from Photo details when
+the directory is authorised; search and discovery show authorised Photo
+thumbnails. First-class Stories in search, memories and activity link through
+their typed subject instead of an assumed Photo. Face-cluster, identity and
+duplicate review retain their existing authority checks in a shared journey
+layout. Frontend lint, typecheck, 147 tests, production build and Prettier
+passed; cross-route visual and responsive polish remains FPA-P14-S17.
+
 ## FPA-P14-S16 — Integrate collaboration and Family Space management journeys
 
 Complete comments, Love, stories, Collections, invitations, membership,

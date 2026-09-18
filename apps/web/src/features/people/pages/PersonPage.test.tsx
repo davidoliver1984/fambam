@@ -116,6 +116,12 @@ describe("PersonPage", () => {
       screen.getByRole("heading", { name: "Propose changes" }),
     ).toBeInTheDocument();
     expect(
+      screen.getByRole("link", { name: /Explore related photographs/i }),
+    ).toHaveAttribute(
+      "href",
+      `/families/oliver-family/discover/people/${person.id}`,
+    );
+    expect(
       screen.getByRole("button", { name: "Submit proposal" }),
     ).toBeInTheDocument();
     expect(

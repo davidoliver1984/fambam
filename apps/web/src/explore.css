@@ -1,0 +1,142 @@
+.people-journey .people-card-grid,
+.discovery-journey .search-photo-grid,
+.discovery-journey .search-result-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.people-card-grid li,
+.discovery-journey .search-photo-card,
+.discovery-journey .search-result-list li,
+.review-journey article {
+  display: grid;
+  align-content: start;
+  gap: 0.55rem;
+  padding: 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.8rem;
+  background: var(--surface-raised);
+}
+
+.people-card-grid a,
+.discovery-journey .search-photo-card strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.people-card-grid small,
+.discovery-journey small {
+  color: var(--text-muted);
+}
+
+.people-avatar {
+  display: grid;
+  width: 4rem;
+  height: 4rem;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--border-subtle);
+  color: var(--text-primary);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
+}
+
+.person-hero {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.person-hero .people-avatar {
+  flex: none;
+  width: clamp(5rem, 12vw, 8rem);
+  height: clamp(5rem, 12vw, 8rem);
+  font-size: clamp(2.5rem, 7vw, 4rem);
+}
+
+.person-hero h1 {
+  margin-bottom: 0.5rem;
+}
+
+.person-hero p {
+  margin: 0.3rem 0;
+  color: var(--text-muted);
+}
+
+.person-biography {
+  max-width: 58rem;
+  font-size: 1.15rem;
+  line-height: 1.65;
+}
+
+.people-review-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.discovery-journey form fieldset {
+  min-width: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.5rem;
+}
+
+.discovery-journey section {
+  margin: 2rem 0;
+}
+
+.discovery-journey .search-photo-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.discovery-journey .search-photo-card img,
+.discovery-journey .search-photo-card .media-image-state {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.discovery-journey .search-photo-card strong,
+.discovery-journey .search-photo-card small,
+.discovery-journey .search-photo-card > a:last-child {
+  display: block;
+  padding: 0.3rem 0.8rem;
+}
+
+.review-journey .review-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 23rem), 1fr));
+  align-items: start;
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.review-journey .duplicate-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.review-journey .duplicate-comparison img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+@media (max-width: 38rem) {
+  .person-hero {
+    align-items: flex-start;
+  }
+
+  .review-journey .duplicate-comparison {
+    grid-template-columns: 1fr;
+  }
+}

@@ -60,6 +60,40 @@ describe("RecentFamilyActivity", () => {
     ).toHaveAttribute("href", "/families/mercer-family/albums/album-1");
   });
 
+  it("links first-class Story activity to its typed subject", async () => {
+    server.use(
+      http.get(endpoint, () =>
+        HttpResponse.json({
+          data: [
+            {
+              id: "activity-story",
+              action_type: "story_added",
+              actor: { user_id: 1, name: "David", person_id: null },
+              subject: {
+                type: "story",
+                id: "story-1",
+                label: "A family memory",
+                photo_id: null,
+                subject_type: "person",
+                subject_id: "person-1",
+              },
+              contribution_batch_id: null,
+              photo_ids: [],
+              photo_count: 0,
+              created_at: "2026-09-09T12:00:00+00:00",
+            },
+          ],
+        }),
+      ),
+    );
+    renderActivity();
+
+    expect(await screen.findByText("David added a story")).toHaveAttribute(
+      "href",
+      "/families/mercer-family/people/person-1",
+    );
+  });
+
   it("renders loading, error and empty states safely", async () => {
     server.use(http.get(endpoint, () => HttpResponse.json({ data: [] })));
     renderActivity();

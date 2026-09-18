@@ -138,12 +138,30 @@ export function PhotoPage() {
         <div>
           <dt>People appearing</dt>
           <dd>
-            {photo.people
-              .map((association) => association.person.preferred_name)
-              .join(", ") || "None confirmed"}
+            {photo.people.length === 0
+              ? "None confirmed"
+              : photo.people.map((association, index) => (
+                  <span key={association.id}>
+                    {index > 0 ? ", " : ""}
+                    {peopleQuery.data !== undefined ? (
+                      <Link
+                        to={`/families/${encodeURIComponent(familySlug)}/people/${encodeURIComponent(association.person.id)}`}
+                      >
+                        {association.person.preferred_name}
+                      </Link>
+                    ) : (
+                      association.person.preferred_name
+                    )}
+                  </span>
+                ))}
           </dd>
         </div>
       </dl>
+      <Link
+        to={`/families/${encodeURIComponent(familySlug)}/discover/photos/${encodeURIComponent(photo.id)}`}
+      >
+        Explore related people, Albums and Stories
+      </Link>
 
       {photo.permissions.can_update && (
         <PhotoResurfacingControl

@@ -89,6 +89,27 @@ describe("PeoplePage", () => {
     );
   });
 
+  it("filters the directory by an alternate name without hiding the Person link", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getPeople).mockResolvedValue([
+      { ...person, alternate_names: ["Ada Jones"] },
+      { ...person, id: "person-2", preferred_name: "Grace Oliver" },
+    ]);
+    renderPage();
+    await screen.findByRole("link", { name: "Ada Oliver" });
+    await user.type(
+      screen.getByRole("searchbox", { name: "Find a person by name" }),
+      "Jones",
+    );
+    expect(screen.getByRole("link", { name: "Ada Oliver" })).toHaveAttribute(
+      "href",
+      `/families/oliver-family/people/${person.id}`,
+    );
+    expect(
+      screen.queryByRole("link", { name: "Grace Oliver" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders an empty directory state", async () => {
     vi.mocked(getPeople).mockResolvedValue([]);
     renderPage();

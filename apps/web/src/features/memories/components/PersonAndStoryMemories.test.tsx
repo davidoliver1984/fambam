@@ -10,7 +10,6 @@ import { server } from "@/test/msw/server";
 
 const apiBaseUrl = "http://localhost:8082";
 const memoriesEndpoint = `${apiBaseUrl}/api/families/mercer-family/memories/homepage`;
-const thumbnailEndpoint = `${apiBaseUrl}/api/families/mercer-family/media-uploads/upload-1/variants/thumbnail`;
 
 function renderMemories() {
   const client = new QueryClient({
@@ -36,7 +35,7 @@ function renderMemories() {
 afterEach(cleanup);
 
 describe("PersonAndStoryMemories", () => {
-  it("links people through Discovery and renders typed Story identity and an authorised thumbnail", async () => {
+  it("links recent Stories through their actual typed subjects", async () => {
     server.use(
       http.get(memoriesEndpoint, () =>
         HttpResponse.json({
@@ -53,29 +52,27 @@ describe("PersonAndStoryMemories", () => {
             stories: [
               {
                 id: "story-1",
-                photo_id: "photo-1",
-                photo_caption: "At the seaside",
-                media_upload_id: "upload-1",
+                heading: "At the seaside",
                 excerpt: "The water was freezing.",
+                subject: { type: "photo", id: "photo-1" },
                 created_at: "2026-09-09T10:00:00+00:00",
                 author: { id: 10, name: "David" },
                 people: [{ id: "person-1", name: "William Mercer" }],
                 albums: [{ id: "album-1", name: "Summer memories" }],
                 events: [{ id: "event-1", name: "Seaside holiday" }],
               },
+              {
+                id: "story-2",
+                heading: "The family historian",
+                excerpt: "A few words about William.",
+                subject: { type: "person", id: "person-1" },
+                created_at: "2026-09-09T09:00:00+00:00",
+                author: { id: 10, name: "David" },
+                people: [],
+                albums: [],
+                events: [],
+              },
             ],
-          },
-        }),
-      ),
-      http.get(thumbnailEndpoint, () =>
-        HttpResponse.json({
-          data: {
-            asset: "variant",
-            transform_name: "thumbnail",
-            processing_version: 1,
-            url: "https://storage.test/signed-thumbnail",
-            method: "GET",
-            expires_at: "2026-09-09T10:05:00+00:00",
           },
         }),
       ),
@@ -89,16 +86,19 @@ describe("PersonAndStoryMemories", () => {
       "href",
       "/families/mercer-family/discover/people/person-1",
     );
-    expect(
-      await screen.findByRole("img", { name: "At the seaside" }),
-    ).toHaveAttribute("src", "https://storage.test/signed-thumbnail");
-    expect(screen.getByText("Story by David")).toBeInTheDocument();
+    expect(await screen.findByText("At the seaside")).toBeInTheDocument();
+    expect(screen.getAllByText("Story by David")).toHaveLength(2);
     expect(screen.getByText("People: William Mercer")).toBeInTheDocument();
     expect(screen.getByText("Albums: Summer memories")).toBeInTheDocument();
     expect(screen.getByText("Events: Seaside holiday")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /at the seaside/i }),
+      screen.getByRole("link", { name: /view the photo this story is about/i }),
     ).toHaveAttribute("href", "/families/mercer-family/photos/photo-1");
+    expect(
+      screen.getByRole("link", {
+        name: /view the person this story is about/i,
+      }),
+    ).toHaveAttribute("href", "/families/mercer-family/people/person-1");
   });
 
   it("renders loading, empty and error states without disclosing partial content", async () => {
@@ -124,6 +124,6 @@ describe("PersonAndStoryMemories", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /could not be loaded/i,
     );
-    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    expect(screen.queryByText("At the seaside")).not.toBeInTheDocument();
   });
 });

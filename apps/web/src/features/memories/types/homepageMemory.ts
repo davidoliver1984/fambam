@@ -1,3 +1,5 @@
+import type { FamilyEntity } from "@/navigation/familyEntityPath";
+
 export type PersonMemory = {
   person_id: string;
   preferred_name: string;
@@ -12,10 +14,9 @@ export type MemoryContext = {
 
 export type RecentStoryMemory = {
   id: string;
-  photo_id: string;
-  photo_caption: string | null;
-  media_upload_id: string;
+  heading: string;
   excerpt: string;
+  subject: FamilyEntity;
   created_at: string;
   author: { id: number | null; name: string };
   people: MemoryContext[];

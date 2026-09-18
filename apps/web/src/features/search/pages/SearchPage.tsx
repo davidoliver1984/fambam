@@ -2,8 +2,10 @@ import { useState, type ReactNode, type SyntheticEvent } from "react";
 import { Link, useParams } from "react-router";
 
 import { useFamilySpaceQuery } from "@/features/family-spaces/hooks/useFamilySpaceQuery";
+import { familyEntityPath } from "@/navigation/familyEntityPath";
 
 import { SavedSearchPanel } from "../components/SavedSearchPanel";
+import { SearchPhotoCard } from "../components/SearchPhotoCard";
 import {
   useArchiveSearchQuery,
   useSearchSuggestionsQuery,
@@ -196,9 +198,13 @@ export function SearchPage() {
   const hasActiveResults = criteria !== null || activeSavedSearch !== null;
 
   return (
-    <main className="auth people" aria-labelledby="search-title">
+    <main
+      className="journey-page discovery-journey"
+      aria-labelledby="search-title"
+    >
       <p className="eyebrow">Family archive</p>
       <h1 id="search-title">Search</h1>
+      <p>Find photographs, people, places and the Stories that connect them.</p>
       <form onSubmit={submit}>
         <label htmlFor="archive-search">Words or names</label>
         <input
@@ -501,26 +507,15 @@ export function SearchPage() {
             title="Photos"
             empty={photoItems.length === 0}
             more={<MoreButton label="Photos" query={photoResults} />}
+            visual
           >
             {photoItems.map((photo) => (
-              <li key={photo.id}>
-                <Link
-                  to={`/families/${encodeURIComponent(familySlug)}/photos/${photo.id}`}
-                >
-                  {photo.caption ?? "Untitled Photo"}
-                </Link>{" "}
-                <Link to={discover("photos", photo.id)}>Explore related</Link>
-                {photo.historical_date?.value && (
-                  <small>{photo.historical_date.value}</small>
-                )}
-                {photo.people.length > 0 && (
-                  <small>
-                    {photo.people
-                      .map((person) => person.preferred_name)
-                      .join(", ")}
-                  </small>
-                )}
-              </li>
+              <SearchPhotoCard
+                key={photo.id}
+                familySlug={familySlug}
+                photo={photo}
+                showDiscovery
+              />
             ))}
           </ResultSection>
 
@@ -573,12 +568,11 @@ export function SearchPage() {
           >
             {storyItems.map((story) => (
               <li key={story.id}>
-                <Link
-                  to={`/families/${encodeURIComponent(familySlug)}/photos/${story.photo_id}`}
-                >
-                  {story.photo_caption ?? "Story on an untitled Photo"}
-                </Link>
+                <strong>{story.heading}</strong>
                 <p>{story.excerpt}</p>
+                <Link to={familyEntityPath(familySlug, story.subject)}>
+                  View the {story.subject.type} this Story is about
+                </Link>
               </li>
             ))}
           </ResultSection>
@@ -596,18 +590,26 @@ function ResultSection({
   empty,
   more,
   children,
+  visual = false,
 }: {
   title: string;
   empty: boolean;
   more: ReactNode;
   children: ReactNode;
+  visual?: boolean;
 }) {
   const id = `search-${title.toLowerCase()}-title`;
 
   return (
     <section aria-labelledby={id}>
       <h2 id={id}>{title}</h2>
-      {empty ? <p>No matching {title}.</p> : <ul>{children}</ul>}
+      {empty ? (
+        <p>No matching {title}.</p>
+      ) : (
+        <ul className={visual ? "search-photo-grid" : "search-result-list"}>
+          {children}
+        </ul>
+      )}
       {more}
     </section>
   );

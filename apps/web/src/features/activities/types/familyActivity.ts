@@ -18,6 +18,8 @@ export type FamilyActivity = {
     id: string;
     label: string;
     photo_id?: string;
+    subject_type?: "person" | "photo" | "album" | "event";
+    subject_id?: string;
   };
   contribution_batch_id: string | null;
   photo_ids: string[];
