@@ -4707,6 +4707,16 @@ Integrate global navigation, Family Space switching/context and the family
 homepage into a consistent responsive shell with clear loading, empty, error
 and success states.
 
+Implementation record (2026-09-18): Introduced the shared Family Space shell,
+role-aware desktop/mobile navigation, switching through existing family queries,
+account and appearance controls, Tailwind v4 semantic Light/Dark tokens, and a
+composed homepage retaining existing activity, memories, notifications and
+management flows. The local Mercer demo confirmed the homepage and Events
+navigation. Frontend lint, typecheck, tests, formatting and production build;
+foundation, documentation, contracts, Compose configuration, JSON, security
+audit and diff checks passed. Route-level visual/product integration remains
+FPA-P14-S14 through S18.
+
 ## FPA-P14-S14 — Integrate Photo, upload, Album and Event journeys
 
 Make browsing, Photo detail, ready-upload selection and promotion, upload

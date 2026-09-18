@@ -1,6 +1,23 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 :root {
-  background: #f8f3ea;
-  color: #30261f;
+  --surface: #fcf8f3;
+  --surface-raised: #fffdfa;
+  --text-primary: #30261f;
+  --text-muted: #66584e;
+  --border-subtle: #ded1c6;
+  --accent: #7c4c39;
+  --accent-text: #ffffff;
+  --header-surface: #784d3a;
+  --header-text: #fff9f3;
+  --focus-ring: #bd7950;
+  color-scheme: light;
+  background: var(--surface);
+  color: var(--text-primary);
   font-family:
     Inter,
     ui-sans-serif,
@@ -13,7 +30,41 @@
   text-rendering: optimizeLegibility;
 }
 
+[data-theme="dark"] {
+  --surface: #1e1918;
+  --surface-raised: #292321;
+  --text-primary: #f6eee6;
+  --text-muted: #c7b7a9;
+  --border-subtle: #554840;
+  --accent: #c59172;
+  --accent-text: #241a16;
+  --header-surface: #382820;
+  --header-text: #fff5eb;
+  --focus-ring: #f0bc96;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-ink: var(--text-primary);
+  --color-ink-muted: var(--text-muted);
+  --color-line: var(--border-subtle);
+  --color-cognac: var(--accent);
+}
+
 body {
   margin: 0;
   min-width: 20rem;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
 }

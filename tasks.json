@@ -7,9 +7,9 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P14",
-    "current_stage": "FPA-P14-S13",
+    "current_stage": "FPA-P14-S14",
     "created_at": "2026-07-31",
-    "updated_at": "2026-09-17"
+    "updated_at": "2026-09-18"
   },
   "conventions": {
     "phase_id_format": "P##",
@@ -1115,16 +1115,18 @@
         {
           "id": "FPA-P14-S13",
           "title": "Implement the product shell and Family Space context",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P14-S12"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-18. Added a responsive, role-aware Family Space shell with persistent context and switching, accessible navigation and appearance controls, semantic Light/Dark tokens on Tailwind v4, and a homepage composition with loading, unavailable and empty-state coverage. Route-specific visual integration remains assigned to FPA-P14-S14 through S18."
+          ]
         },
         {
           "id": "FPA-P14-S14",
           "title": "Integrate Photo, upload, Album and Event journeys",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P14-S13"
           ],
@@ -1616,6 +1618,14 @@
     }
   },
   "delivery_log": [
+    {
+      "git_tag": "phase-14-s13",
+      "type": "stage_completion",
+      "adr": "ADR-0019",
+      "roadmap_stage": "FPA-P14-S13",
+      "date": "2026-09-18",
+      "description": "FPA-P14-S13 completed: responsive, role-aware Family Space navigation and switching, semantic Light/Dark shell tokens, accessible account and mobile controls, and a composed family homepage were verified against the local Mercer demo. Route-specific journey and visual integration remains in S14-S18."
+    },
     {
       "git_tag": "phase-0-s01",
       "type": "stage_completion",

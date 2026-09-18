@@ -1,7 +1,26 @@
 import { lazy, Suspense } from "react";
 import { Link, Route, Routes } from "react-router";
 
+import { AlbumPage } from "@/features/albums/pages/AlbumPage";
+import { AlbumsPage } from "@/features/albums/pages/AlbumsPage";
+import { DuplicateReviewPage } from "@/features/duplicates/pages/DuplicateReviewPage";
+import { EventPage } from "@/features/events/pages/EventPage";
+import { EventsPage } from "@/features/events/pages/EventsPage";
 import { FamilyExportsPage } from "@/features/exports/pages/FamilyExportsPage";
+import { FaceClustersPage } from "@/features/face-recognition/pages/FaceClustersPage";
+import { FaceRecognitionReviewPage } from "@/features/face-recognition/pages/FaceRecognitionReviewPage";
+import { RequireAuth } from "@/features/auth/components/RequireAuth";
+import { TwoFactorChallengePage } from "@/features/auth/pages/TwoFactorChallengePage";
+import { FamilyShell } from "@/features/family-spaces/components/FamilyShell";
+import { FamilySpacePage } from "@/features/family-spaces/pages/FamilySpacePage";
+import { InvitationAcceptancePage } from "@/features/invitations/pages/InvitationAcceptancePage";
+import { MediaUploadPage } from "@/features/media-uploads/pages/MediaUploadPage";
+import { PeoplePage } from "@/features/people/pages/PeoplePage";
+import { PersonPage } from "@/features/people/pages/PersonPage";
+import { PhotoPage } from "@/features/photos/pages/PhotoPage";
+import { PhotosPage } from "@/features/photos/pages/PhotosPage";
+import { DiscoveryPage } from "@/features/search/pages/DiscoveryPage";
+import { SearchPage } from "@/features/search/pages/SearchPage";
 
 import "./App.css";
 import {
@@ -10,28 +29,10 @@ import {
   LoginPage,
   ResetPasswordPage,
 } from "./Auth";
-import { InvitationAcceptancePage } from "./features/invitations/pages/InvitationAcceptancePage";
-import { TwoFactorChallengePage } from "./features/auth/pages/TwoFactorChallengePage";
-import { RequireAuth } from "./features/auth/components/RequireAuth";
-import { FamilySpacePage } from "./features/family-spaces/pages/FamilySpacePage";
-import { PeoplePage } from "./features/people/pages/PeoplePage";
-import { PersonPage } from "./features/people/pages/PersonPage";
-import { MediaUploadPage } from "./features/media-uploads/pages/MediaUploadPage";
-import { PhotoPage } from "./features/photos/pages/PhotoPage";
-import { PhotosPage } from "./features/photos/pages/PhotosPage";
-import { AlbumsPage } from "./features/albums/pages/AlbumsPage";
-import { EventsPage } from "./features/events/pages/EventsPage";
-import { EventPage } from "./features/events/pages/EventPage";
-import { AlbumPage } from "./features/albums/pages/AlbumPage";
-import { DuplicateReviewPage } from "./features/duplicates/pages/DuplicateReviewPage";
-import { FaceClustersPage } from "./features/face-recognition/pages/FaceClustersPage";
-import { FaceRecognitionReviewPage } from "./features/face-recognition/pages/FaceRecognitionReviewPage";
-import { SearchPage } from "./features/search/pages/SearchPage";
-import { DiscoveryPage } from "./features/search/pages/DiscoveryPage";
 
 const DevUiPlaygroundPage = import.meta.env.DEV
   ? lazy(() =>
-      import("./features/design-system/pages/UiPlaygroundPage").then(
+      import("@/features/design-system/pages/UiPlaygroundPage").then(
         ({ UiPlaygroundPage }) => ({ default: UiPlaygroundPage }),
       ),
     )
@@ -85,52 +86,54 @@ export function App() {
       )}
       <Route element={<RequireAuth />}>
         <Route path="/account" element={<AccountPage />} />
-        <Route path="/families/:familySlug" element={<FamilySpacePage />} />
-        <Route path="/families/:familySlug/people" element={<PeoplePage />} />
-        <Route
-          path="/families/:familySlug/uploads"
-          element={<MediaUploadPage />}
-        />
-        <Route path="/families/:familySlug/photos" element={<PhotosPage />} />
-        <Route path="/families/:familySlug/search" element={<SearchPage />} />
-        <Route
-          path="/families/:familySlug/exports"
-          element={<FamilyExportsPage />}
-        />
-        <Route
-          path="/families/:familySlug/discover/:type/:id"
-          element={<DiscoveryPage />}
-        />
-        <Route
-          path="/families/:familySlug/duplicates"
-          element={<DuplicateReviewPage />}
-        />
-        <Route
-          path="/families/:familySlug/face-recognition"
-          element={<FaceRecognitionReviewPage />}
-        />
-        <Route
-          path="/families/:familySlug/face-clusters"
-          element={<FaceClustersPage />}
-        />
-        <Route path="/families/:familySlug/albums" element={<AlbumsPage />} />
-        <Route
-          path="/families/:familySlug/albums/:albumId"
-          element={<AlbumPage />}
-        />
-        <Route path="/families/:familySlug/events" element={<EventsPage />} />
-        <Route
-          path="/families/:familySlug/events/:eventId"
-          element={<EventPage />}
-        />
-        <Route
-          path="/families/:familySlug/photos/:photoId"
-          element={<PhotoPage />}
-        />
-        <Route
-          path="/families/:familySlug/people/:personId"
-          element={<PersonPage />}
-        />
+        <Route path="/families/:familySlug" element={<FamilyShell />}>
+          <Route index element={<FamilySpacePage />} />
+          <Route path="/families/:familySlug/people" element={<PeoplePage />} />
+          <Route
+            path="/families/:familySlug/uploads"
+            element={<MediaUploadPage />}
+          />
+          <Route path="/families/:familySlug/photos" element={<PhotosPage />} />
+          <Route path="/families/:familySlug/search" element={<SearchPage />} />
+          <Route
+            path="/families/:familySlug/exports"
+            element={<FamilyExportsPage />}
+          />
+          <Route
+            path="/families/:familySlug/discover/:type/:id"
+            element={<DiscoveryPage />}
+          />
+          <Route
+            path="/families/:familySlug/duplicates"
+            element={<DuplicateReviewPage />}
+          />
+          <Route
+            path="/families/:familySlug/face-recognition"
+            element={<FaceRecognitionReviewPage />}
+          />
+          <Route
+            path="/families/:familySlug/face-clusters"
+            element={<FaceClustersPage />}
+          />
+          <Route path="/families/:familySlug/albums" element={<AlbumsPage />} />
+          <Route
+            path="/families/:familySlug/albums/:albumId"
+            element={<AlbumPage />}
+          />
+          <Route path="/families/:familySlug/events" element={<EventsPage />} />
+          <Route
+            path="/families/:familySlug/events/:eventId"
+            element={<EventPage />}
+          />
+          <Route
+            path="/families/:familySlug/photos/:photoId"
+            element={<PhotoPage />}
+          />
+          <Route
+            path="/families/:familySlug/people/:personId"
+            element={<PersonPage />}
+          />
+        </Route>
       </Route>
       <Route path="*" element={<WelcomePage />} />
     </Routes>

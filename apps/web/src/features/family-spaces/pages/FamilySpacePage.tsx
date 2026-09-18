@@ -46,88 +46,105 @@ export function FamilySpacePage() {
   }
 
   return (
-    <main className="auth" aria-labelledby="family-space-title">
-      <p className="eyebrow">fambam</p>
-      <h1 id="family-space-title">{familySpace.name}</h1>
-      <p>Your role: {familySpace.role}</p>
-      <NotificationCentre familySlug={familySpace.slug} />
-      {familySpace.role !== "guest" && (
-        <>
-          <RecentFamilyActivity familySlug={familySpace.slug} />
-          <DateMemories familySlug={familySpace.slug} />
-          <PersonAndStoryMemories familySlug={familySpace.slug} />
-          <QuietFamilySpaceGuide
-            familySlug={familySpace.slug}
-            canExplorePeople={canAccessPeople}
-            canExploreEvents={canAccessPeople}
-            canExploreAlbums={canAccessAlbums}
-          />
-        </>
-      )}
-      {canAccessPeople && (
+    <main className="family-home" aria-labelledby="family-space-title">
+      <header className="family-home-hero">
+        <p className="eyebrow">Your private family archive</p>
+        <h1 id="family-space-title">{familySpace.name}</h1>
+        <p>Photographs, people and stories, together in one place.</p>
+      </header>
+      <div className="family-home-highlights">
+        <div id="notifications">
+          <NotificationCentre familySlug={familySpace.slug} />
+        </div>
+        {familySpace.role !== "guest" && (
+          <>
+            <RecentFamilyActivity familySlug={familySpace.slug} />
+            <DateMemories familySlug={familySpace.slug} />
+            <PersonAndStoryMemories familySlug={familySpace.slug} />
+            <QuietFamilySpaceGuide
+              familySlug={familySpace.slug}
+              canExplorePeople={canAccessPeople}
+              canExploreEvents={canAccessPeople}
+              canExploreAlbums={canAccessAlbums}
+            />
+          </>
+        )}
+      </div>
+      <section
+        className="family-home-explore"
+        aria-label="Explore your Family Space"
+      >
+        {canAccessPeople && (
+          <p>
+            <Link
+              to={`/families/${encodeURIComponent(familySpace.slug)}/people`}
+            >
+              Open people directory
+            </Link>
+          </p>
+        )}
+        {canUploadMedia && (
+          <>
+            <p>
+              <Link
+                to={`/families/${encodeURIComponent(familySpace.slug)}/search`}
+              >
+                Search the archive
+              </Link>
+            </p>
+            <p>
+              <Link
+                to={`/families/${encodeURIComponent(familySpace.slug)}/events`}
+              >
+                Open events
+              </Link>
+            </p>
+            <p>
+              <Link
+                to={`/families/${encodeURIComponent(familySpace.slug)}/photos`}
+              >
+                Open photograph archive
+              </Link>
+            </p>
+            <p>
+              <Link
+                to={`/families/${encodeURIComponent(familySpace.slug)}/uploads`}
+              >
+                Upload photographs
+              </Link>
+            </p>
+          </>
+        )}
+        {canAccessAlbums && (
+          <p>
+            <Link
+              to={`/families/${encodeURIComponent(familySpace.slug)}/albums`}
+            >
+              Open albums
+            </Link>
+          </p>
+        )}
         <p>
-          <Link to={`/families/${encodeURIComponent(familySpace.slug)}/people`}>
-            Open people directory
+          <Link
+            to={`/families/${encodeURIComponent(familySpace.slug)}/exports`}
+          >
+            Export your archive
           </Link>
         </p>
-      )}
-      {canUploadMedia && (
-        <>
-          <p>
-            <Link
-              to={`/families/${encodeURIComponent(familySpace.slug)}/search`}
-            >
-              Search the archive
-            </Link>
-          </p>
-          <p>
-            <Link
-              to={`/families/${encodeURIComponent(familySpace.slug)}/events`}
-            >
-              Open events
-            </Link>
-          </p>
-          <p>
-            <Link
-              to={`/families/${encodeURIComponent(familySpace.slug)}/photos`}
-            >
-              Open photograph archive
-            </Link>
-          </p>
-          <p>
-            <Link
-              to={`/families/${encodeURIComponent(familySpace.slug)}/uploads`}
-            >
-              Upload photographs
-            </Link>
-          </p>
-        </>
-      )}
-      {canAccessAlbums && (
-        <p>
-          <Link to={`/families/${encodeURIComponent(familySpace.slug)}/albums`}>
-            Open albums
-          </Link>
-        </p>
-      )}
-      <p>
-        <Link to={`/families/${encodeURIComponent(familySpace.slug)}/exports`}>
-          Export your archive
-        </Link>
-      </p>
-      {canManageInvitations ? (
-        <>
-          <p>
-            <Link
-              to={`/families/${encodeURIComponent(familySpace.slug)}/duplicates`}
-            >
-              Review possible duplicate Photos
-            </Link>
-          </p>
-          <InvitationManagement familySlug={familySpace.slug} />
-        </>
-      ) : (
-        <p>Invitation management is available to Owners and Administrators.</p>
+        {canManageInvitations ? (
+          <>
+            <p>
+              <Link
+                to={`/families/${encodeURIComponent(familySpace.slug)}/duplicates`}
+              >
+                Review possible duplicate Photos
+              </Link>
+            </p>
+          </>
+        ) : null}
+      </section>
+      {canManageInvitations && (
+        <InvitationManagement familySlug={familySpace.slug} />
       )}
       <FamilySpaceDeletionPanel familySpace={familySpace} />
       <Link to="/account">Back to your account</Link>
