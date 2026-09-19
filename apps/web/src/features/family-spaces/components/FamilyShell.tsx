@@ -20,6 +20,33 @@ import "./FamilyShell.css";
 
 const fullMemberRoles: FamilySpaceRole[] = ["owner", "administrator", "member"];
 
+type GuestRouteContext = {
+  eventId: string | null;
+};
+
+function guestRouteContext(
+  pathname: string,
+  search: string,
+  familySlug: string,
+): GuestRouteContext | null {
+  const segments = pathname.split("/").filter(Boolean);
+  if (
+    segments.length !== 4 ||
+    segments[0] !== "families" ||
+    segments[1] !== encodeURIComponent(familySlug) ||
+    !["events", "albums", "photos"].includes(segments[2] ?? "")
+  ) {
+    return null;
+  }
+
+  const eventId =
+    segments[2] === "events"
+      ? (segments[3] ?? null)
+      : new URLSearchParams(search).get("eventId");
+
+  return { eventId };
+}
+
 function initialTheme(): "light" | "dark" {
   try {
     const saved = window.localStorage.getItem("fambam-theme");
@@ -93,7 +120,70 @@ export function FamilyShell() {
   }
 
   if (family.isError) {
-    const unavailable = toAppError(family.error).status === 404;
+    const status = toAppError(family.error).status;
+    const guestRoute = guestRouteContext(
+      location.pathname,
+      location.search,
+      familySlug,
+    );
+    if (status === 403 && guestRoute !== null) {
+      const eventPath =
+        guestRoute.eventId === null
+          ? null
+          : `${base}/events/${encodeURIComponent(guestRoute.eventId)}`;
+
+      return (
+        <div className="family-shell bg-surface text-ink">
+          <a className="shell-skip" href="#family-content">
+            Skip to content
+          </a>
+          <header className="shell-header">
+            <div className="shell-header-inner">
+              <span className="shell-brand">Fambam ♥</span>
+              <nav className="shell-navigation" aria-label="Guest navigation">
+                {eventPath !== null && <Link to={eventPath}>Event</Link>}
+                <Link to="/account">Account</Link>
+              </nav>
+              <div className="shell-actions">
+                <button
+                  type="button"
+                  aria-pressed={theme === "dark"}
+                  onClick={() => {
+                    setTheme(theme === "dark" ? "light" : "dark");
+                  }}
+                >
+                  {theme === "dark" ? "Use light mode" : "Use dark mode"}
+                </button>
+                <button
+                  type="button"
+                  disabled={logout.isPending}
+                  onClick={() => void signOut()}
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
+          </header>
+          {actionError && (
+            <p className="shell-action-error" role="alert">
+              {actionError}
+            </p>
+          )}
+          <div id="family-content" className="shell-content" tabIndex={-1}>
+            <Outlet />
+          </div>
+          <footer className="shell-footer">
+            <div>
+              <strong>Fambam</strong>
+              <p>Your private invitation to a family Event.</p>
+            </div>
+            <Link to="/account">Your account</Link>
+          </footer>
+        </div>
+      );
+    }
+
+    const unavailable = status === 404;
     return (
       <main className="shell-state" aria-labelledby="family-shell-error">
         <h1 id="family-shell-error">

@@ -6,6 +6,7 @@ use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Http\Responses\EnumerationSafePasswordResetLinkResponse;
 use App\Http\Responses\OneTimeRecoveryCodesGeneratedResponse;
+use App\Http\Responses\SpaLoginResponse;
 use App\Models\User;
 use App\Services\AuthenticateUser;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Laravel\Fortify\Contracts\FailedPasswordResetLinkRequestResponse;
+use Laravel\Fortify\Contracts\LoginResponse;
 use Laravel\Fortify\Contracts\RecoveryCodesGeneratedResponse;
 use Laravel\Fortify\Fortify;
 
@@ -41,6 +43,8 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->app->singleton(LoginResponse::class, SpaLoginResponse::class);
+
         Fortify::createUsersUsing(CreateNewUser::class);
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
         Fortify::authenticateUsing(fn (Request $request): ?User => app(AuthenticateUser::class)->attempt(

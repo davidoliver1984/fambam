@@ -128,7 +128,10 @@ describe("EventPage", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Wedding photographs" }),
-    ).toHaveAttribute("href", "/families/family-archive/albums/album-1");
+    ).toHaveAttribute(
+      "href",
+      "/families/family-archive/albums/album-1?eventId=event-1",
+    );
     expect(screen.queryByText("Event access")).not.toBeInTheDocument();
     expect(screen.queryByText("Possible duplicates")).not.toBeInTheDocument();
     expect(

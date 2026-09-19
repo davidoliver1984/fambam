@@ -4855,6 +4855,23 @@ developer tooling as user-facing workarounds.
   that introduces it, with the existing active-chained-merge prohibition
   unaffected.
 
+Implementation record (2026-09-19): Completed role-based product acceptance
+across Owner, Administrator, Member, Contributor and Guest authority. Manual
+Mercer journeys verified Owner and Administrator management separation,
+ordinary Member archive access and clear refusal of management routes. Focused
+HTTP and routed-shell regression coverage proves Contributor resource scoping
+and preserves the deliberately Event-only Guest experience: the Family Space
+itself remains forbidden while an admitted Event, its permitted Albums and
+Photos render through a narrow Guest shell with an Event return path. Login now
+uses an explicit Fortify SPA response contract and shared XMLHttpRequest
+transport header, preventing a successful browser session from being reported
+as a cross-origin failure. Frontend lint, typecheck, 153 tests, production
+build, Prettier and dependency audit passed; the complete 411-test API suite,
+56 PostgreSQL integration tests and 27 image-worker tests passed; PHPStan,
+MyPy, Ruff, Pint, foundation, documentation, contracts, Compose, JSON and diff
+validation passed. Phase 14 is complete; FPA-P15-S01 is ready but has not
+begun.
+
 ---
 
 # Phase 15 — Platform Administration UI

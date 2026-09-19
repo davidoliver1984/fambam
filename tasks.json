@@ -6,8 +6,8 @@
     "version": "0.1.0",
     "status": "in_progress",
     "v1_release_phase": "P17",
-    "current_phase": "P14",
-    "current_stage": "FPA-P14-S18",
+    "current_phase": "P15",
+    "current_stage": "FPA-P15-S01",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-19"
   },
@@ -982,7 +982,7 @@
     {
       "id": "P14",
       "name": "Family Product UI / UX Completion",
-      "status": "in_progress",
+      "status": "completed",
       "stages": [
         {
           "id": "FPA-P14-S01",
@@ -1170,23 +1170,25 @@
         {
           "id": "FPA-P14-S18",
           "title": "Conduct role-based product journey acceptance",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P14-S17"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-19. Accepted Owner, Administrator, Member, Contributor and Guest product journeys against the real authorization boundaries. Fixed the successful-login SPA response contract and the admitted-Guest routing blocker without weakening the Family Space prohibition: Guests now receive only a narrow Event/Album/Photo shell with an Event return path. Manual Mercer Owner/Administrator/Member acceptance and focused Contributor/Guest regressions passed. Frontend lint, typecheck, 153 tests, production build, Prettier and audit passed; 411 API tests, 56 PostgreSQL integration tests and 27 image-worker tests passed; PHPStan, MyPy, Ruff, Pint, foundation, documentation, contracts, Compose, JSON and diff validation passed."
+          ]
         }
       ]
     },
     {
       "id": "P15",
       "name": "Platform Administration UI",
-      "status": "planned",
+      "status": "in_progress",
       "stages": [
         {
           "id": "FPA-P15-S01",
           "title": "Accept platform administration authorization and operations ADR",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P14-S18"
           ],

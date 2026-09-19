@@ -16,6 +16,8 @@ function setup(
   role = "owner",
   missing = false,
   listState: "ok" | "empty" | "error" = "ok",
+  initialEntry = "/families/first-family",
+  forbidden = false,
 ) {
   server.use(
     http.get(`${baseUrl}/api/user`, () =>
@@ -49,21 +51,25 @@ function setup(
           }),
     ),
     http.get(`${baseUrl}/api/families/:familySlug`, ({ params }) =>
-      missing
-        ? HttpResponse.json({ message: "Not Found." }, { status: 404 })
-        : HttpResponse.json({
-            data: {
-              id:
-                params.familySlug === "first-family" ? "family-1" : "family-2",
-              slug: params.familySlug,
-              name:
-                params.familySlug === "first-family"
-                  ? "First Family"
-                  : "Second Family",
-              role,
-              status: "active",
-            },
-          }),
+      forbidden
+        ? HttpResponse.json({ message: "Forbidden." }, { status: 403 })
+        : missing
+          ? HttpResponse.json({ message: "Not Found." }, { status: 404 })
+          : HttpResponse.json({
+              data: {
+                id:
+                  params.familySlug === "first-family"
+                    ? "family-1"
+                    : "family-2",
+                slug: params.familySlug,
+                name:
+                  params.familySlug === "first-family"
+                    ? "First Family"
+                    : "Second Family",
+                role,
+                status: "active",
+              },
+            }),
     ),
   );
   const router = createMemoryRouter(
@@ -88,11 +94,19 @@ function setup(
               </main>
             ),
           },
+          {
+            path: "events/:eventId",
+            element: <h1>Invited Event</h1>,
+          },
+          {
+            path: "albums/:albumId",
+            element: <h1>Invited Album</h1>,
+          },
         ],
       },
       { path: "/account", element: <main>Account page</main> },
     ],
-    { initialEntries: ["/families/first-family"] },
+    { initialEntries: [initialEntry] },
   );
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -139,8 +153,67 @@ describe("FamilyShell", () => {
     ).toBeInTheDocument();
   });
 
-  it("does not advertise member-only routes to Guests", async () => {
-    setup("guest");
+  it("opens only an admitted Event journey when Family Space access is forbidden to a Guest", async () => {
+    setup(
+      "guest",
+      false,
+      "empty",
+      "/families/first-family/events/event-1",
+      true,
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Invited Event" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "People" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Photos" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Events" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Albums" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Search family…" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Home" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Stories" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Collections" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Event" })).toHaveAttribute(
+      "href",
+      "/families/first-family/events/event-1",
+    );
+    expect(screen.getByRole("link", { name: "Account" })).toBeInTheDocument();
+  });
+
+  it("keeps an Event return path while a Guest views an admitted Album", async () => {
+    setup(
+      "guest",
+      false,
+      "empty",
+      "/families/first-family/albums/album-1?eventId=event-1",
+      true,
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Invited Album" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Event" })).toHaveAttribute(
+      "href",
+      "/families/first-family/events/event-1",
+    );
+  });
+
+  it("limits Contributors to their resource-scoped archive routes", async () => {
+    setup("contributor");
     expect(
       await screen.findByRole("heading", { name: "Family home" }),
     ).toBeInTheDocument();
@@ -153,6 +226,14 @@ describe("FamilyShell", () => {
     expect(
       screen.queryByRole("link", { name: "Events" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Search family…" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Albums" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Stories" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Collections" }),
+    ).toBeInTheDocument();
   });
 
   it("keeps the active family available when the switcher list is empty or fails", async () => {

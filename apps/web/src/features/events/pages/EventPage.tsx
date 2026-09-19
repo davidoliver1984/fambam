@@ -120,7 +120,7 @@ export function EventPage() {
             {item.albums.map((album) => (
               <li key={album.id}>
                 <Link
-                  to={`/families/${encodeURIComponent(familySlug)}/albums/${album.id}`}
+                  to={`/families/${encodeURIComponent(familySlug)}/albums/${album.id}?eventId=${encodeURIComponent(eventId)}`}
                 >
                   {album.name}
                 </Link>{" "}

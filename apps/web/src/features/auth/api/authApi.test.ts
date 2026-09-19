@@ -14,6 +14,7 @@ describe("authApi", () => {
     server.use(
       http.post(`${apiBaseUrl}/login`, async ({ request }) => {
         const input = (await request.json()) as Record<string, unknown>;
+        expect(request.headers.get("x-requested-with")).toBe("XMLHttpRequest");
         requests.push(`login:${String(input.email)}:${String(input.remember)}`);
         return HttpResponse.json({ two_factor: true });
       }),

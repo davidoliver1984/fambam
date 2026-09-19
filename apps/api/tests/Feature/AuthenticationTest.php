@@ -46,6 +46,18 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_successful_login_always_returns_the_spa_contract(): void
+    {
+        $user = User::factory()->create(['password' => Hash::make('correct-password')]);
+
+        $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'correct-password',
+        ])->assertOk()->assertExactJson(['two_factor' => false]);
+
+        $this->assertAuthenticatedAs($user);
+    }
+
     public function test_invalid_credentials_do_not_create_a_session(): void
     {
         $user = User::factory()->create(['password' => Hash::make('correct-password')]);
