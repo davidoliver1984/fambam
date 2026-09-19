@@ -4759,6 +4759,19 @@ Collection domains (`FPA-P14-S09`-`S10`) already exist to integrate UI
 against. Keep these customer-facing controls strictly distinct from Phase 15
 Platform Administration.
 
+Implementation record (2026-09-19): First-class Story creation, detail,
+editing and comment journeys now use typed subject selection and the existing
+rich-text contract. Album, Event and Story surfaces expose Love through the
+accepted aggregate contract. Private Collections support authorised Photo
+selection, removal and export, while Owner and Administrator Family Space
+settings bring membership, invitations, portability and ordinary tenant
+controls together without introducing Platform Administration. Feature APIs
+and TanStack Query remain the server-state boundary, and media continues
+through authorised delivery. Frontend lint, typecheck, 151 tests, production
+build and Prettier passed; foundation, documentation, contracts and Compose
+validation passed. Cross-route visual, responsive, keyboard and state polish
+remains FPA-P14-S17.
+
 ## FPA-P14-S17 — Complete responsive, visual and state integration
 
 Reconcile mobile and desktop behaviour, visual consistency, keyboard and

@@ -13,11 +13,11 @@ import {
 import { albumKeys } from "../api/albumKeys";
 import type { CreateAlbumInput, SetAlbumCoverInput } from "../types/album";
 
-export function useAlbumsQuery(familySlug: string) {
+export function useAlbumsQuery(familySlug: string, enabled = true) {
   return useQuery({
     queryKey: albumKeys.list(familySlug),
     queryFn: ({ signal }) => getAlbums(familySlug, signal),
-    enabled: familySlug !== "",
+    enabled: enabled && familySlug !== "",
     retry: false,
   });
 }

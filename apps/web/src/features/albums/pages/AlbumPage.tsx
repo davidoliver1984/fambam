@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router";
+import { LoveButton } from "@/features/love/components/LoveButton";
 import { PhotoPresentationImage } from "@/features/photos/components/PhotoPresentationImage";
 
 import { AlbumPhotoGrid } from "../components/AlbumPhotoGrid";
@@ -43,6 +44,11 @@ export function AlbumPage() {
         {album.data.starts_on ? ` · From ${album.data.starts_on}` : ""}
         {album.data.location ? ` · ${album.data.location}` : ""}
       </p>
+      <LoveButton
+        familySlug={familySlug}
+        targetType="album"
+        targetId={albumId}
+      />
       {album.data.cover_pending && (
         <p role="status">A new cover is being prepared.</p>
       )}

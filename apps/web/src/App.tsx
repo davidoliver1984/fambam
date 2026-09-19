@@ -3,6 +3,8 @@ import { Link, Route, Routes } from "react-router";
 
 import { AlbumPage } from "@/features/albums/pages/AlbumPage";
 import { AlbumsPage } from "@/features/albums/pages/AlbumsPage";
+import { CollectionPage } from "@/features/collections/pages/CollectionPage";
+import { CollectionsPage } from "@/features/collections/pages/CollectionsPage";
 import { DuplicateReviewPage } from "@/features/duplicates/pages/DuplicateReviewPage";
 import { EventPage } from "@/features/events/pages/EventPage";
 import { EventsPage } from "@/features/events/pages/EventsPage";
@@ -13,6 +15,7 @@ import { RequireAuth } from "@/features/auth/components/RequireAuth";
 import { TwoFactorChallengePage } from "@/features/auth/pages/TwoFactorChallengePage";
 import { FamilyShell } from "@/features/family-spaces/components/FamilyShell";
 import { FamilySpacePage } from "@/features/family-spaces/pages/FamilySpacePage";
+import { FamilyManagementPage } from "@/features/family-spaces/pages/FamilyManagementPage";
 import { InvitationAcceptancePage } from "@/features/invitations/pages/InvitationAcceptancePage";
 import { MediaUploadPage } from "@/features/media-uploads/pages/MediaUploadPage";
 import { PeoplePage } from "@/features/people/pages/PeoplePage";
@@ -21,10 +24,14 @@ import { PhotoPage } from "@/features/photos/pages/PhotoPage";
 import { PhotosPage } from "@/features/photos/pages/PhotosPage";
 import { DiscoveryPage } from "@/features/search/pages/DiscoveryPage";
 import { SearchPage } from "@/features/search/pages/SearchPage";
+import { CreateStoryPage } from "@/features/stories/pages/CreateStoryPage";
+import { StoriesPage } from "@/features/stories/pages/StoriesPage";
+import { StoryPage } from "@/features/stories/pages/StoryPage";
 
 import "./App.css";
 import "./journey.css";
 import "./explore.css";
+import "./collaboration.css";
 import {
   AccountPage,
   ForgotPasswordPage,
@@ -97,6 +104,30 @@ export function App() {
           />
           <Route path="/families/:familySlug/photos" element={<PhotosPage />} />
           <Route path="/families/:familySlug/search" element={<SearchPage />} />
+          <Route
+            path="/families/:familySlug/stories"
+            element={<StoriesPage />}
+          />
+          <Route
+            path="/families/:familySlug/stories/new"
+            element={<CreateStoryPage />}
+          />
+          <Route
+            path="/families/:familySlug/stories/:storyId"
+            element={<StoryPage />}
+          />
+          <Route
+            path="/families/:familySlug/collections"
+            element={<CollectionsPage />}
+          />
+          <Route
+            path="/families/:familySlug/collections/:collectionId"
+            element={<CollectionPage />}
+          />
+          <Route
+            path="/families/:familySlug/settings"
+            element={<FamilyManagementPage />}
+          />
           <Route
             path="/families/:familySlug/exports"
             element={<FamilyExportsPage />}

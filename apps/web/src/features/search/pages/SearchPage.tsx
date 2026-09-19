@@ -568,7 +568,11 @@ export function SearchPage() {
           >
             {storyItems.map((story) => (
               <li key={story.id}>
-                <strong>{story.heading}</strong>
+                <Link
+                  to={`/families/${encodeURIComponent(familySlug)}/stories/${encodeURIComponent(story.id)}`}
+                >
+                  <strong>{story.heading}</strong>
+                </Link>
                 <p>{story.excerpt}</p>
                 <Link to={familyEntityPath(familySlug, story.subject)}>
                   View the {story.subject.type} this Story is about

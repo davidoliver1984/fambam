@@ -78,8 +78,10 @@ describe("FamilySpacePage", () => {
       await screen.findByRole("heading", { name: "Oliver Family" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Invitations for oliver-family"),
-    ).toBeInTheDocument();
+      screen.getByRole("link", {
+        name: /Manage family members and invitations/i,
+      }),
+    ).toHaveAttribute("href", "/families/oliver-family/settings");
     expect(
       screen.getByRole("link", { name: "Export your archive" }),
     ).toHaveAttribute("href", "/families/oliver-family/exports");

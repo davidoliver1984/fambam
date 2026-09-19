@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P14",
-    "current_stage": "FPA-P14-S16",
+    "current_stage": "FPA-P14-S17",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-18"
   },
@@ -1148,16 +1148,18 @@
         {
           "id": "FPA-P14-S16",
           "title": "Integrate collaboration and Family Space management journeys",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P14-S15"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-19. Integrated first-class Story creation/detail/edit/comment journeys, Love for Albums, Events and Stories, private Collections with authorised Photo selection and export, and Owner/Administrator Family Space membership, invitation, portability and deletion controls. Preserved typed feature APIs, TanStack Query server state, authorised media delivery and the Phase 15 Platform Admin boundary. Frontend lint, typecheck, 151 tests, production build and Prettier passed; foundation, documentation, contracts and Compose validation passed. Final cross-route visual, responsive, keyboard and state polish remains FPA-P14-S17."
+          ]
         },
         {
           "id": "FPA-P14-S17",
           "title": "Complete responsive, visual and state integration",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P14-S16"
           ],

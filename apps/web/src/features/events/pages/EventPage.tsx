@@ -13,6 +13,7 @@ import {
   useUpdateEventMutation,
 } from "../hooks/useEventQueries";
 import { useIssueInvitationMutation } from "@/features/invitations/hooks/useInvitationMutations";
+import { LoveButton } from "@/features/love/components/LoveButton";
 import { useFamilyMembershipsQuery } from "@/features/people/hooks/useAccountLinkQueries";
 import type { GuestParticipation } from "@/features/albums/types/album";
 import { EventRsvpPanel } from "../components/EventRsvpPanel";
@@ -59,6 +60,11 @@ export function EventPage() {
     <main className="journey-page journey-detail" aria-labelledby="event-title">
       <p className="eyebrow">Event</p>
       <h1 id="event-title">{item.name}</h1>
+      <LoveButton
+        familySlug={familySlug}
+        targetType="event"
+        targetId={eventId}
+      />
       <p>
         {item.starts_on ?? "Date not recorded"}
         {item.ends_on === null ? "" : ` to ${item.ends_on}`}

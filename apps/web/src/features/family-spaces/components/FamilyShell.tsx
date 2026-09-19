@@ -98,6 +98,8 @@ export function FamilyShell() {
     { label: "Photos", to: `${base}/photos`, visible: canBrowseArchive },
     { label: "Albums", to: `${base}/albums`, visible: canBrowseAlbums },
     { label: "Events", to: `${base}/events`, visible: canBrowseArchive },
+    { label: "Stories", to: `${base}/stories`, visible: true },
+    { label: "Collections", to: `${base}/collections`, visible: true },
   ].filter((item) => item.visible);
 
   async function signOut() {
@@ -179,6 +181,10 @@ export function FamilyShell() {
               <div className="shell-account-panel">
                 <Link to="/account">Account &amp; security</Link>
                 <Link to={`${base}/exports`}>Exports</Link>
+                {(family.data.role === "owner" ||
+                  family.data.role === "administrator") && (
+                  <Link to={`${base}/settings`}>Family settings</Link>
+                )}
                 <button
                   type="button"
                   aria-pressed={theme === "dark"}

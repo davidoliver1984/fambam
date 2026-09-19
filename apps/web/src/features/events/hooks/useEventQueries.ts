@@ -26,11 +26,11 @@ import { eventKeys } from "../api/eventKeys";
 import type { EventInput, EventRsvpStatus } from "../types/event";
 import type { GuestParticipation } from "@/features/albums/types/album";
 
-export function useEventsQuery(familySlug: string) {
+export function useEventsQuery(familySlug: string, enabled = true) {
   return useQuery({
     queryKey: eventKeys.list(familySlug),
     queryFn: ({ signal }) => getEvents(familySlug, signal),
-    enabled: familySlug !== "",
+    enabled: enabled && familySlug !== "",
     retry: false,
   });
 }

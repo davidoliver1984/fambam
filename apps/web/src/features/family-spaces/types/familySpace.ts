@@ -14,3 +14,11 @@ export type FamilySpace = {
 };
 
 export type CreateFamilySpaceInput = Pick<FamilySpace, "name" | "slug">;
+
+export type FamilyMembership = {
+  id: string;
+  user: { id: number; name: string; email: string };
+  role: FamilySpaceRole;
+  state: "active" | "removed";
+  removed_at: string | null;
+};

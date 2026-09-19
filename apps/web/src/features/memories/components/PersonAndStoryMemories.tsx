@@ -71,7 +71,11 @@ export function PersonAndStoryMemories({ familySlug }: Props) {
           <ol className="memory-list">
             {query.data.stories.map((story) => (
               <li key={story.id}>
-                <strong>{story.heading}</strong>
+                <Link
+                  to={`/families/${encodeURIComponent(familySlug)}/stories/${encodeURIComponent(story.id)}`}
+                >
+                  <strong>{story.heading}</strong>
+                </Link>
                 <p>{story.excerpt}</p>
                 <p>Story by {story.author.name}</p>
                 <Link to={familyEntityPath(familySlug, story.subject)}>

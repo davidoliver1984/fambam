@@ -2,13 +2,11 @@ import { Link, useParams } from "react-router";
 
 import { toAppError } from "@/api/errors";
 import { RecentFamilyActivity } from "@/features/activities/components/RecentFamilyActivity";
-import { InvitationManagement } from "@/features/invitations/pages/InvitationManagement";
 import { DateMemories } from "@/features/memories/components/DateMemories";
 import { PersonAndStoryMemories } from "@/features/memories/components/PersonAndStoryMemories";
 import { QuietFamilySpaceGuide } from "@/features/memories/components/QuietFamilySpaceGuide";
 import { NotificationCentre } from "@/features/notifications/components/NotificationCentre";
 
-import { FamilySpaceDeletionPanel } from "../components/FamilySpaceDeletionPanel";
 import { useFamilySpaceQuery } from "../hooks/useFamilySpaceQuery";
 
 export function FamilySpacePage() {
@@ -131,6 +129,20 @@ export function FamilySpacePage() {
             Export your archive
           </Link>
         </p>
+        <p>
+          <Link
+            to={`/families/${encodeURIComponent(familySpace.slug)}/stories`}
+          >
+            Read and create Stories
+          </Link>
+        </p>
+        <p>
+          <Link
+            to={`/families/${encodeURIComponent(familySpace.slug)}/collections`}
+          >
+            Open your Collections
+          </Link>
+        </p>
         {canManageInvitations ? (
           <>
             <p>
@@ -140,13 +152,16 @@ export function FamilySpacePage() {
                 Review possible duplicate Photos
               </Link>
             </p>
+            <p>
+              <Link
+                to={`/families/${encodeURIComponent(familySpace.slug)}/settings`}
+              >
+                Manage family members and invitations
+              </Link>
+            </p>
           </>
         ) : null}
       </section>
-      {canManageInvitations && (
-        <InvitationManagement familySlug={familySpace.slug} />
-      )}
-      <FamilySpaceDeletionPanel familySpace={familySpace} />
       <Link to="/account">Back to your account</Link>
     </main>
   );
