@@ -6,8 +6,8 @@
     "version": "0.1.0",
     "status": "in_progress",
     "v1_release_phase": "P17",
-    "current_phase": "P15",
-    "current_stage": "FPA-P15-S01",
+    "current_phase": "P14",
+    "current_stage": "FPA-P14-S20",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-19"
   },
@@ -982,7 +982,7 @@
     {
       "id": "P14",
       "name": "Family Product UI / UX Completion",
-      "status": "completed",
+      "status": "in_progress",
       "stages": [
         {
           "id": "FPA-P14-S01",
@@ -1177,20 +1177,130 @@
           "notes": [
             "Completed 2026-09-19. Accepted Owner, Administrator, Member, Contributor and Guest product journeys against the real authorization boundaries. Fixed the successful-login SPA response contract and the admitted-Guest routing blocker without weakening the Family Space prohibition: Guests now receive only a narrow Event/Album/Photo shell with an Event return path. Manual Mercer Owner/Administrator/Member acceptance and focused Contributor/Guest regressions passed. Frontend lint, typecheck, 153 tests, production build, Prettier and audit passed; 411 API tests, 56 PostgreSQL integration tests and 27 image-worker tests passed; PHPStan, MyPy, Ruff, Pint, foundation, documentation, contracts, Compose, JSON and diff validation passed."
           ]
+        },
+        {
+          "id": "FPA-P14-S19",
+          "title": "Reopen Phase 14 and establish the visual-parity programme",
+          "status": "completed",
+          "dependencies": [
+            "FPA-P14-S18"
+          ],
+          "notes": [
+            "Completed 2026-09-19 as a planning-only correction. A route-by-route comparison proved that S17-S18 delivered functional and authorization acceptance but not faithful visual parity with the frozen published Phase 14 UI Reference V1. Phase 14 is therefore reopened forward-only through S30; Phase 15 returns to planned. Existing published phase-14-s18 and phase-14 tags remain unchanged as historical premature markers and are not treated as current visual-completion evidence. No production UI implementation was performed in this stage."
+          ]
+        },
+        {
+          "id": "FPA-P14-S20",
+          "title": "Build the shared visual system and visual-regression foundation",
+          "status": "ready",
+          "dependencies": [
+            "FPA-P14-S19"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S21",
+          "title": "Bring Events to frozen-reference visual parity",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S20"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S22",
+          "title": "Bring the family homepage and notifications to visual parity",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S21"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S23",
+          "title": "Bring People and Person presentation to visual parity",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S22"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S24",
+          "title": "Bring Photos and media journeys to visual parity",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S23"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S25",
+          "title": "Bring Albums and Album creation to visual parity",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S24"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S26",
+          "title": "Complete Event collaboration visual integration",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S25"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S27",
+          "title": "Bring first-class Stories to visual parity",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S26"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S28",
+          "title": "Bring Search, Collections and face review to visual parity",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S27"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S29",
+          "title": "Bring Settings and Family Space management to visual parity",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S28"
+          ],
+          "notes": []
+        },
+        {
+          "id": "FPA-P14-S30",
+          "title": "Complete responsive, theme, accessibility and visual acceptance",
+          "status": "planned",
+          "dependencies": [
+            "FPA-P14-S29"
+          ],
+          "notes": []
         }
       ]
     },
     {
       "id": "P15",
       "name": "Platform Administration UI",
-      "status": "in_progress",
+      "status": "planned",
       "stages": [
         {
           "id": "FPA-P15-S01",
           "title": "Accept platform administration authorization and operations ADR",
-          "status": "ready",
+          "status": "planned",
           "dependencies": [
-            "FPA-P14-S18"
+            "FPA-P14-S30"
           ],
           "notes": []
         },
@@ -1628,6 +1738,14 @@
     }
   },
   "delivery_log": [
+    {
+      "git_tag": "phase-14-s19",
+      "type": "stage_completion",
+      "adr": "ADR-0019",
+      "roadmap_stage": "FPA-P14-S19",
+      "date": "2026-09-19",
+      "description": "FPA-P14-S19 completed as a planning-only forward correction: route-by-route comparison established that S17-S18 proved functional and authorization acceptance but not faithful parity with the frozen published Phase 14 UI Reference V1. Phase 14 is reopened through S30, Phase 15 is returned to planned, and the existing published phase-14-s18 and phase-14 tags remain unchanged historical premature markers rather than current visual-completion evidence."
+    },
     {
       "git_tag": "phase-14-s13",
       "type": "stage_completion",

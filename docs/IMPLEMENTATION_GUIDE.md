@@ -4869,8 +4869,143 @@ as a cross-origin failure. Frontend lint, typecheck, 153 tests, production
 build, Prettier and dependency audit passed; the complete 411-test API suite,
 56 PostgreSQL integration tests and 27 image-worker tests passed; PHPStan,
 MyPy, Ruff, Pint, foundation, documentation, contracts, Compose, JSON and diff
-validation passed. Phase 14 is complete; FPA-P15-S01 is ready but has not
-begun.
+validation passed. This established functional and authorization acceptance,
+but a later side-by-side review proved that it did not establish faithful
+visual parity with the frozen published Phase 14 UI Reference V1. Phase 14
+therefore continues forward from FPA-P14-S19 through FPA-P14-S30; this
+historical record is retained rather than rewritten.
+
+## FPA-P14-S19 — Reopen Phase 14 and establish the visual-parity programme
+
+Record the forward-only correction after the route-by-route visual audit.
+Keep the already-published `phase-14-s18` and `phase-14` tags unchanged as
+historical premature markers; do not treat them as current visual-completion
+evidence. Return Phase 15 to planned, make FPA-P14-S20 current, and preserve
+all completed S01-S18 implementation history. This is a planning-only stage:
+it changes no production UI or accepted domain behaviour.
+
+The frozen published Phase 14 UI Reference V1 is the visual and interaction
+specification. The production repository remains authoritative for domain,
+authorization and integrity behaviour. No route may be called visually
+complete until side-by-side evidence demonstrates faithful composition,
+typography, spacing, colour, imagery, card treatment, controls, interaction
+hierarchy and responsive behaviour at the stage's representative desktop,
+tablet and mobile widths and in applicable Light and Dark states.
+
+Apply these settled reconciliation rules throughout S20-S30:
+
+- derive a Person portrait only from a deterministic, currently-authorized,
+  confirmed `PhotoPerson` association, as presentation rather than an
+  authoritative Person fact; otherwise use initials;
+- share only the existing authenticated Fambam URL through copy/native/
+  external-destination UI, never a public token or anonymous access;
+- omit unsupported reference-only Family Settings controls rather than
+  rendering fake controls;
+- derive Person timeline entries only from authoritative facts visible to
+  the current viewer;
+- consume, without reopening, the accepted Album-cover, Event-RSVP,
+  Collection, Love, PhotoVersion/Restore and ADR-0021 Story contracts; and
+- keep Platform Administration entirely in Phase 15.
+
+## FPA-P14-S20 — Build the shared visual system and visual-regression foundation
+
+Refine the Tailwind v4 semantic Light/Dark tokens, typography, spacing,
+surfaces and responsive rules needed to reproduce the frozen reference.
+Introduce production shared primitives and composites for buttons, fields,
+breadcrumbs, headings, archive toolbars, cards, typed entity links, menus,
+dialogs, notifications, loading/empty/error/success states, shell navigation
+and the full product footer. Retain typed feature APIs, TanStack Query and
+authorized media delivery. Establish deterministic screenshot comparison at
+representative desktop, tablet and mobile widths before declaring any later
+route complete. Shared components must include keyboard, focus, ARIA,
+reduced-motion and Light/Dark verification rather than postponing those
+qualities to the final sweep.
+
+## FPA-P14-S21 — Bring Events to frozen-reference visual parity
+
+Use Events as the first complete proving surface for the shared visual
+system. Reproduce the reference Events list and detail compositions,
+authorized deterministic preview imagery, search/sort/filter and grid/list
+controls, card actions, dates, location and truthful aggregate summaries.
+Preserve existing Event authorization and removal semantics. Require
+side-by-side desktop/tablet/mobile and applicable Light/Dark evidence before
+completion.
+
+## FPA-P14-S22 — Bring the family homepage and notifications to visual parity
+
+Reproduce the editorial family homepage, activity and contribution cards,
+On This Day, recent Photos and date-precision-safe birthday presentation.
+Implement the reference notification drawer using the existing typed
+notification domain, including focus management, unread state, typed links
+and live authorization.
+
+## FPA-P14-S23 — Bring People and Person presentation to visual parity
+
+Reproduce the People directory, rich Person page and deliberate sparse/name-
+only state. A portrait is a deterministic authorized presentation derived
+from a confirmed Person-associated Photo, never a new Person fact; initials
+remain the canonical fallback. Relationships, Photos, Albums, Events,
+Stories and timeline entries disclose only currently-authorized,
+authoritative facts.
+
+## FPA-P14-S24 — Bring Photos and media journeys to visual parity
+
+Reproduce the Photo archive, Photo detail, upload/progress/recovery,
+exact-duplicate review and full accepted nondestructive editor/Restore
+journeys. Preserve authorized delivery and immutable originals. Share UI may
+copy or invoke browser/native/external sharing for the existing Fambam URL
+only; opening it remains subject to ordinary authentication and authorization.
+
+## FPA-P14-S25 — Bring Albums and Album creation to visual parity
+
+Reproduce Album browsing, detail and the reviewed creation journey using the
+accepted Album metadata, People and cover contract. Integrate choose-existing,
+upload-new and no-cover choices, focal position, pending intent,
+supersession, failed upload and membership-invalidated cover states without
+creating parallel cover semantics.
+
+## FPA-P14-S26 — Complete Event collaboration visual integration
+
+Complete Event creation/editing, invitations, admission-aware Guest
+experience, RSVP controls and effective Going/Awaiting/Not attending
+groupings using the accepted independent RSVP contract. Integrate Event Love,
+notification and all loading/empty/error/success states without widening
+Event or Guest authority.
+
+## FPA-P14-S27 — Bring first-class Stories to visual parity
+
+Reproduce Story browsing, editorial detail, authoring/editing, typed primary
+subjects, typed Person mentions, comments and Love under ADR-0021. Do not
+claim durable autosave where no persisted draft exists, require a title or
+reintroduce Photo-bound Story behaviour.
+
+## FPA-P14-S28 — Bring Search, Collections and face review to visual parity
+
+Reproduce typed tabbed Search, private Collection browsing/detail/reordering/
+population/export and the human-governed face-review surfaces. Preserve
+authorization-before-disclosure, creator-private Collection ownership,
+ordered unique membership, active-version export semantics, recognition
+consent and processing gates.
+
+## FPA-P14-S29 — Bring Settings and Family Space management to visual parity
+
+Reproduce the reference settings workspace for accepted profile, appearance,
+security, membership, invitation, portability and Family Space deletion
+capabilities. Do not render inert controls for reference fields that have no
+accepted backend contract. Keep customer Family Space management visibly and
+architecturally separate from Phase 15 Platform Administration.
+
+## FPA-P14-S30 — Complete responsive, theme, accessibility and visual acceptance
+
+Run the final route-by-route comparison across representative desktop,
+tablet and mobile widths, applicable Light and Dark states and Owner,
+Administrator, Member, Contributor and Guest journeys. Verify keyboard-only
+operation, focus order/trapping/restoration, accessible names and state
+announcements, reduced motion, visual-regression snapshots and the repository
+accessibility/performance gates. Phase 14 may be marked complete only when
+every in-scope route has faithful side-by-side evidence for composition,
+typography, spacing, colour, imagery, card treatment, controls, interaction
+hierarchy and responsive behaviour. Only then may FPA-P15-S01 become ready.
 
 ---
 

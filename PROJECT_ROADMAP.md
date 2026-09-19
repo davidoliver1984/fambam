@@ -581,6 +581,41 @@ it is not the separate Platform Administrator role introduced in Phase 15.
   RSVP, the Collection domain, the shared Love reaction, an ADR-0021 Story
   restatement, and the nondestructive Photo editor with Restore.
 
+## Forward-only visual completion correction
+
+The functional and authorization acceptance recorded through
+`FPA-P14-S18` did not establish faithful visual parity with the frozen,
+published Phase 14 UI Reference V1. Phase 14 therefore continues through
+`FPA-P14-S19`-`FPA-P14-S30`; the earlier published `phase-14-s18` and
+`phase-14` tags remain unchanged historical markers and are not evidence of
+current visual completion. Platform Administration remains Phase 15 and may
+not begin until `FPA-P14-S30` completes.
+
+The published reference is the visual and interaction specification. The
+production repository remains authoritative for domain behaviour,
+authorization and data integrity. A route is not visually complete until
+side-by-side evidence at representative desktop, tablet and mobile widths,
+in applicable Light and Dark states, demonstrates faithful composition,
+typography, spacing, colour, imagery, card treatment, controls, interaction
+hierarchy and responsive behaviour.
+
+The following reference reconciliations are binding during this work:
+
+- Person portraits may be derived deterministically from a currently
+  authorized, confirmed `PhotoPerson` association for presentation only;
+  initials are the canonical fallback and no new authoritative Person fact
+  is created.
+- Photo sharing may copy or invoke native/external sharing for the existing
+  authenticated Fambam URL only. It never creates a public token or bypasses
+  ordinary authentication and authorization.
+- Reference-only Family Settings controls without accepted backend fields
+  are omitted rather than rendered inertly.
+- Person timelines contain only chronology derived from authoritative facts
+  currently visible to the viewer.
+- Album covers, Event RSVP, Collections, Love, the nondestructive Photo
+  editor/Restore and first-class Story behaviour consume their already-
+  accepted Phase 14 contracts; they are not reopened by visual integration.
+
 ## Exit criteria
 
 - A non-technical family user can complete the important fambam journeys
@@ -591,6 +626,9 @@ it is not the separate Platform Administrator role introduced in Phase 15.
 - Core journeys remain usable across supported mobile and desktop layouts.
 - Loading, empty, error and success states are coherent and accessible.
 - Family Space management is clearly distinguished from platform operations.
+- Every completed route has side-by-side visual-regression evidence against
+  the frozen reference at its agreed representative desktop, tablet and
+  mobile widths, including applicable Light and Dark states.
 
 ---
 
