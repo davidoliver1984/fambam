@@ -4944,6 +4944,18 @@ Preserve existing Event authorization and removal semantics. Require
 side-by-side desktop/tablet/mobile and applicable Light/Dark evidence before
 completion.
 
+Implementation record (2026-09-19): Rebuilt the Events list and Event detail
+around the frozen reference's image-led editorial composition. Event summaries
+now expose only deterministic, actor-visible preview imagery and aggregate
+counts; the frontend adds search, stable sort, grid/list presentation, typed
+navigation, contextual actions, an authorized hero image, RSVP and truthful
+summary treatment without changing Event authority. Focused backend and
+frontend tests cover the new contract and interactions. Twelve route-level
+Playwright baselines cover list and detail in Light and Dark at desktop, tablet
+and mobile widths. Manual screenshot review caught and corrected the shared
+archive toolbar's mobile flex-basis behavior before the stage was completed.
+FPA-P14-S22 is ready.
+
 ## FPA-P14-S22 — Bring the family homepage and notifications to visual parity
 
 Reproduce the editorial family homepage, activity and contribution cards,

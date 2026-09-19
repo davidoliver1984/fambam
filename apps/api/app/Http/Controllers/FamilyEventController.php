@@ -9,8 +9,10 @@ use App\Models\Album;
 use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\Person;
+use App\Models\Story;
 use App\Models\User;
 use App\Queries\FamilyEventQuery;
+use App\Queries\PhotoQuery;
 use App\Services\EventAccess;
 use App\Services\FamilyEventManager;
 use App\Stories\RichTextPresenter;
@@ -23,6 +25,7 @@ class FamilyEventController extends Controller
 {
     public function __construct(
         private readonly FamilyEventQuery $events,
+        private readonly PhotoQuery $photos,
         private readonly FamilyEventManager $manager,
         private readonly EventAccess $access,
         private readonly TenantContext $tenantContext,
@@ -140,6 +143,7 @@ class FamilyEventController extends Controller
             'status' => $event->status->value,
             'created_by' => $event->created_by,
             'creator' => $event->creator === null ? null : ['id' => $event->creator->id, 'name' => $event->creator->name],
+            'presentation' => $this->presentation($event),
             'permissions' => ['can_update' => Gate::allows('update', $event),
                 'can_manage_admissions' => Gate::allows('manageAdmissions', $event),
                 'can_review_duplicates' => Gate::allows('reviewDuplicates', $event),
@@ -176,6 +180,40 @@ class FamilyEventController extends Controller
             ])->values();
 
         return $payload;
+    }
+
+    /** @return array{preview: array{photo_id: string, media_upload_id: string}|null, photo_count: int, album_count: int, story_count: int, people_count: int} */
+    private function presentation(FamilyEvent $event): array
+    {
+        $visiblePhotos = $this->photos->visibleTo($this->actor())
+            ->where(function ($query) use ($event): void {
+                $query->where('primary_event_id', $event->id)
+                    ->orWhereHas('albums', fn ($albums) => $albums->where('albums.event_id', $event->id));
+            })
+            ->orderByRaw('historical_date IS NULL')
+            ->orderBy('historical_date')
+            ->orderBy('id')
+            ->get(['photos.id', 'photos.media_upload_id']);
+        $preview = $visiblePhotos->first();
+        $role = $this->tenantContext->membership()->role;
+        $visibleAlbumCount = $event->albums()->get()
+            ->filter(fn (Album $album): bool => Gate::allows('view', $album))
+            ->count();
+        $visibleStoryCount = Story::query()->where('event_id', $event->id)->get()
+            ->filter(fn (Story $story): bool => Gate::allows('view', $story))
+            ->count();
+
+        return [
+            'preview' => $preview === null ? null : [
+                'photo_id' => $preview->id,
+                'media_upload_id' => $preview->media_upload_id,
+            ],
+            'photo_count' => $visiblePhotos->count(),
+            'album_count' => $visibleAlbumCount,
+            'story_count' => $visibleStoryCount,
+            'people_count' => in_array($role, [FamilySpaceRole::Guest, FamilySpaceRole::Contributor], true)
+                ? 0 : $this->events->attendees($event)->count(),
+        ];
     }
 
     private function familySlug(): string

@@ -438,6 +438,10 @@
     align-self: start;
   }
 
+  .ui-archive-toolbar__search {
+    flex-basis: auto;
+  }
+
   .ui-product-footer__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

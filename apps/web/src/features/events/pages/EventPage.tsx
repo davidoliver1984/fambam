@@ -1,6 +1,8 @@
 import { useState, type SyntheticEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 
+import { Breadcrumbs, ButtonLink, Surface } from "@/components/ui";
+import { PhotoPresentationImage } from "@/features/photos/components/PhotoPresentationImage";
 import {
   useEventAdmissionMutations,
   useEventAdmissionsQuery,
@@ -17,6 +19,7 @@ import { LoveButton } from "@/features/love/components/LoveButton";
 import { useFamilyMembershipsQuery } from "@/features/people/hooks/useAccountLinkQueries";
 import type { GuestParticipation } from "@/features/albums/types/album";
 import { EventRsvpPanel } from "../components/EventRsvpPanel";
+import "./events.css";
 
 export function EventPage() {
   const { familySlug = "", eventId = "" } = useParams();
@@ -56,22 +59,84 @@ export function EventPage() {
   if (event.isPending) return <p role="status">Loading Event…</p>;
   if (event.isError) return <p role="alert">This Event could not be loaded.</p>;
   const item = event.data;
+  const preview = item.presentation?.preview;
+  const dateRange =
+    item.starts_on === null
+      ? "Date not recorded"
+      : item.ends_on === null || item.ends_on === item.starts_on
+        ? item.starts_on
+        : `${item.starts_on} – ${item.ends_on}`;
   return (
-    <main className="journey-page journey-detail" aria-labelledby="event-title">
-      <p className="eyebrow">Event</p>
-      <h1 id="event-title">{item.name}</h1>
-      <LoveButton
-        familySlug={familySlug}
-        targetType="event"
-        targetId={eventId}
+    <main className="event-detail" aria-labelledby="event-title">
+      <Breadcrumbs
+        items={[
+          {
+            label: "Events",
+            to: `/families/${encodeURIComponent(familySlug)}/events`,
+          },
+          { label: item.name },
+        ]}
       />
-      <p>
-        {item.starts_on ?? "Date not recorded"}
-        {item.ends_on === null ? "" : ` to ${item.ends_on}`}
-      </p>
-      <p>{item.location ?? "Location not recorded"}</p>
-      <p>Status: {item.status}</p>
-      {item.description !== null && <p>{item.description}</p>}
+      <section className="event-hero">
+        {preview !== undefined && preview !== null && (
+          <PhotoPresentationImage
+            familySlug={familySlug}
+            photoId={preview.photo_id}
+            mediaUploadId={preview.media_upload_id}
+            fallbackTransform="display"
+            alt=""
+          />
+        )}
+        <div className="event-hero__shade" />
+        <div className="event-hero__content">
+          <p className="ui-eyebrow">Family event</p>
+          <h1 id="event-title">{item.name}</h1>
+          <p className="event-hero__meta">
+            {dateRange} · {item.location ?? "Location not recorded"}
+          </p>
+          <div className="event-hero__actions">
+            <LoveButton
+              familySlug={familySlug}
+              targetType="event"
+              targetId={eventId}
+            />
+            {item.permissions.can_update && (
+              <ButtonLink to="#event-settings" variant="secondary">
+                Event settings below
+              </ButtonLink>
+            )}
+          </div>
+        </div>
+      </section>
+      <div className="event-overview">
+        <div className="event-overview__story">
+          {item.description !== null ? (
+            <p>{item.description}</p>
+          ) : (
+            <p className="event-overview__muted">
+              No description has been recorded for this event yet.
+            </p>
+          )}
+        </div>
+        <div className="event-stats" aria-label="Event summary">
+          <Surface>
+            <strong>{item.presentation?.photo_count ?? 0}</strong>
+            <span>photographs</span>
+          </Surface>
+          <Surface>
+            <strong>
+              {item.presentation?.album_count ?? item.albums?.length ?? 0}
+            </strong>
+            <span>albums</span>
+          </Surface>
+          <Surface>
+            <strong>
+              {item.presentation?.people_count ?? item.attendees?.length ?? 0}
+            </strong>
+            <span>people</span>
+          </Surface>
+        </div>
+      </div>
       <EventRsvpPanel familySlug={familySlug} eventId={eventId} />
       {item.permissions.can_delete && (
         <button
@@ -92,6 +157,7 @@ export function EventPage() {
       )}
       {item.permissions.can_update && (
         <form
+          id="event-settings"
           onSubmit={(submitEvent: SyntheticEvent<HTMLFormElement>) => {
             submitEvent.preventDefault();
             const form = new FormData(submitEvent.currentTarget);

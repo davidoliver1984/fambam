@@ -115,8 +115,15 @@ class FamilyEventTest extends TestCase
         PhotoPerson::query()->create(['family_space_id' => $family->id, 'photo_id' => $albumPhoto->id,
             'person_id' => $pending->id, 'status' => PersonProposalStatus::Pending, 'proposed_by' => $owner->id]);
 
+        $expectedPreview = collect([$albumPhoto, $primaryPhoto])->sortBy('id')->first();
         $this->actingAs($owner)->getJson("/api/families/event-attendance/events/{$event->id}")
-            ->assertOk()->assertJsonCount(1, 'data.attendees')->assertJsonPath('data.attendees.0.id', $confirmed->id);
+            ->assertOk()->assertJsonCount(1, 'data.attendees')->assertJsonPath('data.attendees.0.id', $confirmed->id)
+            ->assertJsonPath('data.presentation.preview.photo_id', $expectedPreview->id)
+            ->assertJsonPath('data.presentation.preview.media_upload_id', $expectedPreview->media_upload_id)
+            ->assertJsonPath('data.presentation.photo_count', 2)
+            ->assertJsonPath('data.presentation.album_count', 1)
+            ->assertJsonPath('data.presentation.story_count', 0)
+            ->assertJsonPath('data.presentation.people_count', 1);
         $this->actingAs($owner)->getJson("/api/families/event-attendance/people/{$confirmed->id}/events")
             ->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $event->id);
         $this->actingAs($owner)->getJson("/api/families/event-attendance/people/{$pending->id}/events")

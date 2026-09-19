@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P14",
-    "current_stage": "FPA-P14-S21",
+    "current_stage": "FPA-P14-S22",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-19"
   },
@@ -1203,16 +1203,18 @@
         {
           "id": "FPA-P14-S21",
           "title": "Bring Events to frozen-reference visual parity",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P14-S20"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-19. Rebuilt the Events archive and Event detail around the frozen reference's editorial hierarchy, authorized image-led cards and hero treatment, truthful actor-visible summaries, search/sort and grid/list controls, responsive layouts, and Light/Dark styling. Focused API and frontend coverage protects authorization and interaction behavior. Twelve route-level Playwright baselines cover list/detail across desktop, tablet and mobile in both themes; screenshot review also caught and corrected a shared mobile toolbar flex-basis defect before completion."
+          ]
         },
         {
           "id": "FPA-P14-S22",
           "title": "Bring the family homepage and notifications to visual parity",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P14-S21"
           ],

@@ -10,6 +10,13 @@ export type FamilyEvent = {
   status: EventStatus;
   created_by: number | null;
   creator: { id: number; name: string } | null;
+  presentation?: {
+    preview: { photo_id: string; media_upload_id: string } | null;
+    photo_count: number;
+    album_count: number;
+    story_count: number;
+    people_count: number;
+  };
   permissions: {
     can_update: boolean;
     can_manage_admissions: boolean;
