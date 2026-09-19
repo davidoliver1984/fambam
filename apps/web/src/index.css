@@ -5,16 +5,27 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 :root {
-  --surface: #fcf8f3;
-  --surface-raised: #fffdfa;
+  --surface: #f8f3ea;
+  --surface-raised: #fffdf9;
+  --surface-subtle: #ede5df;
+  --surface-overlay: rgb(255 253 249 / 96%);
   --text-primary: #30261f;
-  --text-muted: #66584e;
-  --border-subtle: #ded1c6;
-  --accent: #7c4c39;
+  --text-muted: #6f6157;
+  --border-subtle: #d8cbc2;
+  --accent: #7c3f2a;
+  --accent-hover: #63301f;
   --accent-text: #ffffff;
-  --header-surface: #784d3a;
+  --header-surface: #744732;
   --header-text: #fff9f3;
-  --focus-ring: #bd7950;
+  --focus-ring: #c68552;
+  --status-danger: #8a2730;
+  --status-danger-surface: #f7e7e7;
+  --status-success: #386641;
+  --status-success-surface: #e6f0e7;
+  --status-warning: #835b16;
+  --status-warning-surface: #f7eed8;
+  --shadow-soft: 0 0.9rem 2.5rem rgb(48 38 31 / 10%);
+  --shadow-card: 0 0.35rem 1.2rem rgb(48 38 31 / 8%);
   color-scheme: light;
   background: var(--surface);
   color: var(--text-primary);
@@ -31,40 +42,83 @@
 }
 
 [data-theme="dark"] {
-  --surface: #1e1918;
-  --surface-raised: #292321;
+  --surface: #171310;
+  --surface-raised: #231e1a;
+  --surface-subtle: #302924;
+  --surface-overlay: rgb(35 30 26 / 96%);
   --text-primary: #f6eee6;
   --text-muted: #c7b7a9;
-  --border-subtle: #554840;
-  --accent: #c59172;
+  --border-subtle: #51443c;
+  --accent: #dda17a;
+  --accent-hover: #efb791;
   --accent-text: #241a16;
-  --header-surface: #382820;
+  --header-surface: #744732;
   --header-text: #fff5eb;
   --focus-ring: #f0bc96;
+  --status-danger: #f0a3a9;
+  --status-danger-surface: #3a2022;
+  --status-success: #a8d5ad;
+  --status-success-surface: #203126;
+  --status-warning: #efca7b;
+  --status-warning-surface: #372d1c;
+  --shadow-soft: 0 1rem 3rem rgb(0 0 0 / 30%);
+  --shadow-card: 0 0.4rem 1.4rem rgb(0 0 0 / 22%);
   color-scheme: dark;
 }
 
 @theme inline {
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
+  --color-surface-subtle: var(--surface-subtle);
   --color-ink: var(--text-primary);
   --color-ink-muted: var(--text-muted);
   --color-line: var(--border-subtle);
   --color-cognac: var(--accent);
+  --color-cognac-hover: var(--accent-hover);
+  --color-danger: var(--status-danger);
+  --color-success: var(--status-success);
+  --color-warning: var(--status-warning);
 }
 
 body {
   margin: 0;
   min-width: 20rem;
+  background: var(--surface);
+  color: var(--text-primary);
+  line-height: 1.55;
 }
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
+}
+
+button,
+summary,
+select,
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
 }
 
 :focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

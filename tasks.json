@@ -7,9 +7,9 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P14",
-    "current_stage": "FPA-P14-S17",
+    "current_stage": "FPA-P14-S18",
     "created_at": "2026-07-31",
-    "updated_at": "2026-09-18"
+    "updated_at": "2026-09-19"
   },
   "conventions": {
     "phase_id_format": "P##",
@@ -1159,16 +1159,18 @@
         {
           "id": "FPA-P14-S17",
           "title": "Complete responsive, visual and state integration",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P14-S16"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-19. Reconciled the production shell and journeys with the frozen Phase 14 visual reference through expanded Tailwind v4 semantic Light/Dark tokens, cognac/cream/espresso surfaces, editorial typography, consistent cards/forms/actions/media/states, responsive single-column fallbacks, mobile navigation treatment and reduced-motion support. Added route-change focus management and deterministic Escape focus return for keyboard and assistive-technology users. Frontend lint, typecheck, 151 tests, production build, Prettier and npm audit passed; foundation, documentation, contracts, Compose, JSON and diff validation passed. Role-based end-to-end product acceptance remains FPA-P14-S18."
+          ]
         },
         {
           "id": "FPA-P14-S18",
           "title": "Conduct role-based product journey acceptance",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P14-S17"
           ],

@@ -4779,6 +4779,17 @@ assistive-technology operation, and loading, empty, error and success states
 across all important journeys, including the nondestructive Photo editor and
 Restore surfaces from `FPA-P14-S11`.
 
+Implementation record (2026-09-19): Reconciled the production shell and
+journeys with the frozen Phase 14 visual reference through expanded Tailwind
+v4 semantic Light/Dark tokens, cognac/cream/espresso surfaces, editorial
+typography, consistent cards, forms, actions, media and accessible state
+treatments, responsive single-column fallbacks, mobile-navigation treatment
+and reduced-motion support. Route changes now move focus to the new content;
+Escape closes compact navigation and returns focus deterministically. Frontend
+lint, typecheck, 151 tests, production build, Prettier and npm audit passed;
+foundation, documentation, contracts, Compose, JSON and diff validation
+passed. Role-based end-to-end product acceptance remains FPA-P14-S18.
+
 ## FPA-P14-S18 — Conduct role-based product journey acceptance
 
 Test Owner, Administrator, Member, Contributor and Guest through their real

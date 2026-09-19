@@ -128,6 +128,7 @@ describe("FamilyShell", () => {
     expect(
       await screen.findByRole("heading", { name: "Photos page" }),
     ).toBeInTheDocument();
+    expect(document.getElementById("family-content")).toHaveFocus();
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "Family Space" }),
       "second-family",
@@ -198,6 +199,7 @@ describe("FamilyShell", () => {
     ).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
     expect(menu).toHaveAttribute("aria-expanded", "false");
+    expect(menu).toHaveFocus();
   });
 
   it("keeps a missing Family Space out of the shell", async () => {

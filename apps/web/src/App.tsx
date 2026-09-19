@@ -32,6 +32,7 @@ import "./App.css";
 import "./journey.css";
 import "./explore.css";
 import "./collaboration.css";
+import "./product.css";
 import {
   AccountPage,
   ForgotPasswordPage,

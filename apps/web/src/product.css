@@ -1,0 +1,435 @@
+.family-shell *,
+.family-shell *::before,
+.family-shell *::after {
+  box-sizing: border-box;
+}
+
+.family-shell .shell-content {
+  container-type: inline-size;
+}
+
+.family-shell .shell-content:focus {
+  outline: 0;
+}
+
+.family-shell .shell-content :where(p, li, dd) {
+  max-width: 72ch;
+}
+
+.family-shell .shell-content :where(h1, h2, h3) {
+  text-wrap: balance;
+}
+
+.family-shell .shell-content :where(a) {
+  text-underline-offset: 0.16em;
+  text-decoration-thickness: 0.08em;
+}
+
+.family-shell .shell-content :where(button) {
+  min-height: 2.75rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.45rem;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.family-shell .shell-content :where(button):hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--surface-subtle);
+}
+
+.family-shell .shell-content :where(button[type="submit"]),
+.family-shell .shell-content .journey-action {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.family-shell .shell-content :where(button[type="submit"]):hover:not(:disabled),
+.family-shell .shell-content .journey-action:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+  text-decoration: none;
+}
+
+.family-shell .shell-content :where(button):disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.family-shell
+  .shell-content
+  :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.45rem;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.family-shell .shell-content :where(textarea) {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.family-shell .shell-content :where(label) {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.family-shell .shell-content :where(fieldset) {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.65rem;
+}
+
+.family-shell .shell-content :where(legend) {
+  padding-inline: 0.35rem;
+  font-weight: 700;
+}
+
+.family-shell .shell-content > :where([role="status"], [role="alert"]),
+.family-shell
+  .shell-content
+  .journey-page
+  :where([role="status"], [role="alert"]) {
+  width: fit-content;
+  max-width: 48rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-subtle);
+  border-left: 0.25rem solid var(--accent);
+  border-radius: 0.35rem;
+  background: var(--surface-raised);
+}
+
+.family-shell .shell-content > [role="alert"],
+.family-shell .shell-content .journey-page [role="alert"] {
+  border-left-color: var(--status-danger);
+  background: var(--status-danger-surface);
+}
+
+.family-shell .shell-content > :where([role="status"], [role="alert"]) {
+  margin-block: 3rem;
+}
+
+.journey-page {
+  width: 100%;
+  padding-inline: clamp(0rem, 2vw, 1.5rem);
+}
+
+.journey-page > .eyebrow,
+.family-home .eyebrow {
+  color: var(--accent);
+  margin-bottom: 0.8rem;
+}
+
+.journey-page > p:not(.eyebrow),
+.journey-heading p {
+  color: var(--text-muted);
+}
+
+.journey-page > section {
+  padding-block: 1.75rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.journey-page > section:first-of-type {
+  margin-top: 2.5rem;
+}
+
+.journey-page > section > h2:first-child {
+  margin-top: 0;
+}
+
+.journey-page :where(form) {
+  width: min(100%, 42rem);
+}
+
+.journey-page
+  :where(
+    ul:not(.journey-photo-grid):not(.journey-album-grid):not(
+        .journey-event-grid
+      ):not(.people-card-grid):not(.collection-grid):not(
+        .collection-photo-grid
+      ):not(.membership-list):not(.proposal-list)
+  ) {
+  padding-left: 1.2rem;
+}
+
+.journey-page :where(dl) {
+  margin-block: 1.5rem;
+}
+
+.journey-page :where(dt) {
+  font-weight: 800;
+}
+
+.journey-page :where(dd) {
+  margin-inline-start: 0;
+  color: var(--text-muted);
+}
+
+.journey-photo-grid,
+.album-photo-grid,
+.collection-photo-grid,
+.people-card-grid {
+  align-items: start;
+}
+
+.journey-photo-grid li,
+.journey-album-grid > section,
+.journey-event-grid > li,
+.collection-grid li,
+.collection-photo-grid li,
+.membership-list li,
+.people-card-grid li,
+.review-journey article,
+.duplicate-card {
+  box-shadow: var(--shadow-card);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.journey-photo-grid li:hover,
+.journey-album-grid > section:hover,
+.journey-event-grid > li:hover,
+.collection-grid li:hover,
+.collection-photo-grid li:hover,
+.people-card-grid li:hover {
+  border-color: color-mix(in srgb, var(--accent) 65%, var(--border-subtle));
+  box-shadow: var(--shadow-soft);
+  transform: translateY(-0.12rem);
+}
+
+.journey-photo-grid img,
+.album-photo-grid img,
+.collection-photo-grid img,
+.journey-album-cover img,
+.search-photo-card img {
+  background: var(--surface-subtle);
+}
+
+.photo-display {
+  padding: clamp(0.4rem, 1.5vw, 1rem);
+  border-radius: 0.8rem;
+  background: var(--surface-subtle);
+}
+
+.photo-display-image {
+  border-radius: 0.45rem;
+}
+
+.family-shell .media-image-state,
+.family-shell .album-photo-thumbnail,
+.family-shell .duplicate-comparison img,
+.family-shell .face-observation-preview img {
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+}
+
+.photo-details {
+  overflow: hidden;
+  border-block: 1px solid var(--border-subtle);
+}
+
+.photo-details div {
+  border-color: var(--border-subtle);
+}
+
+.photo-details div:first-child {
+  border-top: 0;
+}
+
+.story-body {
+  box-shadow: none;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.photo-editor-controls > fieldset {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem 1rem;
+  max-width: 52rem;
+  background: var(--surface-raised);
+}
+
+.photo-editor-controls > fieldset > legend,
+.photo-editor-controls > fieldset > button,
+.photo-editor-controls > fieldset > label:has(input[type="checkbox"]) {
+  grid-column: 1 / -1;
+}
+
+.photo-editor-controls > fieldset > label {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+  text-transform: capitalize;
+}
+
+.photo-editor-controls input[type="range"] {
+  width: 100%;
+}
+
+.photo-editor-controls img {
+  display: block;
+  width: min(100%, 52rem);
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 0.6rem;
+  background: var(--surface-subtle);
+}
+
+.love-control {
+  box-shadow: none;
+}
+
+.danger-action {
+  border-color: var(--status-danger) !important;
+  background: transparent !important;
+  color: var(--status-danger) !important;
+}
+
+.danger-action:hover:not(:disabled) {
+  background: var(--status-danger-surface) !important;
+}
+
+.invitation-list,
+.activity-list,
+.memory-list {
+  list-style: none;
+  padding: 0 !important;
+}
+
+.invitation-list li,
+.activity-list li,
+.memory-list li {
+  padding-block: 0.9rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.family-home-highlights > *,
+.love-control,
+.story-body {
+  border-color: var(--border-subtle);
+  background: var(--surface-raised);
+}
+
+.family-shell .auth {
+  color: var(--text-primary);
+}
+
+.family-shell
+  .auth
+  :where(
+    .invitation-management,
+    .account-security,
+    .account-security form,
+    .account-security > div
+  ),
+.family-shell .invitation-list li,
+.family-shell .people-list li,
+.family-shell .photo-list li,
+.family-shell .account-link-claim,
+.family-shell .proposal-list li {
+  border-color: var(--border-subtle);
+}
+
+.family-shell .auth button.secondary {
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+}
+
+.family-shell .auth :where(h1, h2),
+.family-shell .people h2 {
+  color: var(--text-primary);
+}
+
+.family-shell .form-message,
+.family-shell .photo-list li > span,
+.family-shell .photo-list li > small {
+  color: var(--text-muted);
+}
+
+@container (max-width: 42rem) {
+  .journey-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .journey-heading .journey-action {
+    width: fit-content;
+  }
+
+  .photo-details div,
+  .proposal-list dl div {
+    grid-template-columns: 1fr;
+  }
+
+  .photo-details dd,
+  .proposal-list dd {
+    margin-top: 0.2rem;
+  }
+
+  .photo-editor-controls > fieldset {
+    grid-template-columns: 1fr;
+  }
+
+  .photo-editor-controls > fieldset > * {
+    grid-column: 1;
+  }
+
+  .membership-list,
+  .collection-grid,
+  .collection-photo-grid,
+  .people-card-grid,
+  .journey-photo-grid,
+  .album-photo-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+  }
+}
+
+@media (max-width: 35rem) {
+  .journey-page {
+    padding-block: 1.75rem 3.5rem;
+  }
+
+  .journey-page h1 {
+    font-size: clamp(2.35rem, 13vw, 3.5rem);
+  }
+
+  .journey-page h2 {
+    font-size: clamp(1.5rem, 8vw, 2rem);
+  }
+
+  .journey-page :where(form) {
+    max-width: none;
+  }
+
+  .journey-page :where(button),
+  .journey-page .journey-action {
+    max-width: 100%;
+  }
+
+  .proposal-actions,
+  .duplicate-actions,
+  .invitation-list li,
+  .invitation-list li > span {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .journey-photo-grid,
+  .album-photo-grid,
+  .collection-photo-grid,
+  .people-card-grid {
+    grid-template-columns: 1fr;
+  }
+}

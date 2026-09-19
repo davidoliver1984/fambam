@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, Outlet, useNavigate, useParams } from "react-router";
+import {
+  Link,
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router";
 
 import { toAppError } from "@/api/errors";
 import { useCurrentUserQuery } from "@/features/account/hooks/useCurrentUserQuery";
@@ -28,6 +35,7 @@ function initialTheme(): "light" | "dark" {
 
 export function FamilyShell() {
   const { familySlug = "" } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const family = useFamilySpaceQuery(familySlug);
   const families = useFamilySpacesQuery();
@@ -37,6 +45,9 @@ export function FamilyShell() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [actionError, setActionError] = useState("");
   const accountMenu = useRef<HTMLDetailsElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const previousPath = useRef(location.pathname);
   const base = `/families/${encodeURIComponent(familySlug)}`;
 
   useEffect(() => {
@@ -51,7 +62,9 @@ export function FamilyShell() {
   useEffect(() => {
     function dismissOnEscape(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
+      const returnFocusToMenu = menuOpen;
       setMenuOpen(false);
+      if (returnFocusToMenu) menuButton.current?.focus();
       if (accountMenu.current?.open) {
         accountMenu.current.open = false;
         accountMenu.current.querySelector("summary")?.focus();
@@ -61,7 +74,15 @@ export function FamilyShell() {
     return () => {
       window.removeEventListener("keydown", dismissOnEscape);
     };
-  }, []);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (previousPath.current === location.pathname) return;
+    previousPath.current = location.pathname;
+    setMenuOpen(false);
+    if (accountMenu.current?.open) accountMenu.current.open = false;
+    content.current?.focus({ preventScroll: true });
+  }, [location.pathname]);
 
   if (family.isPending) {
     return (
@@ -205,6 +226,7 @@ export function FamilyShell() {
             </details>
             <button
               className="shell-menu-button"
+              ref={menuButton}
               type="button"
               aria-expanded={menuOpen}
               aria-controls="shell-mobile-navigation"
@@ -282,7 +304,12 @@ export function FamilyShell() {
           {actionError}
         </p>
       )}
-      <div id="family-content" className="shell-content">
+      <div
+        id="family-content"
+        className="shell-content"
+        ref={content}
+        tabIndex={-1}
+      >
         <Outlet />
       </div>
       <footer className="shell-footer">
