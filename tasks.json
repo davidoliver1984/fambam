@@ -7,7 +7,7 @@
     "status": "in_progress",
     "v1_release_phase": "P17",
     "current_phase": "P14",
-    "current_stage": "FPA-P14-S20",
+    "current_stage": "FPA-P14-S21",
     "created_at": "2026-07-31",
     "updated_at": "2026-09-19"
   },
@@ -1192,16 +1192,18 @@
         {
           "id": "FPA-P14-S20",
           "title": "Build the shared visual system and visual-regression foundation",
-          "status": "ready",
+          "status": "completed",
           "dependencies": [
             "FPA-P14-S19"
           ],
-          "notes": []
+          "notes": [
+            "Completed 2026-09-19. Refined the semantic Light/Dark token foundation and introduced shared production primitives for page hierarchy, typed entity links, archive cards and toolbars, status states, context menus, destructive confirmations and the full product footer. Keyboard, focus, ARIA and reduced-motion behaviour have focused coverage. Playwright now records deterministic Light/Dark baselines at desktop, tablet and mobile sizes without shipping the development-only fixture in production. Route-level visual parity begins with Events in FPA-P14-S21; no product route was declared visually complete in this stage."
+          ]
         },
         {
           "id": "FPA-P14-S21",
           "title": "Bring Events to frozen-reference visual parity",
-          "status": "planned",
+          "status": "ready",
           "dependencies": [
             "FPA-P14-S20"
           ],

@@ -29,6 +29,7 @@ import { StoriesPage } from "@/features/stories/pages/StoriesPage";
 import { StoryPage } from "@/features/stories/pages/StoryPage";
 
 import "./App.css";
+import "./components/ui/ui.css";
 import "./journey.css";
 import "./explore.css";
 import "./collaboration.css";

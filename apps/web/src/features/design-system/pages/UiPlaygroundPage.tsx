@@ -1,6 +1,19 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 
+import {
+  ArchiveCard,
+  ArchiveToolbar,
+  Breadcrumbs,
+  Button,
+  ButtonLink,
+  ContextMenu,
+  SectionHeader,
+  StatusPanel,
+  Surface,
+  ToolbarField,
+} from "@/components/ui";
+
 import heroImage from "../../../assets/hero.png";
 import "./UiPlaygroundPage.css";
 
@@ -63,6 +76,7 @@ export function UiPlaygroundPage() {
       </header>
 
       <nav className="ui-jump-nav" aria-label="Playground sections">
+        <a href="#production-primitives">Production primitives</a>
         <a href="#foundations">Foundations</a>
         <a href="#actions">Actions</a>
         <a href="#forms">Forms</a>
@@ -72,6 +86,77 @@ export function UiPlaygroundPage() {
       </nav>
 
       <div className="ui-playground__sections">
+        <section id="production-primitives" className="ui-section">
+          <SectionHeading number="00" title="Production primitives">
+            Shared, accessible components used by real product routes. The
+            frozen published mini-site—not this fixture—remains the visual
+            authority.
+          </SectionHeading>
+          <Surface as="section" className="ui-foundation-fixture">
+            <Breadcrumbs
+              items={[{ label: "Home", to: "/" }, { label: "Events" }]}
+            />
+            <SectionHeader
+              eyebrow="Family timeline"
+              title="Events"
+              description="The holidays, weddings, ordinary Sundays and big days we remember."
+              actions={
+                <ButtonLink to="/" variant="primary">
+                  Create event
+                </ButtonLink>
+              }
+            />
+            <ArchiveToolbar
+              search={
+                <ToolbarField id="fixture-search" label="Search">
+                  <input
+                    className="ui-field-control"
+                    id="fixture-search"
+                    type="search"
+                    placeholder="Search events"
+                  />
+                </ToolbarField>
+              }
+            >
+              <ToolbarField id="fixture-sort" label="Sort">
+                <select className="ui-field-control" id="fixture-sort">
+                  <option>Newest first</option>
+                  <option>Oldest first</option>
+                </select>
+              </ToolbarField>
+              <Button>Filters</Button>
+              <ContextMenu label="Event options">
+                <button role="menuitem" type="button">
+                  Edit event
+                </button>
+              </ContextMenu>
+            </ArchiveToolbar>
+            <div className="ui-specimen-grid">
+              <ArchiveCard
+                entity="event"
+                eyebrow="Family event"
+                title="A summer together"
+                to="/"
+                media={<img alt="" src={heroImage} />}
+                meta="August 1987 · Brighton"
+                actions={
+                  <ContextMenu label="Event card options">
+                    <button role="menuitem" type="button">
+                      Open event
+                    </button>
+                  </ContextMenu>
+                }
+              >
+                <p>The ordinary days and big days we remember.</p>
+              </ArchiveCard>
+              <StatusPanel tone="loading" title="Loading family events…" />
+              <StatusPanel tone="empty" title="No events match these filters">
+                <p>Clear a filter or create the first family event.</p>
+              </StatusPanel>
+            </div>
+          </Surface>
+        </section>
+
         <section id="foundations" className="ui-section">
           <SectionHeading number="01" title="Foundations">
             Typography, colour, spacing and inline text treatments.

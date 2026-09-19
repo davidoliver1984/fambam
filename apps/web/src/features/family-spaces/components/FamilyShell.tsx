@@ -9,6 +9,7 @@ import {
 } from "react-router";
 
 import { toAppError } from "@/api/errors";
+import { ProductFooter } from "@/components/ui";
 import { useCurrentUserQuery } from "@/features/account/hooks/useCurrentUserQuery";
 import { useLogoutMutation } from "@/features/auth/hooks/useAuthMutations";
 
@@ -172,13 +173,7 @@ export function FamilyShell() {
           <div id="family-content" className="shell-content" tabIndex={-1}>
             <Outlet />
           </div>
-          <footer className="shell-footer">
-            <div>
-              <strong>Fambam</strong>
-              <p>Your private invitation to a family Event.</p>
-            </div>
-            <Link to="/account">Your account</Link>
-          </footer>
+          <ProductFooter />
         </div>
       );
     }
@@ -290,6 +285,36 @@ export function FamilyShell() {
                 <span>{user.data?.name ?? "Account"}</span>
               </summary>
               <div className="shell-account-panel">
+                <div className="shell-account-family">
+                  {families.isSuccess && families.data.length > 1 ? (
+                    <>
+                      <label htmlFor="family-switcher">Family Space</label>
+                      <select
+                        id="family-switcher"
+                        value={familySlug}
+                        onChange={(event) =>
+                          void navigate(
+                            `/families/${encodeURIComponent(event.target.value)}`,
+                          )
+                        }
+                      >
+                        {families.data.map((item) => (
+                          <option key={item.id} value={item.slug}>
+                            {item.name}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  ) : (
+                    <strong>{family.data.name}</strong>
+                  )}
+                  <small>{family.data.role}</small>
+                  {families.isError && (
+                    <span role="status">
+                      Other Family Spaces could not be loaded.
+                    </span>
+                  )}
+                </div>
                 <Link to="/account">Account &amp; security</Link>
                 <Link to={`${base}/exports`}>Exports</Link>
                 {(family.data.role === "owner" ||
@@ -358,37 +383,6 @@ export function FamilyShell() {
           )}
         </nav>
       </header>
-      <div className="shell-context">
-        {families.isSuccess && families.data.length > 1 ? (
-          <>
-            <label htmlFor="family-switcher">Family Space</label>
-            <select
-              id="family-switcher"
-              value={familySlug}
-              onChange={(event) =>
-                void navigate(
-                  `/families/${encodeURIComponent(event.target.value)}`,
-                )
-              }
-            >
-              {families.data.map((item) => (
-                <option key={item.id} value={item.slug}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </>
-        ) : (
-          <>
-            <span>Family Space</span>
-            <strong>{family.data.name}</strong>
-          </>
-        )}
-        <span className="shell-role">{family.data.role}</span>
-        {families.isError && (
-          <span role="status">Other Family Spaces could not be loaded.</span>
-        )}
-      </div>
       {actionError && (
         <p className="shell-action-error" role="alert">
           {actionError}
@@ -402,17 +396,7 @@ export function FamilyShell() {
       >
         <Outlet />
       </div>
-      <footer className="shell-footer">
-        <div>
-          <strong>Fambam</strong>
-          <p>A private place for family photographs, stories and memories.</p>
-        </div>
-        <div>
-          <Link to={base}>Family home</Link>
-          <Link to="/account">Your account</Link>
-        </div>
-        <small>Family memories, carefully kept.</small>
-      </footer>
+      <ProductFooter familyHome={base} />
     </div>
   );
 }

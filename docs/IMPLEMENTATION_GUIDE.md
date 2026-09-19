@@ -4921,6 +4921,19 @@ route complete. Shared components must include keyboard, focus, ARIA,
 reduced-motion and Light/Dark verification rather than postponing those
 qualities to the final sweep.
 
+Implementation record (2026-09-19): Refined the cognac/cream/espresso semantic
+Light/Dark token foundation and added shared production components for page
+hierarchy, typed entity links, archive cards and toolbars, status states,
+context menus, destructive confirmations and the full product footer. Focused
+tests prove keyboard Escape handling, focus restoration/trapping, ARIA state
+semantics and typed entity identity; reduced-motion rules cover shared media
+transitions. Playwright screenshot comparison now covers the shared fixture in
+Light and Dark themes at desktop, tablet and mobile widths, with six committed
+baselines and a repository command for deterministic verification. The
+development-only fixture remains excluded from production builds. This stage
+establishes the visual-regression foundation only: no product route is declared
+visually complete. FPA-P14-S21 is ready.
+
 ## FPA-P14-S21 — Bring Events to frozen-reference visual parity
 
 Use Events as the first complete proving surface for the shared visual

@@ -38,7 +38,7 @@ describe("UiPlaygroundPage", () => {
     );
 
     expect(screen.getByLabelText("Photo title")).toBeInTheDocument();
-    expect(screen.getByRole("searchbox")).toBeInTheDocument();
+    expect(screen.getAllByRole("searchbox")).toHaveLength(2);
     expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
     expect(screen.getByRole("table")).toBeInTheDocument();

@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help up down restart status logs demo-seed demo-reset infrastructure-smoke media-validation-smoke media-processing-smoke observability-smoke foundation-check docs-check contracts-check compose-check format format-check lint typecheck test test-api test-api-postgres-rls test-web test-ai test-e2e security-check
+.PHONY: help up down restart status logs demo-seed demo-reset infrastructure-smoke media-validation-smoke media-processing-smoke observability-smoke foundation-check docs-check contracts-check compose-check format format-check lint typecheck test test-api test-api-postgres-rls test-web test-web-visual test-ai test-e2e security-check
 
 help: ## List supported repository commands
 	@awk 'BEGIN {FS = ":.*## "; printf "fambam commands:\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -82,6 +82,9 @@ test-api-postgres-rls: ## Run PostgreSQL row-level-security integration tests
 
 test-web: ## Run React web tests
 	@cd apps/web && npm test
+
+test-web-visual: ## Compare responsive Light/Dark UI screenshot baselines
+	@cd apps/web && npm run test:visual
 
 test-ai: ## Run Python image-analysis tests
 	@cd apps/image-ai && .venv/bin/pytest
