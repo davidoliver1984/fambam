@@ -7,22 +7,25 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router";
 
 import {
+  admitEventMembership,
   getEvent,
   getDuplicateEventCandidates,
   getEventAdmissions,
   getEventExports,
-  requestEventExport,
   getEventRsvps,
   updateEvent,
 } from "../api/eventApi";
+import { issueInvitation } from "@/features/invitations/api/invitationApi";
 import { getCurrentUser } from "@/features/account/api/accountApi";
 import { getFamilyMemberships } from "@/features/people/api/accountLinkApi";
-import { EventPage } from "./EventPage";
+import { getAlbums } from "@/features/albums/api/albumApi";
 import { getSearchSuggestions } from "@/features/search/api/searchApi";
+import { EventPage } from "./EventPage";
 
 vi.mock("../api/eventApi", () => ({
   admitEventMembership: vi.fn(),
@@ -49,12 +52,32 @@ vi.mock("@/features/account/api/accountApi", () => ({
 vi.mock("@/features/people/api/accountLinkApi", () => ({
   getFamilyMemberships: vi.fn(),
 }));
-vi.mock("@/features/albums/api/albumApi", () => ({ createAlbum: vi.fn() }));
-vi.mock("@/features/invitations/api/invitationApi", () => ({
-  issueInvitation: vi.fn(),
+vi.mock("@/features/albums/api/albumApi", () => ({
+  getAlbums: vi.fn(),
+  createAlbum: vi.fn(),
+  removePhotoFromAlbum: vi.fn(),
 }));
 vi.mock("@/features/search/api/searchApi", () => ({
   getSearchSuggestions: vi.fn(),
+  searchArchive: vi.fn().mockResolvedValue({ items: [], next_cursor: null }),
+}));
+vi.mock("@/features/invitations/api/invitationApi", () => ({
+  issueInvitation: vi.fn(),
+}));
+vi.mock("@/features/love/api/loveApi", () => ({
+  getLoveSummary: vi.fn().mockResolvedValue({
+    count: 0,
+    loved_by_me: false,
+    reactors: [],
+  }),
+  removeLove: vi.fn(),
+  saveLove: vi.fn(),
+}));
+vi.mock("@/features/collections/api/collectionApi", () => ({
+  addCollectionPhoto: vi.fn(),
+  createCollection: vi.fn(),
+  getCollections: vi.fn().mockResolvedValue([]),
+  populateCollection: vi.fn(),
 }));
 
 afterEach(() => {
@@ -77,7 +100,57 @@ vi.mocked(getEventRsvps).mockResolvedValue({
   not_attending: [],
 });
 vi.mocked(getFamilyMemberships).mockResolvedValue([]);
+vi.mocked(getAlbums).mockResolvedValue([]);
 vi.mocked(getSearchSuggestions).mockResolvedValue([]);
+vi.mocked(updateEvent).mockImplementation((_familySlug, _eventId, input) =>
+  Promise.resolve({
+    id: "event-1",
+    name: "Family wedding",
+    description: null,
+    starts_on: null,
+    ends_on: null,
+    location: null,
+    status: "active",
+    created_by: 1,
+    creator: { id: 1, name: "David" },
+    tags: (input.tags ?? []).map((label, index) => ({
+      id: `tag-${String(index)}`,
+      label,
+    })),
+    permissions: {
+      can_update: true,
+      can_manage_admissions: true,
+      can_review_duplicates: true,
+      can_manage_exports: true,
+      can_delete: true,
+      can_restore: false,
+      can_create_album: true,
+    },
+  }),
+);
+
+function renderEventPage() {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/families/:familySlug/events/:eventId",
+        element: <EventPage />,
+      },
+    ],
+    { initialEntries: ["/families/family-archive/events/event-1"] },
+  );
+  render(
+    <QueryClientProvider client={client}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+}
 
 describe("EventPage", () => {
   it("renders the narrow Guest landing path without family management queries", async () => {
@@ -101,48 +174,41 @@ describe("EventPage", () => {
         can_restore: false,
         can_create_album: false,
       },
-      albums: [
-        {
-          id: "album-1",
-          name: "Wedding photographs",
-          visibility: "family_space",
-          guest_participation: "view",
-        },
-      ],
+      albums: [],
       attendees: [],
     });
+    vi.mocked(getAlbums).mockResolvedValue([
+      {
+        id: "album-1",
+        name: "Wedding photographs",
+        description: null,
+        visibility: "family_space",
+        created_by: 1,
+        event_id: "event-1",
+        event: { id: "event-1", name: "Family wedding", starts_on: null },
+        guest_participation: "view",
+        photos: [],
+        grants: [],
+        permissions: { can_manage: false, can_contribute: false },
+      },
+    ]);
 
-    const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    const router = createMemoryRouter(
-      [
-        {
-          path: "/families/:familySlug/events/:eventId",
-          element: <EventPage />,
-        },
-      ],
-      { initialEntries: ["/families/family-archive/events/event-1"] },
-    );
-    render(
-      <QueryClientProvider client={client}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>,
-    );
+    renderEventPage();
 
     expect(
       await screen.findByRole("heading", { name: "Family wedding" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Wedding photographs" }),
+      screen.getByRole("link", { name: /Wedding photographs/ }),
     ).toHaveAttribute(
       "href",
       "/families/family-archive/albums/album-1?eventId=event-1",
     );
-    expect(screen.queryByText("Event access")).not.toBeInTheDocument();
-    expect(screen.queryByText("Possible duplicates")).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: "Back to Events" }),
+      screen.queryByRole("button", { name: "Invite people" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Edit event" }),
     ).not.toBeInTheDocument();
     expect(getDuplicateEventCandidates).not.toHaveBeenCalled();
     expect(getEventAdmissions).not.toHaveBeenCalled();
@@ -168,12 +234,11 @@ describe("EventPage", () => {
       name: "Family wedding",
       description: null,
       starts_on: "2026-08-25",
-      ends_on: null,
+      ends_on: "2026-08-28",
       location: "York",
       status: "active",
       created_by: 1,
       creator: { id: 1, name: "David" },
-      tags: [],
       permissions: {
         can_update: true,
         can_manage_admissions: true,
@@ -185,78 +250,123 @@ describe("EventPage", () => {
       },
       albums: [],
       attendees: [],
+      tags: [{ id: "tag-family", label: "Family" }],
     });
-    vi.mocked(getDuplicateEventCandidates).mockResolvedValue([]);
-    vi.mocked(getEventAdmissions).mockResolvedValue([]);
-    vi.mocked(getEventExports).mockResolvedValue([
+    vi.mocked(getEventAdmissions).mockResolvedValue([
       {
-        id: "export-1",
-        state: "ready",
-        requested_by: 1,
-        requester: { id: 1, name: "David" },
-        photo_count: 3,
-        byte_size: 1024,
-        archive_sha256: "a".repeat(64),
-        failure_reason: null,
-        expires_at: "2026-08-26T12:00:00Z",
-        created_at: "2026-08-25T12:00:00Z",
+        id: "admission-1",
+        membership_id: "membership-1",
+        user: {
+          id: 1,
+          name: "David Mercer",
+          email: "david@example.test",
+          person_id: "person-david",
+        },
+        role: "owner",
+        admitted_at: "2026-09-24T12:00:00Z",
+        revoked_at: null,
+        rsvp_status: "going",
+        valid_until: "2026-10-24T12:00:00Z",
       },
     ]);
-    vi.mocked(requestEventExport).mockResolvedValue({
-      id: "export-2",
-      state: "pending",
-      requested_by: 1,
-      requester: { id: 1, name: "David" },
-      photo_count: null,
-      byte_size: null,
-      archive_sha256: null,
-      failure_reason: null,
-      expires_at: null,
-      created_at: "2026-08-25T12:01:00Z",
-    });
 
-    const client = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
-    });
-    const router = createMemoryRouter(
-      [
-        {
-          path: "/families/:familySlug/events/:eventId",
-          element: <EventPage />,
-        },
-      ],
-      { initialEntries: ["/families/family-archive/events/event-1"] },
-    );
-    render(
-      <QueryClientProvider client={client}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>,
-    );
+    renderEventPage();
+    const user = userEvent.setup();
 
     expect(
-      await screen.findByRole("heading", { name: "Event archives" }),
-    ).toBeInTheDocument();
-    expect(
-      await screen.findByRole("option", { name: "Guest Mercer (guest)" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByLabelText("Admit an existing membership ID"),
-    ).not.toBeInTheDocument();
-    expect(
-      await screen.findByText(/Archive requested by David: ready/),
-    ).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Create Event archive" }),
-    );
-    await waitFor(() => {
-      expect(requestEventExport).toHaveBeenCalledWith(
-        "family-archive",
-        "event-1",
-      );
+      await screen.findByRole("link", { name: "View David Mercer" }),
+    ).toHaveAttribute("href", "/families/family-archive/people/person-david");
+    const inviteButtons = await screen.findAllByRole("button", {
+      name: "Invite people",
     });
+    await user.click(inviteButtons[0]);
+    expect(
+      await screen.findByRole("dialog", {
+        name: "Invite people to this Event",
+      }),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Remove David Mercer" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", {
+        name: "Search People or enter an email address",
+      }),
+      "Guest",
+    );
+    expect(screen.getByText("Guest Mercer")).toBeInTheDocument();
+    expect(screen.getByText("guest@example.test")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    expect(
+      screen.getByRole("combobox", { name: "Role for Guest Mercer" }),
+    ).toHaveValue("guest");
+    expect(
+      screen.getByRole("button", { name: "Send 1 invitation" }),
+    ).toBeEnabled();
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "Role for Guest Mercer" }),
+      "contributor",
+    );
+    expect(
+      screen.getByRole("combobox", { name: "Role for Guest Mercer" }),
+    ).toHaveValue("contributor");
+    await user.click(
+      screen.getByRole("button", { name: "Remove Guest Mercer" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Send 0 invitations" }),
+    ).toBeDisabled();
+    await user.type(
+      screen.getByRole("textbox", {
+        name: "Search People or enter an email address",
+      }),
+      "Guest",
+    );
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.click(screen.getByRole("button", { name: "Send 1 invitation" }));
+    expect(await screen.findByText("1 invitation sent")).toBeInTheDocument();
+    expect(admitEventMembership).toHaveBeenCalledWith(
+      "family-archive",
+      "event-1",
+      "membership-2",
+    );
+
+    await user.click(inviteButtons[0]);
+    await user.click(
+      screen.getByRole("button", { name: "Remove David Mercer" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", {
+        name: "Search People or enter an email address",
+      }),
+      "new.guest@example.test",
+    );
+    await user.click(screen.getByRole("button", { name: "Send 1 invitation" }));
+    expect(issueInvitation).toHaveBeenCalledWith("family-archive", {
+      email: "new.guest@example.test",
+      event_id: "event-1",
+    });
+
+    expect(screen.getByText("25–28 August 2026")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Write a story/i }),
+    ).toHaveAttribute(
+      "href",
+      "/families/family-archive/stories/new?type=event&subjectId=event-1",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Event options" }));
+    await user.click(
+      screen.getByRole("menuitem", { name: "Change cover photo" }),
+    );
+    expect(await screen.findByText("Cover picker opened")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Event options" }));
+    await user.click(screen.getByRole("menuitem", { name: "Delete event" }));
+    expect(
+      await screen.findByRole("dialog", { name: "Delete “Family wedding”?" }),
+    ).toBeInTheDocument();
   });
 
   it("renders persisted tags and adds and removes them through the Event update mutation", async () => {
@@ -295,28 +405,11 @@ describe("EventPage", () => {
       tags: [item.tags[0], { id: "tag-3", label: "Family holiday" }],
     });
 
-    const client = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
-    });
-    const router = createMemoryRouter(
-      [
-        {
-          path: "/families/:familySlug/events/:eventId",
-          element: <EventPage />,
-        },
-      ],
-      { initialEntries: ["/families/family-archive/events/event-1"] },
-    );
-    render(
-      <QueryClientProvider client={client}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>,
-    );
+    renderEventPage();
 
-    expect(await screen.findByText("Blackpool")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Blackpool", { selector: ".event-tag" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Seaside")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Add tag" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove Seaside" }));
@@ -360,26 +453,8 @@ describe("EventPage", () => {
       attendees: [],
     });
     vi.mocked(updateEvent).mockRejectedValue(new Error("save failed"));
-    const client = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
-    });
-    const router = createMemoryRouter(
-      [
-        {
-          path: "/families/:familySlug/events/:eventId",
-          element: <EventPage />,
-        },
-      ],
-      { initialEntries: ["/families/family-archive/events/event-1"] },
-    );
-    render(
-      <QueryClientProvider client={client}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>,
-    );
+
+    renderEventPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "Add tag" }));
     fireEvent.change(screen.getByLabelText("Add or reuse a tag"), {

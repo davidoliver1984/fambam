@@ -6,6 +6,7 @@ import {
   deleteCollection,
   getCollection,
   getCollections,
+  populateCollection,
   removeCollectionPhoto,
   requestCollectionExport,
 } from "../api/collectionApi";
@@ -32,6 +33,20 @@ export function useCreateCollectionMutation(familySlug: string) {
     mutationFn: (input: CollectionInput) => createCollection(familySlug, input),
     onSuccess: () =>
       client.invalidateQueries({ queryKey: collectionKeys.list(familySlug) }),
+  });
+}
+export function usePopulateCollectionMutation(
+  familySlug: string,
+  source: { type: "album" | "event"; id: string },
+) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (collectionId: string) =>
+      populateCollection(familySlug, collectionId, source.type, source.id),
+    onSuccess: (collection) =>
+      client.invalidateQueries({
+        queryKey: collectionKeys.detail(familySlug, collection.id),
+      }),
   });
 }
 export function useCollectionMutations(

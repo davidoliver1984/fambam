@@ -11,6 +11,7 @@ use App\Media\FamilyMediaStorageCleaner;
 use App\Media\MediaObjectStorage;
 use App\Models\FamilySpace;
 use App\Models\User;
+use App\PhotoEditing\PhotoEditRenderer;
 use App\Storage\FamilyStorageKey;
 use App\Stories\RichTextDocument;
 use App\Stories\StoryWriter;
@@ -35,6 +36,7 @@ final class DemoFamilyBuilder
         private readonly DemoFamilyGuard $guard,
         private readonly DemoArchiveImage $images,
         private readonly MediaObjectStorage $storage,
+        private readonly PhotoEditRenderer $photoEditRenderer,
         private readonly FamilyMediaStorageCleaner $storageCleaner,
         private readonly DatabaseTenantContext $databaseTenantContext,
         private readonly RichTextDocument $documents,
@@ -88,6 +90,13 @@ final class DemoFamilyBuilder
             }
             $summary = $this->summary($existing, $users['owner']);
             if ($this->isComplete($summary)) {
+                DB::transaction(function () use ($existing, $users): void {
+                    $this->databaseTenantContext->establishUser($users['owner']);
+                    $this->databaseTenantContext->establishFamilySpace($existing);
+                    $this->repairMediaObjects($existing->id);
+                    $this->repairPhotoVersionObjects($existing->id);
+                });
+
                 return $summary + ['created' => false];
             }
 
@@ -254,12 +263,15 @@ final class DemoFamilyBuilder
         $ids = [];
         foreach (array_values($definitions) as $offset => $definition) {
             [$key, $values] = [array_keys($definitions)[$offset], $definition];
+            $description = $key === 'birthday'
+                ? "Three generations gathered at Riverside Pavilion to celebrate William's eightieth birthday with old photographs, favourite songs and stories from across the years.\n\nThe afternoon stretched into a warm evening of cake, speeches and laughter, while the younger cousins collected memories to add to the family archive."
+                : 'A landmark in the fictional Mercer family history.';
             $ids[$key] = (string) Str::ulid();
             $this->insert('events', [
                 'id' => $ids[$key], 'family_space_id' => $familyId, 'created_by' => $users[$offset % 3 === 0 ? 'owner' : ($offset % 3 === 1 ? 'admin' : 'member')]->id,
                 'name' => $values[0],
-                'description' => $this->documentJson('A landmark in the fictional Mercer family history.'),
-                'description_plain_text' => 'A landmark in the fictional Mercer family history.',
+                'description' => $this->documentJson($description),
+                'description_plain_text' => $description,
                 'starts_on' => $values[1], 'ends_on' => $values[2], 'location' => $values[3], 'status' => 'completed',
             ], $anchor->subDays(24 - $offset));
         }
@@ -462,6 +474,104 @@ final class DemoFamilyBuilder
                 'mime_type' => 'image/png', 'sha256' => $hash, 'pixel_width' => $width,
                 'pixel_height' => $height, 'byte_size' => strlen($bytes),
             ], $createdAt);
+        }
+    }
+
+    private function repairMediaObjects(string $familyId): void
+    {
+        $uploads = DB::table('media_uploads')
+            ->where('family_space_id', $familyId)
+            ->where('client_filename', 'like', 'mercer-demo-%')
+            ->get(['id', 'client_filename', 'original_object_key', 'canonical_object_key']);
+
+        foreach ($uploads as $upload) {
+            if (preg_match('/mercer-demo-(\d+)\.png$/', (string) $upload->client_filename, $matches) !== 1) {
+                continue;
+            }
+
+            $photoId = DB::table('photos')
+                ->where('family_space_id', $familyId)
+                ->where('media_upload_id', $upload->id)
+                ->value('id');
+            if ($photoId === null) {
+                continue;
+            }
+
+            $scene = (int) $matches[1];
+            $people = DB::table('photo_people')
+                ->where('family_space_id', $familyId)
+                ->where('photo_id', $photoId)
+                ->count();
+            $main = $this->images->make($scene, 768, 512, $people);
+            $thumb = $this->images->make($scene, 320, 320, $people);
+
+            $this->putIfMissing((string) $upload->original_object_key, $main);
+            $this->putIfMissing((string) $upload->canonical_object_key, $main);
+
+            $variants = DB::table('media_variants')
+                ->where('family_space_id', $familyId)
+                ->where('media_upload_id', $upload->id)
+                ->get(['transform_name', 'object_key']);
+            foreach ($variants as $variant) {
+                $bytes = $variant->transform_name === 'thumbnail' ? $thumb : $main;
+                $this->putIfMissing((string) $variant->object_key, $bytes);
+            }
+        }
+    }
+
+    private function putIfMissing(string $key, string $bytes): void
+    {
+        if ($this->storage->inspect($key) !== null) {
+            return;
+        }
+
+        $this->put($key, $bytes, hash('sha256', $bytes));
+    }
+
+    private function repairPhotoVersionObjects(string $familyId): void
+    {
+        $versions = DB::table('photo_versions')
+            ->join('photos', function ($join): void {
+                $join->on('photos.id', '=', 'photo_versions.photo_id')
+                    ->on('photos.family_space_id', '=', 'photo_versions.family_space_id');
+            })
+            ->join('media_uploads', function ($join): void {
+                $join->on('media_uploads.id', '=', 'photos.media_upload_id')
+                    ->on('media_uploads.family_space_id', '=', 'photos.family_space_id');
+            })
+            ->where('photo_versions.family_space_id', $familyId)
+            ->get([
+                'photo_versions.edit_recipe',
+                'photo_versions.restore',
+                'photo_versions.derived_object_key',
+                'media_uploads.canonical_object_key',
+            ]);
+
+        foreach ($versions as $version) {
+            $derivedKey = (string) $version->derived_object_key;
+            if ($this->storage->inspect($derivedKey) !== null) {
+                continue;
+            }
+
+            $canonicalPath = tempnam(sys_get_temp_dir(), 'fambam-demo-repair-');
+            if ($canonicalPath === false) {
+                throw new RuntimeException('Could not create a temporary demo repair file.');
+            }
+            try {
+                $this->storage->downloadTo((string) $version->canonical_object_key, $canonicalPath);
+                $recipe = json_decode((string) $version->edit_recipe, true, flags: JSON_THROW_ON_ERROR);
+                $restore = $version->restore === null
+                    ? null
+                    : json_decode((string) $version->restore, true, flags: JSON_THROW_ON_ERROR);
+                $output = $this->photoEditRenderer->render($canonicalPath, $recipe, $restore);
+                try {
+                    $this->storage->finalizeWriteOnce($output->path, $derivedKey, $output->sha256);
+                } finally {
+                    @unlink($output->path);
+                }
+            } finally {
+                @unlink($canonicalPath);
+            }
         }
     }
 

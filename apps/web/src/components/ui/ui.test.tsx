@@ -10,6 +10,7 @@ import {
   ButtonLink,
   ConfirmDialog,
   ContextMenu,
+  Dialog,
   PageHeader,
   ProductFooter,
   StatusPanel,
@@ -92,10 +93,63 @@ describe("shared visual primitives", () => {
     );
     const trigger = screen.getByRole("button", { name: "Event options" });
     await userEvent.click(trigger);
-    expect(screen.getByRole("menu")).toBeVisible();
+    const menu = screen.getByRole("menu");
+    expect(menu).toBeVisible();
+    expect(menu.parentElement).toBe(document.body);
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
+  });
+
+  it("moves through context menu actions with the keyboard", async () => {
+    render(
+      <ContextMenu label="Photo options">
+        <button type="button">Add to album</button>
+        <button type="button">Edit photo</button>
+        <button type="button">Delete photo</button>
+      </ContextMenu>,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Photo options" }),
+    );
+    const add = screen.getByRole("menuitem", { name: "Add to album" });
+    const edit = screen.getByRole("menuitem", { name: "Edit photo" });
+    const remove = screen.getByRole("menuitem", { name: "Delete photo" });
+    expect(add).toHaveFocus();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(edit).toHaveFocus();
+    await userEvent.keyboard("{End}");
+    expect(remove).toHaveFocus();
+    await userEvent.keyboard("{Home}");
+    expect(add).toHaveFocus();
+  });
+
+  it("traps focus in a dialog and restores the opener", async () => {
+    const onClose = vi.fn();
+    const opener = document.createElement("button");
+    document.body.append(opener);
+    opener.focus();
+    const { rerender } = render(
+      <Dialog open title="Edit event" onClose={onClose}>
+        <input aria-label="Event name" />
+        <button type="button">Save</button>
+      </Dialog>,
+    );
+
+    expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
+    await userEvent.tab();
+    expect(screen.getByRole("textbox", { name: "Event name" })).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+    expect(onClose).toHaveBeenCalledOnce();
+
+    rerender(
+      <Dialog open={false} title="Edit event" onClose={onClose}>
+        <input aria-label="Event name" />
+      </Dialog>,
+    );
+    expect(opener).toHaveFocus();
+    opener.remove();
   });
 
   it("provides a focus-managed destructive confirmation", async () => {

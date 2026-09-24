@@ -3,12 +3,18 @@ import { type ApiEnvelope, unwrap } from "@/api/envelope";
 
 import type { LoveSummary, LoveTarget } from "../types/love";
 
+const targetSegments: Record<LoveTarget, string> = {
+  album: "albums",
+  event: "events",
+  story: "stories",
+};
+
 function path(
   familySlug: string,
   targetType: LoveTarget,
   targetId: string,
 ): string {
-  return `/api/families/${encodeURIComponent(familySlug)}/${targetType}s/${encodeURIComponent(targetId)}/love`;
+  return `/api/families/${encodeURIComponent(familySlug)}/${targetSegments[targetType]}/${encodeURIComponent(targetId)}/love`;
 }
 
 export async function getLoveSummary(

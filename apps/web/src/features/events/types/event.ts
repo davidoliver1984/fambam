@@ -39,7 +39,7 @@ export type FamilyEvent = {
 export type EventAdmission = {
   id: string;
   membership_id: string;
-  user: { id: number; name: string; email: string };
+  user: { id: number; name: string; email: string; person_id?: string | null };
   role: "owner" | "administrator" | "member" | "contributor" | "guest";
   admitted_at: string;
   revoked_at: string | null;

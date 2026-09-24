@@ -1,5 +1,5 @@
 import { useState, type SyntheticEvent } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import { useAlbumsQuery } from "@/features/albums/hooks/useAlbumQueries";
 import { useEventsQuery } from "@/features/events/hooks/useEventQueries";
@@ -13,8 +13,18 @@ import type { FamilyEntity } from "@/navigation/familyEntityPath";
 export function CreateStoryPage() {
   const { familySlug = "" } = useParams();
   const navigate = useNavigate();
-  const [type, setType] = useState<FamilyEntity["type"]>("person");
-  const [subjectId, setSubjectId] = useState("");
+  const [search] = useSearchParams();
+  const requestedType = search.get("type");
+  const initialType: FamilyEntity["type"] = [
+    "person",
+    "photo",
+    "album",
+    "event",
+  ].includes(requestedType ?? "")
+    ? (requestedType as FamilyEntity["type"])
+    : "person";
+  const [type, setType] = useState<FamilyEntity["type"]>(initialType);
+  const [subjectId, setSubjectId] = useState(search.get("subjectId") ?? "");
   const [body, setBody] = useState("");
   const people = usePeopleQuery(familySlug, type === "person");
   const photos = usePhotosQuery(familySlug, {}, type === "photo");

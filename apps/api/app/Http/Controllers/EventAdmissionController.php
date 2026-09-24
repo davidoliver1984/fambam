@@ -24,7 +24,7 @@ class EventAdmissionController extends Controller
         Gate::authorize('manageAdmissions', $target);
 
         return response()->json(['data' => EventAdmission::query()
-            ->with('membership.user:id,name,email')->where('event_id', $target->id)
+            ->with('membership.user.personAccountLinks:id,family_space_id,user_id,person_id')->where('event_id', $target->id)
             ->orderByDesc('admitted_at')->get()->map($this->payload(...))]);
     }
 
@@ -97,11 +97,14 @@ class EventAdmissionController extends Controller
     /** @return array<string, mixed> */
     private function payload(EventAdmission $admission): array
     {
-        $admission->loadMissing('membership.user:id,name,email');
+        $admission->loadMissing('membership.user.personAccountLinks:id,family_space_id,user_id,person_id');
+
+        $personId = $admission->membership->user->personAccountLinks
+            ->firstWhere('family_space_id', $admission->family_space_id)?->person_id;
 
         return ['id' => $admission->id, 'membership_id' => $admission->family_space_membership_id,
             'user' => ['id' => $admission->membership->user->id, 'name' => $admission->membership->user->name,
-                'email' => $admission->membership->user->email],
+                'email' => $admission->membership->user->email, 'person_id' => $personId],
             'role' => $admission->membership->role->value, 'admitted_at' => $admission->admitted_at->toAtomString(),
             'revoked_at' => $admission->revoked_at?->toAtomString(),
             'rsvp_status' => $admission->rsvp_status,

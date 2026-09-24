@@ -21,6 +21,7 @@
   --header-text: #fff9f3;
   --focus-ring: #c68552;
   --powder: #dbe6e3;
+  --context-menu-hover: #e9f2f6;
   --status-danger: #8a2730;
   --status-danger-surface: #f7e7e7;
   --status-success: #386641;
@@ -70,6 +71,7 @@
   --header-text: #fff5eb;
   --focus-ring: #f0bc96;
   --powder: #2d403d;
+  --context-menu-hover: #24343c;
   --status-danger: #f0a3a9;
   --status-danger-surface: #3a2022;
   --status-success: #a8d5ad;

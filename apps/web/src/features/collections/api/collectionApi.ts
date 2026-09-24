@@ -57,6 +57,20 @@ export async function addCollectionPhoto(
     ),
   );
 }
+export async function populateCollection(
+  familySlug: string,
+  collectionId: string,
+  sourceType: "album" | "event",
+  sourceId: string,
+): Promise<FamilyCollection> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.post<ApiEnvelope<FamilyCollection>>(
+      `${path(familySlug, collectionId)}/populate`,
+      { source_type: sourceType, source_id: sourceId },
+    ),
+  );
+}
 export async function removeCollectionPhoto(
   familySlug: string,
   collectionId: string,

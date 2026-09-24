@@ -30,9 +30,20 @@ export function PhotoPresentationImage({
   const delivery = usePhotoVersionDeliveryQuery(familySlug, photoId, activeId);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
 
-  if (versions.isPending) return <p role="status">Loading photograph…</p>;
-  if (versions.isError)
-    return <p role="alert">This photograph is currently unavailable.</p>;
+  if (versions.isPending) {
+    return (
+      <div className={`${className ?? ""} media-image-state`} role="status">
+        Loading photograph…
+      </div>
+    );
+  }
+  if (versions.isError) {
+    return (
+      <div className={`${className ?? ""} media-image-state`} role="alert">
+        This photograph is currently unavailable.
+      </div>
+    );
+  }
   if (activeId === null) {
     return (
       <MediaVariantImage
@@ -44,10 +55,20 @@ export function PhotoPresentationImage({
       />
     );
   }
-  if (delivery.isPending)
-    return <p role="status">Loading edited photograph…</p>;
-  if (delivery.isError || failedUrl === delivery.data.url)
-    return <p role="alert">The edited photograph is unavailable.</p>;
+  if (delivery.isPending) {
+    return (
+      <div className={`${className ?? ""} media-image-state`} role="status">
+        Loading edited photograph…
+      </div>
+    );
+  }
+  if (delivery.isError || failedUrl === delivery.data.url) {
+    return (
+      <div className={`${className ?? ""} media-image-state`} role="alert">
+        The edited photograph is unavailable.
+      </div>
+    );
+  }
 
   return (
     <img

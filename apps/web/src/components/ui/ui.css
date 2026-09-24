@@ -301,35 +301,61 @@
 }
 
 .ui-context-menu__panel {
-  position: absolute;
-  z-index: 40;
-  top: calc(100% + var(--space-2));
-  right: 0;
+  position: fixed;
+  z-index: 50;
+  box-sizing: border-box;
   display: grid;
-  min-width: 13rem;
-  padding: var(--space-2);
+  width: min(14rem, calc(100vw - 1rem));
+  min-width: 14rem;
+  padding: 0.4375rem;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-control);
-  background: var(--surface-overlay);
-  box-shadow: var(--shadow-soft);
+  border-radius: 0.8125rem;
+  background: var(--surface-raised);
+  box-shadow: 0 1.25rem 3.25rem rgb(45 31 23 / 20%);
+  color: var(--text-primary);
+  font-family: var(--font-interface);
+  font-weight: 400;
+}
+
+.ui-context-menu__panel * {
+  box-sizing: border-box;
 }
 
 .ui-context-menu__panel > :is(a, button) {
-  min-height: 2.5rem;
-  padding: 0.6rem 0.75rem;
+  display: flex;
+  min-height: 2.375rem;
+  align-items: center;
+  gap: 0.5625rem;
+  padding: 0.5rem 0.625rem;
   border: 0;
-  border-radius: calc(var(--radius-control) - 0.2rem);
+  border-radius: 0.5rem;
   background: transparent;
   color: var(--text-primary);
-  font: inherit;
+  font-family: var(--font-interface);
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.25;
   text-align: left;
   text-decoration: none;
+  white-space: normal;
   cursor: pointer;
 }
 
 .ui-context-menu__panel > :is(a, button):hover,
 .ui-context-menu__panel > :is(a, button):focus-visible {
-  background: var(--surface-subtle);
+  background: var(--context-menu-hover);
+  color: var(--text-primary);
+}
+
+.ui-context-menu__panel > :is(a, button) svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  stroke-width: 1.9;
+}
+
+[data-theme="dark"] .ui-context-menu__panel {
+  box-shadow: 0 1.25rem 3.25rem rgb(0 0 0 / 42%);
 }
 
 .ui-dialog-backdrop {
@@ -357,6 +383,45 @@
   margin-top: 0;
   font-family: var(--font-editorial);
   font-size: 2rem;
+}
+
+.ui-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ui-dialog__header h2 {
+  margin-bottom: 0.5rem;
+}
+
+.ui-dialog__header p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.ui-dialog__close {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: none;
+  place-items: center;
+  border: 1px solid var(--border-subtle);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.ui-dialog__close:hover,
+.ui-dialog__close:focus-visible {
+  background: var(--surface-subtle);
+}
+
+.ui-dialog__close svg {
+  width: 1rem;
+  height: 1rem;
 }
 
 .ui-product-footer {

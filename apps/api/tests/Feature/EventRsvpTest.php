@@ -11,6 +11,7 @@ use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\Person;
+use App\Models\PersonAccountLink;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -85,6 +86,42 @@ class EventRsvpTest extends TestCase
         $this->actingAs($owner)->postJson("{$base}/admissions", ['membership_id' => $membership->id])
             ->assertCreated()->assertJsonPath('data.rsvp_status', 'pending')
             ->assertJsonPath('data.rsvp_responded_at', null);
+    }
+
+    public function test_any_active_family_member_with_an_event_admission_can_rsvp(): void
+    {
+        Notification::fake();
+        [$family, $owner, $event] = $this->event();
+        $ownerMembership = FamilySpaceMembership::query()
+            ->where('family_space_id', $family->id)
+            ->where('user_id', $owner->id)
+            ->firstOrFail();
+        $this->admit($family, $event, $ownerMembership);
+
+        $this->actingAs($owner)
+            ->patchJson("/api/families/{$family->slug}/events/{$event->id}/rsvp", ['status' => 'going'])
+            ->assertOk()
+            ->assertJsonPath('data.rsvp_status', 'going');
+    }
+
+    public function test_admission_payload_includes_the_linked_person_page(): void
+    {
+        Notification::fake();
+        [$family, $owner, $event] = $this->event();
+        [$guest, $membership] = $this->member($family, FamilySpaceRole::Guest);
+        $person = Person::factory()->create(['family_space_id' => $family->id]);
+        PersonAccountLink::query()->create([
+            'family_space_id' => $family->id,
+            'person_id' => $person->id,
+            'user_id' => $guest->id,
+            'created_by' => $owner->id,
+        ]);
+        $this->admit($family, $event, $membership);
+
+        $this->actingAs($owner)
+            ->getJson("/api/families/{$family->slug}/events/{$event->id}/admissions")
+            ->assertOk()
+            ->assertJsonPath('data.0.user.person_id', $person->id);
     }
 
     public function test_first_response_notifies_only_the_event_organiser_without_activity(): void

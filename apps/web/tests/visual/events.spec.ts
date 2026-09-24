@@ -24,6 +24,7 @@ const events = [
     status: "completed",
     created_by: 1,
     creator: { id: 1, name: "David" },
+    tags: [],
     permissions,
     presentation: {
       preview: { photo_id: "photo-1", media_upload_id: "upload-1" },
@@ -44,6 +45,12 @@ const events = [
     status: "completed",
     created_by: 1,
     creator: { id: 1, name: "David" },
+    tags: [
+      { id: "tag-blackpool", label: "Blackpool" },
+      { id: "tag-seaside", label: "Seaside" },
+      { id: "tag-family-holiday", label: "Family holiday" },
+      { id: "tag-1986", label: "1986" },
+    ],
     permissions,
     albums: [
       {
@@ -109,6 +116,11 @@ async function mockEvents(page: Page) {
       };
     } else if (path.endsWith("/events/blackpool/love")) {
       data = { count: 12, loved_by_me: false, reactors: [] };
+    } else if (path.endsWith("/search")) {
+      const group = new URL(route.request().url()).searchParams.get("group");
+      data = {
+        [group ?? "photos"]: { items: [], next_cursor: null },
+      };
     } else if (path.endsWith("/events/blackpool")) {
       data = events[1];
     } else if (path.endsWith("/events")) {

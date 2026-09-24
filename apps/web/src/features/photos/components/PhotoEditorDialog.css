@@ -1,0 +1,587 @@
+.ui-dialog.photo-editor-dialog {
+  position: relative;
+  width: min(73.75rem, calc(100vw - 1.75rem)) !important;
+  max-width: 73.75rem !important;
+  height: min(49.375rem, calc(100vh - 1.75rem));
+  max-height: calc(100vh - 1.75rem) !important;
+  padding: 0 !important;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid #d7c9bd;
+  border-radius: 1.25rem;
+  background: var(--surface-raised);
+  box-shadow: 0 1.875rem 5.625rem rgb(32 24 20 / 32%);
+}
+
+.photo-editor-dialog > .ui-dialog__header {
+  height: 5.375rem;
+  align-items: center;
+  padding: 0 1.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-page);
+}
+
+.photo-editor-dialog > .ui-dialog__header > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.photo-editor-dialog > .ui-dialog__header .ui-dialog__eyebrow {
+  order: -1;
+  margin: 0;
+}
+
+.photo-editor-dialog > .ui-dialog__header h2 {
+  margin: 0.3125rem 0 0;
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
+.family-shell
+  .shell-content
+  .photo-editor-dialog
+  > .ui-dialog__header
+  .ui-dialog__close {
+  position: static;
+  width: 2.4375rem;
+  height: 2.4375rem;
+  min-height: 2.4375rem;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 50%;
+  background: var(--surface-raised);
+}
+
+.family-shell
+  .shell-content
+  .photo-editor-dialog
+  > .ui-dialog__header
+  .ui-dialog__close:hover:not(:disabled) {
+  border: 1px solid #b9ced8;
+  border-color: #b9ced8;
+  background: var(--event-accent-soft);
+  transform: none;
+}
+
+.photo-editor-body {
+  display: grid;
+  height: calc(100% - 11.125rem);
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) 21.625rem;
+  background: #262321;
+}
+
+.editor-workspace {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) 5.125rem;
+}
+
+.editor-canvas {
+  position: relative;
+  display: grid;
+  min-height: 0;
+  place-items: center;
+  overflow: hidden;
+  padding: 2rem 2.375rem;
+  background: radial-gradient(
+    circle at 50% 42%,
+    #46413d 0,
+    #2a2724 62%,
+    #211f1d 100%
+  );
+}
+
+.editor-image {
+  position: relative;
+  display: grid;
+  width: min(47.5rem, 100%);
+  height: 100%;
+  max-height: 30.625rem;
+  overflow: hidden;
+  place-items: center;
+  transform-origin: center;
+  transition:
+    filter 0.18s,
+    transform 0.22s;
+}
+
+.editor-image img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  clip-path: inset(1%);
+  object-fit: contain;
+  transform: scale(1.02);
+}
+
+.editor-image.crop-active {
+  outline: 2px solid rgb(255 255 255 / 90%);
+  outline-offset: -2px;
+}
+
+.crop-grid {
+  position: absolute;
+  width: min(70%, 45rem);
+  aspect-ratio: 1.58;
+  border: 1px solid rgb(255 255 255 / 92%);
+  box-shadow: 0 0 0 999px rgb(17 14 12 / 30%);
+  pointer-events: none;
+}
+
+.crop-grid::before,
+.crop-grid::after,
+.crop-grid i::before,
+.crop-grid i::after {
+  position: absolute;
+  content: "";
+  background: rgb(255 255 255 / 42%);
+}
+
+.crop-grid::before {
+  inset: 0 auto 0 33.333%;
+  width: 1px;
+}
+.crop-grid::after {
+  inset: 0 33.333% 0 auto;
+  width: 1px;
+}
+.crop-grid i:first-child::before {
+  inset: 33.333% 0 auto;
+  height: 1px;
+}
+.crop-grid i:first-child::after {
+  inset: auto 0 33.333%;
+  height: 1px;
+}
+.crop-grid i:nth-child(n + 2) {
+  position: absolute;
+  width: 0.6875rem;
+  height: 0.6875rem;
+  border: 2px solid #fff;
+}
+.crop-grid i:nth-child(2) {
+  top: -0.3125rem;
+  left: -0.3125rem;
+}
+.crop-grid i:nth-child(3) {
+  top: -0.3125rem;
+  right: -0.3125rem;
+}
+.crop-grid i:nth-child(4) {
+  right: -0.3125rem;
+  bottom: -0.3125rem;
+}
+
+.editor-tools {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3125rem;
+  padding: 0.625rem 0.875rem;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+  background: #1f1d1b;
+}
+
+.editor-tools button {
+  display: grid;
+  min-width: 4.75rem;
+  height: 3.75rem;
+  place-items: center;
+  align-content: center;
+  gap: 0.3125rem;
+  border: 1px solid transparent;
+  border-radius: 0.625rem;
+  background: transparent;
+  color: rgb(255 255 255 / 74%);
+  font-size: 0.66rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.family-shell .shell-content .photo-editor-dialog .editor-tools button {
+  min-height: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 0.625rem;
+  background: transparent;
+  color: rgb(255 255 255 / 74%);
+  transform: none;
+}
+
+.editor-tools button:hover,
+.editor-tools button.active {
+  border-color: rgb(255 255 255 / 16%);
+  background: rgb(255 255 255 / 9%);
+  color: #fff;
+}
+
+.family-shell
+  .shell-content
+  .photo-editor-dialog
+  .editor-tools
+  button:hover:not(:disabled),
+.family-shell .shell-content .photo-editor-dialog .editor-tools button.active {
+  border-color: rgb(255 255 255 / 16%);
+  background: rgb(255 255 255 / 9%);
+  color: #fff;
+  transform: none;
+}
+
+.editor-tools svg {
+  width: 1.1875rem;
+  height: 1.1875rem;
+}
+
+.editor-panel {
+  min-height: 0;
+  overflow: auto;
+  border-left: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+}
+
+.editor-tabs {
+  display: grid;
+  height: 3.875rem;
+  grid-template-columns: 1fr 1fr;
+  padding: 0 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.editor-tabs button {
+  position: relative;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.family-shell .shell-content .photo-editor-dialog .editor-tabs button {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.family-shell
+  .shell-content
+  .photo-editor-dialog
+  .editor-tabs
+  button:hover:not(:disabled) {
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  transform: none;
+}
+
+.editor-tabs button.active {
+  color: var(--accent);
+}
+
+.family-shell .shell-content .photo-editor-dialog .editor-tabs button.active {
+  color: var(--accent);
+}
+.editor-tabs button.active::after {
+  position: absolute;
+  right: 0.625rem;
+  bottom: -1px;
+  left: 0.625rem;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent);
+  content: "";
+}
+.editor-controls,
+.editor-filter-panel {
+  padding: 1.5rem 1.5625rem 1.75rem;
+}
+.editor-panel-intro {
+  margin: 0 0 1.5rem;
+  color: var(--text-muted);
+  font-family: var(--font-editorial);
+  font-size: 0.9rem;
+  font-style: italic;
+  line-height: 1.55;
+}
+.editor-slider {
+  display: block;
+  margin: 0 0 1.5625rem;
+}
+.editor-slider > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.625rem;
+}
+.editor-slider b {
+  font-size: 0.78rem;
+}
+.editor-slider output {
+  min-width: 2.625rem;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-align: right;
+}
+.editor-slider input {
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.filter-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.filter-options button {
+  min-width: 0;
+  padding: 0.4375rem 0.4375rem 0.5625rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.6875rem;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.filter-options button:hover,
+.filter-options button.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgb(135 76 52 / 10%);
+}
+.filter-options button > span {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1.32;
+  overflow: hidden;
+  border-radius: 0.4375rem;
+  background: #ddd;
+}
+.filter-options button img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.04);
+}
+.filter-options button b {
+  display: block;
+  margin: 0.5rem 0.125rem 0.0625rem;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+.filter-options .filter-bw img {
+  filter: grayscale(1);
+}
+.filter-options .filter-sepia img {
+  filter: sepia(0.68);
+}
+.filter-options .filter-warm img {
+  filter: sepia(0.22) saturate(1.25);
+}
+.filter-options .filter-cool img {
+  filter: hue-rotate(15deg) saturate(1.12);
+}
+.filter-options .filter-sharpen img {
+  filter: contrast(1.18) saturate(1.08);
+}
+.filter-intensity {
+  margin-top: 1.5rem;
+  padding-top: 1.375rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.photo-editor-footer {
+  display: flex;
+  min-height: 5.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1rem 1.5625rem;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-page);
+}
+
+.editor-reassurance {
+  display: flex;
+  align-items: center;
+  gap: 0.6875rem;
+}
+.editor-reassurance > svg {
+  width: 2.125rem;
+  height: 2.125rem;
+  padding: 0.5rem;
+  border-radius: 50%;
+  background: #e6f0ea;
+  color: #5e7c68;
+}
+.editor-reassurance b,
+.editor-reassurance small {
+  display: block;
+}
+.editor-reassurance b {
+  font-family: var(--font-editorial);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+.editor-reassurance small {
+  margin-top: 0.1875rem;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+.editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.editor-actions button {
+  display: flex;
+  min-height: 2.5625rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4375rem;
+  padding: 0.5625rem 1rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.family-shell .shell-content .photo-editor-dialog .editor-actions button {
+  min-height: 2.5625rem;
+  padding: 0.5625rem 1rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.78rem;
+}
+.family-shell .shell-content .photo-editor-dialog .editor-cancel,
+.family-shell
+  .shell-content
+  .photo-editor-dialog
+  .editor-cancel:hover:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+  transform: none;
+}
+.editor-reset {
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.family-shell .shell-content .photo-editor-dialog .editor-reset,
+.family-shell
+  .shell-content
+  .photo-editor-dialog
+  .editor-reset:hover:not(:disabled) {
+  border-color: var(--border-subtle);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  transform: none;
+}
+.editor-save {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.family-shell .shell-content .photo-editor-dialog .editor-save {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.editor-actions svg {
+  width: 0.9375rem;
+}
+.editor-save:hover {
+  background: var(--accent-hover);
+}
+.family-shell
+  .shell-content
+  .photo-editor-dialog
+  .editor-save:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+  color: #fff;
+  transform: none;
+}
+.photo-editor-error {
+  margin: 0;
+  padding: 0.5rem 1.5rem;
+  color: var(--status-danger);
+}
+
+@media (max-width: 56.25rem) {
+  .photo-editor-body {
+    grid-template-columns: minmax(0, 1fr) 19.375rem;
+  }
+  .editor-canvas {
+    padding: 1.5625rem;
+  }
+  .editor-tools {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+  .editor-tools button {
+    min-width: 4.375rem;
+  }
+}
+
+@media (max-width: 43.75rem) {
+  .ui-dialog.photo-editor-dialog {
+    width: 100%;
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  .photo-editor-dialog > .ui-dialog__header {
+    height: 4.5rem;
+    padding: 0 1.0625rem;
+  }
+  .photo-editor-eyebrow {
+    top: 0.7rem;
+    left: 1.0625rem;
+  }
+  .photo-editor-body {
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    background: var(--surface-raised);
+  }
+  .editor-workspace {
+    flex: none;
+    grid-template-rows: 42vh 4.6875rem;
+  }
+  .editor-canvas {
+    padding: 1.125rem;
+  }
+  .editor-panel {
+    flex: none;
+    overflow: visible;
+    border-top: 1px solid var(--border-subtle);
+    border-left: 0;
+  }
+  .filter-options {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5625rem;
+  }
+  .photo-editor-footer {
+    min-height: 8rem;
+    align-items: stretch;
+    flex-direction: column;
+    padding: 0.8125rem 1rem;
+  }
+  .editor-reassurance {
+    order: 2;
+  }
+  .editor-actions {
+    width: 100%;
+  }
+  .editor-actions button {
+    flex: 1;
+  }
+}

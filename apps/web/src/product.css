@@ -52,6 +52,7 @@
 .family-shell .shell-content .journey-action:hover {
   border-color: var(--accent-hover);
   background: var(--accent-hover);
+  color: #fff;
   text-decoration: none;
 }
 
@@ -62,7 +63,11 @@
 
 .family-shell
   .shell-content
-  :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  :where(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select,
+    textarea
+  ) {
   width: 100%;
   min-height: 2.75rem;
   padding: 0.7rem 0.8rem;
@@ -289,6 +294,95 @@
 
 .love-control {
   box-shadow: none;
+}
+
+.love-button {
+  position: relative;
+}
+
+.family-shell .shell-content .love-control .love-button:hover:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
+  transform: none;
+}
+
+.family-shell
+  .shell-content
+  .love-control
+  .love-button:hover:not(:disabled)
+  .love-button__heart {
+  color: #d47a70;
+}
+
+.love-button__heart {
+  width: 1.0625rem;
+  height: 1.0625rem;
+  flex: none;
+}
+
+.love-button.loved {
+  color: #b23d46 !important;
+}
+
+[data-theme="dark"] .love-button.loved {
+  color: var(--status-danger) !important;
+}
+
+.love-sprite {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.love-sprite b {
+  position: absolute;
+  left: 50%;
+  top: 35%;
+  opacity: 0;
+  color: #d64e59;
+  font-size: 0.55rem;
+}
+
+.love-button.loved .love-sprite b {
+  animation: love-pop 0.7s ease-out forwards;
+}
+
+.love-button.loved .love-sprite b:nth-child(2) {
+  animation-delay: 0.05s;
+  --tx: 17px;
+  --ty: -18px;
+}
+
+.love-button.loved .love-sprite b:nth-child(3) {
+  animation-delay: 0.09s;
+  --tx: -17px;
+  --ty: -16px;
+}
+
+.love-button.loved .love-sprite b:nth-child(4) {
+  animation-delay: 0.13s;
+  --tx: 7px;
+  --ty: -27px;
+}
+
+@keyframes love-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.3);
+  }
+  28% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--tx, 0px)), var(--ty, -22px)) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .love-button.loved .love-sprite b {
+    animation: none !important;
+  }
 }
 
 .danger-action {

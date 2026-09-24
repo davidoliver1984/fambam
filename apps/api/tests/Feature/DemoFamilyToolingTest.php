@@ -85,6 +85,9 @@ final class DemoFamilyToolingTest extends TestCase
         [$privateFamily, $privateOwner] = $this->privateFamily();
 
         $first = $this->app->make(DemoFamilyBuilder::class)->seed();
+        $missingObject = array_key_first($this->storage->objects);
+        $this->assertNotNull($missingObject);
+        unset($this->storage->objects[$missingObject]);
         $second = $this->app->make(DemoFamilyBuilder::class)->seed();
 
         $this->assertTrue($first['created']);

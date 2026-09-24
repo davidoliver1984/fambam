@@ -36,9 +36,6 @@ final class DemoArchiveImage
                         $rgb = $palettes[($scene + $person + 2) % count($palettes)][1];
                     }
                 }
-                if ($x < 5 || $y < 5 || $x >= $width - 5 || $y >= $height - 5) {
-                    $rgb = [238, 229, 207];
-                }
                 $row .= chr(max(0, min(255, $rgb[0] + $grain)))
                     .chr(max(0, min(255, $rgb[1] + $grain)))
                     .chr(max(0, min(255, $rgb[2] + $grain)));

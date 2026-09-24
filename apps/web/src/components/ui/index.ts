@@ -4,6 +4,7 @@ export { Breadcrumbs, type BreadcrumbItem } from "./Breadcrumbs";
 export { Button, ButtonLink, type ButtonVariant } from "./Button";
 export { ConfirmDialog } from "./ConfirmDialog";
 export { ContextMenu } from "./ContextMenu";
+export { Dialog } from "./Dialog";
 export { EntityLink, type EntityKind } from "./EntityLink";
 export { PageHeader, SectionHeader } from "./PageHeader";
 export { ProductFooter } from "./ProductFooter";
