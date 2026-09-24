@@ -6,12 +6,14 @@ use App\Enums\AlbumVisibility;
 use App\Enums\FamilySpaceRole;
 use App\Enums\PersonProposalStatus;
 use App\Models\Album;
+use App\Models\AuditEvent;
 use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\Person;
 use App\Models\Photo;
 use App\Models\PhotoPerson;
+use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -20,6 +22,60 @@ use Tests\TestCase;
 class FamilyEventTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_event_tags_reuse_the_family_vocabulary_and_are_serialized_mutable_and_audited(): void
+    {
+        $family = FamilySpace::factory()->create(['slug' => 'event-tags']);
+        [$owner] = $this->member($family, FamilySpaceRole::Owner);
+        [$otherMember] = $this->member($family, FamilySpaceRole::Member);
+        $otherFamily = FamilySpace::factory()->create();
+        $existing = Tag::query()->create(['family_space_id' => $family->id,
+            'label' => 'Seaside', 'normalized_label' => 'seaside', 'created_by' => $owner->id]);
+        $foreign = Tag::query()->create(['family_space_id' => $otherFamily->id,
+            'label' => 'Shared', 'normalized_label' => 'shared', 'created_by' => $owner->id]);
+        $base = '/api/families/event-tags/events';
+
+        $response = $this->actingAs($owner)->postJson($base, [
+            'name' => 'Blackpool holiday',
+            'tags' => [' Seaside ', 'seaside', 'Family   holiday', ' Shared '],
+        ])->assertCreated()->assertJsonCount(3, 'data.tags')
+            ->assertJsonFragment(['id' => $existing->id, 'label' => 'Seaside'])
+            ->assertJsonFragment(['label' => 'Family holiday'])
+            ->assertJsonFragment(['label' => 'Shared']);
+        $eventId = $response->json('data.id');
+
+        $this->assertDatabaseHas('event_tag', ['event_id' => $eventId, 'tag_id' => $existing->id,
+            'family_space_id' => $family->id, 'added_by' => $owner->id]);
+        $this->assertDatabaseMissing('event_tag', ['event_id' => $eventId, 'tag_id' => $foreign->id]);
+        $this->assertDatabaseHas('tags', ['family_space_id' => $family->id,
+            'label' => 'Family holiday', 'normalized_label' => 'family holiday']);
+        $this->assertDatabaseHas('tags', ['family_space_id' => $family->id,
+            'label' => 'Shared', 'normalized_label' => 'shared']);
+
+        $this->actingAs($otherMember)->patchJson("{$base}/{$eventId}", ['tags' => ['No']])->assertForbidden();
+        $this->actingAs($owner)->patchJson("{$base}/{$eventId}", ['tags' => ['Seaside', 'New   tag']])
+            ->assertOk()->assertJsonCount(2, 'data.tags')->assertJsonFragment(['label' => 'New tag']);
+        $audit = AuditEvent::query()->where('action', 'event.updated')->latest('id')->firstOrFail();
+        $this->assertContains('tags', $audit->metadata['changed_fields']);
+
+        $this->actingAs($owner)->patchJson("{$base}/{$eventId}", ['tags' => []])
+            ->assertOk()->assertJsonCount(0, 'data.tags');
+        $this->assertDatabaseMissing('event_tag', ['event_id' => $eventId]);
+    }
+
+    public function test_event_tag_limits_match_album_tag_limits(): void
+    {
+        $family = FamilySpace::factory()->create(['slug' => 'event-tag-limits']);
+        [$owner] = $this->member($family, FamilySpaceRole::Owner);
+        $base = '/api/families/event-tag-limits/events';
+
+        $this->actingAs($owner)->postJson($base, [
+            'name' => 'Too many tags', 'tags' => array_map(fn (int $index): string => "Tag {$index}", range(1, 26)),
+        ])->assertUnprocessable()->assertJsonValidationErrors('tags');
+        $this->actingAs($owner)->postJson($base, [
+            'name' => 'Long tag', 'tags' => [str_repeat('a', 81)],
+        ])->assertUnprocessable()->assertJsonValidationErrors('tags.0');
+    }
 
     public function test_event_people_are_descriptive_tenant_scoped_and_managed_by_event_editors(): void
     {

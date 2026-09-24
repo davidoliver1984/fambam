@@ -17,10 +17,12 @@ import {
   getEventExports,
   requestEventExport,
   getEventRsvps,
+  updateEvent,
 } from "../api/eventApi";
 import { getCurrentUser } from "@/features/account/api/accountApi";
 import { getFamilyMemberships } from "@/features/people/api/accountLinkApi";
 import { EventPage } from "./EventPage";
+import { getSearchSuggestions } from "@/features/search/api/searchApi";
 
 vi.mock("../api/eventApi", () => ({
   admitEventMembership: vi.fn(),
@@ -51,6 +53,9 @@ vi.mock("@/features/albums/api/albumApi", () => ({ createAlbum: vi.fn() }));
 vi.mock("@/features/invitations/api/invitationApi", () => ({
   issueInvitation: vi.fn(),
 }));
+vi.mock("@/features/search/api/searchApi", () => ({
+  getSearchSuggestions: vi.fn(),
+}));
 
 afterEach(() => {
   cleanup();
@@ -72,6 +77,7 @@ vi.mocked(getEventRsvps).mockResolvedValue({
   not_attending: [],
 });
 vi.mocked(getFamilyMemberships).mockResolvedValue([]);
+vi.mocked(getSearchSuggestions).mockResolvedValue([]);
 
 describe("EventPage", () => {
   it("renders the narrow Guest landing path without family management queries", async () => {
@@ -85,6 +91,7 @@ describe("EventPage", () => {
       status: "active",
       created_by: 1,
       creator: { id: 1, name: "David" },
+      tags: [{ id: "tag-1", label: "Wedding" }],
       permissions: {
         can_update: false,
         can_manage_admissions: false,
@@ -140,6 +147,10 @@ describe("EventPage", () => {
     expect(getDuplicateEventCandidates).not.toHaveBeenCalled();
     expect(getEventAdmissions).not.toHaveBeenCalled();
     expect(getEventExports).not.toHaveBeenCalled();
+    expect(screen.getByText("Wedding")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Add tag" }),
+    ).not.toBeInTheDocument();
   });
 
   it("uses the typed Event export hooks for the manager archive surface", async () => {
@@ -162,6 +173,7 @@ describe("EventPage", () => {
       status: "active",
       created_by: 1,
       creator: { id: 1, name: "David" },
+      tags: [],
       permissions: {
         can_update: true,
         can_manage_admissions: true,
@@ -245,5 +257,139 @@ describe("EventPage", () => {
         "event-1",
       );
     });
+  });
+
+  it("renders persisted tags and adds and removes them through the Event update mutation", async () => {
+    const item = {
+      id: "event-1",
+      name: "Blackpool holiday",
+      description: "A bright, blustery week by the sea.",
+      starts_on: "1986-08-12",
+      ends_on: "1986-08-19",
+      location: "Blackpool",
+      status: "completed" as const,
+      created_by: 1,
+      creator: { id: 1, name: "David" },
+      tags: [
+        { id: "tag-1", label: "Blackpool" },
+        { id: "tag-2", label: "Seaside" },
+      ],
+      permissions: {
+        can_update: true,
+        can_manage_admissions: false,
+        can_review_duplicates: false,
+        can_manage_exports: false,
+        can_delete: false,
+        can_restore: false,
+        can_create_album: false,
+      },
+      albums: [],
+      attendees: [],
+    };
+    vi.mocked(getEvent).mockResolvedValue(item);
+    vi.mocked(getSearchSuggestions).mockResolvedValue([
+      { id: "tag-3", label: "Family holiday" },
+    ]);
+    vi.mocked(updateEvent).mockResolvedValue({
+      ...item,
+      tags: [item.tags[0], { id: "tag-3", label: "Family holiday" }],
+    });
+
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/families/:familySlug/events/:eventId",
+          element: <EventPage />,
+        },
+      ],
+      { initialEntries: ["/families/family-archive/events/event-1"] },
+    );
+    render(
+      <QueryClientProvider client={client}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("Blackpool")).toBeInTheDocument();
+    expect(screen.getByText("Seaside")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add tag" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove Seaside" }));
+    fireEvent.change(screen.getByLabelText("Add or reuse a tag"), {
+      target: { value: "Fam" },
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Family holiday" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save tags" }));
+
+    await waitFor(() => {
+      expect(updateEvent).toHaveBeenCalledWith("family-archive", "event-1", {
+        tags: ["Blackpool", "Family holiday"],
+      });
+    });
+  });
+
+  it("keeps the tag editor open and shows an error when persistence fails", async () => {
+    vi.mocked(getEvent).mockResolvedValue({
+      id: "event-1",
+      name: "Family event",
+      description: null,
+      starts_on: null,
+      ends_on: null,
+      location: null,
+      status: "planned",
+      created_by: 1,
+      creator: { id: 1, name: "David" },
+      tags: [],
+      permissions: {
+        can_update: true,
+        can_manage_admissions: false,
+        can_review_duplicates: false,
+        can_manage_exports: false,
+        can_delete: false,
+        can_restore: false,
+        can_create_album: false,
+      },
+      albums: [],
+      attendees: [],
+    });
+    vi.mocked(updateEvent).mockRejectedValue(new Error("save failed"));
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/families/:familySlug/events/:eventId",
+          element: <EventPage />,
+        },
+      ],
+      { initialEntries: ["/families/family-archive/events/event-1"] },
+    );
+    render(
+      <QueryClientProvider client={client}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add tag" }));
+    fireEvent.change(screen.getByLabelText("Add or reuse a tag"), {
+      target: { value: "Holiday" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save tags" }));
+    expect(
+      await screen.findByText("Event tags could not be saved."),
+    ).toHaveAttribute("role", "alert");
+    expect(screen.getByLabelText("Add or reuse a tag")).toBeInTheDocument();
   });
 });

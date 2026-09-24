@@ -19,6 +19,7 @@ import { LoveButton } from "@/features/love/components/LoveButton";
 import { useFamilyMembershipsQuery } from "@/features/people/hooks/useAccountLinkQueries";
 import type { GuestParticipation } from "@/features/albums/types/album";
 import { EventRsvpPanel } from "../components/EventRsvpPanel";
+import { EventTagsEditor } from "../components/EventTagsEditor";
 import "./events.css";
 
 export function EventPage() {
@@ -117,6 +118,14 @@ export function EventPage() {
               No description has been recorded for this event yet.
             </p>
           )}
+          <EventTagsEditor
+            familySlug={familySlug}
+            tags={item.tags}
+            canEdit={item.permissions.can_update}
+            pending={update.isPending}
+            saveError={update.isError}
+            onSave={(tags) => update.mutateAsync({ tags })}
+          />
         </div>
         <div className="event-stats" aria-label="Event summary">
           <Surface>

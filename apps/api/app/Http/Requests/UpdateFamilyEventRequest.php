@@ -23,6 +23,8 @@ class UpdateFamilyEventRequest extends FormRequest
             'ends_on' => ['sometimes', 'nullable', 'date', 'after_or_equal:starts_on'],
             'location' => ['sometimes', 'nullable', 'string', 'max:255'],
             'status' => ['sometimes', Rule::enum(EventStatus::class)],
+            'tags' => ['sometimes', 'array', 'max:25'],
+            'tags.*' => ['string', 'max:80'],
             'person_ids' => ['sometimes', 'array', 'max:100'],
             'person_ids.*' => ['ulid', 'distinct'],
         ];

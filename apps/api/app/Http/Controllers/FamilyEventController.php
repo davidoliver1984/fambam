@@ -129,7 +129,7 @@ class FamilyEventController extends Controller
     /** @return array<string, mixed> */
     private function payload(FamilyEvent $event, bool $detailed = false): array
     {
-        $event->loadMissing('creator:id,name');
+        $event->loadMissing(['creator:id,name', 'tags:id,label']);
         $payload = [
             'id' => $event->id,
             'name' => $event->name,
@@ -143,6 +143,7 @@ class FamilyEventController extends Controller
             'status' => $event->status->value,
             'created_by' => $event->created_by,
             'creator' => $event->creator === null ? null : ['id' => $event->creator->id, 'name' => $event->creator->name],
+            'tags' => $event->tags->map(fn ($tag): array => ['id' => $tag->id, 'label' => $tag->label])->values(),
             'presentation' => $this->presentation($event),
             'permissions' => ['can_update' => Gate::allows('update', $event),
                 'can_manage_admissions' => Gate::allows('manageAdmissions', $event),

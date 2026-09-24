@@ -56,6 +56,13 @@ class FamilyEvent extends Model
             ->withPivot(['id', 'family_space_id', 'added_by', 'created_at']);
     }
 
+    /** @return BelongsToMany<Tag, $this> */
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class, 'event_tag', 'event_id', 'tag_id')
+            ->withPivot(['family_space_id', 'added_by', 'created_at']);
+    }
+
     /** @return HasMany<Photo, $this> */
     public function primaryPhotos(): HasMany
     {

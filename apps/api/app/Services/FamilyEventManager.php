@@ -7,6 +7,7 @@ use App\Enums\FamilyActivityType;
 use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\Person;
+use App\Models\Tag;
 use App\Models\User;
 use App\Stories\MentionAuthorizer;
 use App\Stories\RichTextFieldWriter;
@@ -45,6 +46,7 @@ class FamilyEventManager
             if (array_key_exists('person_ids', $input)) {
                 $this->syncPeople($event, $actor, $input['person_ids']);
             }
+            $this->syncTags($event, $actor, $input['tags'] ?? []);
             $this->audit->record('event.created', $event, $actor, $request);
             $this->activities->record(
                 $event->family_space_id,
@@ -81,8 +83,11 @@ class FamilyEventManager
                 $this->syncPeople($locked, $actor, $input['person_ids']);
                 $changedFields[] = 'person_ids';
             }
+            if (array_key_exists('tags', $input) && $this->syncTags($locked, $actor, $input['tags'])) {
+                $changedFields[] = 'tags';
+            }
             $this->audit->record('event.updated', $locked, $actor, $request, [
-                'changed_fields' => $changedFields,
+                'changed_fields' => array_values(array_unique($changedFields)),
             ]);
 
             return $locked->load('creator:id,name');
@@ -141,5 +146,36 @@ class FamilyEventManager
                 'family_space_id' => $event->family_space_id, 'event_id' => $event->id,
                 'person_id' => $id, 'added_by' => $actor->id, 'created_at' => now()]);
         }
+    }
+
+    /** @param list<string> $labels */
+    private function syncTags(FamilyEvent $event, User $actor, array $labels): bool
+    {
+        $normalized = [];
+        foreach ($labels as $label) {
+            $display = preg_replace('/\s+/u', ' ', trim($label)) ?? '';
+            if ($display !== '') {
+                $normalized[mb_strtolower($display)] ??= $display;
+            }
+        }
+
+        $tagIds = [];
+        foreach ($normalized as $key => $display) {
+            $tag = Tag::query()->firstOrCreate(
+                ['family_space_id' => $event->family_space_id, 'normalized_label' => $key],
+                ['label' => $display, 'created_by' => $actor->id],
+            );
+            $tagIds[$tag->id] = [
+                'family_space_id' => $event->family_space_id,
+                'added_by' => $actor->id,
+                'created_at' => now(),
+            ];
+        }
+
+        $existingIds = $event->tags()->pluck('tags.id')->sort()->values()->all();
+        $nextIds = collect(array_keys($tagIds))->sort()->values()->all();
+        $event->tags()->sync($tagIds);
+
+        return $existingIds !== $nextIds;
     }
 }

@@ -183,6 +183,7 @@ final class DemoFamilyBuilder
         $events = $this->events($familyId, $users, $anchor);
         $albums = $this->albums($familyId, $events, $users, $anchor);
         $tags = $this->tags($familyId, $users['admin'], $anchor);
+        $this->eventTags($familyId, $events, $tags, $users['admin'], $anchor);
         $photos = $this->photos($familyId, $people, $events, $albums, $tags, $users, $anchor);
         $this->conversations($familyId, $people, $events, $photos, $albums, $users, $anchor);
         $this->savedSearches($familyId, $people, $events, $albums, $users, $anchor);
@@ -312,6 +313,35 @@ final class DemoFamilyBuilder
         }
 
         return $ids;
+    }
+
+    /** @param array<string, string> $events
+     * @param  array<string, string>  $tags
+     */
+    private function eventTags(
+        string $familyId,
+        array $events,
+        array $tags,
+        User $actor,
+        CarbonImmutable $anchor,
+    ): void {
+        $definitions = [
+            'wedding' => ['wedding', 'family', 'celebration'],
+            'christmas' => ['christmas', 'family', 'celebration'],
+            'seaside' => ['seaside', 'holiday', 'family'],
+            'birthday' => ['birthday', 'family', 'celebration'],
+        ];
+        foreach ($definitions as $eventKey => $tagKeys) {
+            foreach ($tagKeys as $offset => $tagKey) {
+                DB::table('event_tag')->insert([
+                    'family_space_id' => $familyId,
+                    'event_id' => $events[$eventKey],
+                    'tag_id' => $tags[$tagKey],
+                    'added_by' => $actor->id,
+                    'created_at' => $anchor->subDays(21)->addMinutes($offset),
+                ]);
+            }
+        }
     }
 
     /** @param array<string, string> $people

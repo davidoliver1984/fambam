@@ -35,6 +35,7 @@ const event: FamilyEvent = {
   status: "planned",
   created_by: 1,
   creator: { id: 1, name: "David" },
+  tags: [{ id: "tag-1", label: "Picnic" }],
   permissions: {
     can_update: true,
     can_manage_admissions: true,

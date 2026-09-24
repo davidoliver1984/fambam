@@ -22,6 +22,7 @@ import {
   useRestoreEventMutation,
 } from "../hooks/useEventQueries";
 import type { FamilyEvent } from "../types/event";
+import { splitEventTags } from "../validation/tagInput";
 import "./events.css";
 
 type EventSort = "newest" | "oldest" | "updated";
@@ -73,6 +74,7 @@ export function EventsPage() {
   const create = useCreateEventMutation(familySlug);
   const [name, setName] = useState("");
   const [startsOn, setStartsOn] = useState("");
+  const [tags, setTags] = useState("");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<EventSort>("newest");
   const [view, setView] = useState<EventView>("grid");
@@ -104,11 +106,16 @@ export function EventsPage() {
   const submit = (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     create.mutate(
-      { name: name.trim(), starts_on: startsOn || null },
+      {
+        name: name.trim(),
+        starts_on: startsOn || null,
+        tags: splitEventTags(tags),
+      },
       {
         onSuccess: () => {
           setName("");
           setStartsOn("");
+          setTags("");
           setShowCreate(false);
         },
       },
@@ -161,6 +168,16 @@ export function EventsPage() {
               value={startsOn}
               onChange={(event) => {
                 setStartsOn(event.target.value);
+              }}
+            />
+            <label htmlFor="event-tags">Tags</label>
+            <input
+              id="event-tags"
+              value={tags}
+              maxLength={2024}
+              placeholder="Holiday, Seaside"
+              onChange={(event) => {
+                setTags(event.target.value);
               }}
             />
             <div className="ui-inline-actions">

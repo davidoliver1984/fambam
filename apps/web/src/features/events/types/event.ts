@@ -10,6 +10,7 @@ export type FamilyEvent = {
   status: EventStatus;
   created_by: number | null;
   creator: { id: number; name: string } | null;
+  tags: Array<{ id: string; label: string }>;
   presentation?: {
     preview: { photo_id: string; media_upload_id: string } | null;
     photo_count: number;
@@ -60,6 +61,7 @@ export type EventInput = {
   ends_on?: string | null;
   location?: string | null;
   status?: EventStatus;
+  tags?: string[];
 };
 
 export type EventExportState =

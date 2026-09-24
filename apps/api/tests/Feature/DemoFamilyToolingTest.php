@@ -105,6 +105,7 @@ final class DemoFamilyToolingTest extends TestCase
         $this->assertSame(10, DB::table('album_photos')->where('family_space_id', $demoId)
             ->select('photo_id')->groupBy('photo_id')->havingRaw('COUNT(*) > 1')->count());
         $this->assertSame(3, DB::table('person_account_links')->where('family_space_id', $demoId)->count());
+        $this->assertSame(12, DB::table('event_tag')->where('family_space_id', $demoId)->count());
         $this->assertSame(15, DB::table('photo_people')->where('family_space_id', $demoId)
             ->select('photo_id')->groupBy('photo_id')->havingRaw('COUNT(*) > 1')->count());
         $this->assertSame(1, DB::table('saved_search_people')->where('family_space_id', $demoId)->count());

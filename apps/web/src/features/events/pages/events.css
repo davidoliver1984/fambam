@@ -177,6 +177,107 @@
   color: var(--text-muted);
 }
 
+.event-tags {
+  margin-top: var(--space-5);
+  font-family: var(--font-interface);
+  font-size: 0.76rem;
+}
+
+.event-tags__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.event-tag {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.42rem 0.72rem;
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 72%, var(--powder));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface-raised) 34%, var(--powder));
+  color: var(--text-muted);
+  font: inherit;
+  line-height: 1;
+}
+
+.event-tag--add {
+  border-color: var(--border-subtle);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.event-tag--removable {
+  cursor: pointer;
+}
+
+.event-tag--removable:hover,
+.event-tag--add:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.event-tags__editor {
+  position: relative;
+  margin-top: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-soft);
+}
+
+.event-tags__editor label {
+  font-weight: 750;
+}
+
+.event-tags__input-row,
+.event-tags__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.event-tags__input-row input {
+  min-width: 0;
+  flex: 1;
+}
+
+.event-tags__editor button {
+  min-height: 2.4rem;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.event-tags__editor button[type="submit"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.event-tags__editor button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.event-tags__suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .event-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

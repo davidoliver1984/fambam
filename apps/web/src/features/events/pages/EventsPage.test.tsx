@@ -9,7 +9,7 @@ import { getFamilySpace } from "@/features/family-spaces/api/familySpaceApi";
 import { getMediaVariantDelivery } from "@/features/media-uploads/api/mediaUploadApi";
 import { getPhotoVersions } from "@/features/photos/api/photoEditorApi";
 
-import { getDeletedEvents, getEvents } from "../api/eventApi";
+import { createEvent, getDeletedEvents, getEvents } from "../api/eventApi";
 import { EventsPage } from "./EventsPage";
 
 vi.mock("../api/eventApi", () => ({
@@ -77,6 +77,7 @@ beforeEach(() => {
       status: "completed",
       created_by: 1,
       creator: { id: 1, name: "David" },
+      tags: [],
       permissions: {
         can_update: true,
         can_manage_admissions: true,
@@ -104,6 +105,7 @@ beforeEach(() => {
       status: "completed",
       created_by: 1,
       creator: { id: 1, name: "David" },
+      tags: [],
       permissions: {
         can_update: true,
         can_manage_admissions: true,
@@ -164,5 +166,38 @@ describe("EventsPage", () => {
       "true",
     );
     expect(getEvents).toHaveBeenCalledTimes(1);
+  });
+
+  it("submits Event tags through the existing create endpoint", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createEvent).mockResolvedValue({
+      ...(await getEvents("family-archive"))[0],
+      id: "event-3",
+      name: "Seaside week",
+      tags: [
+        { id: "tag-1", label: "Holiday" },
+        { id: "tag-2", label: "Seaside" },
+      ],
+    });
+    renderPage();
+
+    await user.click(
+      await screen.findByRole("button", { name: /create event/i }),
+    );
+    await user.type(screen.getByLabelText("Name"), "Seaside week");
+    await user.type(screen.getByLabelText("Tags"), "Holiday, seaside, HOLIDAY");
+    const submitButton = screen
+      .getAllByRole("button", { name: "Create event" })
+      .at(-1);
+    expect(submitButton).toBeDefined();
+    if (submitButton !== undefined) await user.click(submitButton);
+
+    await waitFor(() => {
+      expect(createEvent).toHaveBeenCalledWith("family-archive", {
+        name: "Seaside week",
+        starts_on: null,
+        tags: ["Holiday", "seaside"],
+      });
+    });
   });
 });
