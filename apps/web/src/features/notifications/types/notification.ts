@@ -11,11 +11,29 @@ export type FamilyNotification = {
   photo_id: string | null;
   album_id: string | null;
   story_id: string | null;
+  event_id?: string | null;
   person_id: string | null;
   comment_id: string | null;
+  story_comment_id?: string | null;
   family_export_id: string | null;
   read_at: string | null;
   created_at: string;
+  presentation?: {
+    actor: {
+      person_id: string | null;
+      display_name: string;
+      initials: string;
+      portrait_thumbnail_url: string | null;
+    } | null;
+    headline: string;
+    detail: string | null;
+    target_label: string | null;
+    thumbnail_url: string | null;
+    target: {
+      type: "photo" | "album" | "story" | "person" | "event" | "family_export";
+      id: string;
+    } | null;
+  };
 };
 export type NotificationPreference = {
   category: PreferenceNotificationCategory;

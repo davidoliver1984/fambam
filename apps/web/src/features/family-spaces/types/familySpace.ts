@@ -7,6 +7,7 @@ export type FamilySpace = {
   name: string;
   status: "active" | "deletion_requested" | "deleting" | "deleted";
   role: FamilySpaceRole;
+  current_user_person_id?: string | null;
   deletion?: {
     requested_at: string | null;
     scheduled_at: string | null;

@@ -4,13 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Enums\NotificationCategory;
 use App\Enums\NotificationChannel;
-use App\Models\Album;
-use App\Models\FamilyEvent;
 use App\Models\FamilyNotification;
 use App\Models\FamilySpace;
 use App\Models\NotificationPreference;
-use App\Models\Photo;
-use App\Models\Story;
+use App\Models\User;
+use App\Services\NotificationPresentationBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -18,18 +16,32 @@ use Illuminate\Validation\Rule;
 
 class NotificationController extends Controller
 {
+    public function __construct(private readonly NotificationPresentationBuilder $presentations) {}
+
     public function index(FamilySpace $familySpace, Request $request): JsonResponse
     {
-        $rows = FamilyNotification::query()->where('recipient_user_id', $request->user()->id)->latest()->limit(50)->get();
-        $data = $rows->filter(fn (FamilyNotification $row): bool => $this->visible($request, $row))
-            ->map(fn (FamilyNotification $row): array => $this->payload($row))->values();
+        /** @var User $viewer */
+        $viewer = $request->user();
+        $rows = FamilyNotification::query()->where('family_space_id', $familySpace->id)
+            ->where('recipient_user_id', $viewer->id)
+            ->with([
+                'photo', 'album.coverPhoto', 'story.photo', 'person', 'event', 'familyExport',
+            ])->latest()->limit(50)->get()
+            ->filter(fn (FamilyNotification $row): bool => $this->visible($request, $row))->values();
+        $presentations = $this->presentations->build($familySpace, $viewer, $rows);
+        $data = $rows->map(fn (FamilyNotification $row): array => $this->payload(
+            $row,
+            $presentations[$row->id],
+        ));
 
         return response()->json(['data' => $data]);
     }
 
     public function read(FamilySpace $familySpace, string $notification, Request $request): JsonResponse
     {
-        $row = FamilyNotification::query()->where('recipient_user_id', $request->user()->id)->findOrFail($notification);
+        $row = FamilyNotification::query()->where('family_space_id', $familySpace->id)
+            ->where('recipient_user_id', $request->user()->id)
+            ->with(['photo', 'album', 'story', 'event'])->findOrFail($notification);
         abort_unless($this->visible($request, $row), 404);
         $row->update(['read_at' => $row->read_at ?? now()]);
 
@@ -38,7 +50,8 @@ class NotificationController extends Controller
 
     public function preferences(FamilySpace $familySpace, Request $request): JsonResponse
     {
-        $stored = NotificationPreference::query()->where('user_id', $request->user()->id)->get()
+        $stored = NotificationPreference::query()->where('family_space_id', $familySpace->id)
+            ->where('user_id', $request->user()->id)->get()
             ->keyBy(fn (NotificationPreference $preference): string => $preference->category->value.':'.$preference->channel->value);
         $data = [];
         foreach (NotificationCategory::preferenceCases() as $category) {
@@ -64,19 +77,19 @@ class NotificationController extends Controller
     private function visible(Request $request, FamilyNotification $row): bool
     {
         if ($row->photo_id) {
-            $photo = Photo::find($row->photo_id);
+            $photo = $row->photo;
             if (! $photo || ! Gate::forUser($request->user())->allows('view', $photo)) {
                 return false;
             }
         }
         if ($row->album_id) {
-            $album = Album::find($row->album_id);
+            $album = $row->album;
             if (! $album || ! Gate::forUser($request->user())->allows('view', $album)) {
                 return false;
             }
         }
         if ($row->story_id) {
-            $story = Story::query()->find($row->story_id);
+            $story = $row->story;
             if ($story === null || ! Gate::forUser($request->user())->allows('view', $story)) {
                 return false;
             }
@@ -86,7 +99,7 @@ class NotificationController extends Controller
         }
 
         if ($row->event_id) {
-            $event = FamilyEvent::query()->find($row->event_id);
+            $event = $row->event;
             if ($event === null || ! Gate::forUser($request->user())->allows('view', $event)) {
                 return false;
             }
@@ -95,10 +108,13 @@ class NotificationController extends Controller
         return true;
     }
 
-    /** @return array<string, mixed> */
-    private function payload(FamilyNotification $row): array
+    /**
+     * @param  array<string, mixed>  $presentation
+     * @return array<string, mixed>
+     */
+    private function payload(FamilyNotification $row, array $presentation): array
     {
-        $storyPhotoId = $row->story_id ? Story::query()->whereKey($row->story_id)->value('photo_id') : null;
+        $storyPhotoId = $row->story?->photo_id;
 
         return [
             'id' => $row->id,
@@ -113,6 +129,7 @@ class NotificationController extends Controller
             'event_id' => $row->event_id,
             'read_at' => $row->read_at?->toIso8601String(),
             'created_at' => $row->created_at->toIso8601String(),
+            'presentation' => $presentation,
         ];
     }
 }

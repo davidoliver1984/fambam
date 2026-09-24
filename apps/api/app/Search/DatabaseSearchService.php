@@ -2,6 +2,9 @@
 
 namespace App\Search;
 
+use App\Models\AlbumPhoto;
+use App\Models\PersonAccountLink;
+use App\Models\PersonRelationship;
 use App\Models\Photo;
 use App\Models\Story;
 use App\Models\User;
@@ -15,6 +18,8 @@ use App\Search\Summaries\EventSearchSummary;
 use App\Search\Summaries\PersonSearchSummary;
 use App\Search\Summaries\PhotoSearchSummary;
 use App\Search\Summaries\StorySearchSummary;
+use App\Services\PresentationThumbnailService;
+use App\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +34,8 @@ final class DatabaseSearchService implements SearchService
         private readonly FamilyEventQuery $events,
         private readonly StoryQuery $storyQuery,
         private readonly SearchCursorCodec $cursors,
+        private readonly PresentationThumbnailService $thumbnails,
+        private readonly TenantContext $tenantContext,
     ) {}
 
     public function people(SearchQuery $query, User $actor): SearchPage
@@ -47,10 +54,15 @@ final class DatabaseSearchService implements SearchService
             ->selectRaw("{$score} AS match_score", $scoreBindings)
             ->selectRaw('LOWER(people.preferred_name) AS sort_tie');
         $page = $this->page('people', $base->toBase(), $query, 'sort_tie', 'asc');
+        $personIds = array_column($page['rows'], 'id');
+        $relationships = $this->relationshipsToViewer($personIds, $actor);
+        $portraits = $this->thumbnails->forPeople($personIds, $actor);
 
         return new SearchPage(array_map(fn (array $row): PersonSearchSummary => new PersonSearchSummary(
             $row['id'],
             $row['preferred_name'],
+            $relationships[$row['id']] ?? null,
+            $portraits[$row['id']] ?? null,
         ), $page['rows']), $page['next_cursor']);
     }
 
@@ -98,6 +110,7 @@ final class DatabaseSearchService implements SearchService
         }
         $base = $this->albums->visibleTo($actor)->setEagerLoads([])->select([
             'albums.id', 'albums.name', 'albums.description_plain_text', 'albums.visibility', 'albums.event_id',
+            'albums.cover_photo_id',
         ]);
         if ($query->eventId !== null) {
             $base->where('albums.event_id', $query->eventId);
@@ -123,6 +136,19 @@ final class DatabaseSearchService implements SearchService
             ->selectRaw("{$score} AS match_score", $scoreBindings)
             ->selectRaw('LOWER(albums.name) AS sort_tie');
         $page = $this->page('albums', $base->toBase(), $query, 'sort_tie', 'asc');
+        $familyId = $this->tenantContext->familySpace()->id;
+        $albumIds = array_column($page['rows'], 'id');
+        $photoCounts = AlbumPhoto::query()->where('album_photos.family_space_id', $familyId)
+            ->whereIn('album_id', $albumIds)
+            ->join('photos', function ($join): void {
+                $join->on('photos.id', '=', 'album_photos.photo_id')
+                    ->on('photos.family_space_id', '=', 'album_photos.family_space_id');
+            })->whereNull('photos.deleted_at')->groupBy('album_photos.album_id')
+            ->selectRaw('album_photos.album_id, COUNT(*) AS aggregate')->pluck('aggregate', 'album_id');
+        $coverIds = array_values(array_filter(array_column($page['rows'], 'cover_photo_id')));
+        $covers = $this->photos->visibleTo($actor)->setEagerLoads([])->whereIn('photos.id', $coverIds)
+            ->get(['photos.id', 'photos.media_upload_id'])->keyBy('id');
+        $coverUrls = $this->thumbnails->forMediaUploads($covers->pluck('media_upload_id')->all());
 
         return new SearchPage(array_map(fn (array $row): AlbumSearchSummary => new AlbumSearchSummary(
             $row['id'],
@@ -130,7 +156,51 @@ final class DatabaseSearchService implements SearchService
             $row['description_plain_text'],
             $row['visibility'],
             $row['event_id'],
+            (int) ($photoCounts[$row['id']] ?? 0),
+            ($cover = $covers->get($row['cover_photo_id'])) === null
+                ? null : ($coverUrls[$cover->media_upload_id] ?? null),
         ), $page['rows']), $page['next_cursor']);
+    }
+
+    /**
+     * @param  list<string>  $personIds
+     * @return array<string, string>
+     */
+    private function relationshipsToViewer(array $personIds, User $actor): array
+    {
+        if ($personIds === []) {
+            return [];
+        }
+        $familyId = $this->tenantContext->familySpace()->id;
+        $viewerLink = PersonAccountLink::query()->where('family_space_id', $familyId)
+            ->where('user_id', $actor->id)->first();
+        if ($viewerLink === null) {
+            return [];
+        }
+        $relationships = PersonRelationship::query()->where('family_space_id', $familyId)
+            ->where('status', 'confirmed')
+            ->where(function (EloquentBuilder $query) use ($viewerLink, $personIds): void {
+                $query->where(function (EloquentBuilder $forward) use ($viewerLink, $personIds): void {
+                    $forward->where('subject_person_id', $viewerLink->person_id)
+                        ->whereIn('related_person_id', $personIds);
+                })->orWhere(function (EloquentBuilder $inverse) use ($viewerLink, $personIds): void {
+                    $inverse->where('related_person_id', $viewerLink->person_id)
+                        ->whereIn('subject_person_id', $personIds);
+                });
+            })->orderBy('created_at')->get();
+        $labels = [];
+        foreach ($relationships as $relationship) {
+            $resultId = $relationship->subject_person_id === $viewerLink->person_id
+                ? $relationship->related_person_id : $relationship->subject_person_id;
+            if (isset($labels[$resultId])) {
+                continue;
+            }
+            $label = $relationship->subject_person_id === $resultId
+                ? $relationship->type->forwardLabel() : $relationship->type->inverseLabel();
+            $labels[$resultId] = 'your '.$label;
+        }
+
+        return $labels;
     }
 
     public function stories(SearchQuery $query, User $actor): SearchPage

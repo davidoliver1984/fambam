@@ -48,7 +48,7 @@ class PhotoQuery
                     ->where('status', 'approved')
                     ->with('person:id,preferred_name'),
             ])
-            ->where('family_space_id', $familySpaceId);
+            ->where('photos.family_space_id', $familySpaceId);
 
         if ($membership->role === FamilySpaceRole::Guest) {
             $cutoff = now()->subDays((int) config('events.admission_lifetime_days'));

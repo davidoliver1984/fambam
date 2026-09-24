@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\FamilySpaceStatus;
 use App\Http\Requests\CreateFamilySpaceRequest;
 use App\Models\FamilySpace;
+use App\Models\PersonAccountLink;
 use App\Models\User;
 use App\Queries\FamilySpaceQuery;
 use App\Services\FamilySpaceDeletionManager;
@@ -77,7 +78,7 @@ class FamilySpaceController extends Controller
         ]);
     }
 
-    /** @return array{id: string, slug: string, name: string, status: string, role: string, deletion?: array{requested_at: ?string, scheduled_at: ?string}} */
+    /** @return array{id: string, slug: string, name: string, status: string, role: string, current_user_person_id?: ?string, deletion?: array{requested_at: ?string, scheduled_at: ?string}} */
     private function payload(FamilySpace $familySpace): array
     {
         $membership = $this->tenantContext->isEstablished()
@@ -94,6 +95,15 @@ class FamilySpaceController extends Controller
                 : FamilySpaceStatus::Active->value,
             'role' => $membership->role->value,
         ];
+
+        if ($this->tenantContext->isEstablished()
+            && $this->tenantContext->familySpace()->is($familySpace)) {
+            $payload['current_user_person_id'] = PersonAccountLink::query()
+                ->where('family_space_id', $familySpace->id)
+                ->where('user_id', $membership->user_id)
+                ->whereHas('person')
+                ->value('person_id');
+        }
 
         if ($canViewDeletion) {
             $payload['deletion'] = [

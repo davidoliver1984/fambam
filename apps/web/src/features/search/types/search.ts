@@ -17,6 +17,8 @@ export type SearchCriteria = {
 export type SearchPersonSummary = {
   id: string;
   preferred_name: string;
+  relationship_to_viewer?: string | null;
+  portrait_thumbnail_url?: string | null;
 };
 
 export type PersonSearchSummary = SearchPersonSummary;
@@ -37,6 +39,8 @@ export type AlbumSearchSummary = {
   description: string | null;
   visibility: string;
   event_id: string | null;
+  photo_count?: number;
+  cover_thumbnail_url?: string | null;
 };
 
 export type StorySearchSummary = {
