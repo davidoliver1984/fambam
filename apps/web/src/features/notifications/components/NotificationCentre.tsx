@@ -16,6 +16,8 @@ const labels = {
   story: "New story",
   identity: "Identity confirmed",
   export: "Export status",
+  attendance: "Event invitation response",
+  love: "New love",
 } as const;
 function target(slug: string, item: FamilyNotification) {
   if (item.photo_id)

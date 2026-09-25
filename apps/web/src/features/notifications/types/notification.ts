@@ -1,5 +1,11 @@
 export type NotificationCategory =
-  "comment" | "contribution" | "story" | "identity" | "export";
+  | "comment"
+  | "contribution"
+  | "story"
+  | "identity"
+  | "export"
+  | "attendance"
+  | "love";
 export type PreferenceNotificationCategory = Exclude<
   NotificationCategory,
   "export"

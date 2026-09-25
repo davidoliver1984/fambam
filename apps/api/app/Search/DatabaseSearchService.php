@@ -515,22 +515,24 @@ final class DatabaseSearchService implements SearchService
             $text = implode(" || ' ' || ", array_map(fn (string $field): string => "COALESCE({$table}.{$field}, '')", $fields));
             $match = "LOWER({$text}) LIKE ?";
             $exact = $exactField === null ? '0 = 1' : "LOWER(COALESCE({$table}.{$exactField}, '')) = LOWER(?)";
-            $bindings = $exactField === null ? [$like] : [$term, $like];
+            $prefix = $exactField === null ? '0 = 1' : "LOWER(COALESCE({$table}.{$exactField}, '')) LIKE ?";
+            $bindings = $exactField === null ? [$like] : [$term, mb_strtolower($term).'%', $like];
 
-            return ["CASE WHEN {$exact} THEN 4 WHEN {$match} THEN 3 ELSE 0 END", $bindings, '1', [], $match, [$like]];
+            return ["CASE WHEN {$exact} THEN 5 WHEN {$prefix} THEN 4 WHEN {$match} THEN 3 ELSE 0 END", $bindings, '1', [], $match, [$like]];
         }
         $full = "{$table}.search_vector @@ websearch_to_tsquery('simple'::regconfig, ?)";
         $exact = $exactField === null ? 'FALSE' : "LOWER(COALESCE({$table}.{$exactField}, '')) = LOWER(?)";
+        $prefix = $exactField === null ? 'FALSE' : "LOWER(COALESCE({$table}.{$exactField}, '')) LIKE ?";
         $fuzzy = $exactField === null ? 'FALSE' : "similarity(COALESCE({$table}.{$exactField}, ''), ?) >= ?";
         $threshold = (float) config('search.trigram_threshold');
-        $classBindings = $exactField === null ? [$term] : [$term, $term, $term, $threshold];
+        $classBindings = $exactField === null ? [$term] : [$term, mb_strtolower($term).'%', $term, $term, $threshold];
         $score = "CASE WHEN {$full} THEN ts_rank({$table}.search_vector, websearch_to_tsquery('simple'::regconfig, ?))".
             ($exactField === null ? ' ELSE 1 END' : " WHEN {$fuzzy} THEN similarity(COALESCE({$table}.{$exactField}, ''), ?) ELSE 1 END");
         $scoreBindings = $exactField === null ? [$term, $term] : [$term, $term, $term, $threshold, $term];
-        $matches = $exactField === null ? $full : "({$full} OR {$fuzzy})";
-        $matchBindings = $exactField === null ? [$term] : [$term, $term, $threshold];
+        $matches = $exactField === null ? $full : "({$prefix} OR {$full} OR {$fuzzy})";
+        $matchBindings = $exactField === null ? [$term] : [mb_strtolower($term).'%', $term, $term, $threshold];
 
-        return ["CASE WHEN {$exact} THEN 4 WHEN {$full} THEN 3 WHEN {$fuzzy} THEN 2 ELSE 0 END", $classBindings, $score, $scoreBindings, $matches, $matchBindings];
+        return ["CASE WHEN {$exact} THEN 5 WHEN {$prefix} THEN 4 WHEN {$full} THEN 3 WHEN {$fuzzy} THEN 2 ELSE 0 END", $classBindings, $score, $scoreBindings, $matches, $matchBindings];
     }
 
     /** @param list<string> $photoIds

@@ -197,7 +197,7 @@ describe("shared visual primitives", () => {
       "Family memories, carefully kept.",
     );
     expect(
-      screen.getByRole("navigation", { name: "Explore Fambam" }),
+      screen.getByRole("navigation", { name: "Footer navigation" }),
     ).toBeVisible();
   });
 });

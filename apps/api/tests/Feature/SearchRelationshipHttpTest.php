@@ -58,6 +58,37 @@ class SearchRelationshipHttpTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_people_search_ranks_name_prefixes_above_biography_mentions(): void
+    {
+        [$family, $owner] = $this->family();
+        $sarah = Person::factory()->create([
+            'family_space_id' => $family->id,
+            'preferred_name' => 'Sarah Mercer',
+            'biography_plain_text' => 'Family archivist.',
+        ]);
+        $james = Person::factory()->create([
+            'family_space_id' => $family->id,
+            'preferred_name' => 'James Mercer',
+            'biography_plain_text' => "Sarah's son.",
+        ]);
+        $david = Person::factory()->create([
+            'family_space_id' => $family->id,
+            'preferred_name' => 'David Mercer',
+            'biography_plain_text' => 'Collector of family stories.',
+        ]);
+
+        foreach ([
+            ['sarah', $sarah->id],
+            ['jame', $james->id],
+            ['da', $david->id],
+        ] as [$term, $expectedId]) {
+            $this->actingAs($owner)
+                ->getJson("/api/families/{$family->slug}/search?q={$term}&group=people")
+                ->assertOk()
+                ->assertJsonPath('data.people.items.0.id', $expectedId);
+        }
+    }
+
     public function test_guest_event_search_uses_only_current_admissions(): void
     {
         [$family, $owner, , , $guest, $guestMembership] = $this->family();
