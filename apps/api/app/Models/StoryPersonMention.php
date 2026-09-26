@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/** @property string $mention_id */
 #[Fillable(['family_space_id', 'story_id', 'mention_id', 'person_id', 'historical_label_snapshot'])]
 class StoryPersonMention extends Model
 {

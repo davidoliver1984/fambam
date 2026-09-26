@@ -33,9 +33,12 @@ final class StoryPolicy
     {
         return match (true) {
             $story->person_id !== null => $this->personVisible($user, $story),
-            $story->album_id !== null => ($album = $story->album()->first()) !== null && $this->albums->view($user, $album),
-            $story->event_id !== null => ($event = $story->event()->first()) !== null && $this->events->view($user, $event),
-            $story->photo_id !== null => ($photo = $story->photo()->first()) !== null && $this->photos->view($user, $photo),
+            $story->album_id !== null => ($album = $story->relationLoaded('album') ? $story->album : $story->album()->first()) !== null
+                && $this->albums->view($user, $album),
+            $story->event_id !== null => ($event = $story->relationLoaded('event') ? $story->event : $story->event()->first()) !== null
+                && $this->events->view($user, $event),
+            $story->photo_id !== null => ($photo = $story->relationLoaded('photo') ? $story->photo : $story->photo()->first()) !== null
+                && $this->photos->view($user, $photo),
             default => false,
         };
     }
@@ -78,7 +81,7 @@ final class StoryPolicy
 
     private function personVisible(User $user, Story $story): bool
     {
-        $person = $story->person()->first();
+        $person = $story->relationLoaded('person') ? $story->person : $story->person()->first();
         if ($person === null) {
             return false;
         }

@@ -13,7 +13,9 @@ use App\Models\Photo;
 use App\Models\Story;
 use App\Models\StoryComment;
 use App\Models\User;
+use App\Services\ActorPresentationService;
 use App\Services\StoryManager;
+use App\Services\StoryPresentationResolver;
 use App\Stories\MentionAuthorizer;
 use App\Stories\RichTextDocument;
 use App\Stories\RichTextPresenter;
@@ -30,6 +32,8 @@ final class StoryController extends Controller
         private readonly StoryHeading $headings,
         private readonly MentionAuthorizer $mentionAuthorizer,
         private readonly RichTextPresenter $presenter,
+        private readonly ActorPresentationService $actors,
+        private readonly StoryPresentationResolver $presentation,
     ) {}
 
     public function store(FamilySpace $familySpace, StoreStoryRequest $request): JsonResponse
@@ -76,10 +80,29 @@ final class StoryController extends Controller
 
     public function show(FamilySpace $familySpace, string $story, Request $request): JsonResponse
     {
-        $model = Story::query()->with(['author:id,name', 'comments.author:id,name'])->findOrFail($story);
+        $model = Story::query()->with([
+            'author:id,name',
+            'mentions.person:id,family_space_id,preferred_name',
+            'comments.author:id,name',
+            'comments.mentions.person:id,family_space_id,preferred_name',
+        ])->findOrFail($story);
         Gate::authorize('view', $model);
 
         return response()->json(['data' => $this->payload($model)]);
+    }
+
+    public function mentionSuggestions(FamilySpace $familySpace, string $story, Request $request): JsonResponse
+    {
+        $values = $request->validate(['prefix' => ['required', 'string', 'min:1', 'max:80']]);
+        $model = Story::query()->findOrFail($story);
+        Gate::authorize('view', $model);
+        $subject = $this->storySubject($model);
+
+        return response()->json(['data' => $this->mentionAuthorizer->suggestions(
+            $request->user(),
+            $subject,
+            (string) $values['prefix'],
+        )]);
     }
 
     public function update(FamilySpace $familySpace, string $story, StoreStoryRequest $request): JsonResponse
@@ -148,20 +171,44 @@ final class StoryController extends Controller
     /** @return array<string, mixed> */
     private function payload(Story $story): array
     {
-        $story->loadMissing(['author:id,name', 'comments.author:id,name']);
-        $mentions = $story->mentions()->pluck('person_id', 'mention_id');
-        $subjectType = collect(['person', 'album', 'event', 'photo'])->first(fn (string $type): bool => $story->{"{$type}_id"} !== null);
+        $story->loadMissing([
+            'author:id,name',
+            'mentions.person:id,family_space_id,preferred_name',
+            'comments.author:id,name',
+            'comments.mentions.person:id,family_space_id,preferred_name',
+        ]);
+        $subject = $this->storySubject($story);
+        $users = collect([$story->author])
+            ->merge($story->comments->pluck('author'))
+            ->filter(fn (mixed $user): bool => $user instanceof User);
+        $actorPresentations = $this->actors->forUsers($users, $this->actor());
+        $mentionPeople = $story->mentions->filter(fn ($mention): bool => $mention->person !== null)
+            ->mapWithKeys(fn ($mention): array => [$mention->mention_id => $mention->person])->all();
 
         return [
             'id' => $story->id,
-            'heading' => $this->headings->derive($story->body, fn (string $id): ?string => Person::query()->whereKey($mentions[$id] ?? null)->value('preferred_name')),
+            'heading' => $this->headings->derive(
+                $story->body,
+                fn (string $id): ?string => isset($mentionPeople[$id])
+                    ? $mentionPeople[$id]->preferred_name : null,
+            ),
             'body' => $story->body,
-            'body_html' => $this->presenter->html($story->body, $story, 'story_person_mentions', 'story_id',
-                $this->familySlug(), $this->actor(), $this->storySubject($story)),
+            'body_html' => $this->presenter->htmlWithPeople(
+                $story->body,
+                $mentionPeople,
+                $this->familySlug(),
+                $this->actor(),
+                $subject,
+            ),
             'body_plain_text' => $story->body_plain_text,
-            'subject' => ['type' => $subjectType, 'id' => $story->{"{$subjectType}_id"}],
-            'author' => $story->author === null ? null : ['id' => $story->author->id, 'name' => $story->author->name],
-            'comments' => $story->comments->map($this->commentPayload(...)),
+            'subject' => $this->presentation->subject($subject),
+            'hero' => $this->presentation->hero($subject, $this->actor()),
+            'author' => $this->actorPayload($story->author, $actorPresentations),
+            'comments' => $story->comments->map(function (StoryComment $comment) use ($story, $subject, $actorPresentations): array {
+                $comment->setRelation('story', $story);
+
+                return $this->commentPayload($comment, $subject, $actorPresentations);
+            }),
             'created_at' => $story->created_at?->toAtomString(),
             'edited_at' => $story->edited_at?->toAtomString(),
             'permissions' => ['can_edit' => Gate::allows('update', $story), 'can_remove' => Gate::allows('delete', $story)],
@@ -169,15 +216,32 @@ final class StoryController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function commentPayload(StoryComment $comment): array
+    /**
+     * @param  array<int, array{display_name: string, person_id: string|null, initials: string, portrait_thumbnail_url: string|null}>|null  $actorPresentations
+     * @return array<string, mixed>
+     */
+    private function commentPayload(StoryComment $comment, ?Model $subject = null, ?array $actorPresentations = null): array
     {
-        $comment->loadMissing('author:id,name');
+        $comment->loadMissing(['author:id,name', 'mentions.person:id,family_space_id,preferred_name']);
+        $subject ??= $this->storySubject($comment->story()->firstOrFail());
+        $actorPresentations ??= $this->actors->forUsers(
+            collect([$comment->author])->filter(fn (mixed $user): bool => $user instanceof User),
+            $this->actor(),
+        );
+
+        $mentionPeople = $comment->mentions->filter(fn ($mention): bool => $mention->person !== null)
+            ->mapWithKeys(fn ($mention): array => [$mention->mention_id => $mention->person])->all();
 
         return ['id' => $comment->id, 'body' => $comment->body,
-            'body_html' => $this->presenter->html($comment->body, $comment, 'story_comment_person_mentions',
-                'story_comment_id', $this->familySlug(), $this->actor(),
-                $this->storySubject($comment->story()->firstOrFail()), RichTextDocument::COMMENT),
-            'author' => $comment->author === null ? null : ['id' => $comment->author->id, 'name' => $comment->author->name],
+            'body_html' => $this->presenter->htmlWithPeople(
+                $comment->body,
+                $mentionPeople,
+                $this->familySlug(),
+                $this->actor(),
+                $subject,
+                RichTextDocument::COMMENT,
+            ),
+            'author' => $this->actorPayload($comment->author, $actorPresentations),
             'created_at' => $comment->created_at?->toAtomString(),
             'permissions' => ['can_remove' => Gate::allows('delete', $comment)]];
     }
@@ -211,9 +275,32 @@ final class StoryController extends Controller
 
     private function storySubject(Story $story): Model
     {
-        return match (true) {
-            $story->person_id !== null => $story->person()->firstOrFail(), $story->album_id !== null => $story->album()->firstOrFail(), $story->event_id !== null => $story->event()->firstOrFail(), default => $story->photo()->firstOrFail()
+        [$relation, $subject] = match (true) {
+            $story->person_id !== null => ['person', $story->relationLoaded('person') ? $story->person : $story->person()->firstOrFail()],
+            $story->album_id !== null => ['album', $story->relationLoaded('album') ? $story->album : $story->album()->firstOrFail()],
+            $story->event_id !== null => ['event', $story->relationLoaded('event') ? $story->event : $story->event()->firstOrFail()],
+            default => ['photo', $story->relationLoaded('photo') ? $story->photo : $story->photo()->firstOrFail()],
         };
+        $story->setRelation($relation, $subject);
+
+        return $subject;
+    }
+
+    /**
+     * @param  array<int, array{display_name: string, person_id: string|null, initials: string, portrait_thumbnail_url: string|null}>  $presentations
+     * @return array{id: int|null, display_name: string, person_id: string|null, initials: string, portrait_thumbnail_url: string|null}
+     */
+    private function actorPayload(?User $user, array $presentations): array
+    {
+        return ['id' => $user?->id, ...($user === null
+            ? $this->actors->formerMember()
+            : ($presentations[$user->id] ?? [
+                'display_name' => $user->name,
+                'person_id' => null,
+                'initials' => collect(preg_split('/\s+/', trim($user->name)) ?: [])->filter()->take(2)
+                    ->map(fn (string $part): string => mb_strtoupper(mb_substr($part, 0, 1)))->implode(''),
+                'portrait_thumbnail_url' => null,
+            ]))];
     }
 
     private function mayMention(User $actor, Model $subject): callable

@@ -19,13 +19,18 @@ final class StoryCommentPolicy
     public function update(User $user, StoryComment $comment): bool
     {
         return ! $comment->trashed() && $comment->author_id === $user->id
-            && $this->stories->view($user, $comment->story()->firstOrFail());
+            && $this->stories->view($user, $this->story($comment));
     }
 
     public function delete(User $user, StoryComment $comment): bool
     {
         return ! $comment->trashed()
-            && $this->stories->view($user, $comment->story()->firstOrFail())
+            && $this->stories->view($user, $this->story($comment))
             && ($comment->author_id === $user->id || $this->context->membership()->role->canManageMembers());
+    }
+
+    private function story(StoryComment $comment): Story
+    {
+        return $comment->relationLoaded('story') ? $comment->story : $comment->story()->firstOrFail();
     }
 }

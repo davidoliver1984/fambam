@@ -91,6 +91,7 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
             ->whereIn('type', ['people', 'photos', 'albums', 'events']);
         Route::post('/stories', [StoryController::class, 'store']);
         Route::get('/stories/{story}', [StoryController::class, 'show']);
+        Route::get('/stories/{story}/mention-suggestions', [StoryController::class, 'mentionSuggestions']);
         Route::get('/stories/{story}/love', [LoveController::class, 'story']);
         Route::put('/stories/{story}/love', [LoveController::class, 'loveStory']);
         Route::delete('/stories/{story}/love', [LoveController::class, 'unloveStory']);

@@ -27,6 +27,20 @@ export async function getStory(
   );
 }
 
+export async function getStoryMentionSuggestions(
+  familySlug: string,
+  storyId: string,
+  prefix: string,
+  signal?: AbortSignal,
+): Promise<Array<{ id: string; label: string }>> {
+  return unwrap(
+    await apiClient.get<ApiEnvelope<Array<{ id: string; label: string }>>>(
+      `${storyPath(familySlug, storyId)}/mention-suggestions`,
+      { params: { prefix }, signal },
+    ),
+  );
+}
+
 export async function createStory(
   familySlug: string,
   input: CreateStoryInput,

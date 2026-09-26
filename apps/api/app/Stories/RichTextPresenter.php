@@ -35,9 +35,36 @@ final class RichTextPresenter
             ->keyBy('mention_id');
         $people = Person::query()->whereIn('id', $mentions->pluck('person_id'))->get()->keyBy('id');
 
-        return $this->renderer->html($document, function (string $mentionId) use ($mentions, $people, $familySlug, $actor, $subject): ?array {
-            $mention = $mentions->get($mentionId);
-            $person = $mention === null ? null : $people->get($mention->person_id);
+        return $this->htmlWithPeople(
+            $document,
+            $mentions->mapWithKeys(fn (object $mention): array => [
+                (string) $mention->mention_id => $people->get($mention->person_id),
+            ])->filter()->all(),
+            $familySlug,
+            $actor,
+            $subject,
+            $vocabulary,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $document
+     * @param  array<string, Person>  $peopleByMentionId
+     */
+    public function htmlWithPeople(
+        ?array $document,
+        array $peopleByMentionId,
+        string $familySlug,
+        User $actor,
+        Model $subject,
+        string $vocabulary = RichTextDocument::FULL,
+    ): ?string {
+        if ($document === null) {
+            return null;
+        }
+
+        return $this->renderer->html($document, function (string $mentionId) use ($peopleByMentionId, $familySlug, $actor, $subject): ?array {
+            $person = $peopleByMentionId[$mentionId] ?? null;
             if (! $person instanceof Person || ! $this->authorizer->allows($actor, $subject, $person)) {
                 return null;
             }

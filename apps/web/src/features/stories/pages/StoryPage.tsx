@@ -4,26 +4,55 @@ import { Link, useNavigate, useParams } from "react-router";
 import { LoveButton } from "@/features/love/components/LoveButton";
 import { familyEntityPath } from "@/navigation/familyEntityPath";
 
+import { RichTextEditor } from "../components/RichTextEditor";
 import { useStoryMutations, useStoryQuery } from "../hooks/useStories";
-import { plainTextDocument } from "../types/story";
+import {
+  emptyRichTextDocument,
+  richTextPlainText,
+  type ActorPresentation,
+  type RichTextDocument,
+} from "../types/story";
+
+function ActorName({
+  actor,
+  familySlug,
+}: {
+  actor: ActorPresentation;
+  familySlug: string;
+}) {
+  return actor.person_id === null ? (
+    actor.display_name
+  ) : (
+    <Link
+      to={familyEntityPath(familySlug, {
+        type: "person",
+        id: actor.person_id,
+      })}
+    >
+      {actor.display_name}
+    </Link>
+  );
+}
 
 export function StoryPage() {
   const { familySlug = "", storyId = "" } = useParams();
   const navigate = useNavigate();
   const story = useStoryQuery(familySlug, storyId);
   const actions = useStoryMutations(familySlug, storyId);
-  const [comment, setComment] = useState("");
+  const [comment, setComment] = useState<RichTextDocument>(
+    emptyRichTextDocument,
+  );
   const [editing, setEditing] = useState(false);
-  const [body, setBody] = useState("");
+  const [body, setBody] = useState<RichTextDocument>(emptyRichTextDocument);
 
   if (story.isPending) return <p role="status">Loading Story…</p>;
   if (story.isError) return <p role="alert">This Story is unavailable.</p>;
 
   function submitComment(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
-    actions.comment.mutate(plainTextDocument(comment), {
+    actions.comment.mutate(comment, {
       onSuccess: () => {
-        setComment("");
+        setComment(emptyRichTextDocument());
       },
     });
   }
@@ -32,31 +61,32 @@ export function StoryPage() {
     <main className="journey-page journey-detail" aria-labelledby="story-title">
       <p className="eyebrow">Story</p>
       <h1 id="story-title">{story.data.heading}</h1>
-      <p>By {story.data.author?.name ?? "a former family member"}</p>
+      <p>
+        By <ActorName actor={story.data.author} familySlug={familySlug} />
+      </p>
       {editing ? (
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            actions.update.mutate(plainTextDocument(body), {
+            actions.update.mutate(body, {
               onSuccess: () => {
                 setEditing(false);
               },
             });
           }}
         >
-          <label htmlFor="edit-story-body">Edit Story</label>
-          <textarea
-            id="edit-story-body"
-            rows={10}
-            required
+          <RichTextEditor
+            label="Edit Story"
+            familySlug={familySlug}
+            storyId={storyId}
             value={body}
-            onChange={(event) => {
-              setBody(event.target.value);
-            }}
+            onChange={setBody}
           />
           <button
             type="submit"
-            disabled={actions.update.isPending || body.trim() === ""}
+            disabled={
+              actions.update.isPending || richTextPlainText(body).trim() === ""
+            }
           >
             Save Story
           </button>
@@ -79,7 +109,7 @@ export function StoryPage() {
         <button
           type="button"
           onClick={() => {
-            setBody(story.data.body_plain_text);
+            setBody(story.data.body);
             setEditing(true);
           }}
         >
@@ -88,7 +118,7 @@ export function StoryPage() {
       )}
       <p>
         <Link to={familyEntityPath(familySlug, story.data.subject)}>
-          View the {story.data.subject.type} this Story is about
+          {story.data.subject.label}
         </Link>
       </p>
       <LoveButton
@@ -105,7 +135,9 @@ export function StoryPage() {
             {story.data.comments.map((item) => (
               <li key={item.id}>
                 <div dangerouslySetInnerHTML={{ __html: item.body_html }} />
-                <small>{item.author?.name ?? "Former member"}</small>
+                <small>
+                  <ActorName actor={item.author} familySlug={familySlug} />
+                </small>
                 {item.permissions.can_remove && (
                   <button
                     type="button"
@@ -122,18 +154,20 @@ export function StoryPage() {
           </ul>
         )}
         <form onSubmit={submitComment}>
-          <label htmlFor="story-comment">Add a comment</label>
-          <textarea
-            id="story-comment"
-            required
+          <RichTextEditor
+            label="Add a comment"
+            familySlug={familySlug}
+            storyId={storyId}
+            vocabulary="comment"
             value={comment}
-            onChange={(event) => {
-              setComment(event.target.value);
-            }}
+            onChange={setComment}
           />
           <button
             type="submit"
-            disabled={actions.comment.isPending || comment.trim() === ""}
+            disabled={
+              actions.comment.isPending ||
+              richTextPlainText(comment).trim() === ""
+            }
           >
             Post comment
           </button>
