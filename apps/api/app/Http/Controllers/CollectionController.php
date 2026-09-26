@@ -9,6 +9,7 @@ use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\Photo;
 use App\Models\User;
+use App\People\UncertainDate;
 use App\Services\CollectionManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -69,6 +70,18 @@ class CollectionController extends Controller
         $this->manager->add($target, $request->user(), $photoId);
 
         return response()->json(['data' => $this->payload($target, true)], 201);
+    }
+
+    public function addPhotos(FamilySpace $familySpace, string $collection, Request $request): JsonResponse
+    {
+        $target = $this->owned($familySpace, $collection, $request);
+        $photoIds = $request->validate([
+            'photo_ids' => ['required', 'array', 'min:1', 'max:1000'],
+            'photo_ids.*' => ['required', 'ulid'],
+        ])['photo_ids'];
+        $added = $this->manager->addAuthorized($target, $request->user(), $photoIds);
+
+        return response()->json(['data' => $this->payload($target, true), 'added' => $added], 201);
     }
 
     public function removePhoto(FamilySpace $familySpace, string $collection, string $photo, Request $request): JsonResponse
@@ -133,10 +146,20 @@ class CollectionController extends Controller
             return $data;
         }
         $data['photos'] = CollectionPhoto::query()->where('collection_id', $collection->id)
-            ->with('photo')->orderBy('position')->get()
+            ->with(['photo.photoPeople' => fn ($query) => $query
+                ->where('status', 'approved')->with('person:id,preferred_name')])
+            ->orderBy('position')->get()
             ->filter(fn (CollectionPhoto $row): bool => $row->photo !== null && Gate::allows('view', $row->photo))
             ->map(fn (CollectionPhoto $row): array => ['id' => $row->photo->id,
                 'caption' => $row->photo->caption, 'media_upload_id' => $row->photo->media_upload_id,
+                'historical_date' => $row->photo->historical_date_precision === null ? null
+                    : UncertainDate::fromStorage($row->photo->historical_date_precision,
+                        $row->photo->historical_date?->format('Y-m-d'))->toPayload(),
+                'location_description' => $row->photo->location_description,
+                'people' => $row->photo->photoPeople->map(fn ($association): array => [
+                    'id' => $association->person->id,
+                    'preferred_name' => $association->person->preferred_name,
+                ])->values(),
                 'position' => $row->position])->values();
 
         return $data;

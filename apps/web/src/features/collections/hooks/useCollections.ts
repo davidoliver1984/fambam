@@ -2,16 +2,23 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   addCollectionPhoto,
+  addCollectionPhotos,
   createCollection,
   deleteCollection,
   getCollection,
   getCollections,
   populateCollection,
   removeCollectionPhoto,
+  reorderCollectionPhotos,
   requestCollectionExport,
+  updateCollection,
 } from "../api/collectionApi";
 import { collectionKeys } from "../api/collectionKeys";
-import type { CollectionInput } from "../types/collection";
+import { familyExportKeys } from "@/features/exports/api/familyExportKeys";
+import type {
+  CollectionInput,
+  CollectionUpdateInput,
+} from "../types/collection";
 
 export function useCollectionsQuery(familySlug: string) {
   return useQuery({
@@ -49,6 +56,52 @@ export function usePopulateCollectionMutation(
       }),
   });
 }
+export function useUpdateCollectionMutation(
+  familySlug: string,
+  collectionId: string,
+) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CollectionUpdateInput) =>
+      updateCollection(familySlug, collectionId, input),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({
+          queryKey: collectionKeys.detail(familySlug, collectionId),
+        }),
+        client.invalidateQueries({ queryKey: collectionKeys.list(familySlug) }),
+      ]);
+    },
+  });
+}
+export function useReorderCollectionPhotosMutation(
+  familySlug: string,
+  collectionId: string,
+) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (photoIds: string[]) =>
+      reorderCollectionPhotos(familySlug, collectionId, photoIds),
+    onSuccess: () =>
+      client.invalidateQueries({
+        queryKey: collectionKeys.detail(familySlug, collectionId),
+      }),
+  });
+}
+export function useAddCollectionPhotosMutation(
+  familySlug: string,
+  collectionId: string,
+) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (photoIds: string[]) =>
+      addCollectionPhotos(familySlug, collectionId, photoIds),
+    onSuccess: () =>
+      client.invalidateQueries({
+        queryKey: collectionKeys.detail(familySlug, collectionId),
+      }),
+  });
+}
 export function useCollectionMutations(
   familySlug: string,
   collectionId: string,
@@ -74,6 +127,10 @@ export function useCollectionMutations(
     }),
     requestExport: useMutation({
       mutationFn: () => requestCollectionExport(familySlug, collectionId),
+      onSuccess: () =>
+        client.invalidateQueries({
+          queryKey: familyExportKeys.all(familySlug),
+        }),
     }),
   };
 }

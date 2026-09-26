@@ -198,6 +198,7 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::patch('/collections/{collection}', [CollectionController::class, 'update']);
         Route::delete('/collections/{collection}', [CollectionController::class, 'destroy']);
         Route::post('/collections/{collection}/photos', [CollectionController::class, 'addPhoto']);
+        Route::post('/collections/{collection}/photos/batch', [CollectionController::class, 'addPhotos']);
         Route::delete('/collections/{collection}/photos/{photo}', [CollectionController::class, 'removePhoto']);
         Route::put('/collections/{collection}/order', [CollectionController::class, 'reorder']);
         Route::post('/collections/{collection}/populate', [CollectionController::class, 'populate']);

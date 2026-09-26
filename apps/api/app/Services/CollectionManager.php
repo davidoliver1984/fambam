@@ -13,7 +13,9 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class CollectionManager
 {
@@ -80,6 +82,25 @@ final class CollectionManager
     }
 
     /** @param list<string> $photoIds */
+    public function addAuthorized(Collection $collection, User $actor, array $photoIds): int
+    {
+        return DB::transaction(function () use ($collection, $actor, $photoIds): int {
+            $locked = Collection::query()->whereKey($collection->id)->lockForUpdate()->firstOrFail();
+            $uniqueIds = array_values(array_unique($photoIds));
+            $photos = Photo::query()->where('family_space_id', $locked->family_space_id)
+                ->whereIn('id', $uniqueIds)->get()->keyBy('id');
+            if ($photos->count() !== count($uniqueIds)) {
+                throw new NotFoundHttpException;
+            }
+            foreach ($uniqueIds as $photoId) {
+                Gate::forUser($actor)->authorize('view', $photos[$photoId]);
+            }
+
+            return $this->append($locked, $uniqueIds);
+        });
+    }
+
+    /** @param list<string> $photoIds */
     public function addVisible(Collection $collection, User $actor, array $photoIds): int
     {
         return DB::transaction(function () use ($collection, $actor, $photoIds): int {
@@ -134,18 +155,20 @@ final class CollectionManager
     /** @param list<string> $photoIds */
     private function append(Collection $collection, array $photoIds): int
     {
-        $position = ((int) CollectionPhoto::query()->where('collection_id', $collection->id)->max('position')) + 1;
-        $added = 0;
-        foreach ($photoIds as $photoId) {
-            if (CollectionPhoto::query()->where('collection_id', $collection->id)
-                ->where('photo_id', $photoId)->exists()) {
-                continue;
-            }
-            CollectionPhoto::query()->create(['family_space_id' => $collection->family_space_id,
-                'collection_id' => $collection->id, 'photo_id' => $photoId, 'position' => $position++]);
-            $added++;
+        $photoIds = array_values(array_unique($photoIds));
+        $existing = CollectionPhoto::query()->where('collection_id', $collection->id)
+            ->whereIn('photo_id', $photoIds)->pluck('photo_id')->all();
+        $photoIds = array_values(array_diff($photoIds, $existing));
+        if ($photoIds === []) {
+            return 0;
         }
+        $position = ((int) CollectionPhoto::query()->where('collection_id', $collection->id)->max('position')) + 1;
+        CollectionPhoto::query()->insert(array_map(function (string $photoId) use ($collection, &$position): array {
+            return ['id' => (string) Str::ulid(), 'family_space_id' => $collection->family_space_id,
+                'collection_id' => $collection->id, 'photo_id' => $photoId, 'position' => $position++,
+                'created_at' => now()];
+        }, $photoIds));
 
-        return $added;
+        return count($photoIds);
     }
 }

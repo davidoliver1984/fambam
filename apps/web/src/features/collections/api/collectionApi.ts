@@ -1,7 +1,13 @@
 import { apiClient, ensureCsrfCookie } from "@/api/client";
 import { type ApiEnvelope, unwrap } from "@/api/envelope";
 
-import type { CollectionInput, FamilyCollection } from "../types/collection";
+import type { FamilyExport } from "@/features/exports/types/familyExport";
+
+import type {
+  CollectionInput,
+  CollectionUpdateInput,
+  FamilyCollection,
+} from "../types/collection";
 
 function path(familySlug: string, collectionId?: string): string {
   const base = `/api/families/${encodeURIComponent(familySlug)}/collections`;
@@ -44,6 +50,19 @@ export async function createCollection(
     ),
   );
 }
+export async function updateCollection(
+  familySlug: string,
+  collectionId: string,
+  input: CollectionUpdateInput,
+): Promise<FamilyCollection> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.patch<ApiEnvelope<FamilyCollection>>(
+      path(familySlug, collectionId),
+      input,
+    ),
+  );
+}
 export async function addCollectionPhoto(
   familySlug: string,
   collectionId: string,
@@ -54,6 +73,19 @@ export async function addCollectionPhoto(
     await apiClient.post<ApiEnvelope<FamilyCollection>>(
       `${path(familySlug, collectionId)}/photos`,
       { photo_id: photoId },
+    ),
+  );
+}
+export async function addCollectionPhotos(
+  familySlug: string,
+  collectionId: string,
+  photoIds: string[],
+): Promise<FamilyCollection> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.post<ApiEnvelope<FamilyCollection>>(
+      `${path(familySlug, collectionId)}/photos/batch`,
+      { photo_ids: photoIds },
     ),
   );
 }
@@ -81,6 +113,19 @@ export async function removeCollectionPhoto(
     `${path(familySlug, collectionId)}/photos/${encodeURIComponent(photoId)}`,
   );
 }
+export async function reorderCollectionPhotos(
+  familySlug: string,
+  collectionId: string,
+  photoIds: string[],
+): Promise<FamilyCollection> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.put<ApiEnvelope<FamilyCollection>>(
+      `${path(familySlug, collectionId)}/order`,
+      { photo_ids: photoIds },
+    ),
+  );
+}
 export async function deleteCollection(
   familySlug: string,
   collectionId: string,
@@ -91,7 +136,11 @@ export async function deleteCollection(
 export async function requestCollectionExport(
   familySlug: string,
   collectionId: string,
-): Promise<void> {
+): Promise<FamilyExport> {
   await ensureCsrfCookie();
-  await apiClient.post(`${path(familySlug, collectionId)}/exports`);
+  return unwrap(
+    await apiClient.post<ApiEnvelope<FamilyExport>>(
+      `${path(familySlug, collectionId)}/exports`,
+    ),
+  );
 }
