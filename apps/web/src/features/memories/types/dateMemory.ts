@@ -5,6 +5,7 @@ export type DateMemory = {
   media_upload_id: string;
   label: string;
   reason: string;
+  location: string | null;
   historical_date: UncertainDate;
   added_at: string | null;
 };

@@ -24,11 +24,21 @@ class FamilyActivityQuery
         private readonly StoryQuery $storyQuery,
     ) {}
 
-    /** @return list<array<string, mixed>> */
-    public function recent(User $viewer, int $limit = 20): array
+    /**
+     * @param  list<FamilyActivityType>|null  $types
+     * @return list<array<string, mixed>>
+     */
+    public function recent(User $viewer, int $limit = 20, ?array $types = null): array
     {
-        $activities = FamilyActivity::query()
-            ->where('family_space_id', $this->tenantContext->familySpace()->id)
+        $query = FamilyActivity::query()
+            ->where('family_space_id', $this->tenantContext->familySpace()->id);
+        if ($types !== null) {
+            $query->whereIn('action_type', array_map(
+                fn (FamilyActivityType $type): string => $type->value,
+                $types,
+            ));
+        }
+        $activities = $query
             ->latest('created_at')->latest('id')->limit(100)->get();
         if ($activities->isEmpty()) {
             return [];

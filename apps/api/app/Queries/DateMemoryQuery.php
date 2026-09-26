@@ -64,6 +64,7 @@ class DateMemoryQuery
             'media_upload_id' => $photo->media_upload_id,
             'label' => $photo->caption ?? $photo->mediaUpload->client_filename,
             'reason' => $this->reason($date, $precision),
+            'location' => $photo->location_description,
             'historical_date' => UncertainDate::fromStorage(
                 $precision,
                 $date->format('Y-m-d'),
