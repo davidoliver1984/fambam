@@ -10,8 +10,10 @@ use App\Models\Photo;
 use App\Models\Story;
 use App\Models\User;
 use App\Services\MediaDeliveryManager;
+use App\Stories\StoryHeading;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -29,6 +31,7 @@ final class HomeQuery
         private readonly StoryQuery $stories,
         private readonly DateMemoryQuery $dateMemories,
         private readonly MediaDeliveryManager $delivery,
+        private readonly StoryHeading $storyHeadings,
     ) {}
 
     /** @return array{activity: list<array<string, mixed>>, latest_photos: list<array<string, mixed>>, on_this_day: array<string, mixed>|null} */
@@ -66,45 +69,75 @@ final class HomeQuery
         $albums = $this->albums->visibleTo($viewer)->whereIn('id', $albumIds)
             ->get(['id', 'name', 'description_plain_text', 'starts_on', 'ends_on', 'location'])
             ->keyBy('id');
-        $stories = $this->stories->visibleTo($viewer)->whereIn('id', $storyIds)
-            ->get(['id', 'person_id', 'album_id', 'event_id', 'photo_id', 'body_plain_text'])
+        $visibleStoryIds = $this->stories->visibleTo($viewer)->setEagerLoads([])
+            ->whereIn('stories.id', $storyIds)->pluck('stories.id');
+        $stories = Story::query()
+            ->leftJoin('people as story_people', fn (JoinClause $join) => $join
+                ->on('story_people.id', '=', 'stories.person_id')
+                ->on('story_people.family_space_id', '=', 'stories.family_space_id'))
+            ->leftJoin('albums as story_albums', fn (JoinClause $join) => $join
+                ->on('story_albums.id', '=', 'stories.album_id')
+                ->on('story_albums.family_space_id', '=', 'stories.family_space_id'))
+            ->leftJoin('events as story_events', fn (JoinClause $join) => $join
+                ->on('story_events.id', '=', 'stories.event_id')
+                ->on('story_events.family_space_id', '=', 'stories.family_space_id'))
+            ->leftJoin('photos as story_photos', fn (JoinClause $join) => $join
+                ->on('story_photos.id', '=', 'stories.photo_id')
+                ->on('story_photos.family_space_id', '=', 'stories.family_space_id'))
+            ->leftJoin('media_uploads as story_uploads', fn (JoinClause $join) => $join
+                ->on('story_uploads.id', '=', 'story_photos.media_upload_id')
+                ->on('story_uploads.family_space_id', '=', 'stories.family_space_id'))
+            ->whereIn('stories.id', $visibleStoryIds)
+            ->get([
+                'stories.id', 'stories.person_id', 'stories.album_id', 'stories.event_id', 'stories.photo_id',
+                'stories.body', 'stories.body_plain_text',
+                DB::raw('coalesce(story_people.preferred_name, story_albums.name, story_events.name, story_photos.caption, story_uploads.client_filename) as subject_label'),
+            ])
             ->keyBy('id');
         $photos = $this->presentationPhotos($viewer, $activityPhotoIds)->keyBy('id');
 
         $albumKeys = $albums->keys()->map(fn (mixed $id): string => (string) $id)->all();
         $storyKeys = $stories->keys()->map(fn (mixed $id): string => (string) $id)->all();
-        $albumLoveCounts = $this->counts('reactions', 'album_id', $albumKeys);
-        $storyLoveCounts = $this->counts('reactions', 'story_id', $storyKeys);
+        $albumLove = $this->loveSummaries('album_id', $albumKeys, $viewer);
+        $storyLove = $this->loveSummaries('story_id', $storyKeys, $viewer);
         $storyCommentCounts = $this->counts('story_comments', 'story_id', $storyKeys, true);
         $albumCommentCounts = $this->albumCommentCounts($viewer, $albumKeys);
+        $storyMentionLabels = $this->storyMentionLabels($storyKeys);
 
         return $items->map(function (array $item) use (
             $albums,
             $stories,
             $photos,
-            $albumLoveCounts,
-            $storyLoveCounts,
+            $albumLove,
+            $storyLove,
             $storyCommentCounts,
             $albumCommentCounts,
+            $storyMentionLabels,
         ): ?array {
             if ($item['action_type'] === FamilyActivityType::StoryAdded->value) {
                 $story = $stories->get($item['subject']['id']);
                 if (! $story instanceof Story) {
                     return null;
                 }
+                $subject = $this->storySubject($story);
+                if ($subject === null) {
+                    return null;
+                }
+                $mentionLabels = $storyMentionLabels[$story->id] ?? [];
 
                 return [
                     ...$item,
                     'story' => [
                         'id' => $story->id,
+                        'heading' => $this->storyHeadings->derive(
+                            $story->body,
+                            fn (string $mentionId): ?string => $mentionLabels[$mentionId] ?? null,
+                        ),
                         'excerpt' => Str::limit(trim($story->body_plain_text), 240),
-                        'subject' => [
-                            'type' => $story->person_id !== null ? 'person' : ($story->album_id !== null ? 'album' : ($story->event_id !== null ? 'event' : 'photo')),
-                            'id' => $story->person_id ?? $story->album_id ?? $story->event_id ?? $story->photo_id,
-                        ],
+                        'subject' => $subject,
                     ],
                     'engagement' => [
-                        'love_count' => $storyLoveCounts[$story->id] ?? 0,
+                        ...($storyLove[$story->id] ?? ['love_count' => 0, 'loved_by_me' => false]),
                         'comment_count' => $storyCommentCounts[$story->id] ?? 0,
                     ],
                 ];
@@ -130,7 +163,7 @@ final class HomeQuery
                     ? $this->photoPayload($photos->get($featurePhoto))
                     : null,
                 'engagement' => [
-                    'love_count' => $albumLoveCounts[$album->id] ?? 0,
+                    ...($albumLove[$album->id] ?? ['love_count' => 0, 'loved_by_me' => false]),
                     'comment_count' => $albumCommentCounts[$album->id] ?? 0,
                 ],
             ];
@@ -245,6 +278,64 @@ final class HomeQuery
 
         return $query->groupBy($column)->selectRaw("{$column}, count(*) as aggregate")->pluck('aggregate', $column)
             ->map(fn (mixed $count): int => (int) $count)->all();
+    }
+
+    /** @param list<string> $ids
+     * @return array<string, array{love_count: int, loved_by_me: bool}>
+     */
+    private function loveSummaries(string $column, array $ids, User $viewer): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        return DB::table('reactions')->whereIn($column, $ids)->where('reaction', 'love')
+            ->groupBy($column)
+            ->selectRaw("{$column}, count(*) as aggregate, max(case when user_id = ? then 1 else 0 end) as loved_by_me", [$viewer->id])
+            ->get()->mapWithKeys(fn (object $row): array => [
+                (string) $row->{$column} => [
+                    'love_count' => (int) $row->aggregate,
+                    'loved_by_me' => (bool) $row->loved_by_me,
+                ],
+            ])->all();
+    }
+
+    /** @param list<string> $storyIds
+     * @return array<string, array<string, string>>
+     */
+    private function storyMentionLabels(array $storyIds): array
+    {
+        if ($storyIds === []) {
+            return [];
+        }
+
+        return DB::table('story_person_mentions')
+            ->join('people', function (JoinClause $join): void {
+                $join->on('people.id', '=', 'story_person_mentions.person_id')
+                    ->on('people.family_space_id', '=', 'story_person_mentions.family_space_id');
+            })
+            ->whereIn('story_person_mentions.story_id', $storyIds)
+            ->whereNull('people.deleted_at')
+            ->get(['story_person_mentions.story_id', 'story_person_mentions.mention_id', 'people.preferred_name'])
+            ->groupBy('story_id')
+            ->map(fn (Collection $rows): array => $rows->pluck('preferred_name', 'mention_id')
+                ->map(fn (mixed $label): string => (string) $label)->all())
+            ->all();
+    }
+
+    /** @return array{type: string, id: string, label: string}|null */
+    private function storySubject(Story $story): ?array
+    {
+        $label = $story->getAttribute('subject_label');
+        if (! is_string($label) || $label === '') {
+            return null;
+        }
+
+        $type = $story->person_id !== null ? 'person'
+            : ($story->album_id !== null ? 'album' : ($story->event_id !== null ? 'event' : 'photo'));
+        $id = $story->person_id ?? $story->album_id ?? $story->event_id ?? $story->photo_id;
+
+        return is_string($id) ? ['type' => $type, 'id' => $id, 'label' => $label] : null;
     }
 
     /** @param list<string> $albumIds

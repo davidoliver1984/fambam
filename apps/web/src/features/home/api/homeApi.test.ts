@@ -13,7 +13,39 @@ describe("homeApi", () => {
       http.get(`${apiBaseUrl}/api/families/mercer-family/home`, () =>
         HttpResponse.json({
           data: {
-            activity: [],
+            activity: [
+              {
+                id: "activity-1",
+                action_type: "story_added",
+                actor: { user_id: 1, name: "David", person_id: null },
+                subject: {
+                  type: "story",
+                  id: "story-1",
+                  label: "At the seaside",
+                  subject_type: "person",
+                  subject_id: "person-1",
+                },
+                contribution_batch_id: null,
+                photo_ids: [],
+                photo_count: 0,
+                created_at: "2026-09-26T12:00:00+00:00",
+                story: {
+                  id: "story-1",
+                  heading: "At the seaside",
+                  excerpt: "A family memory.",
+                  subject: {
+                    type: "person",
+                    id: "person-1",
+                    label: "William",
+                  },
+                },
+                engagement: {
+                  love_count: 2,
+                  loved_by_me: true,
+                  comment_count: 1,
+                },
+              },
+            ],
             latest_photos: [
               {
                 id: "01M00000000000000000000001",
@@ -33,8 +65,18 @@ describe("homeApi", () => {
       ),
     );
 
-    await expect(getHomeReadModel("mercer-family")).resolves.toMatchObject({
-      activity: [],
+    const home = await getHomeReadModel("mercer-family");
+
+    expect(home).toMatchObject({
+      activity: [
+        {
+          story: {
+            heading: "At the seaside",
+            subject: { label: "William" },
+          },
+          engagement: { loved_by_me: true },
+        },
+      ],
       latest_photos: [{ alt: "At the pier" }],
       on_this_day: null,
     });

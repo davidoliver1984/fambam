@@ -15,6 +15,7 @@ export type HomePresentationPhoto = {
 
 export type HomeEngagement = {
   love_count: number;
+  loved_by_me: boolean;
   comment_count: number;
 };
 
@@ -36,10 +37,12 @@ export type HomeStoryActivity = FamilyActivity & {
   action_type: "story_added";
   story: {
     id: string;
+    heading: string;
     excerpt: string;
     subject: {
       type: "person" | "photo" | "album" | "event";
       id: string;
+      label: string;
     };
   };
   engagement: HomeEngagement;

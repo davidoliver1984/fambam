@@ -13,19 +13,24 @@ use App\Media\MediaDeliveryUrlSigner;
 use App\Media\MediaSigningAudience;
 use App\Models\Album;
 use App\Models\FamilyActivity;
+use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
+use App\Models\Person;
 use App\Models\Photo;
 use App\Models\PhotoComment;
 use App\Models\PhotoVersion;
 use App\Models\Reaction;
 use App\Models\Story;
 use App\Models\StoryComment;
+use App\Models\StoryPersonMention;
 use App\Models\User;
+use App\Stories\StoryHeading;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -143,6 +148,26 @@ class HomeReadModelTest extends TestCase
                 'created_at' => now()->addMinutes($offset),
             ]);
         }
+        $foreignFamily = FamilySpace::factory()->create(['slug' => 'other-home-feed']);
+        FamilySpaceMembership::factory()->create([
+            'family_space_id' => $foreignFamily->id,
+            'user_id' => $viewer->id,
+            'role' => FamilySpaceRole::Member,
+            'state' => MembershipState::Active,
+        ]);
+        $foreignOwner = $this->member($foreignFamily, FamilySpaceRole::Owner);
+        $foreignAlbum = Album::query()->create([
+            'family_space_id' => $foreignFamily->id,
+            'created_by' => $foreignOwner->id,
+            'name' => 'Other family album',
+            'visibility' => AlbumVisibility::FamilySpace,
+        ]);
+        Reaction::query()->create([
+            'family_space_id' => $foreignFamily->id,
+            'album_id' => $foreignAlbum->id,
+            'user_id' => $viewer->id,
+            'reaction' => 'love',
+        ]);
 
         $response = $this->actingAs($viewer)->getJson('/api/families/home-feed/home')->assertOk();
         $items = collect($this->jsonItems($response, 'data.activity'));
@@ -158,13 +183,138 @@ class HomeReadModelTest extends TestCase
         $this->assertSame('At the pier', $contribution['feature_photo']['alt']);
         $this->assertSame('Blackpool holiday', $contribution['album']['name']);
         $this->assertSame('Grandma maintained the chips were too salty.', $contribution['album']['description']);
-        $this->assertSame(['love_count' => 1, 'comment_count' => 1], $contribution['engagement']);
+        $this->assertSame(['love_count' => 1, 'loved_by_me' => false, 'comment_count' => 1], $contribution['engagement']);
         $this->assertStringNotContainsString('original', $contribution['feature_photo']['presentation']['url']);
         $this->assertNotContains($private->id, $contribution['photo_ids']);
 
         $storyItem = $items->firstWhere('action_type', FamilyActivityType::StoryAdded->value);
         $this->assertSame($story->id, $storyItem['story']['id']);
-        $this->assertSame(['love_count' => 1, 'comment_count' => 1], $storyItem['engagement']);
+        $this->assertSame('The camera nearly stayed on the pier.', $storyItem['story']['heading']);
+        $this->assertSame(['type' => 'photo', 'id' => $first->id, 'label' => 'At the pier'], $storyItem['story']['subject']);
+        $this->assertSame(['love_count' => 1, 'loved_by_me' => true, 'comment_count' => 1], $storyItem['engagement']);
+
+        $ownerItems = collect($this->jsonItems(
+            $this->actingAs($owner)->getJson('/api/families/home-feed/home')->assertOk(),
+            'data.activity',
+        ));
+        $this->assertTrue($ownerItems->firstWhere('action_type', FamilyActivityType::PhotosAddedToAlbum->value)['engagement']['loved_by_me']);
+        $this->assertFalse($ownerItems->firstWhere('action_type', FamilyActivityType::StoryAdded->value)['engagement']['loved_by_me']);
+    }
+
+    public function test_home_uses_canonical_story_headings_and_authorized_labels_for_every_subject_type(): void
+    {
+        $family = FamilySpace::factory()->create(['slug' => 'typed-story-home']);
+        $owner = $this->member($family, FamilySpaceRole::Owner);
+        $person = Person::factory()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $owner->id,
+            'preferred_name' => 'William',
+        ]);
+        $album = Album::query()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $owner->id,
+            'name' => 'Blackpool 1986',
+            'visibility' => AlbumVisibility::FamilySpace,
+        ]);
+        $event = FamilyEvent::query()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $owner->id,
+            'name' => 'Family reunion',
+        ]);
+        $photo = Photo::factory()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $owner->id,
+            'caption' => 'William on the pier',
+        ]);
+        $subjects = [
+            'person' => [$person->id, 'William'],
+            'album' => [$album->id, 'Blackpool 1986'],
+            'event' => [$event->id, 'Family reunion'],
+            'photo' => [$photo->id, 'William on the pier'],
+        ];
+        $expectedHeadings = [];
+        foreach ($subjects as $type => [$subjectId, $label]) {
+            $mentionId = $type === 'person' ? (string) Str::ulid() : null;
+            $body = $mentionId === null
+                ? $this->headingDocument("Canonical {$type} heading")
+                : $this->mentionHeadingDocument($mentionId, $person);
+            $story = Story::query()->create([
+                'family_space_id' => $family->id,
+                'author_id' => $owner->id,
+                "{$type}_id" => $subjectId,
+                'body' => $body,
+                'body_plain_text' => "Canonical {$type} heading Body copy that must not replace the heading.",
+            ]);
+            if ($mentionId !== null) {
+                StoryPersonMention::query()->create([
+                    'family_space_id' => $family->id,
+                    'story_id' => $story->id,
+                    'mention_id' => $mentionId,
+                    'person_id' => $person->id,
+                    'historical_label_snapshot' => 'Historical name',
+                ]);
+            }
+            $expectedHeadings[$type] = app(StoryHeading::class)->derive(
+                $body,
+                fn (string $id): ?string => $id === $mentionId ? $person->preferred_name : null,
+            );
+            FamilyActivity::query()->create([
+                'family_space_id' => $family->id,
+                'actor_user_id' => $owner->id,
+                'action_type' => FamilyActivityType::StoryAdded,
+                'subject_story_id' => $story->id,
+                'photo_ids' => $type === 'photo' ? [$photo->id] : [],
+                'created_at' => now()->addMinute(),
+            ]);
+        }
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $response = $this->actingAs($owner)->getJson('/api/families/typed-story-home/home')->assertOk();
+        $queryCount = count(DB::getQueryLog());
+        DB::disableQueryLog();
+        $stories = collect($this->jsonItems($response, 'data.activity'))->pluck('story')->keyBy('subject.type');
+
+        foreach ($subjects as $type => [$subjectId, $label]) {
+            $this->assertSame($subjectId, $stories[$type]['subject']['id']);
+            $this->assertSame($label, $stories[$type]['subject']['label']);
+            $this->assertSame($expectedHeadings[$type], $stories[$type]['heading']);
+        }
+        $this->assertFalse(Schema::hasColumn('stories', 'title'));
+        $this->assertLessThanOrEqual(40, $queryCount, 'Home Story presentation queries must remain bounded.');
+    }
+
+    public function test_home_does_not_expose_an_unauthorized_story_subject_label(): void
+    {
+        $family = FamilySpace::factory()->create(['slug' => 'private-story-home']);
+        $owner = $this->member($family, FamilySpaceRole::Owner);
+        $viewer = $this->member($family, FamilySpaceRole::Contributor);
+        $album = Album::query()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $owner->id,
+            'name' => 'Secret album label',
+            'visibility' => AlbumVisibility::Private,
+        ]);
+        $story = Story::query()->create([
+            'family_space_id' => $family->id,
+            'author_id' => $owner->id,
+            'album_id' => $album->id,
+            'body' => $this->document('Private story'),
+            'body_plain_text' => 'Private story',
+        ]);
+        FamilyActivity::query()->create([
+            'family_space_id' => $family->id,
+            'actor_user_id' => $owner->id,
+            'action_type' => FamilyActivityType::StoryAdded,
+            'subject_story_id' => $story->id,
+            'photo_ids' => [],
+            'created_at' => now(),
+        ]);
+
+        $this->actingAs($viewer)->getJson('/api/families/private-story-home/home')
+            ->assertOk()
+            ->assertJsonPath('data.activity', [])
+            ->assertJsonMissing(['label' => 'Secret album label']);
     }
 
     public function test_home_returns_fifteen_authorized_latest_presentations_and_honors_active_version(): void
@@ -313,6 +463,29 @@ class HomeReadModelTest extends TestCase
         return ['schema_version' => 1, 'blocks' => [[
             'type' => 'paragraph',
             'content' => [['type' => 'text', 'text' => $text]],
+        ]]];
+    }
+
+    /** @return array{schema_version: int, blocks: list<array<string, mixed>>} */
+    private function headingDocument(string $heading): array
+    {
+        return ['schema_version' => 1, 'blocks' => [
+            ['type' => 'heading_2', 'content' => [['type' => 'text', 'text' => $heading]]],
+            ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Body copy that follows.']]],
+        ]];
+    }
+
+    /** @return array{schema_version: int, blocks: list<array<string, mixed>>} */
+    private function mentionHeadingDocument(string $mentionId, Person $person): array
+    {
+        return ['schema_version' => 1, 'blocks' => [[
+            'type' => 'heading_2',
+            'content' => [[
+                'type' => 'mention',
+                'mention_id' => $mentionId,
+                'person_id' => $person->id,
+                'label' => 'Historical name',
+            ]],
         ]]];
     }
 }
