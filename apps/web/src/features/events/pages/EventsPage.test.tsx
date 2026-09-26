@@ -75,9 +75,14 @@ beforeEach(() => {
       ends_on: "1994-12-25",
       location: "Ashton-under-Lyne",
       status: "completed",
+      updated_at: "2026-08-25T10:00:00+00:00",
       created_by: 1,
       creator: { id: 1, name: "David" },
       tags: [],
+      people: [
+        { id: "person-1", name: "Ada Mercer" },
+        { id: "person-2", name: "William Mercer" },
+      ],
       permissions: {
         can_update: true,
         can_manage_admissions: true,
@@ -103,9 +108,11 @@ beforeEach(() => {
       ends_on: "1986-08-19",
       location: "Blackpool",
       status: "completed",
+      updated_at: "2026-08-20T10:00:00+00:00",
       created_by: 1,
       creator: { id: 1, name: "David" },
       tags: [],
+      people: [],
       permissions: {
         can_update: true,
         can_manage_admissions: true,

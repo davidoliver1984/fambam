@@ -8,9 +8,11 @@ export type FamilyEvent = {
   ends_on: string | null;
   location: string | null;
   status: EventStatus;
+  updated_at: string;
   created_by: number | null;
   creator: { id: number; name: string } | null;
   tags: Array<{ id: string; label: string }>;
+  people: Array<{ id: string; name: string }>;
   presentation?: {
     preview: { photo_id: string; media_upload_id: string } | null;
     photo_count: number;

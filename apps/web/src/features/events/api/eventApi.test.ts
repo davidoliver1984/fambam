@@ -33,9 +33,14 @@ const event: FamilyEvent = {
   ends_on: null,
   location: "The park",
   status: "planned",
+  updated_at: "2026-08-25T11:30:00+00:00",
   created_by: 1,
   creator: { id: 1, name: "David" },
   tags: [{ id: "tag-1", label: "Picnic" }],
+  people: [
+    { id: "person-1", name: "Ada Mercer" },
+    { id: "person-2", name: "William Mercer" },
+  ],
   permissions: {
     can_update: true,
     can_manage_admissions: true,
@@ -143,6 +148,15 @@ describe("eventApi", () => {
     );
 
     await expect(getEvents("family-archive")).resolves.toEqual([event]);
+    await expect(getEvents("family-archive")).resolves.toMatchObject([
+      {
+        updated_at: "2026-08-25T11:30:00+00:00",
+        people: [
+          { id: "person-1", name: "Ada Mercer" },
+          { id: "person-2", name: "William Mercer" },
+        ],
+      },
+    ]);
     await expect(getEvent("family-archive", event.id)).resolves.toEqual(event);
     await expect(getDeletedEvents("family-archive")).resolves.toHaveLength(1);
     await expect(

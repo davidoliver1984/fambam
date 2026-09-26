@@ -17,6 +17,7 @@ use App\Services\EventAccess;
 use App\Services\FamilyEventManager;
 use App\Stories\RichTextPresenter;
 use App\Tenancy\TenantContext;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -130,6 +131,16 @@ class FamilyEventController extends Controller
     private function payload(FamilyEvent $event, bool $detailed = false): array
     {
         $event->loadMissing(['creator:id,name', 'tags:id,label']);
+        $canViewPeople = Gate::allows('viewAny', Person::class);
+        if ($canViewPeople) {
+            $event->loadMissing(['people' => function (Relation $relation): void {
+                $relation->getQuery()
+                    ->select(['people.id', 'people.preferred_name'])
+                    ->where('people.family_space_id', $this->tenantContext->familySpace()->id)
+                    ->orderBy('people.preferred_name')
+                    ->orderBy('people.id');
+            }]);
+        }
         $payload = [
             'id' => $event->id,
             'name' => $event->name,
@@ -141,9 +152,16 @@ class FamilyEventController extends Controller
             'ends_on' => $event->ends_on?->format('Y-m-d'),
             'location' => $event->location,
             'status' => $event->status->value,
+            'updated_at' => $event->updated_at?->toAtomString(),
             'created_by' => $event->created_by,
             'creator' => $event->creator === null ? null : ['id' => $event->creator->id, 'name' => $event->creator->name],
             'tags' => $event->tags->map(fn ($tag): array => ['id' => $tag->id, 'label' => $tag->label])->values(),
+            'people' => $canViewPeople
+                ? $event->people->map(fn (Person $person): array => [
+                    'id' => $person->id,
+                    'name' => $person->preferred_name,
+                ])->values()
+                : [],
             'presentation' => $this->presentation($event),
             'permissions' => ['can_update' => Gate::allows('update', $event),
                 'can_manage_admissions' => Gate::allows('manageAdmissions', $event),
@@ -173,11 +191,6 @@ class FamilyEventController extends Controller
             [FamilySpaceRole::Guest, FamilySpaceRole::Contributor], true)
             ? [] : $this->events->attendees($event)->map(fn (Person $person): array => [
                 'id' => $person->id, 'preferred_name' => $person->preferred_name,
-            ])->values();
-        $payload['people'] = in_array($this->tenantContext->membership()->role,
-            [FamilySpaceRole::Guest, FamilySpaceRole::Contributor], true)
-            ? [] : $event->people()->get(['people.id', 'preferred_name'])->map(fn (Person $person): array => [
-                'id' => $person->id, 'name' => $person->preferred_name,
             ])->values();
 
         return $payload;

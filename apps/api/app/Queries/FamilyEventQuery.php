@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -53,7 +54,17 @@ class FamilyEventQuery
     /** @return Collection<int, FamilyEvent> */
     public function all(): Collection
     {
-        return FamilyEvent::query()->with('creator:id,name')
+        return FamilyEvent::query()->with([
+            'creator:id,name',
+            'tags:id,label',
+            'people' => function (Relation $relation): void {
+                $relation->getQuery()
+                    ->select(['people.id', 'people.preferred_name'])
+                    ->where('people.family_space_id', $this->tenantContext->familySpace()->id)
+                    ->orderBy('people.preferred_name')
+                    ->orderBy('people.id');
+            },
+        ])
             ->where('family_space_id', $this->tenantContext->familySpace()->id)
             ->orderByRaw('starts_on IS NULL')
             ->orderBy('starts_on')
@@ -63,7 +74,11 @@ class FamilyEventQuery
 
     public function find(string $id): FamilyEvent
     {
-        return FamilyEvent::query()->with(['creator:id,name', 'albums.creator:id,name'])
+        return FamilyEvent::query()->with([
+            'creator:id,name',
+            'albums.creator:id,name',
+            'tags:id,label',
+        ])
             ->where('family_space_id', $this->tenantContext->familySpace()->id)
             ->find($id) ?? throw new NotFoundHttpException;
     }
@@ -77,7 +92,17 @@ class FamilyEventQuery
     /** @return Collection<int, FamilyEvent> */
     public function deleted(): Collection
     {
-        return FamilyEvent::onlyTrashed()->with('creator:id,name')
+        return FamilyEvent::onlyTrashed()->with([
+            'creator:id,name',
+            'tags:id,label',
+            'people' => function (Relation $relation): void {
+                $relation->getQuery()
+                    ->select(['people.id', 'people.preferred_name'])
+                    ->where('people.family_space_id', $this->tenantContext->familySpace()->id)
+                    ->orderBy('people.preferred_name')
+                    ->orderBy('people.id');
+            },
+        ])
             ->where('family_space_id', $this->tenantContext->familySpace()->id)
             ->latest('deleted_at')->get();
     }
@@ -97,7 +122,17 @@ class FamilyEventQuery
     /** @return Collection<int, FamilyEvent> */
     public function forPerson(Person $person): Collection
     {
-        return FamilyEvent::query()->where('family_space_id', $person->family_space_id)
+        return FamilyEvent::query()->with([
+            'creator:id,name',
+            'tags:id,label',
+            'people' => function (Relation $relation): void {
+                $relation->getQuery()
+                    ->select(['people.id', 'people.preferred_name'])
+                    ->where('people.family_space_id', $this->tenantContext->familySpace()->id)
+                    ->orderBy('people.preferred_name')
+                    ->orderBy('people.id');
+            },
+        ])->where('family_space_id', $person->family_space_id)
             ->where(function (Builder $event) use ($person): void {
                 $event->whereHas('primaryPhotos.photoPeople', fn (Builder $association) => $association
                     ->where('person_id', $person->id)->where('status', 'approved'))
