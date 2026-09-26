@@ -40,6 +40,9 @@ const photo: Photo = {
   historical_date: { precision: "decade", value: "1980s" },
   location_description: "Blackpool",
   do_not_resurface: false,
+  love_count: 3,
+  comment_count: 7,
+  album_count: 2,
   provenance: {
     photographer: { person: null, description: null },
     scanner: { person: null, description: null },
@@ -148,10 +151,35 @@ describe("photoApi", () => {
         location: "",
         historical_year: "",
         without_confirmed_date: false,
+        without_album: false,
       }),
     ).resolves.toEqual([]);
 
     expect(query).toBe("");
+  });
+
+  it("serializes the without-Album filter and parses list aggregates", async () => {
+    let query = "not-called";
+    server.use(
+      http.get(
+        `${apiBaseUrl}/api/families/oliver-family/photos`,
+        ({ request }) => {
+          query = new URL(request.url).search;
+          return HttpResponse.json({ data: [photo] });
+        },
+      ),
+    );
+
+    await expect(
+      getPhotos("oliver-family", { without_album: true }),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        love_count: 3,
+        comment_count: 7,
+        album_count: 2,
+      }),
+    ]);
+    expect(query).toBe("?without_album=1");
   });
 
   it("owns and unwraps every Phase 6 S02 Photo endpoint", async () => {

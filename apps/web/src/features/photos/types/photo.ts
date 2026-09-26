@@ -5,6 +5,7 @@ export type PhotoFilters = {
   location?: string;
   historical_year?: string;
   without_confirmed_date?: boolean;
+  without_album?: boolean;
 };
 export type DeletedPhoto = {
   id: string;
@@ -59,6 +60,9 @@ export type Photo = {
   historical_date: UncertainDate | null;
   location_description: string | null;
   do_not_resurface: boolean;
+  love_count: number;
+  comment_count: number;
+  album_count: number;
   provenance: {
     photographer: PhotoClaim;
     scanner: PhotoClaim;

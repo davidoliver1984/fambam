@@ -15,11 +15,15 @@ use App\Models\User;
 use App\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class PhotoQuery
 {
-    public function __construct(private readonly TenantContext $tenantContext) {}
+    public function __construct(
+        private readonly TenantContext $tenantContext,
+        private readonly AlbumQuery $albums,
+    ) {}
 
     /** @return Builder<Photo> */
     public function visibleTo(User $viewer): Builder
@@ -99,7 +103,8 @@ class PhotoQuery
      */
     public function listVisibleTo(User $viewer, array $filters = []): Collection
     {
-        $query = $this->visibleTo($viewer);
+        $familySpaceId = $this->tenantContext->familySpace()->id;
+        $query = $this->visibleTo($viewer)->withCount($this->listAggregates($viewer, $familySpaceId));
         if (! empty($filters['person_id'])) {
             $query->whereHas('photoPeople', fn (Builder $people) => $people
                 ->where('person_id', $filters['person_id'])->where('status', 'approved'));
@@ -114,11 +119,81 @@ class PhotoQuery
         if (! empty($filters['historical_year'])) {
             $query->whereYear('historical_date', (int) $filters['historical_year']);
         }
-        if (($filters['without_confirmed_date'] ?? false) === true) {
+        if (filter_var($filters['without_confirmed_date'] ?? false, FILTER_VALIDATE_BOOL)) {
             $query->whereNull('historical_date_precision');
+        }
+        if (filter_var($filters['without_album'] ?? false, FILTER_VALIDATE_BOOL)) {
+            $query->whereDoesntHave('albumPhotos', fn (Builder $memberships) => $memberships
+                ->where('album_photos.family_space_id', $familySpaceId));
         }
 
         return $query->latest('created_at')->latest('id')->get();
+    }
+
+    public function loadListAggregates(Photo $photo, User $viewer): void
+    {
+        if (collect(['love_count', 'comment_count', 'album_count'])
+            ->every(fn (string $attribute): bool => array_key_exists($attribute, $photo->getAttributes()))) {
+            return;
+        }
+
+        $photo->loadCount($this->listAggregates(
+            $viewer,
+            $this->tenantContext->familySpace()->id,
+        ));
+    }
+
+    /** @return array<string, callable(Builder<Model>): void> */
+    private function listAggregates(User $viewer, string $familySpaceId): array
+    {
+        return [
+            'reactions as love_count' => function (Builder $reactions) use ($viewer, $familySpaceId): void {
+                $reactions->where('photo_reactions.family_space_id', $familySpaceId)
+                    ->where('photo_reactions.reaction', 'love');
+                $this->scopeToReadableConversationContexts(
+                    $reactions,
+                    $viewer,
+                    $familySpaceId,
+                    'photo_reactions',
+                );
+            },
+            'comments as comment_count' => function (Builder $comments) use ($viewer, $familySpaceId): void {
+                $comments->where('photo_comments.family_space_id', $familySpaceId);
+                $this->scopeToReadableConversationContexts(
+                    $comments,
+                    $viewer,
+                    $familySpaceId,
+                    'photo_comments',
+                );
+            },
+            'albumPhotos as album_count' => function (Builder $memberships) use ($familySpaceId): void {
+                $memberships->where('album_photos.family_space_id', $familySpaceId);
+            },
+        ];
+    }
+
+    /** @param Builder<Model> $query */
+    private function scopeToReadableConversationContexts(
+        Builder $query,
+        User $viewer,
+        string $familySpaceId,
+        string $table,
+    ): void {
+        $visibleAlbums = $this->albums->visibleTo($viewer)->select('albums.id');
+
+        $query->where(function (Builder $contexts) use ($visibleAlbums, $familySpaceId, $table): void {
+            $contexts->whereNull("{$table}.album_id")
+                ->orWhere(function (Builder $albumContext) use ($visibleAlbums, $familySpaceId, $table): void {
+                    $albumContext->whereIn("{$table}.album_id", $visibleAlbums)
+                        ->whereExists(function ($memberships) use ($familySpaceId, $table): void {
+                            $memberships->selectRaw('1')
+                                ->from('album_photos')
+                                ->whereColumn('album_photos.album_id', "{$table}.album_id")
+                                ->whereColumn('album_photos.photo_id', "{$table}.photo_id")
+                                ->where('album_photos.family_space_id', $familySpaceId);
+                        });
+                });
+        });
     }
 
     /** @return Collection<int, MediaUpload> */

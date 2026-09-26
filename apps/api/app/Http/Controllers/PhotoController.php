@@ -45,6 +45,7 @@ class PhotoController extends Controller
                 'location' => ['sometimes', 'string', 'max:255'],
                 'historical_year' => ['sometimes', 'integer', 'between:1,9999'],
                 'without_confirmed_date' => ['sometimes', 'boolean'],
+                'without_album' => ['sometimes', 'boolean'],
             ]))->map($this->payload(...)),
         ]);
     }
@@ -357,6 +358,9 @@ class PhotoController extends Controller
     /** @return array<string, mixed> */
     private function payload(Photo $photo): array
     {
+        /** @var User $viewer */
+        $viewer = request()->user();
+        $this->photos->loadListAggregates($photo, $viewer);
         $photo->loadMissing([
             'mediaUpload.uploader:id,name',
             'tags:id,label',
@@ -396,6 +400,9 @@ class PhotoController extends Controller
             )->toPayload(),
             'location_description' => $photo->location_description,
             'do_not_resurface' => $photo->do_not_resurface,
+            'love_count' => (int) $photo->love_count,
+            'comment_count' => (int) $photo->comment_count,
+            'album_count' => (int) $photo->album_count,
             'provenance' => [
                 'photographer' => $this->claimPayload($photo->photographer, $photo->photographer_description),
                 'scanner' => $this->claimPayload($photo->scanner, $photo->scanner_description),

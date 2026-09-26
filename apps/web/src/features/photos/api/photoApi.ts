@@ -51,9 +51,9 @@ export async function getPhotos(
   signal?: AbortSignal,
 ): Promise<Photo[]> {
   const params = Object.fromEntries(
-    Object.entries(filters).filter(
-      ([, value]) => value !== "" && value !== false,
-    ),
+    Object.entries(filters)
+      .filter(([, value]) => value !== "" && value !== false)
+      .map(([key, value]) => [key, value === true ? 1 : value]),
   );
 
   return unwrap(

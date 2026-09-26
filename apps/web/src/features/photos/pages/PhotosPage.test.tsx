@@ -50,6 +50,9 @@ const photo: Photo = {
   historical_date: null,
   location_description: null,
   do_not_resurface: false,
+  love_count: 0,
+  comment_count: 0,
+  album_count: 0,
   provenance: {
     photographer: { person: null, description: null },
     scanner: { person: null, description: null },

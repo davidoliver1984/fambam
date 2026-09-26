@@ -21,6 +21,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property CarbonImmutable|null $historical_date
  * @property CarbonImmutable|null $historical_date_window_end
  * @property bool $do_not_resurface
+ * @property int $love_count
+ * @property int $comment_count
+ * @property int $album_count
  * @property CarbonImmutable|null $deleted_at
  */
 #[Fillable([
