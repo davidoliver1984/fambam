@@ -182,6 +182,7 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::get('/albums/{album}', [AlbumController::class, 'show']);
         Route::post('/albums/{album}/exports', [FamilyExportController::class, 'storeAlbum']);
         Route::patch('/albums/{album}', [AlbumController::class, 'update']);
+        Route::delete('/albums/{album}', [AlbumController::class, 'destroy']);
         Route::put('/albums/{album}/grants', [AlbumController::class, 'grant']);
         Route::delete('/albums/{album}/grants/{membership}', [AlbumController::class, 'revokeGrant']);
         Route::post('/albums/{album}/photos', [AlbumController::class, 'addPhoto']);

@@ -64,6 +64,7 @@ class FamilyExportManager
             }
             if ($scope === FamilyExportScope::Album) {
                 $album = Album::query()->where('family_space_id', $familySpace->id)
+                    ->whereNull('deleting_at')
                     ->lockForUpdate()->findOrFail($album?->id);
                 Gate::forUser($actor)->authorize('view', $album);
             }

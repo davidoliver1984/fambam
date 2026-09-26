@@ -17,6 +17,7 @@ use App\Queries\AlbumQuery;
 use App\Services\AlbumManager;
 use App\Services\MediaUploadManager;
 use App\Stories\RichTextPresenter;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +36,10 @@ class AlbumController extends Controller
     {
         Gate::authorize('viewAny', Album::class);
 
-        return response()->json(['data' => $this->albums->listVisibleTo($request->user())->map($this->payload(...))]);
+        $albums = $this->albums->listVisibleTo($request->user());
+        $this->loadPresentation($albums);
+
+        return response()->json(['data' => $albums->map(fn (Album $album): array => $this->payload($album, false))]);
     }
 
     public function store(FamilySpace $familySpace, StoreAlbumRequest $request): JsonResponse
@@ -59,6 +63,15 @@ class AlbumController extends Controller
         Gate::authorize('update', $target);
 
         return response()->json(['data' => $this->payload($this->manager->update($target, $request->user(), $request->validated(), $request))]);
+    }
+
+    public function destroy(FamilySpace $familySpace, string $album, Request $request): JsonResponse
+    {
+        $target = $this->album($familySpace, $album);
+        Gate::authorize('delete', $target);
+        $this->manager->delete($target, $request->user(), $request);
+
+        return response()->json(null, 204);
     }
 
     public function grant(FamilySpace $familySpace, string $album, StoreAlbumGrantRequest $request): JsonResponse
@@ -142,20 +155,26 @@ class AlbumController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function payload(Album $album): array
+    private function payload(Album $album, bool $renderDescription = true): array
     {
-        $album->load(['creator:id,name', 'event:id,name,starts_on', 'tags:id,label', 'coverPhoto.mediaUpload',
+        $album->loadMissing(['creator:id,name', 'event:id,name,starts_on', 'tags:id,label', 'coverPhoto.mediaUpload',
             'albumPhotos' => fn ($query) => $query->whereHas('photo')->with('photo.mediaUpload'),
             'grants.membership.user:id,name']);
         if (Gate::allows('viewAny', Person::class)) {
-            $album->load('people:id,preferred_name');
+            $album->loadMissing('people:id,preferred_name');
         }
+        $photoCount = $album->getAttribute('album_photos_count');
 
         return ['id' => $album->id, 'name' => $album->name, 'description' => $album->description_plain_text,
             'description_document' => $album->description,
-            'description_html' => $this->presenter->html($album->description, $album, 'album_description_mentions',
-                'album_id', $this->familySlug(), $this->actor(), $album),
+            'description_html' => $renderDescription
+                ? $this->presenter->html($album->description, $album, 'album_description_mentions',
+                    'album_id', $this->familySlug(), $this->actor(), $album)
+                : null,
             'visibility' => $album->visibility->value, 'created_by' => $album->created_by,
+            'creator' => $album->creator === null ? null : ['id' => $album->creator->id, 'name' => $album->creator->name],
+            'created_at' => $album->created_at?->toAtomString(),
+            'updated_at' => $album->updated_at?->toAtomString(),
             'starts_on' => $album->starts_on?->format('Y-m-d'),
             'ends_on' => $album->ends_on?->format('Y-m-d'), 'location' => $album->location,
             'tags' => $album->tags->map(fn ($tag) => ['id' => $tag->id, 'label' => $tag->label])->values(),
@@ -168,6 +187,7 @@ class AlbumController extends Controller
                 'focal_y' => (float) $album->cover_focal_y,
             ],
             'cover_pending' => $album->current_cover_intent_id !== null,
+            'photo_count' => $photoCount === null ? $album->albumPhotos->count() : (int) $photoCount,
             'event_id' => $album->event_id,
             'guest_participation' => $album->guest_participation->value,
             'event' => $album->event === null ? null : ['id' => $album->event->id,
@@ -180,6 +200,17 @@ class AlbumController extends Controller
             'grants' => $album->grants->map(fn ($grant) => ['membership_id' => $grant->family_space_membership_id,
                 'name' => $grant->membership->user->name, 'can_view' => $grant->can_view, 'can_contribute' => $grant->can_contribute])->values(),
             'permissions' => ['can_manage' => Gate::allows('update', $album), 'can_contribute' => Gate::allows('contribute', $album)]];
+    }
+
+    /** @param Collection<int, Album> $albums */
+    private function loadPresentation(Collection $albums): void
+    {
+        $albums->loadMissing(['creator:id,name', 'event:id,name,starts_on', 'tags:id,label', 'coverPhoto.mediaUpload',
+            'albumPhotos' => fn ($query) => $query->whereHas('photo')->with('photo.mediaUpload'),
+            'grants.membership.user:id,name']);
+        if (Gate::allows('viewAny', Person::class)) {
+            $albums->loadMissing('people:id,preferred_name');
+        }
     }
 
     private function album(FamilySpace $space, string $id): Album

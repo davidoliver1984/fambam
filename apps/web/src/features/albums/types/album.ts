@@ -28,6 +28,10 @@ export type Album = {
   cover_pending?: boolean;
   visibility: AlbumVisibility;
   created_by: number | null;
+  creator: { id: number; name: string } | null;
+  created_at: string;
+  updated_at: string;
+  photo_count: number;
   event_id?: string | null;
   event?: { id: string; name: string; starts_on: string | null } | null;
   guest_participation: GuestParticipation;
@@ -47,6 +51,23 @@ export type CreateAlbumInput = {
   visibility: AlbumVisibility;
   event_id?: string | null;
   guest_participation?: GuestParticipation;
+};
+
+export type UpdateAlbumInput = Partial<
+  Pick<
+    Album,
+    | "name"
+    | "visibility"
+    | "event_id"
+    | "guest_participation"
+    | "starts_on"
+    | "ends_on"
+    | "location"
+  >
+> & {
+  description?: string | null;
+  tags?: string[];
+  person_ids?: string[];
 };
 
 export type SetAlbumCoverInput = {

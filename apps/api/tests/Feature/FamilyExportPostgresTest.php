@@ -104,6 +104,19 @@ class FamilyExportPostgresTest extends TestCase
             $this->assertSame('23503', $exception->getCode());
         }
 
+        $albumExportId = (string) Str::ulid();
+        $this->admin->table('family_exports')->insert([
+            'id' => $albumExportId, 'family_space_id' => $firstFamily,
+            'requested_by' => $ownerId, 'scope' => 'album',
+            'album_id' => $albumId, 'state' => 'failed',
+            'object_key' => "families/{$firstFamily}/family-exports/{$albumExportId}.zip",
+            'cancelled_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->admin->table('family_exports')->where('id', $albumExportId)
+            ->update(['album_id' => null]);
+        $this->admin->table('albums')->where('id', $albumId)->delete();
+        $this->assertNull($this->admin->table('family_exports')->where('id', $albumExportId)->value('album_id'));
+
         $exportId = (string) Str::ulid();
         $this->admin->table('family_exports')->insert([
             'id' => $exportId, 'family_space_id' => $firstFamily,

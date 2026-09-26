@@ -49,11 +49,15 @@ class AlbumPolicy
         }
 
         return $album->visibility === AlbumVisibility::Selected
-            && AlbumGrant::query()->where('album_id', $album->id)
-                ->where('family_space_membership_id', $membership->id)->where('can_view', true)->exists();
+            && $this->grant($album, $membership->id)?->can_view === true;
     }
 
     public function update(User $user, Album $album): bool
+    {
+        return $this->manage($user, $album);
+    }
+
+    public function delete(User $user, Album $album): bool
     {
         return $this->manage($user, $album);
     }
@@ -91,11 +95,9 @@ class AlbumPolicy
             return true;
         }
 
-        return AlbumGrant::query()->where('album_id', $album->id)
-            ->where('family_space_membership_id', $membership->id)
-            ->where('can_view', true)
-            ->where('can_contribute', true)
-            ->exists();
+        $grant = $this->grant($album, $membership->id);
+
+        return $grant !== null && $grant->can_view && $grant->can_contribute;
     }
 
     private function manage(User $user, Album $album): bool
@@ -115,5 +117,15 @@ class AlbumPolicy
     private function matches(User $user, Album $album): bool
     {
         return $this->member($user) && $album->family_space_id === $this->tenantContext->familySpace()->id;
+    }
+
+    private function grant(Album $album, string $membershipId): ?AlbumGrant
+    {
+        if ($album->relationLoaded('grants')) {
+            return $album->grants->firstWhere('family_space_membership_id', $membershipId);
+        }
+
+        return AlbumGrant::query()->where('album_id', $album->id)
+            ->where('family_space_membership_id', $membershipId)->first();
     }
 }

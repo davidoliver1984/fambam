@@ -5,13 +5,14 @@ import type {
 } from "../types/search";
 
 export const searchKeys = {
+  all: (familySlug: string) => ["families", familySlug, "search"] as const,
   group: (familySlug: string, group: SearchGroup, criteria: SearchCriteria) =>
-    ["families", familySlug, "search", group, criteria] as const,
+    [...searchKeys.all(familySlug), group, criteria] as const,
   suggestions: (
     familySlug: string,
     type: SearchSuggestionType,
     prefix: string,
-  ) => ["families", familySlug, "search", "suggestions", type, prefix] as const,
+  ) => [...searchKeys.all(familySlug), "suggestions", type, prefix] as const,
   discovery: (familySlug: string, type: string, id: string) =>
     ["families", familySlug, "discovery", type, id] as const,
   saved: (familySlug: string) =>

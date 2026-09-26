@@ -4,13 +4,16 @@ namespace App\Services;
 
 use App\Enums\AlbumVisibility;
 use App\Enums\FamilyActivityType;
+use App\Enums\FamilyExportState;
 use App\Enums\FamilySpaceRole;
 use App\Enums\MembershipState;
 use App\Enums\PhotoVisibility;
+use App\Media\MediaObjectStorage;
 use App\Models\Album;
 use App\Models\AlbumGrant;
 use App\Models\AlbumPhoto;
 use App\Models\FamilyEvent;
+use App\Models\FamilyExport;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\MediaUpload;
@@ -24,6 +27,7 @@ use App\Tenancy\TenantOperationContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -35,6 +39,7 @@ class AlbumManager
         private readonly EventContributionNotifier $notifications,
         private readonly RichTextFieldWriter $richText,
         private readonly MentionAuthorizer $mentionAuthorizer,
+        private readonly MediaObjectStorage $storage,
     ) {}
 
     /** @param array<string, mixed> $input */
@@ -113,6 +118,49 @@ class AlbumManager
             $this->audit->record('album.updated', $album, $actor, $request);
 
             return $album->refresh();
+        });
+    }
+
+    public function delete(Album $album, User $actor, Request $request): void
+    {
+        $exports = DB::transaction(function () use ($album, $actor, $request) {
+            $locked = Album::query()->whereKey($album->id)->lockForUpdate()->firstOrFail();
+            if ($locked->deleting_at === null) {
+                $locked->update(['deleting_at' => now()]);
+                $this->audit->record('album.deleted', $locked, $actor, $request, [
+                    'album_id' => $locked->id,
+                    'name' => $locked->name,
+                ]);
+            }
+            $exports = FamilyExport::query()->where('album_id', $locked->id)
+                ->lockForUpdate()->get();
+            foreach ($exports as $export) {
+                if ($export->cancelled_at === null) {
+                    $export->update([
+                        'cancelled_at' => now(),
+                        'state' => FamilyExportState::Failed,
+                        'failure_reason' => 'album_deleted',
+                    ]);
+                }
+            }
+
+            return $exports;
+        });
+
+        foreach ($exports as $export) {
+            try {
+                $this->storage->delete($export->object_key);
+            } catch (\Throwable $exception) {
+                Log::warning('Album export object cleanup failed; scheduled reconciliation will retry.', [
+                    'family_export_id' => $export->id,
+                ]);
+            }
+        }
+
+        DB::transaction(function () use ($album): void {
+            $locked = Album::query()->whereKey($album->id)->lockForUpdate()->firstOrFail();
+            FamilyExport::query()->where('album_id', $locked->id)->update(['album_id' => null]);
+            $locked->delete();
         });
     }
 

@@ -23,8 +23,9 @@ class AlbumQuery
     public function visibleTo(User $viewer): Builder
     {
         $membership = $this->tenantContext->membership();
-        $query = Album::query()->with(['creator:id,name', 'event:id,name,starts_on', 'photos.mediaUpload'])
-            ->where('family_space_id', $this->tenantContext->familySpace()->id);
+        $query = Album::query()->with(['creator:id,name', 'event:id,name,starts_on'])
+            ->where('family_space_id', $this->tenantContext->familySpace()->id)
+            ->whereNull('deleting_at');
         if ($membership->role === FamilySpaceRole::Guest) {
             return $this->eventAccess->scopeAlbumsForGuest($query, $membership);
         }
@@ -48,7 +49,7 @@ class AlbumQuery
     /** @return Collection<int, Album> */
     public function listVisibleTo(User $viewer): Collection
     {
-        return $this->visibleTo($viewer)->latest()->get();
+        return $this->visibleTo($viewer)->withCount('albumPhotos')->latest()->get();
     }
 
     public function findVisibleTo(User $viewer, string $id): Album

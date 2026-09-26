@@ -5,6 +5,7 @@ import type {
   Album,
   CreateAlbumInput,
   SetAlbumCoverInput,
+  UpdateAlbumInput,
 } from "../types/album";
 import type { MediaUpload } from "@/features/media-uploads/types/mediaUpload";
 
@@ -49,6 +50,30 @@ export async function createAlbum(familySlug: string, input: CreateAlbumInput) {
   await ensureCsrfCookie();
   return unwrap(
     await apiClient.post<ApiEnvelope<Album>>(albumsPath(familySlug), input),
+  );
+}
+
+export async function updateAlbum(
+  familySlug: string,
+  albumId: string,
+  input: UpdateAlbumInput,
+): Promise<Album> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.patch<ApiEnvelope<Album>>(
+      `${albumsPath(familySlug)}/${encodeURIComponent(albumId)}`,
+      input,
+    ),
+  );
+}
+
+export async function deleteAlbum(
+  familySlug: string,
+  albumId: string,
+): Promise<void> {
+  await ensureCsrfCookie();
+  await apiClient.delete(
+    `${albumsPath(familySlug)}/${encodeURIComponent(albumId)}`,
   );
 }
 

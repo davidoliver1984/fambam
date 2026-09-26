@@ -20,9 +20,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $description_plain_text
  * @property CarbonImmutable|null $starts_on
  * @property CarbonImmutable|null $ends_on
+ * @property CarbonImmutable|null $deleting_at
  */
 #[Fillable(['family_space_id', 'created_by', 'name', 'description', 'visibility', 'event_id', 'guest_participation',
-    'starts_on', 'ends_on', 'location', 'cover_photo_id', 'cover_focal_x', 'cover_focal_y', 'current_cover_intent_id'])]
+    'starts_on', 'ends_on', 'location', 'cover_photo_id', 'cover_focal_x', 'cover_focal_y', 'current_cover_intent_id',
+    'deleting_at'])]
 class Album extends Model
 {
     use HasUlids;
@@ -93,6 +95,6 @@ class Album extends Model
     {
         return ['visibility' => AlbumVisibility::class, 'guest_participation' => GuestParticipation::class,
             'description' => RichTextDocumentCast::class.':full,description_plain_text',
-            'starts_on' => 'immutable_date', 'ends_on' => 'immutable_date'];
+            'starts_on' => 'immutable_date', 'ends_on' => 'immutable_date', 'deleting_at' => 'immutable_datetime'];
     }
 }

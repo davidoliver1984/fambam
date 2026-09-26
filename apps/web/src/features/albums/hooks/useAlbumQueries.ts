@@ -3,15 +3,24 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addPhotoToAlbum,
   createAlbum,
+  deleteAlbum,
   getAlbums,
   getAlbum,
   removePhotoFromAlbum,
   uploadPhotoToAlbum,
   requestAlbumExport,
   setAlbumCover,
+  updateAlbum,
 } from "../api/albumApi";
 import { albumKeys } from "../api/albumKeys";
-import type { CreateAlbumInput, SetAlbumCoverInput } from "../types/album";
+import { familyExportKeys } from "@/features/exports/api/familyExportKeys";
+import { homeKeys } from "@/features/home/hooks/useHomeQuery";
+import { searchKeys } from "@/features/search/api/searchKeys";
+import type {
+  CreateAlbumInput,
+  SetAlbumCoverInput,
+  UpdateAlbumInput,
+} from "../types/album";
 
 export function useAlbumsQuery(familySlug: string, enabled = true) {
   return useQuery({
@@ -53,6 +62,39 @@ export function useCreateAlbumMutation(familySlug: string) {
     mutationFn: (input: CreateAlbumInput) => createAlbum(familySlug, input),
     onSuccess: () =>
       client.invalidateQueries({ queryKey: albumKeys.all(familySlug) }),
+  });
+}
+
+export function useUpdateAlbumMutation(familySlug: string, albumId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateAlbumInput) =>
+      updateAlbum(familySlug, albumId, input),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: albumKeys.all(familySlug) }),
+        client.invalidateQueries({ queryKey: searchKeys.all(familySlug) }),
+        client.invalidateQueries({ queryKey: homeKeys.detail(familySlug) }),
+      ]);
+    },
+  });
+}
+
+export function useDeleteAlbumMutation(familySlug: string, albumId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => deleteAlbum(familySlug, albumId),
+    onSuccess: async () => {
+      client.removeQueries({ queryKey: albumKeys.detail(familySlug, albumId) });
+      await Promise.all([
+        client.invalidateQueries({ queryKey: albumKeys.list(familySlug) }),
+        client.invalidateQueries({ queryKey: searchKeys.all(familySlug) }),
+        client.invalidateQueries({ queryKey: homeKeys.detail(familySlug) }),
+        client.invalidateQueries({
+          queryKey: familyExportKeys.all(familySlug),
+        }),
+      ]);
+    },
   });
 }
 

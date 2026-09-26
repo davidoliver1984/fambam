@@ -45,6 +45,10 @@ const album: Album = {
   description: null,
   visibility: "selected",
   created_by: 1,
+  creator: { id: 1, name: "Album creator" },
+  created_at: "2026-09-01T10:00:00+00:00",
+  updated_at: "2026-09-02T10:00:00+00:00",
+  photo_count: 0,
   event_id: "01KB0000000000000000000000",
   event: {
     id: "01KB0000000000000000000000",
