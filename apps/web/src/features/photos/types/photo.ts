@@ -29,6 +29,19 @@ export type PhotoClaim = {
   description: string | null;
 };
 
+export type PhotoAlbumHistoryItem = {
+  event_type: "added" | "removed";
+  album: { id: string; name: string };
+  actor: {
+    display_name: string;
+    person_id: string | null;
+    initials: string;
+    portrait_thumbnail_url: string | null;
+  };
+  created_at: string;
+  is_current: boolean;
+};
+
 export type Photo = {
   id: string;
   media_upload: {

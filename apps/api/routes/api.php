@@ -28,6 +28,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PersonAccountLinkController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\PersonMergeController;
+use App\Http\Controllers\PhotoAlbumHistoryController;
 use App\Http\Controllers\PhotoController;
 use App\Http\Controllers\PhotoConversationController;
 use App\Http\Controllers\PhotoDownloadController;
@@ -137,6 +138,7 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::get('/photos/promotable-uploads', [PhotoController::class, 'promotableUploads']);
         Route::post('/photos', [PhotoController::class, 'store']);
         Route::get('/photos/{photo}', [PhotoController::class, 'show']);
+        Route::get('/photos/{photo}/album-history', [PhotoAlbumHistoryController::class, 'index']);
         Route::get('/photos/{photo}/download', [PhotoDownloadController::class, 'show']);
         Route::get('/photos/{photo}/versions', [PhotoEditorController::class, 'index']);
         Route::post('/photos/{photo}/edit-previews', [PhotoEditorController::class, 'preview']);

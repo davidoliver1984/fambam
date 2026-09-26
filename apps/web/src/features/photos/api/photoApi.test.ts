@@ -7,6 +7,7 @@ import {
   authorizePhotoPresentationDownload,
   createPhoto,
   getPhoto,
+  getPhotoAlbumHistory,
   getPhotoMetadataProposals,
   getPhotoPersonProposals,
   getPhotoProvenanceProposals,
@@ -100,6 +101,33 @@ describe("photoApi", () => {
     await expect(getPromotableMediaUploads("oliver-family")).resolves.toEqual([
       upload,
     ]);
+  });
+
+  it("fetches the Photo Album history read model in one request", async () => {
+    const history = [
+      {
+        event_type: "added" as const,
+        album: { id: "01KH0000000000000000000000", name: "Blackpool, 1986" },
+        actor: {
+          display_name: "David Mercer",
+          person_id: "01KP0000000000000000000000",
+          initials: "DM",
+          portrait_thumbnail_url: null,
+        },
+        created_at: "2026-09-14T10:00:00+00:00",
+        is_current: true,
+      },
+    ];
+    server.use(
+      http.get(
+        `${apiBaseUrl}/api/families/oliver-family/photos/${photo.id}/album-history`,
+        () => HttpResponse.json({ data: history }),
+      ),
+    );
+
+    await expect(
+      getPhotoAlbumHistory("oliver-family", photo.id),
+    ).resolves.toEqual(history);
   });
 
   it("omits inactive Photo filters from the initial archive request", async () => {

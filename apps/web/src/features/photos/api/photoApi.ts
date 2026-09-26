@@ -8,6 +8,7 @@ import type {
   CreatePhotoResult,
   DeletedPhoto,
   Photo,
+  PhotoAlbumHistoryItem,
   PhotoMetadataInput,
   PhotoMetadataProposal,
   PhotoPerson,
@@ -72,6 +73,19 @@ export async function getPhoto(
     await apiClient.get<ApiEnvelope<Photo>>(photoPath(familySlug, photoId), {
       signal,
     }),
+  );
+}
+
+export async function getPhotoAlbumHistory(
+  familySlug: string,
+  photoId: string,
+  signal?: AbortSignal,
+): Promise<PhotoAlbumHistoryItem[]> {
+  return unwrap(
+    await apiClient.get<ApiEnvelope<PhotoAlbumHistoryItem[]>>(
+      `${photoPath(familySlug, photoId)}/album-history`,
+      { signal },
+    ),
   );
 }
 

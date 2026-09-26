@@ -10,6 +10,8 @@ export const photoKeys = {
     [...photoKeys.all(familySlug), "duplicate-holds"] as const,
   detail: (familySlug: string, photoId: string) =>
     [...photoKeys.all(familySlug), "detail", photoId] as const,
+  albumHistory: (familySlug: string, photoId: string) =>
+    [...photoKeys.detail(familySlug, photoId), "album-history"] as const,
   proposals: (familySlug: string, photoId: string) =>
     [...photoKeys.detail(familySlug, photoId), "proposals"] as const,
   metadataProposals: (familySlug: string, photoId: string) =>

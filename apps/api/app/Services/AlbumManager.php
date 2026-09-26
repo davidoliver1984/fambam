@@ -175,7 +175,11 @@ class AlbumManager
             $position = ((int) AlbumPhoto::query()->where('album_id', $album->id)->max('position')) + 1;
             $link = AlbumPhoto::query()->create(['family_space_id' => $album->family_space_id,
                 'album_id' => $album->id, 'photo_id' => $photo->id, 'position' => $position, 'added_by' => $actor->id]);
-            $this->audit->record('album.photo_added', $link, $actor, $request, ['visibility_widened' => $photo->visibility === PhotoVisibility::Private && $album->visibility !== AlbumVisibility::Private]);
+            $this->audit->record('album.photo_added', $link, $actor, $request, [
+                'album_id' => $album->id,
+                'photo_id' => $photo->id,
+                'visibility_widened' => $photo->visibility === PhotoVisibility::Private && $album->visibility !== AlbumVisibility::Private,
+            ]);
             $this->activities->record(
                 $album->family_space_id,
                 $actor->id,
@@ -200,7 +204,10 @@ class AlbumManager
                 }
                 $locked->update($this->clearedCover());
             }
-            $this->audit->record('album.photo_removed', $link, $actor, $request);
+            $this->audit->record('album.photo_removed', $link, $actor, $request, [
+                'album_id' => $album->id,
+                'photo_id' => $photoId,
+            ]);
             $position = $link->position;
             $link->delete();
             AlbumPhoto::query()->where('album_id', $album->id)->where('position', '>', $position)->decrement('position');
