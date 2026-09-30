@@ -1,5 +1,6 @@
 export { ArchiveToolbar, ToolbarField } from "./ArchiveToolbar";
 export { ArchiveCard } from "./ArchiveCard";
+export { ActionNotice, type ActionNoticeMessage } from "./ActionNotice";
 export { Breadcrumbs, type BreadcrumbItem } from "./Breadcrumbs";
 export { Button, ButtonLink, type ButtonVariant } from "./Button";
 export { ConfirmDialog } from "./ConfirmDialog";

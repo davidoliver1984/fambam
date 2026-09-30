@@ -8,6 +8,7 @@ import {
   savePhotoReaction,
   updatePhotoText,
 } from "../api/photoConversationApi";
+import { albumKeys } from "@/features/albums/api/albumKeys";
 import { photoKeys } from "../api/photoKeys";
 import type { PhotoReactionType } from "../types/photoConversation";
 
@@ -30,10 +31,20 @@ export function usePhotoConversationMutations(
   albumId?: string,
 ) {
   const client = useQueryClient();
-  const refresh = () =>
-    client.invalidateQueries({
-      queryKey: photoKeys.conversation(familySlug, photoId, albumId),
-    });
+  const refresh = async () => {
+    await Promise.all([
+      client.invalidateQueries({
+        queryKey: photoKeys.conversation(familySlug, photoId, albumId),
+      }),
+      ...(albumId === undefined
+        ? []
+        : [
+            client.invalidateQueries({
+              queryKey: albumKeys.detail(familySlug, albumId),
+            }),
+          ]),
+    ]);
+  };
   return {
     create: useMutation({
       mutationFn: (input: { kind: "stories" | "comments"; body: string }) =>

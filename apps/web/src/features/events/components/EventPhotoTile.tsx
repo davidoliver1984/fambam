@@ -26,6 +26,7 @@ import {
   DownloadGlyph,
   EllipsisGlyph,
   HeartGlyph,
+  ImageGlyph,
   LinkGlyph,
   PencilGlyph,
   PlusGlyph,
@@ -37,16 +38,38 @@ import {
   TrashGlyph,
   XGlyph,
 } from "./EventGlyphs";
+import "./event-photo-tile.css";
 
-export function PhotoTileStats({
-  familySlug,
-  photoId,
-  albumId,
-}: {
+type PhotoTileConversationSummary = {
+  loveCount: number;
+  commentCount: number;
+  viewerHasLoved: boolean;
+  canInteract: boolean;
+};
+
+type PhotoTileStatsProps = {
   familySlug: string;
   photoId: string;
   albumId?: string;
-}) {
+  summary?: PhotoTileConversationSummary;
+};
+
+function photoConversationPath(
+  familySlug: string,
+  photoId: string,
+  albumId?: string,
+) {
+  const path = `/families/${encodeURIComponent(familySlug)}/photos/${encodeURIComponent(photoId)}`;
+  return albumId === undefined
+    ? path
+    : `${path}?albumId=${encodeURIComponent(albumId)}`;
+}
+
+function QueriedPhotoTileStats({
+  familySlug,
+  photoId,
+  albumId,
+}: PhotoTileStatsProps) {
   const conversation = usePhotoConversation(familySlug, photoId, albumId);
   const currentUser = useCurrentUserQuery();
   const mutations = usePhotoConversationMutations(familySlug, photoId, albumId);
@@ -88,13 +111,86 @@ export function PhotoTileStats({
       </button>
       <Link
         className="event-photo-comments"
-        to={`/families/${encodeURIComponent(familySlug)}/photos/${encodeURIComponent(photoId)}`}
+        to={photoConversationPath(familySlug, photoId, albumId)}
         aria-label={`${String(commentCount)} ${commentCount === 1 ? "comment" : "comments"}`}
       >
         <CommentGlyph />
         {commentCount}
       </Link>
     </div>
+  );
+}
+
+function SummaryPhotoTileStats({
+  familySlug,
+  photoId,
+  albumId,
+  summary,
+}: PhotoTileStatsProps & { summary: PhotoTileConversationSummary }) {
+  const mutations = usePhotoConversationMutations(familySlug, photoId, albumId);
+  const [loveCount, setLoveCount] = useState(summary.loveCount);
+  const [lovedByMe, setLovedByMe] = useState(summary.viewerHasLoved);
+
+  return (
+    <div className="event-photo-tile__stats">
+      <button
+        type="button"
+        className={`event-photo-love${lovedByMe ? " loved" : ""}`}
+        aria-label={`${lovedByMe ? "Remove love" : "Love"} · ${String(loveCount)}`}
+        aria-pressed={lovedByMe}
+        disabled={
+          !summary.canInteract ||
+          mutations.react.isPending ||
+          mutations.removeReaction.isPending
+        }
+        onClick={() => {
+          if (lovedByMe) {
+            mutations.removeReaction.mutate(undefined, {
+              onSuccess: () => {
+                setLovedByMe(false);
+                setLoveCount((count) => Math.max(0, count - 1));
+              },
+            });
+          } else {
+            mutations.react.mutate("love", {
+              onSuccess: () => {
+                setLovedByMe(true);
+                setLoveCount((count) => count + 1);
+              },
+            });
+          }
+        }}
+      >
+        <HeartGlyph />
+        {loveCount}
+        <i className="love-sprite" aria-hidden="true">
+          <b>♥</b>
+          <b>♥</b>
+          <b>♥</b>
+          <b>♥</b>
+        </i>
+      </button>
+      <Link
+        className="event-photo-comments"
+        to={photoConversationPath(familySlug, photoId, albumId)}
+        aria-label={`${String(summary.commentCount)} ${summary.commentCount === 1 ? "comment" : "comments"}`}
+      >
+        <CommentGlyph />
+        {summary.commentCount}
+      </Link>
+    </div>
+  );
+}
+
+export function PhotoTileStats(props: PhotoTileStatsProps) {
+  return props.summary === undefined ? (
+    <QueriedPhotoTileStats {...props} />
+  ) : (
+    <SummaryPhotoTileStats
+      key={`${String(props.summary.loveCount)}-${String(props.summary.viewerHasLoved)}`}
+      {...props}
+      summary={props.summary}
+    />
   );
 }
 
@@ -106,6 +202,8 @@ export function PhotoTileMenu({
   album,
   availableAlbums,
   onCreateAlbum,
+  onSetAlbumCover,
+  allowDelete = true,
 }: {
   familySlug: string;
   photoId: string;
@@ -114,6 +212,8 @@ export function PhotoTileMenu({
   album?: { id: string; canManage: boolean; name: string };
   availableAlbums: Album[];
   onCreateAlbum: () => void;
+  onSetAlbumCover?: () => void;
+  allowDelete?: boolean;
 }) {
   const client = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -124,7 +224,12 @@ export function PhotoTileMenu({
   const [removeOpen, setRemoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
-  const photo = usePhotoQuery(familySlug, photoId);
+  const [collectionOpen, setCollectionOpen] = useState(false);
+  const photo = usePhotoQuery(
+    familySlug,
+    photoId,
+    allowDelete || editorOpen || collectionOpen,
+  );
   const photoUrl = `/families/${encodeURIComponent(familySlug)}/photos/${photoId}`;
   const saveAlbumMemberships = useMutation({
     mutationFn: async (albumIds: string[]) => {
@@ -176,7 +281,6 @@ export function PhotoTileMenu({
       void client.invalidateQueries({ queryKey: albumKeys.all(familySlug) });
     },
   });
-  const [collectionOpen, setCollectionOpen] = useState(false);
   const addToCollection = useMutation({
     mutationFn: (collectionId: string) =>
       addCollectionPhoto(familySlug, collectionId, photoId),
@@ -194,6 +298,18 @@ export function PhotoTileMenu({
           </>
         }
       >
+        {onSetAlbumCover !== undefined && (
+          <button
+            type="button"
+            onClick={() => {
+              setMenuOpen(false);
+              onSetAlbumCover();
+            }}
+          >
+            <ImageGlyph />
+            Set as album cover
+          </button>
+        )}
         <button
           type="button"
           onClick={() => {
@@ -275,7 +391,7 @@ export function PhotoTileMenu({
           <LinkGlyph />
           {copied ? "Link copied" : "Copy Fambam link"}
         </button>
-        {photo.data?.permissions.can_update === true && (
+        {allowDelete && photo.data?.permissions.can_update === true && (
           <button
             type="button"
             disabled={remove.isPending}

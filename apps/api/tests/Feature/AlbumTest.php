@@ -69,6 +69,40 @@ class AlbumTest extends TestCase
         $this->assertDatabaseCount('album_people', 0);
     }
 
+    public function test_album_detail_exposes_photo_dates_and_explicit_delete_authority(): void
+    {
+        $family = FamilySpace::factory()->create(['slug' => 'album-detail-presentation']);
+        [$owner] = $this->member($family, FamilySpaceRole::Owner);
+        $photo = Photo::factory()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $owner->id,
+            'historical_date_precision' => 'exact',
+            'historical_date' => '1984-07-14',
+        ]);
+        $album = Album::query()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $owner->id,
+            'name' => 'Summer archive',
+            'visibility' => AlbumVisibility::FamilySpace,
+        ]);
+        $album->photos()->attach($photo->id, [
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $family->id,
+            'position' => 1,
+            'added_by' => $owner->id,
+        ]);
+
+        $this->actingAs($owner)->getJson("/api/families/album-detail-presentation/albums/{$album->id}")
+            ->assertOk()
+            ->assertJsonPath('data.photos.0.historical_date.precision', 'exact')
+            ->assertJsonPath('data.photos.0.historical_date.value', '1984-07-14')
+            ->assertJsonPath('data.photos.0.conversation.love_count', 0)
+            ->assertJsonPath('data.photos.0.conversation.comment_count', 0)
+            ->assertJsonPath('data.photos.0.conversation.viewer_has_loved', false)
+            ->assertJsonPath('data.photos.0.conversation.can_interact', true)
+            ->assertJsonPath('data.permissions.can_delete', true);
+    }
+
     public function test_cover_uses_an_authorized_member_photo_and_clears_on_removal_and_soft_delete(): void
     {
         $family = FamilySpace::factory()->create(['slug' => 'album-cover']);

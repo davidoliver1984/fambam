@@ -517,3 +517,82 @@
     grid-template-columns: 1fr;
   }
 }
+.ui-action-notice {
+  position: fixed;
+  z-index: 100;
+  top: 5.25rem;
+  left: 50%;
+  display: grid;
+  width: min(24rem, calc(100vw - 2rem));
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.75rem;
+  background: var(--surface-raised);
+  box-shadow: 0 0.625rem 1.75rem rgb(45 39 35 / 18%);
+  color: var(--text-primary);
+  font-family: var(--font-interface);
+  transform: translateX(-50%);
+}
+
+.ui-action-notice__icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--selected-surface, #e9f2f6);
+  color: var(--selected-text, #486b7c);
+}
+
+.ui-action-notice__icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.ui-action-notice__copy {
+  display: grid;
+  gap: 0.125rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.ui-action-notice__copy b {
+  font-size: 0.78rem;
+}
+
+.ui-action-notice__copy > span {
+  color: var(--text-secondary);
+}
+
+.family-shell .shell-content .ui-action-notice > button {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  min-height: 0;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.family-shell .shell-content .ui-action-notice > button:hover:not(:disabled) {
+  border: 0;
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+}
+
+.ui-action-notice > button svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+[data-theme="dark"] .ui-action-notice__icon {
+  background: #24343c;
+  color: #9fbbc9;
+}

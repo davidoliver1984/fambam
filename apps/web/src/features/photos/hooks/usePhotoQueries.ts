@@ -72,11 +72,15 @@ export function usePhotoPersonProposalsQuery(
   });
 }
 
-export function usePhotoQuery(familySlug: string, photoId: string) {
+export function usePhotoQuery(
+  familySlug: string,
+  photoId: string,
+  enabled = true,
+) {
   return useQuery({
     queryKey: photoKeys.detail(familySlug, photoId),
     queryFn: ({ signal }) => getPhoto(familySlug, photoId, signal),
-    enabled: familySlug !== "" && photoId !== "",
+    enabled: enabled && familySlug !== "" && photoId !== "",
     retry: false,
   });
 }

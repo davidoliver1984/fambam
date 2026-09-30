@@ -1,4 +1,10 @@
-import { useState, type KeyboardEvent, type SyntheticEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type SyntheticEvent,
+} from "react";
 
 import { useSearchSuggestionsQuery } from "@/features/search/hooks/useArchiveSearchQuery";
 
@@ -9,6 +15,8 @@ type EventTag = { id: string; label: string };
 type EventTagsEditorProps = {
   familySlug: string;
   tags: EventTag[];
+  entityLabel?: string;
+  variant?: "panel" | "inline-add";
   canEdit: boolean;
   pending: boolean;
   saveError: boolean;
@@ -29,6 +37,8 @@ function mergeLabels(current: string[], additions: string[]) {
 export function EventTagsEditor({
   familySlug,
   tags,
+  entityLabel = "Event",
+  variant = "panel",
   canEdit,
   pending,
   saveError,
@@ -38,6 +48,7 @@ export function EventTagsEditor({
   const [editing, setEditing] = useState(false);
   const [labels, setLabels] = useState(initialLabels);
   const [draft, setDraft] = useState("");
+  const inlineInput = useRef<HTMLInputElement>(null);
   const suggestions = useSearchSuggestionsQuery(
     familySlug,
     "tags",
@@ -67,10 +78,92 @@ export function EventTagsEditor({
     }
   };
 
+  useEffect(() => {
+    if (variant === "inline-add" && editing) inlineInput.current?.focus();
+  }, [editing, variant]);
+
   if (tags.length === 0 && !canEdit) return null;
 
+  if (variant === "inline-add") {
+    const removeTag = async (label: string) => {
+      try {
+        await onSave(initialLabels.filter((item) => item !== label));
+      } catch {
+        // The mutation owns the user-visible error state.
+      }
+    };
+
+    return (
+      <form
+        className="event-tags event-tags--inline-add"
+        aria-label={`${entityLabel} tags`}
+        onSubmit={(event) => {
+          void submit(event);
+        }}
+      >
+        <div className="event-tags__pills">
+          {initialLabels.map((label) =>
+            canEdit ? (
+              <button
+                className="event-tag event-tag--removable"
+                key={label.toLocaleLowerCase()}
+                type="button"
+                aria-label={`Remove ${label} tag`}
+                disabled={pending}
+                onClick={() => {
+                  void removeTag(label);
+                }}
+              >
+                {label} <span aria-hidden="true">×</span>
+              </button>
+            ) : (
+              <span className="event-tag" key={label.toLocaleLowerCase()}>
+                {label}
+              </span>
+            ),
+          )}
+          {editing && (
+            <label className="event-tags__inline-input">
+              <span className="sr-only">Add or reuse a tag</span>
+              <input
+                ref={inlineInput}
+                value={draft}
+                maxLength={80}
+                placeholder="Start typing a tag…"
+                onChange={(event) => {
+                  setDraft(event.target.value);
+                }}
+              />
+            </label>
+          )}
+          {canEdit && (
+            <button
+              className="event-tag event-tag--add"
+              type={editing ? "submit" : "button"}
+              disabled={pending || (editing && draft.trim() === "")}
+              onClick={
+                editing
+                  ? undefined
+                  : () => {
+                      setLabels(initialLabels);
+                      setDraft("");
+                      setEditing(true);
+                    }
+              }
+            >
+              <span aria-hidden="true">＋</span> Add tag
+            </button>
+          )}
+        </div>
+        {saveError && (
+          <p role="alert">{entityLabel} tags could not be saved.</p>
+        )}
+      </form>
+    );
+  }
+
   return (
-    <div className="event-tags" aria-label="Event tags">
+    <div className="event-tags" aria-label={`${entityLabel} tags`}>
       <div className="event-tags__pills">
         {(editing ? labels : initialLabels).map((label) =>
           editing ? (
@@ -184,7 +277,9 @@ export function EventTagsEditor({
               Cancel
             </button>
           </div>
-          {saveError && <p role="alert">Event tags could not be saved.</p>}
+          {saveError && (
+            <p role="alert">{entityLabel} tags could not be saved.</p>
+          )}
         </form>
       )}
     </div>

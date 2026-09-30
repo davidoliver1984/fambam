@@ -8,12 +8,25 @@ export type AlbumPhoto = {
   client_filename: string;
   visibility: "private" | "family_space";
   position: number;
+  historical_date?: {
+    precision:
+      "exact" | "month" | "year" | "decade" | "approximate" | "unknown";
+    value: string | null;
+  } | null;
+  conversation?: {
+    love_count: number;
+    comment_count: number;
+    viewer_has_loved: boolean;
+    can_interact: boolean;
+  };
 };
 
 export type Album = {
   id: string;
   name: string;
   description: string | null;
+  description_document?: unknown;
+  description_html?: string;
   starts_on?: string | null;
   ends_on?: string | null;
   location?: string | null;
@@ -42,7 +55,11 @@ export type Album = {
     can_view: boolean;
     can_contribute: boolean;
   }>;
-  permissions: { can_manage: boolean; can_contribute: boolean };
+  permissions: {
+    can_manage: boolean;
+    can_contribute: boolean;
+    can_delete?: boolean;
+  };
 };
 
 export type CreateAlbumInput = {

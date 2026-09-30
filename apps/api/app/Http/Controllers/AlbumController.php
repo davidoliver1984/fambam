@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\FamilySpaceRole;
 use App\Http\Requests\InitiateMediaUploadRequest;
 use App\Http\Requests\SetAlbumCoverRequest;
 use App\Http\Requests\StoreAlbumGrantRequest;
@@ -17,6 +18,7 @@ use App\Queries\AlbumQuery;
 use App\Services\AlbumManager;
 use App\Services\MediaUploadManager;
 use App\Stories\RichTextPresenter;
+use App\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,6 +32,7 @@ class AlbumController extends Controller
         private readonly AlbumManager $manager,
         private readonly MediaUploadManager $uploads,
         private readonly RichTextPresenter $presenter,
+        private readonly TenantContext $tenantContext,
     ) {}
 
     public function index(FamilySpace $familySpace, Request $request): JsonResponse
@@ -158,7 +161,7 @@ class AlbumController extends Controller
     private function payload(Album $album, bool $renderDescription = true): array
     {
         $album->loadMissing(['creator:id,name', 'event:id,name,starts_on', 'tags:id,label', 'coverPhoto.mediaUpload',
-            'albumPhotos' => fn ($query) => $query->whereHas('photo')->with('photo.mediaUpload'),
+            'albumPhotos' => $this->albumPhotoPresentation($this->actor()),
             'grants.membership.user:id,name']);
         if (Gate::allows('viewAny', Person::class)) {
             $album->loadMissing('people:id,preferred_name');
@@ -196,17 +199,29 @@ class AlbumController extends Controller
                 'media_upload_id' => $link->photo->media_upload_id,
                 'caption' => $link->photo->caption, 'visibility' => $link->photo->visibility->value,
                 'client_filename' => $link->photo->mediaUpload->client_filename,
+                'historical_date' => $link->photo->historical_date_precision === null ? null : [
+                    'precision' => $link->photo->historical_date_precision->value,
+                    'value' => $link->photo->historical_date?->format('Y-m-d'),
+                ],
+                'conversation' => [
+                    'love_count' => (int) $link->getAttribute('love_count'),
+                    'comment_count' => (int) $link->getAttribute('comment_count'),
+                    'viewer_has_loved' => (bool) $link->getAttribute('viewer_has_loved'),
+                    'can_interact' => $this->canInteractWithPhoto($link->photo, $album),
+                ],
                 'position' => $link->position])->values(),
             'grants' => $album->grants->map(fn ($grant) => ['membership_id' => $grant->family_space_membership_id,
                 'name' => $grant->membership->user->name, 'can_view' => $grant->can_view, 'can_contribute' => $grant->can_contribute])->values(),
-            'permissions' => ['can_manage' => Gate::allows('update', $album), 'can_contribute' => Gate::allows('contribute', $album)]];
+            'permissions' => ['can_manage' => Gate::allows('update', $album),
+                'can_contribute' => Gate::allows('contribute', $album),
+                'can_delete' => Gate::allows('delete', $album)]];
     }
 
     /** @param Collection<int, Album> $albums */
     private function loadPresentation(Collection $albums): void
     {
         $albums->loadMissing(['creator:id,name', 'event:id,name,starts_on', 'tags:id,label', 'coverPhoto.mediaUpload',
-            'albumPhotos' => fn ($query) => $query->whereHas('photo')->with('photo.mediaUpload'),
+            'albumPhotos' => $this->albumPhotoPresentation($this->actor()),
             'grants.membership.user:id,name']);
         if (Gate::allows('viewAny', Person::class)) {
             $albums->loadMissing('people:id,preferred_name');
@@ -231,5 +246,44 @@ class AlbumController extends Controller
         abort_unless($actor instanceof User, 401);
 
         return $actor;
+    }
+
+    private function albumPhotoPresentation(User $viewer): \Closure
+    {
+        return function ($query) use ($viewer): void {
+            $query->whereHas('photo')
+                ->with('photo.mediaUpload')
+                ->select('album_photos.*')
+                ->selectSub(function ($reactions): void {
+                    $reactions->from('photo_reactions')->selectRaw('count(*)')
+                        ->whereColumn('photo_reactions.photo_id', 'album_photos.photo_id')
+                        ->whereColumn('photo_reactions.album_id', 'album_photos.album_id')
+                        ->where('photo_reactions.reaction', 'love');
+                }, 'love_count')
+                ->selectSub(function ($comments): void {
+                    $comments->from('photo_comments')->selectRaw('count(*)')
+                        ->whereColumn('photo_comments.photo_id', 'album_photos.photo_id')
+                        ->whereColumn('photo_comments.album_id', 'album_photos.album_id')
+                        ->whereNull('photo_comments.deleted_at');
+                }, 'comment_count')
+                ->selectSub(function ($reactions) use ($viewer): void {
+                    $reactions->from('photo_reactions')
+                        ->selectRaw('CASE WHEN count(*) > 0 THEN 1 ELSE 0 END')
+                        ->whereColumn('photo_reactions.photo_id', 'album_photos.photo_id')
+                        ->whereColumn('photo_reactions.album_id', 'album_photos.album_id')
+                        ->where('photo_reactions.user_id', $viewer->id)
+                        ->where('photo_reactions.reaction', 'love');
+                }, 'viewer_has_loved');
+        };
+    }
+
+    private function canInteractWithPhoto(Photo $photo, Album $album): bool
+    {
+        if (! Gate::allows('interact', $photo)) {
+            return false;
+        }
+
+        return $this->tenantContext->membership()->role !== FamilySpaceRole::Contributor
+            || Gate::allows('contribute', $album);
     }
 }

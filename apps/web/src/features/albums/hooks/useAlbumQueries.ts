@@ -80,12 +80,22 @@ export function useUpdateAlbumMutation(familySlug: string, albumId: string) {
   });
 }
 
-export function useDeleteAlbumMutation(familySlug: string, albumId: string) {
+export function useDeleteAlbumMutation(
+  familySlug: string,
+  albumId: string,
+  onDeleted?: () => void,
+) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: () => deleteAlbum(familySlug, albumId),
     onSuccess: async () => {
-      client.removeQueries({ queryKey: albumKeys.detail(familySlug, albumId) });
+      await client.cancelQueries({
+        queryKey: albumKeys.detail(familySlug, albumId),
+      });
+      client.removeQueries({
+        queryKey: albumKeys.detail(familySlug, albumId),
+        exact: true,
+      });
       await Promise.all([
         client.invalidateQueries({ queryKey: albumKeys.list(familySlug) }),
         client.invalidateQueries({ queryKey: searchKeys.all(familySlug) }),
@@ -94,6 +104,7 @@ export function useDeleteAlbumMutation(familySlug: string, albumId: string) {
           queryKey: familyExportKeys.all(familySlug),
         }),
       ]);
+      onDeleted?.();
     },
   });
 }
