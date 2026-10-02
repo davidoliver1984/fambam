@@ -15,12 +15,14 @@ use App\Models\Story;
 use App\Models\User;
 use App\Queries\AlbumQuery;
 use App\Queries\PhotoQuery;
+use App\Services\ActorPresentationService;
 use App\Services\PhotoConversationManager;
 use App\Stories\RichTextDocument;
 use App\Stories\RichTextPresenter;
 use App\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 
 class PhotoConversationController extends Controller
@@ -31,6 +33,7 @@ class PhotoConversationController extends Controller
         private readonly PhotoConversationManager $manager,
         private readonly TenantContext $tenantContext,
         private readonly RichTextPresenter $presenter,
+        private readonly ActorPresentationService $actors,
     ) {}
 
     public function index(FamilySpace $familySpace, string $photo, Request $request): JsonResponse
@@ -48,8 +51,22 @@ class PhotoConversationController extends Controller
         $target = $this->photo($request, $photo);
         $album = $this->albumForPhoto($request, $target, (string) $request->validated('album_id'));
         $this->authorizeInteraction($target, $album);
+        $parentId = $request->validated('parent_comment_id');
+        $created = $this->manager->createComment(
+            $target,
+            $album,
+            $request->user(),
+            $request->validated('body'),
+            $request,
+            is_string($parentId) ? $parentId : null,
+        );
 
-        return response()->json(['data' => $this->textPayload($this->manager->createComment($target, $album, $request->user(), $request->validated('body'), $request))], 201);
+        return response()->json(['data' => $this->textPayload(
+            $created,
+            $target,
+            false,
+            $this->presentationsFor(collect([$created->author])->filter()),
+        )], 201);
     }
 
     public function updateComment(FamilySpace $familySpace, string $photo, string $comment, StorePhotoTextRequest $request): JsonResponse
@@ -60,7 +77,14 @@ class PhotoConversationController extends Controller
         $this->authorizeInteraction($target, $album);
         Gate::authorize('update', $model);
 
-        return response()->json(['data' => $this->textPayload($this->manager->updateComment($model, $request->user(), $request->validated('body'), $request))]);
+        $updated = $this->manager->updateComment($model, $request->user(), $request->validated('body'), $request);
+
+        return response()->json(['data' => $this->textPayload(
+            $updated,
+            $target,
+            false,
+            $this->presentationsFor(collect([$updated->author])->filter()),
+        )]);
     }
 
     public function removeComment(FamilySpace $familySpace, string $photo, string $comment, Request $request): JsonResponse
@@ -105,25 +129,104 @@ class PhotoConversationController extends Controller
     /** @return array<string, mixed> */
     private function payload(Photo $photo, ?Album $album): array
     {
-        $photo->load(['stories.author:id,name']);
-        $comments = $photo->comments()->where('album_id', $album?->id)->with('author:id,name')->get();
+        $photo->load(['stories.author']);
+        $comments = $photo->comments()
+            ->withTrashed()
+            ->where('album_id', $album?->id)
+            ->whereNull('parent_comment_id')
+            ->where(fn ($query) => $query
+                ->whereNull('deleted_at')
+                ->orWhereHas('replies'))
+            ->with(['author', 'replies.author'])
+            ->oldest()
+            ->get();
         $reactions = $photo->reactions()->where('album_id', $album?->id)->with('user:id,name')->get();
+        /** @var Collection<int, User> $authors */
+        $authors = $photo->stories->pluck('author')
+            ->merge($comments->pluck('author'))
+            ->merge($comments->flatMap(fn (PhotoComment $comment) => $comment->replies->pluck('author')))
+            ->filter(fn ($author): bool => $author instanceof User);
+        $presentations = $this->presentationsFor($authors);
 
-        return ['stories' => $photo->stories->map(fn (Story $story): array => $this->textPayload($story)), 'comments' => $comments->map(fn (PhotoComment $comment): array => $this->textPayload($comment, $album === null)), 'reactions' => $reactions->map(fn (PhotoReaction $reaction) => ['user_id' => $reaction->user_id, 'name' => $reaction->user->name, 'reaction' => $reaction->reaction->value]), 'permissions' => ['can_interact' => $album !== null && $this->canInteract($photo, $album), 'can_author_story' => Gate::allows('authorStory', $photo)], 'conversation_scope' => $album === null ? 'legacy' : 'album', 'album_id' => $album?->id];
+        return [
+            'stories' => $photo->stories->map(
+                fn (Story $story): array => $this->textPayload($story, $photo, false, $presentations)
+            ),
+            'comments' => $comments->map(fn (PhotoComment $comment): array => [
+                ...$this->textPayload($comment, $photo, $album === null, $presentations),
+                'replies' => $comment->replies->map(
+                    fn (PhotoComment $reply): array => $this->textPayload(
+                        $reply,
+                        $photo,
+                        $album === null,
+                        $presentations,
+                    )
+                )->values(),
+            ])->values(),
+            'reactions' => $reactions->map(fn (PhotoReaction $reaction) => [
+                'user_id' => $reaction->user_id,
+                'name' => $reaction->user->name,
+                'reaction' => $reaction->reaction->value,
+            ]),
+            'permissions' => [
+                'can_interact' => $album !== null && $this->canInteract($photo, $album),
+                'can_author_story' => Gate::allows('authorStory', $photo),
+            ],
+            'conversation_scope' => $album === null ? 'legacy' : 'album',
+            'album_id' => $album?->id,
+        ];
     }
 
-    /** @return array<string, mixed> */
-    private function textPayload(Story|PhotoComment $content, bool $readOnly = false): array
-    {
-        return ['id' => $content->id,
-            'body' => $content instanceof Story ? $content->body_plain_text : $content->body_plain_text,
-            'body_document' => $content->body,
-            'body_html' => $content instanceof Story
+    /**
+     * @param  array<int, array{display_name: string, person_id: string|null, initials: string, portrait_thumbnail_url: string|null}>  $presentations
+     * @return array<string, mixed>
+     */
+    private function textPayload(
+        Story|PhotoComment $content,
+        Photo $photo,
+        bool $readOnly,
+        array $presentations,
+    ): array {
+        $deleted = $content instanceof PhotoComment && $content->trashed();
+        $presentation = $content->author === null
+            ? null
+            : ($presentations[$content->author->id] ?? null);
+        $author = $deleted || $content->author === null ? null : [
+            'id' => $content->author->id,
+            'name' => $presentation['display_name'] ?? $content->author->name,
+            'person_id' => $presentation['person_id'] ?? null,
+            'initials' => $presentation['initials'] ?? '',
+            'portrait_thumbnail_url' => $presentation['portrait_thumbnail_url'] ?? null,
+        ];
+
+        return [
+            'id' => $content->id,
+            'parent_comment_id' => $content instanceof PhotoComment ? $content->parent_comment_id : null,
+            'is_deleted' => $deleted,
+            'body' => $deleted ? 'Comment deleted' : $content->body_plain_text,
+            'body_document' => $deleted ? null : $content->body,
+            'body_html' => $deleted ? null : ($content instanceof Story
                 ? $this->presenter->html($content->body, $content, 'story_person_mentions', 'story_id',
-                    $this->familySlug(), $this->actor(), $content->photo()->firstOrFail())
+                    $this->familySlug(), $this->actor(), $photo)
                 : $this->presenter->html($content->body, $content, 'photo_comment_person_mentions', 'photo_comment_id',
-                    $this->familySlug(), $this->actor(), $content->photo()->firstOrFail(), RichTextDocument::COMMENT),
-            'author' => $content->author === null ? null : ['id' => $content->author->id, 'name' => $content->author->name], 'edited_at' => $content->edited_at?->toAtomString(), 'created_at' => $content->created_at?->toAtomString(), 'permissions' => ['can_edit' => ! $readOnly && Gate::allows('update', $content), 'can_remove' => ! $readOnly && Gate::allows('delete', $content)]];
+                    $this->familySlug(), $this->actor(), $photo, RichTextDocument::COMMENT)),
+            'author' => $author,
+            'edited_at' => $deleted ? null : $content->edited_at?->toAtomString(),
+            'created_at' => $content->created_at?->toAtomString(),
+            'permissions' => [
+                'can_edit' => ! $deleted && ! $readOnly && Gate::allows('update', $content),
+                'can_remove' => ! $deleted && ! $readOnly && Gate::allows('delete', $content),
+            ],
+        ];
+    }
+
+    /**
+     * @param  Collection<int, User>  $users
+     * @return array<int, array{display_name: string, person_id: string|null, initials: string, portrait_thumbnail_url: string|null}>
+     */
+    private function presentationsFor(Collection $users): array
+    {
+        return $this->actors->forUsers($users->values(), $this->actor());
     }
 
     private function albumForPhoto(Request $request, Photo $photo, string $albumId): Album

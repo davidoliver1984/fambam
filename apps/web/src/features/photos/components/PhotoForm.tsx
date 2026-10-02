@@ -15,6 +15,7 @@ type PhotoFormProps = {
   photo?: Photo;
   promotableUploads?: PromotableMediaUpload[];
   pending: boolean;
+  compact?: boolean;
   onSubmit: (
     input: CreatePhotoInput | UpdatePhotoInput,
   ) => Promise<CreatePhotoResult | Photo>;
@@ -24,6 +25,7 @@ export function PhotoForm({
   photo,
   promotableUploads = [],
   pending,
+  compact = false,
   onSubmit,
 }: PhotoFormProps) {
   const [mediaUploadId, setMediaUploadId] = useState("");
@@ -135,7 +137,10 @@ export function PhotoForm({
   }
 
   return (
-    <form onSubmit={(event) => void submit(event)}>
+    <form
+      className={compact ? "ui-form ui-form--compact" : undefined}
+      onSubmit={(event) => void submit(event)}
+    >
       {photo === undefined && (
         <>
           <label htmlFor="photo-media-upload">Ready upload</label>

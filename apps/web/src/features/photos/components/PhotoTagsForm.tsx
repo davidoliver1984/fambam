@@ -5,10 +5,12 @@ import { splitTags } from "../validation/tagInput";
 export function PhotoTagsForm({
   initialTags,
   pending,
+  compact = false,
   onSubmit,
 }: {
   initialTags: string[];
   pending: boolean;
+  compact?: boolean;
   onSubmit: (tags: string[]) => Promise<unknown>;
 }) {
   const [tags, setTags] = useState(initialTags.join(", "));
@@ -25,7 +27,10 @@ export function PhotoTagsForm({
   }
 
   return (
-    <form onSubmit={(event) => void submit(event)}>
+    <form
+      className={compact ? "ui-form ui-form--compact" : undefined}
+      onSubmit={(event) => void submit(event)}
+    >
       <label htmlFor="photo-detail-tags">Tags</label>
       <input
         id="photo-detail-tags"

@@ -12,9 +12,9 @@ export type MediaUploadState =
 export type MediaVariantTransform = "thumbnail" | "card" | "display";
 
 export type MediaDelivery = {
-  asset: "variant";
-  transform_name: MediaVariantTransform;
-  processing_version: number;
+  asset: "variant" | "original";
+  transform_name?: MediaVariantTransform;
+  processing_version?: number;
   url: string;
   method: "GET";
   expires_at: string;

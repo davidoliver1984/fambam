@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\FaceIdentityAssignmentStatus;
 use App\Enums\PersonProposalStatus;
 use App\Http\Requests\ReplacePhotoTagsRequest;
 use App\Http\Requests\StorePhotoMetadataProposalRequest;
@@ -9,6 +10,7 @@ use App\Http\Requests\StorePhotoPersonRequest;
 use App\Http\Requests\StorePhotoProvenanceRequest;
 use App\Http\Requests\StorePhotoRequest;
 use App\Http\Requests\UpdatePhotoRequest;
+use App\Models\FaceIdentityAssignment;
 use App\Models\FamilySpace;
 use App\Models\Person;
 use App\Models\Photo;
@@ -46,7 +48,7 @@ class PhotoController extends Controller
                 'historical_year' => ['sometimes', 'integer', 'between:1,9999'],
                 'without_confirmed_date' => ['sometimes', 'boolean'],
                 'without_album' => ['sometimes', 'boolean'],
-            ]))->map($this->payload(...)),
+            ]))->map(fn (Photo $photo): array => $this->payload($photo)),
         ]);
     }
 
@@ -104,7 +106,7 @@ class PhotoController extends Controller
         $target = $this->photos->findVisibleTo($viewer, $photo);
         Gate::authorize('view', $target);
 
-        return response()->json(['data' => $this->payload($target)]);
+        return response()->json(['data' => $this->payload($target, true)]);
     }
 
     public function deleted(FamilySpace $familySpace, Request $request): JsonResponse
@@ -356,7 +358,7 @@ class PhotoController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function payload(Photo $photo): array
+    private function payload(Photo $photo, bool $includeIdentifiedFaces = false): array
     {
         /** @var User $viewer */
         $viewer = request()->user();
@@ -412,7 +414,12 @@ class PhotoController extends Controller
                 ),
             ],
             'tags' => $photo->tags->map(fn ($tag): array => ['id' => $tag->id, 'label' => $tag->label])->values(),
-            'people' => $photo->photoPeople->map($this->photoPersonPayload(...))->values(),
+            'people' => Gate::allows('viewAny', Person::class)
+                ? $photo->photoPeople->map($this->photoPersonPayload(...))->values()
+                : [],
+            'identified_faces' => $includeIdentifiedFaces
+                ? $this->identifiedFacesPayload($photo)
+                : [],
             'created_at' => $photo->created_at?->toAtomString(),
             'updated_at' => $photo->updated_at?->toAtomString(),
             'permissions' => [
@@ -423,6 +430,45 @@ class PhotoController extends Controller
                 'can_flag_duplicate' => Gate::allows('flagDuplicate', $photo),
             ],
         ];
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    private function identifiedFacesPayload(Photo $photo): array
+    {
+        if (! Gate::allows('viewAny', Person::class)) {
+            return [];
+        }
+
+        return FaceIdentityAssignment::query()
+            ->where('family_space_id', $photo->family_space_id)
+            ->where('status', FaceIdentityAssignmentStatus::Approved)
+            ->whereHas('observation.run', fn ($query) => $query
+                ->where('media_upload_id', $photo->media_upload_id))
+            ->with(['person:id,preferred_name', 'observation.run.mediaUpload'])
+            ->orderBy('created_at')
+            ->get()
+            ->map(function (FaceIdentityAssignment $assignment): array {
+                $observation = $assignment->observation;
+                $upload = $observation->run->mediaUpload;
+
+                return [
+                    'id' => $assignment->id,
+                    'person' => [
+                        'id' => $assignment->person->id,
+                        'preferred_name' => $assignment->person->preferred_name,
+                    ],
+                    'bounds' => [
+                        'x' => $observation->bounds_x,
+                        'y' => $observation->bounds_y,
+                        'width' => $observation->bounds_width,
+                        'height' => $observation->bounds_height,
+                    ],
+                    'image_width' => $upload->pixel_width,
+                    'image_height' => $upload->pixel_height,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /** @return array<string, mixed> */

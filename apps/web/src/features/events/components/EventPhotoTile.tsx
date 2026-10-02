@@ -11,7 +11,7 @@ import { albumKeys } from "@/features/albums/api/albumKeys";
 import type { Album } from "@/features/albums/types/album";
 import { addCollectionPhoto } from "@/features/collections/api/collectionApi";
 import { useCurrentUserQuery } from "@/features/account/hooks/useCurrentUserQuery";
-import { getMediaVariantDelivery } from "@/features/media-uploads/api/mediaUploadApi";
+import { getOriginalMediaDelivery } from "@/features/media-uploads/api/mediaUploadApi";
 import { deletePhoto } from "@/features/photos/api/photoApi";
 import { PhotoEditorDialog } from "@/features/photos/components/PhotoEditorDialog";
 import {
@@ -203,6 +203,8 @@ export function PhotoTileMenu({
   availableAlbums,
   onCreateAlbum,
   onSetAlbumCover,
+  onEditDetails,
+  onReviewPeople,
   allowDelete = true,
 }: {
   familySlug: string;
@@ -213,6 +215,8 @@ export function PhotoTileMenu({
   availableAlbums: Album[];
   onCreateAlbum: () => void;
   onSetAlbumCover?: () => void;
+  onEditDetails?: () => void;
+  onReviewPeople?: () => void;
   allowDelete?: boolean;
 }) {
   const client = useQueryClient();
@@ -269,8 +273,7 @@ export function PhotoTileMenu({
     },
   });
   const download = useMutation({
-    mutationFn: () =>
-      getMediaVariantDelivery(familySlug, mediaUploadId, "display"),
+    mutationFn: () => getOriginalMediaDelivery(familySlug, mediaUploadId),
     onSuccess: (delivery) => {
       window.open(delivery.url, "_blank", "noopener");
     },
@@ -328,7 +331,7 @@ export function PhotoTileMenu({
           <PlusGlyph />
           Add to album…
         </button>
-        {album !== undefined && (
+        {album?.canManage === true && (
           <button
             type="button"
             disabled={removeFromAlbum.isPending}
@@ -360,14 +363,29 @@ export function PhotoTileMenu({
           <SlidersGlyph />
           Edit photo
         </button>
-        <Link to={`${photoUrl}#edit-photo-title`}>
-          <PencilGlyph />
-          Edit details
-        </Link>
-        <Link to={`${photoUrl}#photo-family-metadata-title`}>
-          <ScanFaceGlyph />
-          Identify / Review people
-        </Link>
+        <hr className="ui-context-menu__separator" />
+        {onEditDetails === undefined ? (
+          <Link to={`${photoUrl}#edit-photo-title`}>
+            <PencilGlyph />
+            Edit details
+          </Link>
+        ) : (
+          <button type="button" onClick={onEditDetails}>
+            <PencilGlyph />
+            Edit details
+          </button>
+        )}
+        {onReviewPeople === undefined ? (
+          <Link to={`${photoUrl}#photo-family-metadata-title`}>
+            <ScanFaceGlyph />
+            Identify / Review people
+          </Link>
+        ) : (
+          <button type="button" onClick={onReviewPeople}>
+            <ScanFaceGlyph />
+            Identify / Review people
+          </button>
+        )}
         <button
           type="button"
           disabled={download.isPending}
@@ -392,17 +410,21 @@ export function PhotoTileMenu({
           {copied ? "Link copied" : "Copy Fambam link"}
         </button>
         {allowDelete && photo.data?.permissions.can_update === true && (
-          <button
-            type="button"
-            disabled={remove.isPending}
-            onClick={() => {
-              setMenuOpen(false);
-              setDeleteOpen(true);
-            }}
-          >
-            <TrashGlyph />
-            Delete Photo
-          </button>
+          <>
+            <hr className="ui-context-menu__separator" />
+            <button
+              type="button"
+              className="ui-context-menu__danger"
+              disabled={remove.isPending}
+              onClick={() => {
+                setMenuOpen(false);
+                setDeleteOpen(true);
+              }}
+            >
+              <TrashGlyph />
+              Delete Photo
+            </button>
+          </>
         )}
       </ContextMenu>
       <Dialog

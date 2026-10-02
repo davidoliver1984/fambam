@@ -29,12 +29,23 @@ export async function createPhotoText(
   kind: "stories" | "comments",
   body: string,
   albumId?: string,
+  parentCommentId?: string,
 ) {
   await ensureCsrfCookie();
   return unwrap(
     await apiClient.post<ApiEnvelope<PhotoTextContent>>(
       `${path(familySlug, photoId)}/${kind}`,
-      { body, ...(kind === "comments" ? { album_id: albumId } : {}) },
+      {
+        body,
+        ...(kind === "comments"
+          ? {
+              album_id: albumId,
+              ...(parentCommentId === undefined
+                ? {}
+                : { parent_comment_id: parentCommentId }),
+            }
+          : {}),
+      },
     ),
   );
 }

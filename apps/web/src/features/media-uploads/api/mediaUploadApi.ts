@@ -29,6 +29,17 @@ export async function getMediaVariantDelivery(
   );
 }
 
+export async function getOriginalMediaDelivery(
+  familySlug: string,
+  mediaUploadId: string,
+): Promise<MediaDelivery> {
+  return unwrap(
+    await apiClient.get<ApiEnvelope<MediaDelivery>>(
+      `${mediaUploadsPath(familySlug)}/${encodeURIComponent(mediaUploadId)}/original`,
+    ),
+  );
+}
+
 export async function initiateMediaUpload(
   familySlug: string,
   file: File,

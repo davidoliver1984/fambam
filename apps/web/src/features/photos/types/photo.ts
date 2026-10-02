@@ -43,6 +43,14 @@ export type PhotoAlbumHistoryItem = {
   is_current: boolean;
 };
 
+export type PhotoIdentifiedFace = {
+  id: string;
+  person: { id: string; preferred_name: string };
+  bounds: { x: number; y: number; width: number; height: number };
+  image_width: number | null;
+  image_height: number | null;
+};
+
 export type Photo = {
   id: string;
   media_upload: {
@@ -70,6 +78,7 @@ export type Photo = {
   };
   tags: Array<{ id: string; label: string }>;
   people: PhotoPerson[];
+  identified_faces?: PhotoIdentifiedFace[];
   created_at: string;
   updated_at: string;
   permissions: {

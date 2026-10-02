@@ -15,13 +15,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * @property string $family_space_id
  * @property int|null $author_id
+ * @property string|null $parent_comment_id
  * @property array<string, mixed> $body
  * @property string $body_plain_text
  * @property CarbonImmutable|null $edited_at
  * @property CarbonImmutable|null $created_at
  * @property User|null $author
  */
-#[Fillable(['family_space_id', 'photo_id', 'album_id', 'author_id', 'body', 'edited_at'])]
+#[Fillable(['family_space_id', 'photo_id', 'album_id', 'parent_comment_id', 'author_id', 'body', 'edited_at'])]
 class PhotoComment extends Model
 {
     use HasUlids, SoftDeletes;
@@ -46,6 +47,18 @@ class PhotoComment extends Model
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id');
+    }
+
+    /** @return BelongsTo<PhotoComment, $this> */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_comment_id');
+    }
+
+    /** @return HasMany<PhotoComment, $this> */
+    public function replies(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_comment_id')->oldest();
     }
 
     /** @return HasMany<PhotoCommentRevision, $this> */

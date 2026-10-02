@@ -285,6 +285,15 @@ class NotificationManager
                     ->merge(StoryComment::query()->where('story_id', $subject['story_id'])->pluck('author_id'))
                     ->merge(PersonAccountLink::query()->whereIn('person_id', DB::table('story_comment_person_mentions')
                         ->where('story_comment_id', $subject['story_comment_id'])->pluck('person_id'))->pluck('user_id'));
+            } elseif (isset($subject['parent_comment_id'])) {
+                $ids = collect([PhotoComment::query()->withTrashed()
+                    ->where('photo_id', $subject['photo_id'])
+                    ->where('album_id', $subject['album_id'])
+                    ->whereNull('parent_comment_id')
+                    ->whereKey($subject['parent_comment_id'])
+                    ->value('author_id')])
+                    ->merge(PersonAccountLink::query()->whereIn('person_id', DB::table('photo_comment_person_mentions')
+                        ->where('photo_comment_id', $subject['comment_id'])->pluck('person_id'))->pluck('user_id'));
             } else {
                 $ids = collect([Album::find($subject['album_id'])?->created_by, Photo::find($subject['photo_id'])?->created_by])
                     ->merge(PhotoComment::query()->where('photo_id', $subject['photo_id'])->where('album_id', $subject['album_id'])->pluck('author_id'))
@@ -415,7 +424,9 @@ class NotificationManager
         }
 
         return match ($category) {
-            NotificationCategory::Comment => 'Someone joined a family conversation.',
+            NotificationCategory::Comment => isset($subject['parent_comment_id'])
+                ? 'Someone replied to your comment.'
+                : 'Someone joined a family conversation.',
             NotificationCategory::Contribution => 'New photographs were added.',
             NotificationCategory::Story => 'A new family story was added.',
             NotificationCategory::Identity => 'Your identity was confirmed in a photograph.',
@@ -433,6 +444,7 @@ class NotificationManager
         return isset($subject['event_id']) ? $base.'/events/'.$subject['event_id']
             : (isset($subject['story_id']) ? $base.'/stories/'.$subject['story_id']
             : (isset($subject['photo_id']) ? $base.'/photos/'.$subject['photo_id']
+                .(isset($subject['album_id']) ? '?albumId='.$subject['album_id'] : '')
                 : (isset($subject['album_id']) ? $base.'/albums/'.$subject['album_id'] : $base)));
     }
 }

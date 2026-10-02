@@ -33,9 +33,7 @@ export function usePhotoConversationMutations(
   const client = useQueryClient();
   const refresh = async () => {
     await Promise.all([
-      client.invalidateQueries({
-        queryKey: photoKeys.conversation(familySlug, photoId, albumId),
-      }),
+      client.invalidateQueries({ queryKey: photoKeys.all(familySlug) }),
       ...(albumId === undefined
         ? []
         : [
@@ -47,8 +45,19 @@ export function usePhotoConversationMutations(
   };
   return {
     create: useMutation({
-      mutationFn: (input: { kind: "stories" | "comments"; body: string }) =>
-        createPhotoText(familySlug, photoId, input.kind, input.body, albumId),
+      mutationFn: (input: {
+        kind: "stories" | "comments";
+        body: string;
+        parentCommentId?: string;
+      }) =>
+        createPhotoText(
+          familySlug,
+          photoId,
+          input.kind,
+          input.body,
+          albumId,
+          input.parentCommentId,
+        ),
       onSuccess: refresh,
     }),
     update: useMutation({

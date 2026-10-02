@@ -29,6 +29,7 @@ use App\Models\Story;
 use App\Models\StoryComment;
 use App\Models\StoryCommentPersonMention;
 use App\Models\User;
+use App\Notifications\FamilyActivityNotification;
 use App\Services\NotificationManager;
 use App\Tenancy\TenantOperationContext;
 use Illuminate\Contracts\Notifications\Dispatcher;
@@ -150,6 +151,78 @@ class NotificationHttpTest extends TestCase
         );
         $this->assertDatabaseCount('notifications', 3);
         $this->assertDatabaseCount('notification_deliveries', 3);
+    }
+
+    public function test_photo_reply_notifies_only_the_parent_author_with_typed_album_context(): void
+    {
+        Notification::fake();
+        [$family, $parentAuthor, $replier, $album, $photo] = $this->scenario('reply-notifications');
+        $this->link($family, $album, $photo, $replier, 1);
+        $parent = PhotoComment::query()->create([
+            'family_space_id' => $family->id,
+            'photo_id' => $photo->id,
+            'album_id' => $album->id,
+            'author_id' => $parentAuthor->id,
+            'body' => 'Parent comment.',
+        ]);
+        $reply = PhotoComment::query()->create([
+            'family_space_id' => $family->id,
+            'photo_id' => $photo->id,
+            'album_id' => $album->id,
+            'parent_comment_id' => $parent->id,
+            'author_id' => $replier->id,
+            'body' => 'Reply.',
+        ]);
+        $subject = [
+            'photo_id' => $photo->id,
+            'album_id' => $album->id,
+            'comment_id' => $reply->id,
+            'parent_comment_id' => $parent->id,
+        ];
+
+        app(NotificationManager::class)->process(
+            TenantOperationContext::forBackground($family->id, $replier->id)->toArray(),
+            NotificationCategory::Comment,
+            $reply->id,
+            $subject,
+        );
+
+        $this->assertDatabaseHas('notifications', [
+            'recipient_user_id' => $parentAuthor->id,
+            'category' => NotificationCategory::Comment->value,
+            'source_action_id' => $reply->id,
+            'photo_id' => $photo->id,
+            'album_id' => $album->id,
+            'comment_id' => $reply->id,
+        ]);
+        $this->assertDatabaseCount('notifications', 1);
+        Notification::assertSentTo($parentAuthor, FamilyActivityNotification::class, function ($notification) use ($album, $parentAuthor, $photo): bool {
+            $mail = $notification->toMail($parentAuthor);
+
+            return $mail->introLines === ['Someone replied to your comment.']
+                && str_ends_with((string) $mail->actionUrl, "/photos/{$photo->id}?albumId={$album->id}");
+        });
+
+        $selfReply = PhotoComment::query()->create([
+            'family_space_id' => $family->id,
+            'photo_id' => $photo->id,
+            'album_id' => $album->id,
+            'parent_comment_id' => $parent->id,
+            'author_id' => $parentAuthor->id,
+            'body' => 'Self reply.',
+        ]);
+        app(NotificationManager::class)->process(
+            TenantOperationContext::forBackground($family->id, $parentAuthor->id)->toArray(),
+            NotificationCategory::Comment,
+            $selfReply->id,
+            [
+                'photo_id' => $photo->id,
+                'album_id' => $album->id,
+                'comment_id' => $selfReply->id,
+                'parent_comment_id' => $parent->id,
+            ],
+        );
+        $this->assertDatabaseMissing('notifications', ['source_action_id' => $selfReply->id]);
     }
 
     public function test_a_notification_disappears_when_its_subject_access_is_revoked(): void

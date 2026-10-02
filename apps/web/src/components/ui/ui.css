@@ -34,6 +34,94 @@
   line-height: 0.98;
 }
 
+.ui-detail-title,
+.ui-subsection-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-editorial);
+  font-weight: 400;
+  text-wrap: balance;
+}
+
+.ui-detail-title {
+  font-size: 2rem;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.ui-subsection-title {
+  font-size: 1.15rem;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.family-shell .shell-content button.ui-inline-action {
+  display: inline;
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.5;
+  text-decoration: none;
+}
+
+.family-shell .shell-content button.ui-inline-action:hover:not(:disabled),
+.family-shell .shell-content button.ui-inline-action:focus-visible {
+  border: 0;
+  background: none;
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+.ui-compact-editor {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.family-shell .shell-content .ui-compact-editor textarea {
+  grid-column: 1 / -1;
+  min-height: 3.5rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.45rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.ui-form {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.ui-form + .ui-form {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ui-form--compact :is(input, select, textarea) {
+  font-size: 0.86rem;
+}
+
+.ui-form--compact textarea {
+  min-height: 5rem;
+}
+
+.ui-form--compact > button[type="submit"] {
+  justify-self: start;
+  min-height: 2.5rem;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.82rem;
+}
+
 .ui-section-title {
   font-size: clamp(1.65rem, 3vw, 2.5rem);
   line-height: 1.08;
@@ -352,6 +440,18 @@
   height: 1rem;
   flex-shrink: 0;
   stroke-width: 1.9;
+}
+
+.ui-context-menu__panel > .ui-context-menu__separator {
+  width: calc(100% - 0.5rem);
+  height: 1px;
+  margin: 0.3125rem 0.25rem;
+  border: 0;
+  background: var(--border-subtle);
+}
+
+.ui-context-menu__panel > .ui-context-menu__danger {
+  color: var(--status-danger);
 }
 
 [data-theme="dark"] .ui-context-menu__panel {

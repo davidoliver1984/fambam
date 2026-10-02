@@ -1,4 +1,9 @@
-import type { ReactNode } from "react";
+import type {
+  CSSProperties,
+  FocusEventHandler,
+  MouseEventHandler,
+  ReactNode,
+} from "react";
 import { Link } from "react-router";
 
 export type EntityKind =
@@ -9,6 +14,12 @@ type EntityLinkProps = {
   entity: EntityKind;
   to: string;
   className?: string;
+  style?: CSSProperties;
+  "aria-label"?: string;
+  onMouseEnter?: MouseEventHandler<HTMLAnchorElement>;
+  onMouseLeave?: MouseEventHandler<HTMLAnchorElement>;
+  onFocus?: FocusEventHandler<HTMLAnchorElement>;
+  onBlur?: FocusEventHandler<HTMLAnchorElement>;
 };
 
 export function EntityLink({
@@ -16,12 +27,24 @@ export function EntityLink({
   entity,
   to,
   className = "",
+  style,
+  "aria-label": ariaLabel,
+  onMouseEnter,
+  onMouseLeave,
+  onFocus,
+  onBlur,
 }: EntityLinkProps) {
   return (
     <Link
       className={`ui-entity-link ui-entity-link--${entity} ${className}`.trim()}
       data-entity-kind={entity}
+      aria-label={ariaLabel}
+      style={style}
       to={to}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onFocus={onFocus}
+      onBlur={onBlur}
     >
       {children}
     </Link>

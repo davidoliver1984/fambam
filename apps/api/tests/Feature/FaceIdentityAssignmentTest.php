@@ -68,6 +68,41 @@ class FaceIdentityAssignmentTest extends TestCase
         $this->assertDatabaseCount('family_activities', 0);
     }
 
+    public function test_photo_detail_exposes_approved_face_boxes_only_to_people_directory_viewers(): void
+    {
+        [$family, $owner, $ownerMembership, $photo, $observation] = $this->facePhoto();
+        $person = Person::factory()->create([
+            'family_space_id' => $family->id,
+            'preferred_name' => 'Aunt May',
+        ]);
+        app(TenantContext::class)->establish($family, $ownerMembership, $owner);
+        $manager = app(FaceIdentityAssignmentManager::class);
+        $assignment = $manager->propose($observation, $person, $owner, Request::create('/face-identity', 'POST'));
+        $manager->approve($assignment, $owner, Request::create('/face-identity', 'POST'));
+        app(TenantContext::class)->clear();
+
+        $this->actingAs($owner)->getJson("/api/families/{$family->slug}/photos/{$photo->id}")
+            ->assertOk()
+            ->assertJsonPath('data.identified_faces.0.id', $assignment->id)
+            ->assertJsonPath('data.identified_faces.0.person.id', $person->id)
+            ->assertJsonPath('data.identified_faces.0.bounds.x', 0)
+            ->assertJsonPath('data.identified_faces.0.bounds.y', 0)
+            ->assertJsonPath('data.identified_faces.0.bounds.width', 1)
+            ->assertJsonPath('data.identified_faces.0.bounds.height', 1);
+
+        $contributor = User::factory()->create();
+        FamilySpaceMembership::factory()->create([
+            'family_space_id' => $family->id,
+            'user_id' => $contributor->id,
+            'role' => FamilySpaceRole::Contributor,
+            'state' => MembershipState::Active,
+        ]);
+        $photo->update(['created_by' => $contributor->id]);
+        $this->actingAs($contributor)->getJson("/api/families/{$family->slug}/photos/{$photo->id}")
+            ->assertOk()
+            ->assertJsonCount(0, 'data.identified_faces');
+    }
+
     public function test_approval_reuses_approved_resolves_pending_and_preserves_rejected_history(): void
     {
         [$family, $owner, $membership, $photo, $firstObservation, $run] = $this->facePhoto();

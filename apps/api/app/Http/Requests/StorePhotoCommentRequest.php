@@ -17,6 +17,7 @@ class StorePhotoCommentRequest extends FormRequest
         return [
             'body' => ['required'],
             'album_id' => ['required', 'string', 'size:26'],
+            'parent_comment_id' => ['nullable', 'string', 'size:26'],
         ];
     }
 }

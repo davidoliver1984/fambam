@@ -1,58 +1,81 @@
+import { useEffect, useState, type SyntheticEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 
 import { toAppError } from "@/api/errors";
+import {
+  useAlbumQuery,
+  useAlbumsQuery,
+  useCreateAlbumMutation,
+} from "@/features/albums/hooks/useAlbumQueries";
+import type { AlbumVisibility } from "@/features/albums/types/album";
+import { PhotoTileMenu } from "@/features/events/components/EventPhotoTile";
+import {
+  CalendarGlyph,
+  LocationPinGlyph,
+  PenLineGlyph,
+} from "@/features/events/components/EventGlyphs";
+import { PersonAvatar } from "@/features/family-spaces/components/PersonAvatar";
 import { usePeopleQuery } from "@/features/people/hooks/usePeopleQuery";
-import { PhotoDuplicateFlagPanel } from "@/features/duplicates/components/PhotoDuplicateFlagPanel";
-import { useFlagPhotoDuplicateMutation } from "@/features/duplicates/hooks/useDuplicateReview";
+import { Button, Dialog, EntityLink } from "@/components/ui";
 
-import { PhotoForm } from "../components/PhotoForm";
+import {
+  PhotoConversationPanel,
+  PhotoLoveControl,
+} from "../components/PhotoConversationPanel";
 import { PhotoFamilyMetadataProposals } from "../components/PhotoFamilyMetadataProposals";
+import { PhotoForm } from "../components/PhotoForm";
 import { PhotoMetadataForm } from "../components/PhotoMetadataForm";
 import { PhotoPersonForm } from "../components/PhotoPersonForm";
-import { PhotoProvenanceForm } from "../components/PhotoProvenanceForm";
-import { PhotoProvenanceProposals } from "../components/PhotoProvenanceProposals";
-import { PhotoResurfacingControl } from "../components/PhotoResurfacingControl";
-import { PhotoTagsForm } from "../components/PhotoTagsForm";
-import { PhotoConversationPanel } from "../components/PhotoConversationPanel";
-import { PhotoEditorPanel } from "../components/PhotoEditorPanel";
 import { PhotoPresentationImage } from "../components/PhotoPresentationImage";
+import { PhotoTagsForm } from "../components/PhotoTagsForm";
 import {
   useReplacePhotoTagsMutation,
-  useDeletePhotoMutation,
   useSubmitPhotoMetadataMutation,
   useSubmitPhotoPersonMutation,
-  useSubmitPhotoProvenanceMutation,
   useUpdatePhotoMutation,
-  usePhotoPresentationDownloadMutation,
 } from "../hooks/usePhotoMutations";
-import { usePhotoQuery, usePhotosQuery } from "../hooks/usePhotoQueries";
+import {
+  usePhotoAlbumHistoryQuery,
+  usePhotoQuery,
+} from "../hooks/usePhotoQueries";
+import type { PhotoAlbumHistoryItem } from "../types/photo";
+
+import "./photo-detail.css";
 
 export function PhotoPage() {
   const { familySlug = "", photoId = "" } = useParams();
   const [search] = useSearchParams();
   const photoQuery = usePhotoQuery(familySlug, photoId);
-  const canFlagDuplicate =
-    photoQuery.data?.permissions.can_flag_duplicate === true;
-  const duplicateOptions = usePhotosQuery(familySlug, {}, canFlagDuplicate);
-  const flagDuplicate = useFlagPhotoDuplicateMutation(familySlug, photoId);
-  const navigate = useNavigate();
-  const deletePhoto = useDeletePhotoMutation(familySlug, photoId);
-  const presentationDownload = usePhotoPresentationDownloadMutation(
-    familySlug,
-    photoId,
-  );
-  const peopleQuery = usePeopleQuery(
-    familySlug,
-    photoQuery.data?.permissions.can_propose_provenance === true,
-  );
+  const history = usePhotoAlbumHistoryQuery(familySlug, photoId);
+  const albums = useAlbumsQuery(familySlug);
+  const requestedAlbumId = search.get("albumId") ?? "";
+  const historyAlbumId =
+    history.data?.find((item) => item.is_current)?.album.id ?? "";
+  const membershipAlbumId =
+    albums.data?.find((candidate) =>
+      candidate.photos.some((candidatePhoto) => candidatePhoto.id === photoId),
+    )?.id ?? "";
+  const albumId = requestedAlbumId || historyAlbumId || membershipAlbumId;
+  const album = useAlbumQuery(familySlug, albumId);
   const updatePhoto = useUpdatePhotoMutation(familySlug, photoId);
   const replaceTags = useReplacePhotoTagsMutation(familySlug, photoId);
-  const submitProvenance = useSubmitPhotoProvenanceMutation(
-    familySlug,
-    photoId,
-  );
   const submitMetadata = useSubmitPhotoMetadataMutation(familySlug, photoId);
   const submitPerson = useSubmitPhotoPersonMutation(familySlug, photoId);
+  const createAlbum = useCreateAlbumMutation(familySlug);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [peopleOpen, setPeopleOpen] = useState(false);
+  const [createAlbumOpen, setCreateAlbumOpen] = useState(false);
+  const [albumName, setAlbumName] = useState("");
+  const [albumVisibility, setAlbumVisibility] =
+    useState<AlbumVisibility>("family_space");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [highlightedPersonId, setHighlightedPersonId] = useState<string | null>(
+    null,
+  );
+
+  const canWorkWithPeople =
+    photoQuery.data?.permissions.can_propose_provenance === true;
+  const peopleQuery = usePeopleQuery(familySlug, canWorkWithPeople);
   const notFound =
     photoQuery.isError && toAppError(photoQuery.error).status === 404;
 
@@ -67,272 +90,672 @@ export function PhotoPage() {
     return <p role="alert">The Photo record could not be loaded.</p>;
 
   const photo = photoQuery.data;
+  const faceCanvas = (photo.identified_faces ?? []).find(
+    (face) =>
+      face.image_width !== null &&
+      face.image_width > 0 &&
+      face.image_height !== null &&
+      face.image_height > 0,
+  );
+  const albumPhotos = album.data?.photos ?? [];
+  const albumPhotoIndex = albumPhotos.findIndex(
+    (candidate) => candidate.id === photo.id,
+  );
+  const canCycleAlbum = albumPhotoIndex >= 0 && albumPhotos.length > 1;
+  const previousPhoto = canCycleAlbum
+    ? albumPhotos[
+        (albumPhotoIndex - 1 + albumPhotos.length) % albumPhotos.length
+      ]
+    : undefined;
+  const nextPhoto = canCycleAlbum
+    ? albumPhotos[(albumPhotoIndex + 1) % albumPhotos.length]
+    : undefined;
+  const albumPath = album.data
+    ? `/families/${encodeURIComponent(familySlug)}/albums/${encodeURIComponent(album.data.id)}`
+    : `/families/${encodeURIComponent(familySlug)}/photos`;
+  const position =
+    albumPhotoIndex >= 0 && album.data
+      ? `${String(albumPhotoIndex + 1)} of ${String(album.data.photos.length)}`
+      : photo.visibility === "private"
+        ? "Private Photo"
+        : "Family Photo";
+
+  const photoPath = (id: string) =>
+    `/families/${encodeURIComponent(familySlug)}/photos/${encodeURIComponent(id)}?albumId=${encodeURIComponent(albumId)}`;
+
+  const sharePhoto = async () => {
+    const url = window.location.href;
+    const shareNavigator = navigator as unknown as {
+      share?: (data: ShareData) => Promise<void>;
+    };
+    if (shareNavigator.share !== undefined) {
+      try {
+        await shareNavigator.share({
+          title: photo.caption ?? "Fambam Photo",
+          url,
+        });
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError")
+          return;
+      }
+    }
+    await navigator.clipboard.writeText(url);
+    setNotice("Photo link copied");
+  };
 
   return (
-    <main className="journey-page journey-detail" aria-labelledby="photo-title">
-      <p className="eyebrow">
-        {photo.visibility === "private" ? "Private Photo" : "Family Photo"}
-      </p>
-      <h1 id="photo-title">
-        {photo.caption ?? photo.media_upload.client_filename}
-      </h1>
-      {photo.description !== null && <p>{photo.description}</p>}
-      <figure className="photo-display">
-        <PhotoPresentationImage
+    <main className="photo-detail-page" aria-labelledby="photo-title">
+      <PhotoKeyboardNavigation
+        previousPath={
+          previousPhoto === undefined ? undefined : photoPath(previousPhoto.id)
+        }
+        nextPath={nextPhoto === undefined ? undefined : photoPath(nextPhoto.id)}
+      />
+      <section className="photo-detail-stage" aria-label="Photo viewer">
+        <Link className="photo-detail-back" to={albumPath}>
+          <ChevronLeftGlyph />
+          {album.data?.name ?? "Photographs"}
+        </Link>
+        <figure className="photo-detail-image">
+          <PhotoPresentationImage
+            familySlug={familySlug}
+            photoId={photo.id}
+            mediaUploadId={photo.media_upload.id}
+            alt={photo.caption ?? photo.media_upload.client_filename}
+            className="photo-detail-image__asset"
+          />
+          <div
+            className="photo-face-labels"
+            aria-label="Identified people"
+            style={
+              faceCanvas?.image_width && faceCanvas.image_height
+                ? {
+                    aspectRatio: `${String(faceCanvas.image_width)} / ${String(faceCanvas.image_height)}`,
+                  }
+                : undefined
+            }
+          >
+            {(photo.identified_faces ?? []).map((face) => {
+              if (
+                face.image_width === null ||
+                face.image_width <= 0 ||
+                face.image_height === null ||
+                face.image_height <= 0
+              ) {
+                return null;
+              }
+              return (
+                <EntityLink
+                  key={face.id}
+                  className={`photo-face-label${highlightedPersonId === face.person.id ? " is-visible" : ""}`}
+                  entity="person"
+                  to={`/families/${encodeURIComponent(familySlug)}/people/${encodeURIComponent(face.person.id)}`}
+                  aria-label={`View ${face.person.preferred_name}`}
+                  onMouseEnter={() => {
+                    setHighlightedPersonId(face.person.id);
+                  }}
+                  onMouseLeave={() => {
+                    setHighlightedPersonId(null);
+                  }}
+                  onFocus={() => {
+                    setHighlightedPersonId(face.person.id);
+                  }}
+                  onBlur={() => {
+                    setHighlightedPersonId(null);
+                  }}
+                  style={{
+                    left: `${String((face.bounds.x / face.image_width) * 100)}%`,
+                    top: `${String((face.bounds.y / face.image_height) * 100)}%`,
+                    width: `${String((face.bounds.width / face.image_width) * 100)}%`,
+                    height: `${String((face.bounds.height / face.image_height) * 100)}%`,
+                  }}
+                >
+                  <span>{face.person.preferred_name}</span>
+                </EntityLink>
+              );
+            })}
+          </div>
+        </figure>
+        {previousPhoto !== undefined && (
+          <Link
+            className="photo-detail-arrow photo-detail-arrow--left"
+            to={photoPath(previousPhoto.id)}
+            aria-label="Previous photo"
+          >
+            <ChevronLeftGlyph />
+          </Link>
+        )}
+        {nextPhoto !== undefined && (
+          <Link
+            className="photo-detail-arrow photo-detail-arrow--right"
+            to={photoPath(nextPhoto.id)}
+            aria-label="Next photo"
+          >
+            <ChevronRightGlyph />
+          </Link>
+        )}
+      </section>
+
+      <aside className="photo-detail-context">
+        <header className="photo-detail-head">
+          <div>
+            <p>{position}</p>
+            <h1 className="ui-detail-title" id="photo-title">
+              {photo.caption ?? photo.media_upload.client_filename}
+            </h1>
+          </div>
+          <div className="photo-detail-actions">
+            <Link
+              className="photo-detail-action"
+              to={`/families/${encodeURIComponent(familySlug)}/stories/new?type=photo&subjectId=${encodeURIComponent(photo.id)}`}
+              title="Write a Story from this Photo"
+              aria-label="Write a Story from this Photo"
+            >
+              <PenLineGlyph />
+            </Link>
+            <button
+              className="photo-detail-action"
+              type="button"
+              aria-label="Share this Photo"
+              onClick={() => void sharePhoto()}
+            >
+              <ShareGlyph />
+            </button>
+            <PhotoTileMenu
+              familySlug={familySlug}
+              photoId={photo.id}
+              mediaUploadId={photo.media_upload.id}
+              caption={photo.caption}
+              album={
+                album.data
+                  ? {
+                      id: album.data.id,
+                      name: album.data.name,
+                      canManage: album.data.permissions.can_manage,
+                    }
+                  : undefined
+              }
+              availableAlbums={albums.data ?? []}
+              onCreateAlbum={() => {
+                setCreateAlbumOpen(true);
+              }}
+              onEditDetails={() => {
+                setDetailsOpen(true);
+              }}
+              onReviewPeople={() => {
+                setPeopleOpen(true);
+              }}
+            />
+          </div>
+        </header>
+
+        {(photo.historical_date !== null ||
+          photo.location_description !== null) && (
+          <p className="photo-detail-meta">
+            {photo.historical_date !== null && (
+              <>
+                <CalendarGlyph />
+                {formatHistoricalDate(photo.historical_date)}
+              </>
+            )}
+            {photo.historical_date !== null &&
+              photo.location_description !== null && <span>·</span>}
+            {photo.location_description !== null && (
+              <>
+                <LocationPinGlyph />
+                {photo.location_description}
+              </>
+            )}
+          </p>
+        )}
+
+        <div className="photo-detail-position">
+          <span>
+            {album.data !== undefined ? (
+              <>
+                In{" "}
+                <EntityLink entity="album" to={albumPath}>
+                  {album.data.name}
+                </EntityLink>
+              </>
+            ) : (
+              photo.visibility.replace("_", " ")
+            )}
+          </span>
+          <PhotoLoveControl
+            familySlug={familySlug}
+            photoId={photo.id}
+            albumId={albumId || undefined}
+          />
+        </div>
+
+        {photo.description !== null && (
+          <p className="photo-detail-caption">{photo.description}</p>
+        )}
+
+        <AlbumHistory
+          familySlug={familySlug}
+          items={history.data ?? []}
+          pending={history.isPending}
+          failed={history.isError}
+        />
+
+        <PeopleInPhoto
+          familySlug={familySlug}
+          people={photo.people}
+          highlightedPersonId={highlightedPersonId}
+          onPersonHighlight={setHighlightedPersonId}
+        />
+
+        <PhotoConversationPanel
           familySlug={familySlug}
           photoId={photo.id}
-          mediaUploadId={photo.media_upload.id}
-          alt={photo.caption ?? photo.media_upload.client_filename}
-          className="photo-display-image"
+          albumId={albumId || undefined}
         />
-      </figure>
-      <button
-        type="button"
-        disabled={presentationDownload.isPending}
-        onClick={() => {
-          presentationDownload.mutate(undefined, {
-            onSuccess: ({ url }) => {
-              window.location.assign(url);
-            },
-          });
+
+        {notice !== null && (
+          <p className="photo-detail-notice" role="status">
+            {notice}
+          </p>
+        )}
+      </aside>
+
+      <Dialog
+        open={detailsOpen}
+        title="Edit Photo details"
+        description="Update the description and organisation of this Photo."
+        className="photo-detail-dialog"
+        pending={updatePhoto.isPending || replaceTags.isPending}
+        onClose={() => {
+          setDetailsOpen(false);
         }}
       >
-        Download Photo
-      </button>
-      {presentationDownload.isError && (
-        <p role="alert">The Photo download could not be authorised.</p>
-      )}
-      <dl className="photo-details">
-        <div>
-          <dt>Uploaded by</dt>
-          <dd>{photo.media_upload.uploader?.name ?? "Former account"}</dd>
-        </div>
-        <div>
-          <dt>Archive source</dt>
-          <dd>{photo.archive_source_description ?? "Not recorded"}</dd>
-        </div>
-        <div>
-          <dt>Historical date</dt>
-          <dd>{formatDate(photo.historical_date)}</dd>
-        </div>
-        <div>
-          <dt>Location</dt>
-          <dd>{photo.location_description ?? "Not recorded"}</dd>
-        </div>
-        <div>
-          <dt>Photographer</dt>
-          <dd>{formatClaim(photo.provenance.photographer)}</dd>
-        </div>
-        <div>
-          <dt>Scanner</dt>
-          <dd>{formatClaim(photo.provenance.scanner)}</dd>
-        </div>
-        <div>
-          <dt>Original physical owner</dt>
-          <dd>{formatClaim(photo.provenance.physical_owner)}</dd>
-        </div>
-        <div>
-          <dt>Tags</dt>
-          <dd>{photo.tags.map((tag) => tag.label).join(", ") || "None"}</dd>
-        </div>
-        <div>
-          <dt>People appearing</dt>
-          <dd>
-            {photo.people.length === 0
-              ? "None confirmed"
-              : photo.people.map((association, index) => (
-                  <span key={association.id}>
-                    {index > 0 ? ", " : ""}
-                    {peopleQuery.data !== undefined ? (
-                      <Link
-                        to={`/families/${encodeURIComponent(familySlug)}/people/${encodeURIComponent(association.person.id)}`}
-                      >
-                        {association.person.preferred_name}
-                      </Link>
-                    ) : (
-                      association.person.preferred_name
-                    )}
-                  </span>
-                ))}
-          </dd>
-        </div>
-      </dl>
-      <Link
-        to={`/families/${encodeURIComponent(familySlug)}/discover/photos/${encodeURIComponent(photo.id)}`}
-      >
-        Explore related people, Albums and Stories
-      </Link>
-
-      {photo.permissions.can_update && (
-        <PhotoResurfacingControl
-          familySlug={familySlug}
-          photoId={photo.id}
-          excluded={photo.do_not_resurface}
-        />
-      )}
-
-      <PhotoEditorPanel familySlug={familySlug} photoId={photo.id} />
-
-      {photo.permissions.can_update && (
-        <section aria-labelledby="edit-photo-title">
-          <h2 id="edit-photo-title">Edit Photo</h2>
+        {photo.permissions.can_update ? (
           <PhotoForm
             photo={photo}
+            compact
             pending={updatePhoto.isPending}
             onSubmit={(input) => updatePhoto.mutateAsync(input)}
           />
-        </section>
-      )}
-
-      {photo.permissions.can_manage_tags && (
-        <section aria-labelledby="photo-tags-title">
-          <h2 id="photo-tags-title">Organise with tags</h2>
+        ) : (
+          <p>You do not have permission to edit this Photo.</p>
+        )}
+        {photo.permissions.can_manage_tags && (
           <PhotoTagsForm
             initialTags={photo.tags.map((tag) => tag.label)}
+            compact
             pending={replaceTags.isPending}
             onSubmit={(tags) => replaceTags.mutateAsync(tags)}
           />
-        </section>
-      )}
+        )}
+      </Dialog>
 
-      {photo.permissions.can_flag_duplicate && (
-        <>
-          {duplicateOptions.isPending && (
-            <p role="status">Loading Photos for duplicate suggestion…</p>
-          )}
-          {duplicateOptions.isError && (
-            <p role="alert">Other Photos could not be loaded.</p>
-          )}
-          {duplicateOptions.data !== undefined && (
-            <PhotoDuplicateFlagPanel
-              currentPhotoId={photo.id}
-              photos={duplicateOptions.data}
-              pending={flagDuplicate.isPending}
-              succeeded={flagDuplicate.isSuccess}
-              failed={flagDuplicate.isError}
-              onSubmit={(candidateId) => {
-                flagDuplicate.mutate(candidateId);
-              }}
+      <Dialog
+        open={peopleOpen}
+        title="Identify / Review people"
+        description="Use confirmed family identities for this Photo."
+        className="photo-detail-dialog"
+        pending={submitMetadata.isPending || submitPerson.isPending}
+        onClose={() => {
+          setPeopleOpen(false);
+        }}
+      >
+        {canWorkWithPeople && peopleQuery.data !== undefined ? (
+          <>
+            <PhotoMetadataForm
+              pending={submitMetadata.isPending}
+              onSubmit={(input) => submitMetadata.mutateAsync(input)}
             />
-          )}
-        </>
-      )}
-
-      {photo.permissions.can_propose_provenance && (
-        <section aria-labelledby="photo-family-metadata-title">
-          <h2 id="photo-family-metadata-title">Family-supplied metadata</h2>
-          <PhotoMetadataForm
-            pending={submitMetadata.isPending}
-            onSubmit={(input) => submitMetadata.mutateAsync(input)}
-          />
-          {peopleQuery.isPending && <p role="status">Loading People…</p>}
-          {peopleQuery.isError && (
-            <p role="alert">People could not be loaded for this Photo.</p>
-          )}
-          {peopleQuery.data !== undefined && (
             <PhotoPersonForm
               people={peopleQuery.data}
               pending={submitPerson.isPending}
               onSubmit={(personId) => submitPerson.mutateAsync(personId)}
             />
-          )}
-        </section>
-      )}
-
-      {photo.permissions.can_propose_provenance && (
-        <section aria-labelledby="photo-provenance-title">
-          <h2 id="photo-provenance-title">Photo provenance</h2>
-          {peopleQuery.isPending && <p role="status">Loading People…</p>}
-          {peopleQuery.isError && (
-            <p role="alert">People could not be loaded for provenance.</p>
-          )}
-          {peopleQuery.data !== undefined && (
-            <PhotoProvenanceForm
-              people={peopleQuery.data}
-              pending={submitProvenance.isPending}
-              onSubmit={(input) => submitProvenance.mutateAsync(input)}
-            />
-          )}
-        </section>
-      )}
-
-      {photo.permissions.can_resolve_provenance && (
-        <section aria-labelledby="photo-family-proposals-title">
-          <h2 id="photo-family-proposals-title">
-            Pending family metadata proposals
-          </h2>
+          </>
+        ) : (
+          <p>You do not have permission to propose Photo identities.</p>
+        )}
+        {photo.permissions.can_resolve_provenance && (
           <PhotoFamilyMetadataProposals
             familySlug={familySlug}
-            photoId={photoId}
+            photoId={photo.id}
           />
-        </section>
-      )}
+        )}
+      </Dialog>
 
-      {photo.permissions.can_resolve_provenance && (
-        <section aria-labelledby="photo-proposals-title">
-          <h2 id="photo-proposals-title">Pending provenance proposals</h2>
-          <PhotoProvenanceProposals familySlug={familySlug} photoId={photoId} />
-        </section>
-      )}
-      <section aria-labelledby="photo-conversation-title">
-        <h2 id="photo-conversation-title">Stories, comments and reactions</h2>
-        <PhotoConversationPanel
-          familySlug={familySlug}
-          photoId={photoId}
-          albumId={search.get("albumId") ?? undefined}
-        />
-      </section>
-      {(photo.permissions.can_update ||
-        photo.permissions.can_resolve_provenance) && (
-        <section aria-labelledby="delete-photo-title">
-          <h2 id="delete-photo-title">Remove this Photo</h2>
-          <p>
-            This hides the Photo but keeps its original, Albums, stories and
-            comments so it can be restored.
-          </p>
-          <button
-            type="button"
-            disabled={deletePhoto.isPending}
-            onClick={() => {
-              deletePhoto.mutate(undefined, {
+      <Dialog
+        open={createAlbumOpen}
+        title="Create an Album"
+        description="Create a new Album, then choose it from Add to album."
+        className="photo-detail-dialog"
+        pending={createAlbum.isPending}
+        onClose={() => {
+          setCreateAlbumOpen(false);
+        }}
+      >
+        <form
+          className="photo-detail-dialog__form ui-form ui-form--compact"
+          onSubmit={(event: SyntheticEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            const name = albumName.trim();
+            if (name === "") return;
+            createAlbum.mutate(
+              { name, description: null, visibility: albumVisibility },
+              {
                 onSuccess: () => {
-                  void navigate(
-                    `/families/${encodeURIComponent(familySlug)}/photos`,
-                  );
+                  setAlbumName("");
+                  setCreateAlbumOpen(false);
                 },
-              });
+              },
+            );
+          }}
+        >
+          <label htmlFor="photo-new-album-name">Name</label>
+          <input
+            data-autofocus
+            id="photo-new-album-name"
+            value={albumName}
+            onChange={(event) => {
+              setAlbumName(event.target.value);
+            }}
+            required
+          />
+          <label htmlFor="photo-new-album-visibility">Audience</label>
+          <select
+            id="photo-new-album-visibility"
+            value={albumVisibility}
+            onChange={(event) => {
+              setAlbumVisibility(event.target.value as AlbumVisibility);
             }}
           >
-            Remove Photo
-          </button>
-        </section>
-      )}
-      {search.get("eventId") !== null && search.get("albumId") !== null ? (
-        <Link
-          to={`/families/${encodeURIComponent(familySlug)}/albums/${encodeURIComponent(search.get("albumId") ?? "")}`}
-        >
-          Back to Event Album
-        </Link>
-      ) : (
-        <Link to={`/families/${encodeURIComponent(familySlug)}/photos`}>
-          Back to photographs
-        </Link>
-      )}
+            <option value="family_space">Family Space</option>
+            <option value="selected">Selected people</option>
+            <option value="private">Private</option>
+          </select>
+          <footer>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setCreateAlbumOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={createAlbum.isPending || albumName.trim() === ""}
+            >
+              Create Album
+            </Button>
+          </footer>
+        </form>
+      </Dialog>
     </main>
   );
 }
 
-function formatDate(
-  date: { precision: string; value: string | null } | null,
-): string {
-  if (date === null) return "Not recorded";
-  if (date.value === null) return "Unknown";
-  return `${date.precision.replaceAll("_", " ")}: ${date.value}`;
+function PhotoKeyboardNavigation({
+  previousPath,
+  nextPath,
+}: {
+  previousPath?: string;
+  nextPath?: string;
+}) {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey
+      ) {
+        return;
+      }
+
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest(
+          'input, textarea, select, [contenteditable="true"], [role="textbox"]',
+        ) !== null
+      ) {
+        return;
+      }
+
+      const destination =
+        event.key === "ArrowLeft"
+          ? previousPath
+          : event.key === "ArrowRight"
+            ? nextPath
+            : undefined;
+      if (destination === undefined) return;
+
+      event.preventDefault();
+      void navigate(destination);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [navigate, nextPath, previousPath]);
+
+  return null;
 }
 
-function formatClaim(claim: {
-  person: { preferred_name: string } | null;
-  description: string | null;
-}): string {
-  return claim.person?.preferred_name ?? claim.description ?? "Not recorded";
+function AlbumHistory({
+  familySlug,
+  items,
+  pending,
+  failed,
+}: {
+  familySlug: string;
+  items: PhotoAlbumHistoryItem[];
+  pending: boolean;
+  failed: boolean;
+}) {
+  return (
+    <section
+      className="photo-album-history"
+      aria-labelledby="photo-album-history-title"
+    >
+      <p className="photo-detail-eyebrow" id="photo-album-history-title">
+        Album history
+      </p>
+      {pending && <p role="status">Loading Album history…</p>}
+      {failed && <p role="alert">Album history could not be loaded.</p>}
+      {!pending && !failed && items.length === 0 && (
+        <p className="photo-album-history__empty">
+          No Album changes recorded yet.
+        </p>
+      )}
+      {items.map((item) => {
+        const actor = item.actor.person_id ? (
+          <EntityLink
+            entity="person"
+            to={`/families/${encodeURIComponent(familySlug)}/people/${encodeURIComponent(item.actor.person_id)}`}
+          >
+            {item.actor.display_name}
+          </EntityLink>
+        ) : (
+          item.actor.display_name
+        );
+        return (
+          <article
+            key={`${item.event_type}-${item.album.id}-${item.created_at}`}
+            className={
+              item.event_type === "removed" || !item.is_current
+                ? "historical"
+                : ""
+            }
+          >
+            <PersonAvatar
+              name={item.actor.display_name}
+              initials={item.actor.initials}
+              portraitUrl={item.actor.portrait_thumbnail_url ?? undefined}
+            />
+            <span>
+              <b>
+                {actor}{" "}
+                {item.event_type === "added"
+                  ? "added this Photo to"
+                  : "removed this Photo from"}{" "}
+                <EntityLink
+                  entity="album"
+                  to={`/families/${encodeURIComponent(familySlug)}/albums/${encodeURIComponent(item.album.id)}`}
+                >
+                  {item.album.name}
+                </EntityLink>
+              </b>
+              <small>
+                {formatTimestamp(item.created_at)} ·{" "}
+                {item.event_type === "added" && item.is_current
+                  ? "Current Album"
+                  : "Recorded in audit history"}
+              </small>
+            </span>
+          </article>
+        );
+      })}
+    </section>
+  );
+}
+
+function PeopleInPhoto({
+  familySlug,
+  people,
+  highlightedPersonId,
+  onPersonHighlight,
+}: {
+  familySlug: string;
+  people: Array<{ id: string; person: { id: string; preferred_name: string } }>;
+  highlightedPersonId: string | null;
+  onPersonHighlight: (personId: string | null) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  if (people.length === 0) return null;
+  const visible = expanded ? people : people.slice(0, 4);
+  const hiddenCount = people.length - 4;
+  return (
+    <section className="photo-people" aria-label="People in this Photo">
+      {visible.map((association) => (
+        <EntityLink
+          key={association.id}
+          className={
+            highlightedPersonId === association.person.id
+              ? "is-face-active"
+              : ""
+          }
+          entity="person"
+          to={`/families/${encodeURIComponent(familySlug)}/people/${encodeURIComponent(association.person.id)}`}
+          aria-label={association.person.preferred_name}
+          onMouseEnter={() => {
+            onPersonHighlight(association.person.id);
+          }}
+          onMouseLeave={() => {
+            onPersonHighlight(null);
+          }}
+          onFocus={() => {
+            onPersonHighlight(association.person.id);
+          }}
+          onBlur={() => {
+            onPersonHighlight(null);
+          }}
+        >
+          <PersonAvatar name={association.person.preferred_name} />
+          <span>{association.person.preferred_name.split(" ")[0]}</span>
+        </EntityLink>
+      ))}
+      {hiddenCount > 0 && (
+        <button
+          className="photo-people__others ui-inline-action"
+          type="button"
+          aria-expanded={expanded}
+          onClick={() => {
+            setExpanded((value) => !value);
+          }}
+        >
+          {expanded ? "Show fewer" : `${String(hiddenCount)} more`}
+        </button>
+      )}
+    </section>
+  );
+}
+
+function formatHistoricalDate(date: {
+  precision: string;
+  value: string | null;
+}) {
+  if (date.value === null) return "Unknown date";
+  if (date.precision === "exact") {
+    const parsed = new Date(`${date.value}T00:00:00`);
+    if (!Number.isNaN(parsed.valueOf()))
+      return new Intl.DateTimeFormat("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(parsed);
+  }
+  return date.value;
+}
+
+function formatTimestamp(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.valueOf())) return value;
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(parsed);
+}
+
+function ChevronLeftGlyph() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  );
+}
+
+function ChevronRightGlyph() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+}
+
+function ShareGlyph() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4" />
+    </svg>
+  );
 }

@@ -5,29 +5,60 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router";
 
-import { getPeople } from "@/features/people/api/personApi";
+import { getAlbum, getAlbums } from "@/features/albums/api/albumApi";
+import type { Album } from "@/features/albums/types/album";
 import { getMediaVariantDelivery } from "@/features/media-uploads/api/mediaUploadApi";
-import { getPhotoVersions } from "../api/photoEditorApi";
+import { getPeople } from "@/features/people/api/personApi";
 import type { Person } from "@/features/people/types/person";
-
+import { getPhotoVersions } from "../api/photoEditorApi";
 import {
-  authorizePhotoPresentationDownload,
   getPhoto,
+  getPhotoAlbumHistory,
   submitPhotoMetadata,
   submitPhotoPerson,
-  submitPhotoProvenance,
 } from "../api/photoApi";
-import type {
-  Photo,
-  PhotoMetadataProposal,
-  PhotoProvenanceProposal,
-} from "../types/photo";
+import type { Photo, PhotoMetadataProposal } from "../types/photo";
 import { PhotoPage } from "./PhotoPage";
 
+vi.mock("@/features/albums/api/albumApi", () => ({
+  addPhotoToAlbum: vi.fn(),
+  createAlbum: vi.fn(),
+  getAlbum: vi.fn(),
+  getAlbums: vi.fn(),
+  removePhotoFromAlbum: vi.fn(),
+}));
+vi.mock("@/features/events/components/EventPhotoTile", () => ({
+  PhotoTileMenu: ({
+    onEditDetails,
+    onReviewPeople,
+  }: {
+    onEditDetails?: () => void;
+    onReviewPeople?: () => void;
+  }) => (
+    <>
+      <button type="button" onClick={onEditDetails}>
+        Open edit details
+      </button>
+      <button type="button" onClick={onReviewPeople}>
+        Open people review
+      </button>
+    </>
+  ),
+}));
+vi.mock("../components/PhotoConversationPanel", () => ({
+  PhotoConversationPanel: ({ albumId }: { albumId?: string }) => (
+    <section data-album-id={albumId}>Conversation</section>
+  ),
+  PhotoLoveControl: ({ albumId }: { albumId?: string }) => (
+    <button type="button" data-album-id={albumId}>
+      Love · 2
+    </button>
+  ),
+}));
 vi.mock("../api/photoApi", () => ({
-  authorizePhotoPresentationDownload: vi.fn(),
   deletePhoto: vi.fn(),
   getPhoto: vi.fn(),
+  getPhotoAlbumHistory: vi.fn(),
   getPhotoProvenanceProposals: vi.fn(),
   getPhotoMetadataProposals: vi.fn(),
   getPhotoPersonProposals: vi.fn(),
@@ -38,12 +69,12 @@ vi.mock("../api/photoApi", () => ({
   submitPhotoMetadata: vi.fn(),
   submitPhotoPerson: vi.fn(),
   submitPhotoProvenance: vi.fn(),
-  restorePhoto: vi.fn(),
   updatePhoto: vi.fn(),
 }));
 vi.mock("@/features/people/api/personApi", () => ({ getPeople: vi.fn() }));
 vi.mock("@/features/media-uploads/api/mediaUploadApi", () => ({
   getMediaVariantDelivery: vi.fn(),
+  getOriginalMediaDelivery: vi.fn(),
 }));
 vi.mock("../api/photoEditorApi", () => ({
   getPhotoVersions: vi.fn(),
@@ -57,7 +88,7 @@ vi.mock("../api/photoEditorApi", () => ({
 }));
 
 const person: Person = {
-  id: "01K30000000000000000000000",
+  id: "person-may",
   preferred_name: "Aunt May",
   alternate_names: [],
   identity_status: "confirmed",
@@ -81,10 +112,11 @@ const person: Person = {
     can_manage_merge: false,
   },
 };
+
 const photo: Photo = {
-  id: "01K60000000000000000000000",
+  id: "photo-family",
   media_upload: {
-    id: "01K50000000000000000000000",
+    id: "upload-family",
     client_filename: "family.jpg",
     uploader: { id: 1, name: "David" },
   },
@@ -93,22 +125,22 @@ const photo: Photo = {
   caption: "Family picnic",
   description: "Summer together",
   archive_source_description: "Green family album",
-  historical_date: { precision: "decade", value: "1980s" },
+  historical_date: { precision: "exact", value: "1986-08-14" },
   location_description: "Blackpool",
   do_not_resurface: false,
   love_count: 0,
   comment_count: 0,
-  album_count: 0,
+  album_count: 1,
   provenance: {
     photographer: { person: null, description: "Unknown studio" },
     scanner: { person: null, description: null },
     physical_owner: { person, description: null },
   },
-  tags: [{ id: "01K70000000000000000000000", label: "Picnic" }],
+  tags: [{ id: "tag-picnic", label: "Picnic" }],
   people: [
     {
-      id: "01K90000000000000000000000",
-      photo_id: "01K60000000000000000000000",
+      id: "association-may",
+      photo_id: "photo-family",
       person,
       proposal_source: "human",
       status: "approved",
@@ -118,31 +150,53 @@ const photo: Photo = {
       created_at: "2026-08-24T10:00:00Z",
     },
   ],
+  identified_faces: [
+    {
+      id: "face-aunt-may",
+      person: { id: person.id, preferred_name: person.preferred_name },
+      bounds: { x: 120, y: 80, width: 60, height: 70 },
+      image_width: 600,
+      image_height: 400,
+    },
+  ],
   created_at: "2026-08-24T10:00:00Z",
   updated_at: "2026-08-24T10:00:00Z",
   permissions: {
-    can_update: false,
+    can_update: true,
     can_propose_provenance: true,
     can_resolve_provenance: false,
     can_manage_tags: true,
     can_flag_duplicate: false,
   },
 };
-const proposal: PhotoProvenanceProposal = {
-  id: "01K80000000000000000000000",
-  photo_id: photo.id,
-  role: "scanner",
-  person,
+
+const album: Album = {
+  id: "album-blackpool",
+  name: "Blackpool, 1986",
   description: null,
-  clears_claim: false,
-  status: "pending",
-  proposed_by: 1,
-  resolved_by: null,
-  resolved_at: null,
-  created_at: "2026-08-24T11:00:00Z",
+  visibility: "family_space",
+  created_by: 1,
+  creator: { id: 1, name: "David" },
+  created_at: "2026-08-24T10:00:00Z",
+  updated_at: "2026-08-24T10:00:00Z",
+  photo_count: 1,
+  guest_participation: "none",
+  photos: [
+    {
+      id: photo.id,
+      media_upload_id: photo.media_upload.id,
+      caption: photo.caption,
+      client_filename: photo.media_upload.client_filename,
+      visibility: "family_space",
+      position: 0,
+    },
+  ],
+  grants: [],
+  permissions: { can_manage: true, can_contribute: true },
 };
+
 const metadataProposal: PhotoMetadataProposal = {
-  id: "01KA0000000000000000000000",
+  id: "proposal-date",
   photo_id: photo.id,
   field: "historical_date",
   date: { precision: "year", value: "1987" },
@@ -155,31 +209,47 @@ const metadataProposal: PhotoMetadataProposal = {
   created_at: "2026-08-24T11:00:00Z",
 };
 
-function renderPage() {
+function renderPage(
+  entry = `/families/oliver-family/photos/${photo.id}?albumId=${album.id}`,
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   const router = createMemoryRouter(
     [{ path: "/families/:familySlug/photos/:photoId", element: <PhotoPage /> }],
-    { initialEntries: [`/families/oliver-family/photos/${photo.id}`] },
+    {
+      initialEntries: [entry],
+    },
   );
-  return render(
+  const view = render(
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
+  return { ...view, router };
 }
 
 beforeEach(() => {
-  vi.mocked(authorizePhotoPresentationDownload).mockResolvedValue({
-    url: "https://storage.test/signed-presentation",
-    expires_at: "2026-09-17T12:00:00Z",
-    photo_version_id: null,
-  });
   vi.mocked(getPhoto).mockResolvedValue(photo);
+  vi.mocked(getPhotoAlbumHistory).mockResolvedValue([
+    {
+      event_type: "added",
+      album: { id: album.id, name: album.name },
+      actor: {
+        display_name: "Aunt May",
+        person_id: person.id,
+        initials: "AM",
+        portrait_thumbnail_url: null,
+      },
+      created_at: "2026-09-14T12:00:00Z",
+      is_current: true,
+    },
+  ]);
+  vi.mocked(getAlbums).mockResolvedValue([album]);
+  vi.mocked(getAlbum).mockResolvedValue(album);
   vi.mocked(getPhotoVersions).mockResolvedValue({
     active_photo_version_id: null,
-    can_edit: false,
+    can_edit: true,
     versions: [],
   });
   vi.mocked(getMediaVariantDelivery).mockResolvedValue({
@@ -191,7 +261,6 @@ beforeEach(() => {
     expires_at: "2026-08-10T12:05:00+00:00",
   });
   vi.mocked(getPeople).mockResolvedValue([person]);
-  vi.mocked(submitPhotoProvenance).mockResolvedValue(proposal);
   vi.mocked(submitPhotoMetadata).mockResolvedValue(metadataProposal);
   vi.mocked(submitPhotoPerson).mockResolvedValue({
     ...photo.people[0],
@@ -207,86 +276,187 @@ afterEach(() => {
 });
 
 describe("PhotoPage", () => {
-  it("requests Photo download authorization and shows a safe failure", async () => {
+  it("renders the active presentation with real Album context and metadata", async () => {
     const user = userEvent.setup();
-    vi.mocked(authorizePhotoPresentationDownload).mockRejectedValueOnce(
-      new Error("delivery unavailable"),
-    );
     renderPage();
-
-    await user.click(
-      await screen.findByRole("button", { name: "Download Photo" }),
-    );
-    await waitFor(() => {
-      expect(authorizePhotoPresentationDownload).toHaveBeenCalledWith(
-        "oliver-family",
-        photo.id,
-      );
-    });
-    expect(
-      await screen.findByText("The Photo download could not be authorised."),
-    ).toHaveAttribute("role", "alert");
-  });
-
-  it("renders the display presentation variant above the Photo metadata", async () => {
-    renderPage();
-
     expect(
       await screen.findByRole("img", { name: "Family picnic" }),
     ).toHaveAttribute("src", "https://storage.test/signed-display");
-    expect(getMediaVariantDelivery).toHaveBeenCalledWith(
-      "oliver-family",
-      photo.media_upload.id,
-      "display",
-      expect.any(AbortSignal),
-    );
-  });
-
-  it("keeps archive source and identity-bearing physical owner visibly separate", async () => {
-    renderPage();
     expect(
-      await screen.findByRole("heading", { name: "Family picnic" }),
+      screen.getByRole("heading", { name: "Family picnic" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Green family album")).toBeInTheDocument();
-    expect(screen.getAllByText("Aunt May").length).toBeGreaterThanOrEqual(2);
-    expect(
-      await screen.findByRole("link", { name: "Aunt May" }),
-    ).toHaveAttribute("href", `/families/oliver-family/people/${person.id}`);
-    expect(screen.getByText("decade: 1980s")).toBeInTheDocument();
-    expect(screen.getByText("Blackpool")).toBeInTheDocument();
-    expect(screen.getByText("Unknown studio")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("heading", { name: "Edit Photo" }),
-    ).not.toBeInTheDocument();
+    const faceLink = screen.getByRole("link", { name: "View Aunt May" });
+    expect(faceLink).toHaveStyle({
+      left: "20%",
+      top: "20%",
+      width: "10%",
+      height: "17.5%",
+    });
+    expect(faceLink).not.toHaveClass("is-visible");
+    const listedPerson = document.querySelector<HTMLAnchorElement>(
+      ".photo-people .ui-entity-link",
+    );
+    if (listedPerson === null) throw new Error("Expected a listed person link");
+    await user.hover(listedPerson);
+    expect(faceLink).toHaveClass("is-visible");
+    await user.unhover(listedPerson);
+    expect(faceLink).not.toHaveClass("is-visible");
+    expect(screen.getByText("1 of 1")).toBeInTheDocument();
+    expect(document.querySelector(".photo-detail-meta")).toHaveTextContent(
+      /14 August 1986.*Blackpool/,
+    );
+    expect(screen.getAllByRole("link", { name: "Blackpool, 1986" })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          pathname: `/families/oliver-family/albums/${album.id}`,
+        }),
+      ]),
+    );
   });
 
-  it("submits provenance through the feature mutation", async () => {
-    const user = userEvent.setup();
+  it("binds authorised Album-history actors, Albums and confirmed People", async () => {
     renderPage();
-    await screen.findByRole("heading", { name: "Photo provenance" });
-    await user.selectOptions(
-      await screen.findByLabelText("Provenance role"),
-      "scanner",
+    expect(await screen.findByText("Album history")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Aunt May" })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          pathname: `/families/oliver-family/people/${person.id}`,
+        }),
+      ]),
     );
-    await user.selectOptions(screen.getByLabelText("Person"), person.id);
-    await user.click(screen.getByRole("button", { name: "Submit provenance" }));
+    expect(screen.getByText(/Current Album/)).toBeInTheDocument();
+  });
 
+  it("reveals People beyond the first four from the more link", async () => {
+    const user = userEvent.setup();
+    const namedPeople = [
+      "Aunt May",
+      "Jane Mercer",
+      "Robert Mercer",
+      "Margaret Mercer",
+      "Sarah Mercer",
+      "William Mercer",
+    ];
+    vi.mocked(getPhoto).mockResolvedValue({
+      ...photo,
+      people: namedPeople.map((name, index) => ({
+        ...photo.people[0],
+        id: `association-${String(index)}`,
+        person: {
+          ...person,
+          id: `person-${String(index)}`,
+          preferred_name: name,
+        },
+      })),
+    });
+
+    renderPage();
+    const more = await screen.findByRole("button", { name: "2 more" });
+    expect(
+      screen.queryByRole("link", { name: "Sarah Mercer" }),
+    ).not.toBeInTheDocument();
+    await user.click(more);
+    expect(
+      screen.getByRole("link", { name: "Sarah Mercer" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show fewer" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+  });
+
+  it("uses a real current Album membership for conversation, Love and cycling", async () => {
+    const user = userEvent.setup();
+    const cycleAlbum: Album = {
+      ...album,
+      photos: [
+        {
+          ...album.photos[0],
+          id: photo.id,
+          position: 0,
+        },
+        {
+          ...album.photos[0],
+          id: "photo-next",
+          position: 1,
+        },
+        {
+          ...album.photos[0],
+          id: "photo-last",
+          position: 2,
+        },
+      ],
+    };
+    vi.mocked(getPhotoAlbumHistory).mockResolvedValue([]);
+    vi.mocked(getAlbums).mockResolvedValue([cycleAlbum]);
+    vi.mocked(getAlbum).mockResolvedValue(cycleAlbum);
+
+    const { router } = renderPage(`/families/oliver-family/photos/${photo.id}`);
+
+    expect(await screen.findByText("1 of 3")).toBeInTheDocument();
+    expect(screen.getByText("Conversation")).toHaveAttribute(
+      "data-album-id",
+      album.id,
+    );
+    expect(screen.getByRole("button", { name: "Love · 2" })).toHaveAttribute(
+      "data-album-id",
+      album.id,
+    );
+    expect(
+      screen.getByRole("link", { name: "Previous photo" }),
+    ).toHaveAttribute(
+      "href",
+      `/families/oliver-family/photos/photo-last?albumId=${album.id}`,
+    );
+    expect(screen.getByRole("link", { name: "Next photo" })).toHaveAttribute(
+      "href",
+      `/families/oliver-family/photos/photo-next?albumId=${album.id}`,
+    );
+
+    await user.keyboard("{ArrowLeft}");
     await waitFor(() => {
-      expect(submitPhotoProvenance).toHaveBeenCalledWith(
-        "oliver-family",
-        photo.id,
-        { role: "scanner", person_id: person.id },
+      expect(router.state.location.pathname).toBe(
+        "/families/oliver-family/photos/photo-last",
       );
     });
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "submitted for review",
+
+    await router.navigate(`/families/oliver-family/photos/${photo.id}`);
+    await user.keyboard("{ArrowRight}");
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(
+        "/families/oliver-family/photos/photo-next",
+      );
+    });
+
+    const comment = document.createElement("input");
+    comment.setAttribute("aria-label", "Add a comment");
+    document.body.append(comment);
+    comment.focus();
+    await user.keyboard("{ArrowLeft}");
+    expect(router.state.location.pathname).toBe(
+      "/families/oliver-family/photos/photo-next",
     );
+    comment.remove();
   });
 
-  it("submits uncertain-date and Photo Person proposals through feature mutations", async () => {
+  it("opens production edit details in the approved dialog action", async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByRole("heading", { name: "Family-supplied metadata" });
+    await user.click(
+      await screen.findByRole("button", { name: "Open edit details" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Edit Photo details" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Caption")).toHaveValue("Family picnic");
+  });
+
+  it("submits metadata and Person proposals from Identify / Review people", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(
+      await screen.findByRole("button", { name: "Open people review" }),
+    );
     await user.selectOptions(screen.getByLabelText("Date precision"), "year");
     await user.type(screen.getByLabelText("Date value"), "1987");
     await user.click(
