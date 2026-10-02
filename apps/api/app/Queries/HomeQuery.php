@@ -24,6 +24,8 @@ final class HomeQuery
 
     private const int ACTIVITY_LIMIT = 20;
 
+    private const int CONTRIBUTION_PHOTO_LIMIT = 5;
+
     public function __construct(
         private readonly FamilyActivityQuery $activities,
         private readonly PhotoQuery $photos,
@@ -148,6 +150,7 @@ final class HomeQuery
                 return null;
             }
             $featurePhoto = $this->featurePhotoId($item['photo_ids'], $photos);
+            $contributionPhotos = $this->contributionPhotoPayloads($item['photo_ids'], $photos);
 
             return [
                 ...$item,
@@ -162,6 +165,7 @@ final class HomeQuery
                 'feature_photo' => is_string($featurePhoto)
                     ? $this->photoPayload($photos->get($featurePhoto))
                     : null,
+                'contribution_photos' => $contributionPhotos,
                 'engagement' => [
                     ...($albumLove[$album->id] ?? ['love_count' => 0, 'loved_by_me' => false]),
                     'comment_count' => $albumCommentCounts[$album->id] ?? 0,
@@ -222,6 +226,30 @@ final class HomeQuery
         }
 
         return null;
+    }
+
+    /** @param array<mixed> $photoIds
+     * @param  Collection<string, Photo>  $photos
+     * @return list<array<string, mixed>>
+     */
+    private function contributionPhotoPayloads(array $photoIds, Collection $photos): array
+    {
+        $payloads = [];
+        foreach ($photoIds as $id) {
+            if (! is_string($id)) {
+                continue;
+            }
+            $photo = $photos->get($id);
+            if (! $photo instanceof Photo) {
+                continue;
+            }
+            $payloads[] = $this->photoPayload($photo);
+            if (count($payloads) === self::CONTRIBUTION_PHOTO_LIMIT) {
+                break;
+            }
+        }
+
+        return $payloads;
     }
 
     /** @return Builder<Photo> */

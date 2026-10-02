@@ -15,6 +15,47 @@ describe("homeApi", () => {
           data: {
             activity: [
               {
+                id: "activity-2",
+                action_type: "photos_added_to_album",
+                actor: { user_id: 1, name: "David", person_id: null },
+                subject: {
+                  type: "album",
+                  id: "album-1",
+                  label: "Blackpool",
+                },
+                contribution_batch_id: "batch-1",
+                photo_ids: ["photo-1", "photo-2"],
+                photo_count: 2,
+                created_at: "2026-09-26T12:01:00+00:00",
+                album: {
+                  id: "album-1",
+                  name: "Blackpool",
+                  description: null,
+                  starts_on: null,
+                  ends_on: null,
+                  location: null,
+                },
+                feature_photo: null,
+                contribution_photos: [
+                  {
+                    id: "photo-1",
+                    media_upload_id: "upload-1",
+                    active_photo_version_id: null,
+                    alt: "At the pier",
+                    presentation: {
+                      url: "https://storage.test/presentation-1",
+                      method: "GET",
+                      expires_at: "2026-09-26T12:15:00+00:00",
+                    },
+                  },
+                ],
+                engagement: {
+                  love_count: 0,
+                  loved_by_me: false,
+                  comment_count: 0,
+                },
+              },
+              {
                 id: "activity-1",
                 action_type: "story_added",
                 actor: { user_id: 1, name: "David", person_id: null },
@@ -69,6 +110,9 @@ describe("homeApi", () => {
 
     expect(home).toMatchObject({
       activity: [
+        {
+          contribution_photos: [{ id: "photo-1", alt: "At the pier" }],
+        },
         {
           story: {
             heading: "At the seaside",

@@ -181,11 +181,15 @@ class HomeReadModelTest extends TestCase
         $this->assertSame(2, $contribution['photo_count']);
         $this->assertSame($first->id, $contribution['feature_photo']['id']);
         $this->assertSame('At the pier', $contribution['feature_photo']['alt']);
+        $contributionPhotos = collect($this->arrayItems($contribution['contribution_photos']));
+        $this->assertSame([$second->id, $first->id], $contributionPhotos->pluck('id')->all());
+        $this->assertSame(['On the beach', 'At the pier'], $contributionPhotos->pluck('alt')->all());
         $this->assertSame('Blackpool holiday', $contribution['album']['name']);
         $this->assertSame('Grandma maintained the chips were too salty.', $contribution['album']['description']);
         $this->assertSame(['love_count' => 1, 'loved_by_me' => false, 'comment_count' => 1], $contribution['engagement']);
         $this->assertStringNotContainsString('original', $contribution['feature_photo']['presentation']['url']);
         $this->assertNotContains($private->id, $contribution['photo_ids']);
+        $this->assertNotContains($private->id, $contributionPhotos->pluck('id'));
 
         $storyItem = $items->firstWhere('action_type', FamilyActivityType::StoryAdded->value);
         $this->assertSame($story->id, $storyItem['story']['id']);
@@ -199,6 +203,133 @@ class HomeReadModelTest extends TestCase
         ));
         $this->assertTrue($ownerItems->firstWhere('action_type', FamilyActivityType::PhotosAddedToAlbum->value)['engagement']['loved_by_me']);
         $this->assertFalse($ownerItems->firstWhere('action_type', FamilyActivityType::StoryAdded->value)['engagement']['loved_by_me']);
+    }
+
+    public function test_home_returns_bounded_ordered_contribution_presentations_with_visible_count_and_active_versions(): void
+    {
+        $family = FamilySpace::factory()->create(['slug' => 'contribution-mosaic']);
+        $owner = $this->member($family, FamilySpaceRole::Owner);
+        $viewer = $this->member($family, FamilySpaceRole::Member);
+        $album = Album::query()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $owner->id,
+            'name' => 'Mosaic album',
+            'visibility' => AlbumVisibility::FamilySpace,
+        ]);
+        $otherAlbum = Album::query()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $owner->id,
+            'name' => 'Single album',
+            'visibility' => AlbumVisibility::FamilySpace,
+        ]);
+
+        $contributed = collect(range(1, 7))->map(fn (int $index): Photo => $this->photo(
+            $family,
+            $owner,
+            sprintf('01M200000000000000000000%02d', $index),
+            PhotoVisibility::FamilySpace,
+            "Contribution {$index}",
+        ));
+        $hidden = $this->photo(
+            $family,
+            $owner,
+            '01M20000000000000000000008',
+            PhotoVisibility::Private,
+            'Hidden contribution',
+        );
+        $unrelated = $this->photo(
+            $family,
+            $owner,
+            '01M20000000000000000000009',
+            PhotoVisibility::FamilySpace,
+            'Older album photo',
+        );
+        $single = $this->photo(
+            $family,
+            $owner,
+            '01M20000000000000000000010',
+            PhotoVisibility::FamilySpace,
+            'Only contribution',
+        );
+        $orderedIds = $contributed->pluck('id')->reverse()->values()->all();
+
+        foreach ([...$contributed, $unrelated] as $position => $photo) {
+            $album->photos()->attach($photo->id, [
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $family->id,
+                'position' => $position + 1,
+                'added_by' => $owner->id,
+            ]);
+        }
+        $otherAlbum->photos()->attach($single->id, [
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $family->id,
+            'position' => 1,
+            'added_by' => $owner->id,
+        ]);
+
+        $activePhoto = $contributed->get(5);
+        $version = PhotoVersion::query()->create([
+            'family_space_id' => $family->id,
+            'photo_id' => $activePhoto->id,
+            'edit_recipe' => ['schema_version' => 1, 'operations' => []],
+            'derived_object_key' => "families/{$family->id}/photos/{$activePhoto->id}/mosaic-edited.webp",
+            'created_by' => $owner->id,
+        ]);
+        $activePhoto->forceFill(['active_photo_version_id' => $version->id])->save();
+
+        FamilyActivity::query()->create([
+            'family_space_id' => $family->id,
+            'actor_user_id' => $owner->id,
+            'action_type' => FamilyActivityType::PhotosAddedToAlbum,
+            'subject_album_id' => $album->id,
+            'contribution_batch_id' => '01M30000000000000000000001',
+            'photo_ids' => [...$orderedIds, $hidden->id],
+            'created_at' => now(),
+        ]);
+        FamilyActivity::query()->create([
+            'family_space_id' => $family->id,
+            'actor_user_id' => $owner->id,
+            'action_type' => FamilyActivityType::PhotosAddedToAlbum,
+            'subject_album_id' => $otherAlbum->id,
+            'contribution_batch_id' => '01M30000000000000000000002',
+            'photo_ids' => [$single->id],
+            'created_at' => now()->subSecond(),
+        ]);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $response = $this->actingAs($viewer)->getJson('/api/families/contribution-mosaic/home')->assertOk();
+        $queryCount = count(DB::getQueryLog());
+        DB::disableQueryLog();
+        $activities = collect($this->jsonItems($response, 'data.activity'))->keyBy('album.id');
+
+        $mosaic = $activities[$album->id];
+        $mosaicPhotos = collect($this->arrayItems($mosaic['contribution_photos']));
+        $this->assertSame(7, $mosaic['photo_count']);
+        $this->assertCount(5, $mosaicPhotos);
+        $this->assertSame(array_slice($orderedIds, 0, 5), $mosaicPhotos->pluck('id')->all());
+        $this->assertNotContains($hidden->id, $mosaicPhotos->pluck('id'));
+        $this->assertNotContains($unrelated->id, $mosaicPhotos->pluck('id'));
+        $activePayload = $mosaicPhotos->firstWhere('id', $activePhoto->id);
+        $this->assertIsArray($activePayload);
+        $this->assertSame($version->id, $activePayload['active_photo_version_id']);
+        $this->assertStringContainsString(
+            'mosaic-edited.webp',
+            urldecode($activePayload['presentation']['url']),
+        );
+        $this->assertFalse($mosaicPhotos->contains(
+            fn (array $photo): bool => str_contains($photo['presentation']['url'], 'original'),
+        ));
+
+        $singleActivity = $activities[$otherAlbum->id];
+        $this->assertSame(1, $singleActivity['photo_count']);
+        $this->assertSame(
+            [$single->id],
+            collect($this->arrayItems($singleActivity['contribution_photos']))->pluck('id')->all(),
+        );
+        $this->assertSame($single->id, $singleActivity['feature_photo']['id']);
+        $this->assertLessThanOrEqual(35, $queryCount, 'Home contribution presentation queries must remain bounded.');
     }
 
     public function test_home_uses_canonical_story_headings_and_authorized_labels_for_every_subject_type(): void
@@ -444,6 +575,29 @@ class HomeReadModelTest extends TestCase
         foreach ($value as $item) {
             if (! is_array($item)) {
                 throw new \UnexpectedValueException("{$path} contains a non-array item.");
+            }
+            $normalized = [];
+            foreach ($item as $key => $field) {
+                if (is_string($key)) {
+                    $normalized[$key] = $field;
+                }
+            }
+            $items[] = $normalized;
+        }
+
+        return $items;
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function arrayItems(mixed $value): array
+    {
+        if (! is_array($value)) {
+            throw new \UnexpectedValueException('Expected an array of items.');
+        }
+        $items = [];
+        foreach ($value as $item) {
+            if (! is_array($item)) {
+                throw new \UnexpectedValueException('Expected an array item.');
             }
             $normalized = [];
             foreach ($item as $key => $field) {

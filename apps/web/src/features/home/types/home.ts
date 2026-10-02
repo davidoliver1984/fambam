@@ -30,6 +30,7 @@ export type HomeAlbumActivity = FamilyActivity & {
     location: string | null;
   };
   feature_photo: HomePresentationPhoto | null;
+  contribution_photos: HomePresentationPhoto[];
   engagement: HomeEngagement;
 };
 
