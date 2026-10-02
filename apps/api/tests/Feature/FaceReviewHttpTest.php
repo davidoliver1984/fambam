@@ -46,6 +46,9 @@ class FaceReviewHttpTest extends TestCase
         $approved = $this->observation($family, $run, 2);
         $humanPending = $this->observation($family, $run, 1);
         $automaticPending = $this->observation($family, $run, 0);
+        $rejected = $this->observation($family, $run, 4);
+        $withdrawn = $this->observation($family, $run, 5);
+        $superseded = $this->observation($family, $run, 6);
         FaceObservationReview::query()->create([
             'family_space_id' => $family->id,
             'face_observation_id' => $left->id,
@@ -56,6 +59,9 @@ class FaceReviewHttpTest extends TestCase
         $this->assignment($family, $approved, $person, FaceIdentityAssignmentStatus::Approved, 'automatic_suggestion');
         $this->assignment($family, $humanPending, $person, FaceIdentityAssignmentStatus::Pending, 'human');
         $this->assignment($family, $automaticPending, $person, FaceIdentityAssignmentStatus::Pending, 'automatic_suggestion');
+        $this->assignment($family, $rejected, $person, FaceIdentityAssignmentStatus::Rejected, 'human');
+        $this->assignment($family, $withdrawn, $person, FaceIdentityAssignmentStatus::Withdrawn, 'automatic_suggestion');
+        $this->assignment($family, $superseded, $person, FaceIdentityAssignmentStatus::Superseded, 'human');
 
         $response = $this->actingAs($owner)
             ->getJson("/api/families/{$family->slug}/face-review?upload_batch_id={$batchId}")
@@ -66,18 +72,27 @@ class FaceReviewHttpTest extends TestCase
             ->assertJsonPath('data.summary.analysis.succeeded', 2)
             ->assertJsonPath('data.summary.analysis.failed', 1)
             ->assertJsonPath('data.summary.analysis.succeeded_with_zero_faces', 1)
-            ->assertJsonPath('data.summary.total_faces', 4)
+            ->assertJsonPath('data.summary.total_faces', 7)
             ->assertJsonPath('data.summary.reviewed_count', 3)
-            ->assertJsonPath('data.summary.remaining_count', 1)
+            ->assertJsonPath('data.summary.remaining_count', 4)
             ->assertJsonPath('data.summary.current_photo_id', $withFaces->id)
             ->assertJsonPath('data.photos.2.display_label', 'Faces')
             ->assertJsonPath('data.photos.2.media.canonical_width', 1200)
             ->assertJsonPath('data.photos.2.media.canonical_height', 800)
             ->assertJsonPath('data.photos.2.observations.0.id', $automaticPending->id)
-            ->assertJsonPath('data.photos.2.observations.0.review_state', 'unreviewed')
-            ->assertJsonPath('data.photos.2.observations.1.review_state', 'identified')
-            ->assertJsonPath('data.photos.2.observations.2.review_state', 'identified')
-            ->assertJsonPath('data.photos.2.observations.3.review_state', 'left_unidentified');
+            ->assertJsonPath('data.photos.2.analysis.review_state', 'succeeded_with_unresolved_faces')
+            ->assertJsonPath('data.photos.2.observations.0.review_state', 'automatic_suggestion')
+            ->assertJsonPath('data.photos.2.observations.0.reviewed', false)
+            ->assertJsonPath('data.photos.2.observations.0.suggested_people.0.id', $person->id)
+            ->assertJsonPath('data.photos.2.observations.1.review_state', 'human_proposal')
+            ->assertJsonPath('data.photos.2.observations.1.current_proposal.person.id', $person->id)
+            ->assertJsonPath('data.photos.2.observations.2.review_state', 'approved_identity')
+            ->assertJsonPath('data.photos.2.observations.2.current_identity.person.id', $person->id)
+            ->assertJsonPath('data.photos.2.observations.2.permissions.can_change', true)
+            ->assertJsonPath('data.photos.2.observations.3.review_state', 'left_unidentified')
+            ->assertJsonPath('data.photos.2.observations.4.review_state', 'unreviewed')
+            ->assertJsonPath('data.photos.2.observations.5.review_state', 'unreviewed')
+            ->assertJsonPath('data.photos.2.observations.6.review_state', 'unreviewed');
 
         $this->assertSame([
             $pending->id, $processing->id, $withFaces->id, $zeroFaces->id, $failed->id,
@@ -125,6 +140,29 @@ class FaceReviewHttpTest extends TestCase
             ->getJson("/api/families/{$family->slug}/face-review?photo_id={$photo->id}")
             ->assertOk()->assertJsonPath('data.summary.remaining_count', 1);
         $this->assertDatabaseCount('face_observation_reviews', 1);
+
+        $this->actingAs($member)->postJson(
+            "/api/families/{$family->slug}/face-observations/{$observation->id}/identity-assignments",
+            ['person_id' => $person->id],
+        )->assertCreated()
+            ->assertJsonPath('data.status', 'pending')
+            ->assertJsonPath('data.proposal_source', 'human');
+        $this->assertDatabaseMissing('face_observation_reviews', [
+            'face_observation_id' => $observation->id,
+        ]);
+        $this->actingAs($member)
+            ->getJson("/api/families/{$family->slug}/face-review?photo_id={$photo->id}")
+            ->assertOk()
+            ->assertJsonPath('data.photos.0.observations.0.review_state', 'human_proposal');
+
+        $human = FaceIdentityAssignment::query()
+            ->where('face_observation_id', $observation->id)
+            ->where('status', FaceIdentityAssignmentStatus::Pending)
+            ->firstOrFail();
+        $this->actingAs($member)->putJson(
+            "/api/families/{$family->slug}/face-observations/{$observation->id}/review/left-unidentified",
+        )->assertOk();
+        $this->assertSame(FaceIdentityAssignmentStatus::Superseded, $human->refresh()->status);
     }
 
     public function test_hidden_cross_family_photos_and_deferred_roles_are_excluded(): void
@@ -152,6 +190,13 @@ class FaceReviewHttpTest extends TestCase
         $contributor = $this->addMember($family, FamilySpaceRole::Contributor);
         $this->actingAs($contributor)->getJson("/api/families/{$family->slug}/face-review")
             ->assertForbidden();
+        $guest = $this->addMember($family, FamilySpaceRole::Guest);
+        $this->actingAs($guest)->getJson("/api/families/{$family->slug}/face-review")
+            ->assertForbidden();
+        $administrator = $this->addMember($family, FamilySpaceRole::Administrator);
+        $this->actingAs($administrator)->getJson("/api/families/{$family->slug}/face-review")
+            ->assertOk()
+            ->assertJsonPath('data.photos.0.observations.0.permissions.can_assign', true);
     }
 
     public function test_upload_batch_handoff_only_reports_real_unresolved_faces(): void

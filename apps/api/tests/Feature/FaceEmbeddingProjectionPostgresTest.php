@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\FaceRecognition\EmbeddingSpaceIdentity;
 use App\FaceRecognition\FaceEmbeddingProjectionManager;
 use App\FaceRecognition\SimilaritySearch;
+use App\Models\FaceObservation;
 use App\Tenancy\DatabaseTenantContext;
 use App\Tenancy\TenantOperationContext;
 use Illuminate\Database\ConnectionInterface;
@@ -300,9 +301,9 @@ SQL, [
     /** @param list<float> $embedding */
     private function createObservation(string $familySpaceId, string $runId, array $embedding): string
     {
-        $id = (string) Str::ulid();
-        $this->admin->table('face_observations')->insert([
-            'id' => $id,
+        $observation = new FaceObservation;
+        $observation->setConnection('pgsql_admin');
+        $observation->forceFill([
             'family_space_id' => $familySpaceId,
             'face_analysis_run_id' => $runId,
             'face_index' => $this->admin->table('face_observations')->where('face_analysis_run_id', $runId)->count(),
@@ -313,14 +314,13 @@ SQL, [
             'landmarks' => '[]',
             'landmark_scheme' => '5-point',
             'detection_confidence' => 1,
-            'embedding' => DB::raw("decode('".bin2hex(pack('g*', ...$embedding))."', 'hex')"),
+            'embedding' => pack('g*', ...$embedding),
             'embedding_dimension' => count($embedding),
             'embedding_dtype' => 'float32',
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
+        $observation->save();
 
-        return $id;
+        return $observation->id;
     }
 
     private function binary(mixed $value): string

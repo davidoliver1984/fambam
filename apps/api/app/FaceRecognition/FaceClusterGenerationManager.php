@@ -290,6 +290,10 @@ SQL, [
     private function binary(mixed $value): string
     {
         if (is_resource($value)) {
+            $metadata = stream_get_meta_data($value);
+            if ($metadata['seekable']) {
+                rewind($value);
+            }
             $value = stream_get_contents($value);
         }
         if (! is_string($value)) {

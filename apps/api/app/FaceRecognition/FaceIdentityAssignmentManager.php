@@ -50,14 +50,14 @@ final class FaceIdentityAssignmentManager
             if (! $this->photos->view($actor, $photo)) {
                 throw new AuthorizationException;
             }
-            if (FaceIdentityAssignment::query()->where('face_observation_id', $lockedObservation->id)
+            $active = FaceIdentityAssignment::query()
+                ->where('face_observation_id', $lockedObservation->id)
                 ->whereIn('status', [
                     FaceIdentityAssignmentStatus::Pending,
                     FaceIdentityAssignmentStatus::Approved,
-                ])->exists()) {
-                throw ValidationException::withMessages([
-                    'face_observation' => ['This face already has an active identity claim.'],
-                ]);
+                ])->lockForUpdate()->first();
+            if ($active?->status === FaceIdentityAssignmentStatus::Approved) {
+                $this->authorizeResolution($actor);
             }
             if (FaceIdentitySuppression::query()
                 ->where('face_observation_id', $lockedObservation->id)
@@ -65,6 +65,14 @@ final class FaceIdentityAssignmentManager
                 ->whereNull('reopened_at')->exists()) {
                 throw ValidationException::withMessages([
                     'person' => ['This face and Person pair remains suppressed until an Administrator reopens it.'],
+                ]);
+            }
+
+            if ($active !== null) {
+                $active->update([
+                    'status' => FaceIdentityAssignmentStatus::Superseded,
+                    'resolved_by' => $actor->id,
+                    'resolved_at' => now(),
                 ]);
             }
 
@@ -82,7 +90,15 @@ final class FaceIdentityAssignmentManager
             $this->audit->record('face_identity_assignment.proposed', $assignment, $actor, $request, [
                 'face_observation_id' => $lockedObservation->id,
                 'person_id' => $lockedPerson->id,
+                'supersedes_assignment_id' => $active?->id,
             ]);
+            if ($active !== null) {
+                $this->audit->record('face_identity_assignment.superseded', $active, $actor, $request, [
+                    'face_observation_id' => $lockedObservation->id,
+                    'person_id' => $active->person_id,
+                    'replacement_assignment_id' => $assignment->id,
+                ]);
+            }
 
             return $assignment;
         });

@@ -4,6 +4,7 @@ namespace App\Queries;
 
 use App\Enums\FaceAnalysisRunStatus;
 use App\Enums\FaceIdentityAssignmentStatus;
+use App\Enums\FamilySpaceRole;
 use App\Enums\MediaVariantTransform;
 use App\Media\MediaDeliveryAuthorization;
 use App\Models\FaceAnalysisRun;
@@ -14,6 +15,7 @@ use App\Models\MediaVariant;
 use App\Models\Photo;
 use App\Models\User;
 use App\Services\MediaDeliveryManager;
+use App\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
@@ -25,6 +27,7 @@ final class FaceReviewQuery
     public function __construct(
         private readonly PhotoQuery $photos,
         private readonly MediaDeliveryManager $delivery,
+        private readonly TenantContext $tenant,
     ) {}
 
     /**
@@ -42,6 +45,8 @@ final class FaceReviewQuery
             ->selectRaw("SUM(CASE WHEN analysis_state = 'succeeded' THEN 1 ELSE 0 END) AS succeeded_photos")
             ->selectRaw("SUM(CASE WHEN analysis_state = 'failed' THEN 1 ELSE 0 END) AS failed_photos")
             ->selectRaw("SUM(CASE WHEN analysis_state = 'succeeded' AND detected_face_count = 0 THEN 1 ELSE 0 END) AS zero_face_photos")
+            ->selectRaw("SUM(CASE WHEN analysis_state = 'succeeded' AND detected_face_count > 0 AND remaining_count > 0 THEN 1 ELSE 0 END) AS unresolved_photos")
+            ->selectRaw("SUM(CASE WHEN analysis_state = 'succeeded' AND detected_face_count > 0 AND remaining_count = 0 THEN 1 ELSE 0 END) AS resolved_photos")
             ->selectRaw('COALESCE(SUM(detected_face_count), 0) AS total_faces')
             ->selectRaw('COALESCE(SUM(reviewed_count), 0) AS reviewed_count')
             ->selectRaw('COALESCE(SUM(remaining_count), 0) AS remaining_count')
@@ -74,6 +79,8 @@ final class FaceReviewQuery
                     'succeeded' => (int) ($summary->succeeded_photos ?? 0),
                     'failed' => (int) ($summary->failed_photos ?? 0),
                     'succeeded_with_zero_faces' => (int) ($summary->zero_face_photos ?? 0),
+                    'succeeded_with_unresolved_faces' => (int) ($summary->unresolved_photos ?? 0),
+                    'succeeded_with_all_faces_resolved' => (int) ($summary->resolved_photos ?? 0),
                 ],
                 'total_faces' => (int) ($summary->total_faces ?? 0),
                 'reviewed_count' => (int) ($summary->reviewed_count ?? 0),
@@ -87,6 +94,7 @@ final class FaceReviewQuery
                 $photo,
                 $runs->get($photo->media_upload_id),
                 $variants->get($photo->media_upload_id),
+                $viewer,
             ))->all(),
             'pagination' => ['page' => $pageNumber, 'limit' => $limit, 'has_more' => $hasMore],
         ];
@@ -206,9 +214,11 @@ final class FaceReviewQuery
         Photo $photo,
         ?FaceAnalysisRun $run,
         ?MediaVariant $variant,
+        User $viewer,
     ): array {
         $observations = $run instanceof FaceAnalysisRun ? $run->observations : collect();
         $reviewed = $observations->filter(fn (FaceObservation $observation): bool => $this->isReviewed($observation))->count();
+        $remaining = $observations->count() - $reviewed;
         try {
             $delivery = $variant === null ? null : $this->delivery->variant($photo->mediaUpload, $variant);
         } catch (NotFoundHttpException) {
@@ -225,11 +235,14 @@ final class FaceReviewQuery
                 'state' => $run?->status->value ?? FaceAnalysisRunStatus::Pending->value,
                 'succeeded_with_zero_faces' => $run?->status === FaceAnalysisRunStatus::Succeeded
                     && $observations->isEmpty(),
+                'review_state' => $this->analysisReviewState($run, $observations->count(), $remaining),
             ],
             'detected_face_count' => $observations->count(),
             'reviewed_count' => $reviewed,
-            'remaining_count' => $observations->count() - $reviewed,
-            'observations' => $observations->map(fn (FaceObservation $observation): array => $this->observationPayload($observation))->all(),
+            'remaining_count' => $remaining,
+            'observations' => $observations->map(
+                fn (FaceObservation $observation): array => $this->observationPayload($observation, $viewer),
+            )->all(),
         ];
     }
 
@@ -253,11 +266,29 @@ final class FaceReviewQuery
     }
 
     /** @return array<string, mixed> */
-    private function observationPayload(FaceObservation $observation): array
+    private function observationPayload(FaceObservation $observation, User $viewer): array
     {
         /** @var FaceIdentityAssignment|null $assignment */
         $assignment = $observation->identityAssignments->first();
         $reviewState = $this->reviewState($observation, $assignment);
+        $isManager = in_array($this->role($viewer), [
+            FamilySpaceRole::Owner,
+            FamilySpaceRole::Administrator,
+        ], true);
+        $canReview = in_array($this->role($viewer), [
+            FamilySpaceRole::Owner,
+            FamilySpaceRole::Administrator,
+            FamilySpaceRole::Member,
+        ], true);
+        $assignmentPayload = $assignment === null ? null : [
+            'id' => $assignment->id,
+            'status' => $assignment->status->value,
+            'proposal_source' => $assignment->proposal_source,
+            'person' => [
+                'id' => $assignment->person->id,
+                'preferred_name' => $assignment->person->preferred_name,
+            ],
+        ];
 
         return [
             'id' => $observation->id,
@@ -269,22 +300,30 @@ final class FaceReviewQuery
                 'height' => $observation->bounds_height,
             ],
             'review_state' => $reviewState,
-            'reviewed' => $reviewState !== 'unreviewed',
-            'identity_assignment' => $assignment === null ? null : [
-                'id' => $assignment->id,
-                'status' => $assignment->status->value,
-                'proposal_source' => $assignment->proposal_source,
-                'person' => [
-                    'id' => $assignment->person->id,
-                    'preferred_name' => $assignment->person->preferred_name,
-                ],
+            'reviewed' => in_array($reviewState, ['human_proposal', 'approved_identity', 'left_unidentified'], true),
+            'suggested_people' => $reviewState === 'automatic_suggestion' && $assignmentPayload !== null
+                ? [$assignmentPayload['person']]
+                : [],
+            'current_proposal' => $reviewState === 'human_proposal' ? $assignmentPayload : null,
+            'current_identity' => $reviewState === 'approved_identity' ? $assignmentPayload : null,
+            'identity_assignment' => $assignmentPayload,
+            'permissions' => [
+                'can_assign' => $canReview && $reviewState !== 'approved_identity',
+                'can_change' => $canReview && ($reviewState !== 'approved_identity' || $isManager),
+                'can_leave_unidentified' => $canReview && $reviewState !== 'approved_identity',
+                'can_approve' => $isManager && in_array($reviewState, ['automatic_suggestion', 'human_proposal'], true),
+                'can_reject' => $isManager && in_array($reviewState, ['automatic_suggestion', 'human_proposal'], true),
             ],
         ];
     }
 
     private function isReviewed(FaceObservation $observation): bool
     {
-        return $this->reviewState($observation, $observation->identityAssignments->first()) !== 'unreviewed';
+        return in_array(
+            $this->reviewState($observation, $observation->identityAssignments->first()),
+            ['human_proposal', 'approved_identity', 'left_unidentified'],
+            true,
+        );
     }
 
     private function reviewState(FaceObservation $observation, ?FaceIdentityAssignment $assignment): string
@@ -292,9 +331,43 @@ final class FaceReviewQuery
         if ($assignment?->status === FaceIdentityAssignmentStatus::Approved
             || ($assignment?->status === FaceIdentityAssignmentStatus::Pending
                 && $assignment->proposal_source === 'human')) {
-            return 'identified';
+            return $assignment->status === FaceIdentityAssignmentStatus::Approved
+                ? 'approved_identity'
+                : 'human_proposal';
+        }
+
+        if ($assignment?->status === FaceIdentityAssignmentStatus::Pending) {
+            return 'automatic_suggestion';
         }
 
         return $observation->review === null ? 'unreviewed' : 'left_unidentified';
+    }
+
+    private function analysisReviewState(?FaceAnalysisRun $run, int $detectedFaces, int $remaining): string
+    {
+        if ($run === null || $run->status === FaceAnalysisRunStatus::Pending) {
+            return 'pending';
+        }
+        if ($run->status === FaceAnalysisRunStatus::Processing) {
+            return 'processing';
+        }
+        if ($run->status === FaceAnalysisRunStatus::Failed) {
+            return 'failed';
+        }
+        if ($detectedFaces === 0) {
+            return 'succeeded_with_zero_faces';
+        }
+
+        return $remaining > 0
+            ? 'succeeded_with_unresolved_faces'
+            : 'succeeded_with_all_faces_resolved';
+    }
+
+    private function role(User $viewer): FamilySpaceRole
+    {
+        $membership = $this->tenant->membership();
+        abort_unless($membership->user_id === $viewer->id, 403);
+
+        return $membership->role;
     }
 }

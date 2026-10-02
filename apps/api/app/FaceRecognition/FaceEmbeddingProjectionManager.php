@@ -77,6 +77,10 @@ SQL, [
     private function binary(mixed $value): string
     {
         if (is_resource($value)) {
+            $metadata = stream_get_meta_data($value);
+            if ($metadata['seekable']) {
+                rewind($value);
+            }
             $contents = stream_get_contents($value);
             if ($contents !== false) {
                 return $contents;

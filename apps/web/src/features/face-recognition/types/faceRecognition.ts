@@ -23,7 +23,7 @@ export type FacePersonSummary = {
 
 export type FaceIdentityAssignment = {
   id: string;
-  status: "pending" | "approved" | "rejected" | "withdrawn";
+  status: "pending" | "approved" | "rejected" | "withdrawn" | "superseded";
   proposal_source: string;
   person: FacePersonSummary;
   observation: FaceObservationSummary;
@@ -68,22 +68,44 @@ export type FaceSuggestionPreview = {
 };
 
 export type FaceReviewAnalysisState =
+  "pending" | "processing" | "succeeded" | "failed";
+
+export type FaceReviewAnalysisPresentationState =
   | "pending"
   | "processing"
-  | "succeeded"
+  | "succeeded_with_zero_faces"
+  | "succeeded_with_unresolved_faces"
+  | "succeeded_with_all_faces_resolved"
   | "failed";
+
+export type FaceReviewAssignmentPresentation = {
+  id: string;
+  status: "pending" | "approved";
+  proposal_source: string;
+  person: FacePersonSummary;
+};
 
 export type FaceReviewObservation = {
   id: string;
   face_index: number;
   bounds: FaceBounds;
-  review_state: "unreviewed" | "identified" | "left_unidentified";
+  review_state:
+    | "unreviewed"
+    | "automatic_suggestion"
+    | "human_proposal"
+    | "approved_identity"
+    | "left_unidentified";
   reviewed: boolean;
-  identity_assignment: null | {
-    id: string;
-    status: "pending" | "approved";
-    proposal_source: string;
-    person: FacePersonSummary;
+  suggested_people: FacePersonSummary[];
+  current_proposal: FaceReviewAssignmentPresentation | null;
+  current_identity: FaceReviewAssignmentPresentation | null;
+  identity_assignment: FaceReviewAssignmentPresentation | null;
+  permissions: {
+    can_assign: boolean;
+    can_change: boolean;
+    can_leave_unidentified: boolean;
+    can_approve: boolean;
+    can_reject: boolean;
   };
 };
 
@@ -104,6 +126,7 @@ export type FaceReviewPhoto = {
   };
   analysis: {
     state: FaceReviewAnalysisState;
+    review_state: FaceReviewAnalysisPresentationState;
     succeeded_with_zero_faces: boolean;
   };
   detected_face_count: number;
@@ -118,6 +141,8 @@ export type FaceReviewSession = {
     total_photos: number;
     analysis: Record<FaceReviewAnalysisState, number> & {
       succeeded_with_zero_faces: number;
+      succeeded_with_unresolved_faces: number;
+      succeeded_with_all_faces_resolved: number;
     };
     total_faces: number;
     reviewed_count: number;

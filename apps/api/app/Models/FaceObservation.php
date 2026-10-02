@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\DatabaseBinary;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -81,6 +82,7 @@ class FaceObservation extends Model
             'bounds_height' => 'float',
             'landmarks' => 'array',
             'detection_confidence' => 'float',
+            'embedding' => DatabaseBinary::class,
             'embedding_dimension' => 'integer',
             'quality_signals' => 'array',
             'provider_diagnostics' => 'array',

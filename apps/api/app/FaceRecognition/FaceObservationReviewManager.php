@@ -55,12 +55,29 @@ final class FaceObservationReviewManager
                     'face_observation' => ['An approved identity must be revisited through the identity-review workflow.'],
                 ]);
             }
-            FaceIdentityAssignment::query()->whereIn('id', $activeAssignments->pluck('id'))
-                ->update([
-                    'status' => FaceIdentityAssignmentStatus::Withdrawn,
+            foreach ($activeAssignments as $activeAssignment) {
+                $status = $activeAssignment->proposal_source === 'human'
+                    ? FaceIdentityAssignmentStatus::Superseded
+                    : FaceIdentityAssignmentStatus::Withdrawn;
+                $activeAssignment->update([
+                    'status' => $status,
                     'resolved_by' => $actor->id,
                     'resolved_at' => now(),
                 ]);
+                $this->audit->record(
+                    $status === FaceIdentityAssignmentStatus::Withdrawn
+                        ? 'face_identity_assignment.withdrawn'
+                        : 'face_identity_assignment.superseded',
+                    $activeAssignment,
+                    $actor,
+                    $request,
+                    [
+                        'face_observation_id' => $locked->id,
+                        'person_id' => $activeAssignment->person_id,
+                        'replacement_disposition' => FaceObservationReviewDisposition::LeftUnidentified->value,
+                    ],
+                );
+            }
 
             $review = FaceObservationReview::query()->updateOrCreate(
                 ['face_observation_id' => $locked->id],

@@ -12,6 +12,7 @@ import {
   generateFaceIdentitySuggestions,
   mergeFaceClusters,
   nameFaceCluster,
+  parseFaceReviewSession,
   proposeFaceIdentity,
   rejectFaceIdentityAssignment,
   leaveFaceUnidentified,
@@ -50,6 +51,53 @@ const cluster = {
 };
 
 describe("faceRecognitionApi", () => {
+  it("rejects ambiguous or inconsistent face-review presentation states", () => {
+    expect(() =>
+      parseFaceReviewSession({
+        scope: { upload_batch_id: null, photo_id: "photo-1" },
+        summary: {} as never,
+        pagination: { page: 1, limit: 1, has_more: false },
+        photos: [
+          {
+            photo_id: "photo-1",
+            upload_batch_id: null,
+            caption: null,
+            display_label: "Photo",
+            media: {} as never,
+            analysis: {
+              state: "succeeded",
+              review_state: "succeeded_with_unresolved_faces",
+              succeeded_with_zero_faces: false,
+            },
+            detected_face_count: 1,
+            reviewed_count: 0,
+            remaining_count: 1,
+            observations: [
+              {
+                id: "observation-1",
+                face_index: 0,
+                bounds: { x: 0, y: 0, width: 1, height: 1 },
+                review_state: "automatic_suggestion",
+                reviewed: true,
+                suggested_people: [],
+                current_proposal: null,
+                current_identity: null,
+                identity_assignment: null,
+                permissions: {
+                  can_assign: true,
+                  can_change: true,
+                  can_leave_unidentified: true,
+                  can_approve: false,
+                  can_reject: false,
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    ).toThrow("Inconsistent face observation review progress.");
+  });
+
   it("owns all Phase 10 functional-review endpoint paths and image mapping", async () => {
     const base = "http://localhost:8082/api/families/family-archive";
     const paths: string[] = [];

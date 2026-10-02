@@ -12,6 +12,7 @@ use App\Queries\FaceReviewQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 class FaceReviewController extends Controller
 {
@@ -30,6 +31,11 @@ class FaceReviewController extends Controller
             'limit' => ['sometimes', 'integer', 'between:1,100'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
+        if (isset($validated['upload_batch_id'], $validated['photo_id'])) {
+            throw ValidationException::withMessages([
+                'scope' => ['Choose either upload_batch_id or photo_id, not both.'],
+            ]);
+        }
         /** @var User $viewer */
         $viewer = $request->user();
         $data = $this->reviews->read($familySpace, $viewer, [

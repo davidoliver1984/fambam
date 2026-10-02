@@ -8,4 +8,5 @@ enum FaceIdentityAssignmentStatus: string
     case Approved = 'approved';
     case Rejected = 'rejected';
     case Withdrawn = 'withdrawn';
+    case Superseded = 'superseded';
 }

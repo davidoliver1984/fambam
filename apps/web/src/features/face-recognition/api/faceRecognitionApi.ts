@@ -32,6 +32,45 @@ function base(familySlug: string): string {
   return `/api/families/${encodeURIComponent(familySlug)}`;
 }
 
+const observationReviewStates = new Set([
+  "unreviewed",
+  "automatic_suggestion",
+  "human_proposal",
+  "approved_identity",
+  "left_unidentified",
+]);
+const analysisReviewStates = new Set([
+  "pending",
+  "processing",
+  "succeeded_with_zero_faces",
+  "succeeded_with_unresolved_faces",
+  "succeeded_with_all_faces_resolved",
+  "failed",
+]);
+
+export function parseFaceReviewSession(
+  value: FaceReviewSession,
+): FaceReviewSession {
+  for (const photo of value.photos) {
+    if (!analysisReviewStates.has(photo.analysis.review_state)) {
+      throw new Error("Unsupported face-review analysis state.");
+    }
+    for (const face of photo.observations) {
+      if (!observationReviewStates.has(face.review_state)) {
+        throw new Error("Unsupported face observation review state.");
+      }
+      const reviewed =
+        face.review_state === "human_proposal" ||
+        face.review_state === "approved_identity" ||
+        face.review_state === "left_unidentified";
+      if (face.reviewed !== reviewed) {
+        throw new Error("Inconsistent face observation review progress.");
+      }
+    }
+  }
+  return value;
+}
+
 function observation(
   familySlug: string,
   value: WireObservation,
@@ -227,10 +266,12 @@ export async function getFaceReview(
   if (filters.page !== undefined) query.set("page", String(filters.page));
   const suffix = query.size === 0 ? "" : `?${query.toString()}`;
 
-  return unwrap(
-    await apiClient.get<ApiEnvelope<FaceReviewSession>>(
-      `${base(familySlug)}/face-review${suffix}`,
-      { signal },
+  return parseFaceReviewSession(
+    unwrap(
+      await apiClient.get<ApiEnvelope<FaceReviewSession>>(
+        `${base(familySlug)}/face-review${suffix}`,
+        { signal },
+      ),
     ),
   );
 }

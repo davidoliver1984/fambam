@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Enums\FaceAnalysisRunStatus;
+use App\Enums\FaceIdentityAssignmentStatus;
 use App\Enums\FamilySpaceRole;
 use App\Enums\MembershipState;
 use App\Enums\PersonProposalStatus;
 use App\FaceRecognition\FaceIdentityAssignmentManager;
 use App\FaceRecognition\FaceIdentitySuppressionManager;
 use App\Models\FaceAnalysisRun;
+use App\Models\FaceIdentityAssignment;
 use App\Models\FaceObservation;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
@@ -66,6 +68,89 @@ class FaceIdentityAssignmentTest extends TestCase
         $this->assertDatabaseHas('audit_events', ['action' => 'face_identity_assignment.approved']);
         $this->assertDatabaseHas('audit_events', ['action' => 'photo.person_confirmed']);
         $this->assertDatabaseCount('family_activities', 0);
+    }
+
+    public function test_human_selection_supersedes_same_person_machine_suggestion_without_auto_approval(): void
+    {
+        [$family, $owner, $membership, , $observation] = $this->facePhoto();
+        $person = Person::factory()->create(['family_space_id' => $family->id]);
+        $machine = FaceIdentityAssignment::query()->create([
+            'family_space_id' => $family->id,
+            'face_observation_id' => $observation->id,
+            'person_id' => $person->id,
+            'proposal_source' => 'automatic_suggestion',
+            'status' => FaceIdentityAssignmentStatus::Pending,
+        ]);
+        app(TenantContext::class)->establish($family, $membership, $owner);
+
+        $human = app(FaceIdentityAssignmentManager::class)->propose(
+            $observation,
+            $person,
+            $owner,
+            Request::create('/face-identity', 'POST'),
+        );
+
+        $this->assertSame(FaceIdentityAssignmentStatus::Superseded, $machine->refresh()->status);
+        $this->assertSame(FaceIdentityAssignmentStatus::Pending, $human->status);
+        $this->assertSame('human', $human->proposal_source);
+        $this->assertNull($human->resolved_at);
+        $this->assertDatabaseHas('audit_events', ['action' => 'face_identity_assignment.superseded']);
+    }
+
+    public function test_human_may_change_pending_proposal_and_history_is_preserved(): void
+    {
+        [$family, $owner, $membership, , $observation] = $this->facePhoto();
+        $firstPerson = Person::factory()->create(['family_space_id' => $family->id]);
+        $secondPerson = Person::factory()->create(['family_space_id' => $family->id]);
+        app(TenantContext::class)->establish($family, $membership, $owner);
+        $manager = app(FaceIdentityAssignmentManager::class);
+        $request = Request::create('/face-identity', 'POST');
+
+        $first = $manager->propose($observation, $firstPerson, $owner, $request);
+        $second = $manager->propose($observation, $secondPerson, $owner, $request);
+
+        $this->assertSame(FaceIdentityAssignmentStatus::Superseded, $first->refresh()->status);
+        $this->assertSame(FaceIdentityAssignmentStatus::Pending, $second->status);
+        $this->assertSame($secondPerson->id, $second->person_id);
+        $this->assertDatabaseCount('face_identity_assignments', 2);
+    }
+
+    public function test_only_manager_may_correct_approved_identity_and_correction_stays_pending(): void
+    {
+        [$family, $owner, $ownerMembership, , $observation] = $this->facePhoto();
+        $member = User::factory()->create();
+        $memberMembership = FamilySpaceMembership::factory()->create([
+            'family_space_id' => $family->id,
+            'user_id' => $member->id,
+            'role' => FamilySpaceRole::Member,
+            'state' => MembershipState::Active,
+        ]);
+        $firstPerson = Person::factory()->create(['family_space_id' => $family->id]);
+        $correctedPerson = Person::factory()->create(['family_space_id' => $family->id]);
+        $tenant = app(TenantContext::class);
+        $tenant->establish($family, $ownerMembership, $owner);
+        $manager = app(FaceIdentityAssignmentManager::class);
+        $request = Request::create('/face-identity', 'POST');
+        $approved = $manager->approve(
+            $manager->propose($observation, $firstPerson, $owner, $request),
+            $owner,
+            $request,
+        );
+
+        $tenant->establish($family, $memberMembership, $member);
+        try {
+            $manager->propose($observation, $correctedPerson, $member, $request);
+            $this->fail('A Member unexpectedly corrected an approved identity.');
+        } catch (AuthorizationException) {
+            $this->addToAssertionCount(1);
+        }
+        $this->assertSame(FaceIdentityAssignmentStatus::Approved, $approved->refresh()->status);
+
+        $tenant->establish($family, $ownerMembership, $owner);
+        $correction = $manager->propose($observation, $correctedPerson, $owner, $request);
+        $this->assertSame(FaceIdentityAssignmentStatus::Superseded, $approved->refresh()->status);
+        $this->assertSame(FaceIdentityAssignmentStatus::Pending, $correction->status);
+        $this->assertSame('human', $correction->proposal_source);
     }
 
     public function test_photo_detail_exposes_approved_face_boxes_only_to_people_directory_viewers(): void
