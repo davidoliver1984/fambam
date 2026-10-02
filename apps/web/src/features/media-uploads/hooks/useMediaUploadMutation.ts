@@ -2,14 +2,21 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { uploadMediaBatch } from "../api/mediaUploadApi";
 import { mediaUploadKeys } from "../api/mediaUploadKeys";
-import type { MediaUploadBatchInput } from "../types/mediaUpload";
+import type {
+  MediaUploadBatchInput,
+  MediaUploadProgress,
+} from "../types/mediaUpload";
 
-export function useMediaUploadMutation(familySlug: string) {
+export function useMediaUploadMutation(
+  familySlug: string,
+  targetAlbumId?: string,
+  onProgress?: (progress: MediaUploadProgress) => void,
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: MediaUploadBatchInput) =>
-      uploadMediaBatch(familySlug, input),
+      uploadMediaBatch(familySlug, input, targetAlbumId, onProgress),
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({
         queryKey: mediaUploadKeys.batch(familySlug, result.batch_id),

@@ -61,6 +61,27 @@
   opacity: 0.58;
 }
 
+.family-shell .shell-content button.ui-button--primary,
+.family-shell .shell-content a.ui-button--primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.family-shell .shell-content button.ui-button--primary:hover:not(:disabled),
+.family-shell .shell-content a.ui-button--primary:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+  color: var(--accent-text);
+}
+
+.family-shell .shell-content button.ui-button--secondary,
+.family-shell .shell-content a.ui-button--secondary {
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
 .family-shell
   .shell-content
   :where(

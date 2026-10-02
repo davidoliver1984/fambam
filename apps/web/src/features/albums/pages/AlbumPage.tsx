@@ -1,7 +1,6 @@
 import {
   useEffect,
   useMemo,
-  useRef,
   useState,
   type CSSProperties,
   type SyntheticEvent,
@@ -56,7 +55,6 @@ import {
   useAlbumExportMutation,
   useAlbumQuery,
   useAlbumsQuery,
-  useAlbumUploadMutation,
   useDeleteAlbumMutation,
   useUpdateAlbumMutation,
 } from "../hooks/useAlbumQueries";
@@ -597,7 +595,6 @@ export function AlbumPage() {
     { album_id: albumId },
     albumId !== "",
   );
-  const upload = useAlbumUploadMutation(familySlug);
   const exportAlbum = useAlbumExportMutation(familySlug, albumId);
   const updateTags = useUpdateAlbumMutation(familySlug, albumId);
   const cover = useAlbumCoverMutation(familySlug, albumId);
@@ -608,7 +605,6 @@ export function AlbumPage() {
   const remove = useDeleteAlbumMutation(familySlug, albumId, () => {
     void navigate(`/families/${encodeURIComponent(familySlug)}/albums`);
   });
-  const fileInput = useRef<HTMLInputElement>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [coverPickerOpen, setCoverPickerOpen] = useState(false);
   const [repositionOpen, setRepositionOpen] = useState(false);
@@ -652,7 +648,11 @@ export function AlbumPage() {
   if (query.isError) return <p role="alert">This Album is unavailable.</p>;
   const album = query.data;
   const featuredStory = stories.data?.pages[0]?.items[0];
-  const addPhotos = () => fileInput.current?.click();
+  const addPhotos = () => {
+    void navigate(
+      `/families/${encodeURIComponent(familySlug)}/albums/${encodeURIComponent(album.id)}/uploads`,
+    );
+  };
   const setCover = (photoId: string, focalX?: number, focalY?: number) => {
     cover.mutate(
       {
@@ -1046,34 +1046,6 @@ export function AlbumPage() {
         />
       )}
 
-      <input
-        ref={fileInput}
-        className="sr-only album-file-input"
-        type="file"
-        aria-label="Add photographs to this Album"
-        accept="image/jpeg,image/png,image/heic,image/heif,image/webp,image/tiff"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (!file) return;
-          upload.mutate(
-            { albumId: album.id, file },
-            {
-              onSuccess: () => {
-                setNotice({
-                  title: "Upload received.",
-                  description: "Processing may take a moment.",
-                });
-              },
-            },
-          );
-          event.target.value = "";
-        }}
-      />
-      {upload.isError && (
-        <p className="album-action-error" role="alert">
-          The photograph could not be uploaded.
-        </p>
-      )}
       {exportAlbum.isError && (
         <p className="album-action-error" role="alert">
           The Album export could not be requested.

@@ -126,6 +126,69 @@ describe("mediaUploadApi", () => {
     expect(calls).toEqual(["initiate", "storage", "complete"]);
   });
 
+  it("uses the canonical Album initiation endpoint for an Album batch", async () => {
+    server.use(
+      http.get(`${apiBaseUrl}/sanctum/csrf-cookie`, () =>
+        HttpResponse.json({}),
+      ),
+      http.post(
+        `${apiBaseUrl}/api/families/oliver-family/albums/album-1/media-uploads`,
+        async ({ request }) => {
+          expect(request.headers.get("Idempotency-Key")).toBe("album-key");
+          expect(await request.json()).toEqual({
+            client_filename: "album.jpg",
+            client_mime_type: "image/jpeg",
+            upload_batch_id: "01KBATCH000000000000000000",
+          });
+          return HttpResponse.json({
+            data: {
+              id: "01KUPLOAD00000000000000009",
+              state: "initiated",
+              client_filename: "album.jpg",
+              byte_size: null,
+              uploaded_at: null,
+              upload_batch_id: "01KBATCH000000000000000000",
+              upload_authorization: {
+                url: "https://storage.test/album-object",
+                method: "PUT",
+                headers: {},
+                expires_at: "2026-08-10T12:15:00+00:00",
+              },
+            },
+          });
+        },
+      ),
+      http.post(
+        `${apiBaseUrl}/api/families/oliver-family/media-uploads/01KUPLOAD00000000000000009/complete`,
+        () =>
+          HttpResponse.json({
+            data: {
+              id: "01KUPLOAD00000000000000009",
+              state: "uploaded",
+              client_filename: "album.jpg",
+              byte_size: 5,
+              uploaded_at: "2026-08-10T12:01:00+00:00",
+              upload_batch_id: "01KBATCH000000000000000000",
+              upload_authorization: null,
+            },
+          }),
+      ),
+    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, { status: 200 }),
+    );
+
+    await expect(
+      uploadMediaFile(
+        "oliver-family",
+        new File(["album"], "album.jpg", { type: "image/jpeg" }),
+        "album-key",
+        "01KBATCH000000000000000000",
+        "album-1",
+      ),
+    ).resolves.toMatchObject({ state: "uploaded" });
+  });
+
   it("does not signal completion when object storage rejects the write", async () => {
     let completionCalled = false;
     server.use(

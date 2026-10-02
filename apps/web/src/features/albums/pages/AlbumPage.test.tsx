@@ -463,6 +463,10 @@ describe("AlbumPage", () => {
           path: "/families/:familySlug/albums/:albumId",
           element: <AlbumPage />,
         },
+        {
+          path: "/families/:familySlug/albums/:albumId/uploads",
+          element: <p>Album upload destination</p>,
+        },
       ],
       { initialEntries: ["/families/family-archive/albums/album-1"] },
     );
@@ -476,14 +480,15 @@ describe("AlbumPage", () => {
       await screen.findByRole("heading", { name: "Wedding photographs" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByLabelText("Add photographs to this Album"),
-    ).toBeInTheDocument();
-    expect(
       screen.getAllByRole("button", { name: "Add photos" }).length,
     ).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: "Write story" })).toHaveAttribute(
       "href",
       "/families/family-archive/stories/new?type=album&subjectId=album-1",
     );
+    await userEvent
+      .setup()
+      .click(screen.getAllByRole("button", { name: "Add photos" })[0]);
+    expect(await screen.findByText("Album upload destination")).toBeVisible();
   });
 });

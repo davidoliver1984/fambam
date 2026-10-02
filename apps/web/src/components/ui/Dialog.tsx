@@ -8,6 +8,7 @@ type DialogProps = {
   className?: string;
   children: ReactNode;
   pending?: boolean;
+  showCloseButton?: boolean;
   onClose: () => void;
 };
 
@@ -19,6 +20,7 @@ export function Dialog({
   className = "",
   children,
   pending = false,
+  showCloseButton = true,
   onClose,
 }: DialogProps) {
   const dialog = useRef<HTMLElement>(null);
@@ -91,23 +93,25 @@ export function Dialog({
               <p id={descriptionId}>{description}</p>
             )}
           </div>
-          <button
-            type="button"
-            className="ui-dialog__close"
-            aria-label="Close"
-            disabled={pending}
-            onClick={onClose}
-          >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
+          {showCloseButton && (
+            <button
+              type="button"
+              className="ui-dialog__close"
+              aria-label="Close"
+              disabled={pending}
+              onClick={onClose}
             >
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
-          </button>
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              >
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
         {children}
       </section>

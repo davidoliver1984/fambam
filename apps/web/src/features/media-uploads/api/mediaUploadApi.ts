@@ -6,6 +6,7 @@ import type {
   MediaDelivery,
   MediaUpload,
   MediaUploadBatchInput,
+  MediaUploadProgress,
   MediaUploadBatchResult,
   MediaUploadBatchStatus,
   MediaVariantTransform,
@@ -66,7 +67,13 @@ export async function initiateMediaUpload(
 export async function putStagedObject(
   authorization: NonNullable<MediaUpload["upload_authorization"]>,
   file: File,
+  onProgress?: (loaded: number, total: number) => void,
 ): Promise<void> {
+  if (onProgress !== undefined && typeof XMLHttpRequest !== "undefined") {
+    await putStagedObjectWithProgress(authorization, file, onProgress);
+    return;
+  }
+
   const response = await fetch(authorization.url, {
     method: authorization.method,
     headers: authorization.headers,
@@ -78,6 +85,64 @@ export async function putStagedObject(
       `Object storage rejected the upload (${String(response.status)}).`,
     );
   }
+}
+
+function putStagedObjectWithProgress(
+  authorization: NonNullable<MediaUpload["upload_authorization"]>,
+  file: File,
+  onProgress: (loaded: number, total: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open(authorization.method, authorization.url);
+    Object.entries(authorization.headers).forEach(([name, value]) => {
+      request.setRequestHeader(name, value);
+    });
+    request.upload.addEventListener("progress", (event) => {
+      onProgress(
+        event.loaded,
+        event.lengthComputable ? event.total : file.size,
+      );
+    });
+    request.addEventListener("load", () => {
+      if (request.status >= 200 && request.status < 300) {
+        onProgress(file.size, file.size);
+        resolve();
+        return;
+      }
+      reject(
+        new Error(
+          `Object storage rejected the upload (${String(request.status)}).`,
+        ),
+      );
+    });
+    request.addEventListener("error", () => {
+      reject(new Error("The upload could not reach object storage."));
+    });
+    request.send(file);
+  });
+}
+
+export async function initiateAlbumMediaUpload(
+  familySlug: string,
+  albumId: string,
+  file: File,
+  idempotencyKey: string,
+  uploadBatchId: string,
+): Promise<MediaUpload> {
+  await ensureCsrfCookie();
+
+  return unwrap(
+    await apiClient.post<ApiEnvelope<MediaUpload>>(
+      `/api/families/${encodeURIComponent(familySlug)}/albums/${encodeURIComponent(albumId)}/media-uploads`,
+      {
+        client_filename: file.name,
+        client_mime_type: file.type || null,
+        upload_batch_id: uploadBatchId,
+      },
+      { headers: { "Idempotency-Key": idempotencyKey } },
+    ),
+  );
 }
 
 export async function completeMediaUpload(
@@ -98,13 +163,24 @@ export async function uploadMediaFile(
   file: File,
   idempotencyKey: string,
   uploadBatchId?: string,
+  targetAlbumId?: string,
+  onProgress?: (loaded: number, total: number) => void,
 ): Promise<MediaUpload> {
-  const initiated = await initiateMediaUpload(
-    familySlug,
-    file,
-    idempotencyKey,
-    uploadBatchId,
-  );
+  const initiated =
+    targetAlbumId === undefined || uploadBatchId === undefined
+      ? await initiateMediaUpload(
+          familySlug,
+          file,
+          idempotencyKey,
+          uploadBatchId,
+        )
+      : await initiateAlbumMediaUpload(
+          familySlug,
+          targetAlbumId,
+          file,
+          idempotencyKey,
+          uploadBatchId,
+        );
 
   if (initiated.state !== "initiated") {
     return initiated;
@@ -113,7 +189,7 @@ export async function uploadMediaFile(
     throw new Error("Upload authority was not returned for this file.");
   }
 
-  await putStagedObject(initiated.upload_authorization, file);
+  await putStagedObject(initiated.upload_authorization, file, onProgress);
 
   return completeMediaUpload(familySlug, initiated.id);
 }
@@ -121,6 +197,8 @@ export async function uploadMediaFile(
 export async function uploadMediaBatch(
   familySlug: string,
   input: MediaUploadBatchInput,
+  targetAlbumId?: string,
+  onProgress?: (progress: MediaUploadProgress) => void,
 ): Promise<MediaUploadBatchResult> {
   const outcomes = await Promise.all(
     input.items.map(async ({ file, idempotencyKey }) => {
@@ -130,6 +208,17 @@ export async function uploadMediaBatch(
           file,
           idempotencyKey,
           input.batchId,
+          targetAlbumId,
+          onProgress === undefined
+            ? undefined
+            : (loaded, total) => {
+                onProgress({
+                  itemKey: idempotencyKey,
+                  loaded,
+                  total,
+                  percent: total === 0 ? 0 : Math.round((loaded / total) * 100),
+                });
+              },
         );
 
         return {

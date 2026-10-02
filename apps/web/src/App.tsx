@@ -160,6 +160,10 @@ export function App() {
             path="/families/:familySlug/albums/:albumId"
             element={<AlbumPage />}
           />
+          <Route
+            path="/families/:familySlug/albums/:albumId/uploads"
+            element={<MediaUploadPage />}
+          />
           <Route path="/families/:familySlug/events" element={<EventsPage />} />
           <Route
             path="/families/:familySlug/events/:eventId"

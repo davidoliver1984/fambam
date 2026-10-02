@@ -7,11 +7,14 @@ import {
 import { photoKeys } from "../api/photoKeys";
 import type { ResolveDuplicateHoldInput } from "../types/photo";
 
-export function usePhotoDuplicateHoldsQuery(familySlug: string) {
+export function usePhotoDuplicateHoldsQuery(
+  familySlug: string,
+  enabled = true,
+) {
   return useQuery({
     queryKey: photoKeys.duplicateHolds(familySlug),
     queryFn: ({ signal }) => getDuplicateHolds(familySlug, signal),
-    enabled: familySlug !== "",
+    enabled: enabled && familySlug !== "",
     retry: false,
   });
 }

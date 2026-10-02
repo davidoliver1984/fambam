@@ -57,6 +57,13 @@ export type MediaUploadBatchInput = {
   items: Array<{ file: File; idempotencyKey: string }>;
 };
 
+export type MediaUploadProgress = {
+  itemKey: string;
+  loaded: number;
+  total: number;
+  percent: number;
+};
+
 export type MediaUploadBatchResult = {
   batch_id: string;
   outcomes: Array<
