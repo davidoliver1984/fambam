@@ -1,4 +1,4 @@
-import { useState, type SyntheticEvent } from "react";
+import { useState } from "react";
 import { Link, useParams } from "react-router";
 
 import { useFamilySpaceQuery } from "@/features/family-spaces/hooks/useFamilySpaceQuery";
@@ -10,10 +10,8 @@ import {
   useAddAlbumPhotoMutation,
   useAlbumsQuery,
   useAlbumUploadMutation,
-  useCreateAlbumMutation,
   useRemoveAlbumPhotoMutation,
 } from "../hooks/useAlbumQueries";
-import type { AlbumVisibility } from "../types/album";
 
 export function AlbumsPage() {
   const { familySlug = "" } = useParams();
@@ -24,29 +22,14 @@ export function AlbumsPage() {
   );
   const canCreateAlbum = canBrowsePhotos;
   const availablePhotos = usePhotosQuery(familySlug, {}, canBrowsePhotos);
-  const create = useCreateAlbumMutation(familySlug);
   const addPhoto = useAddAlbumPhotoMutation(familySlug);
   const removePhoto = useRemoveAlbumPhotoMutation(familySlug);
   const uploadPhoto = useAlbumUploadMutation(familySlug);
-  const [name, setName] = useState("");
-  const [visibility, setVisibility] = useState<AlbumVisibility>("family_space");
   const [photoIds, setPhotoIds] = useState<Record<string, string>>({});
   const [files, setFiles] = useState<Record<string, File | undefined>>({});
 
   if (albums.isPending) return <p role="status">Loading albums…</p>;
   if (albums.isError) return <p role="alert">Albums could not be loaded.</p>;
-
-  function submit(event: SyntheticEvent<HTMLFormElement>) {
-    event.preventDefault();
-    create.mutate(
-      { name: name.trim(), description: null, visibility },
-      {
-        onSuccess: () => {
-          setName("");
-        },
-      },
-    );
-  }
 
   return (
     <main className="journey-page" aria-labelledby="albums-title">
@@ -57,9 +40,12 @@ export function AlbumsPage() {
           <p>Photographs gathered into the moments they belong to.</p>
         </div>
         {canCreateAlbum && (
-          <a className="journey-action" href="#create-album-title">
+          <Link
+            className="journey-action"
+            to={`/families/${encodeURIComponent(familySlug)}/albums/new`}
+          >
             Create album
-          </a>
+          </Link>
         )}
       </div>
       {albums.data.length === 0 && <p>No albums have been created yet.</p>}
@@ -198,37 +184,6 @@ export function AlbumsPage() {
           </section>
         ))}
       </div>
-      {canCreateAlbum && (
-        <section aria-labelledby="create-album-title">
-          <h2 id="create-album-title">Create an Album</h2>
-          <form onSubmit={submit}>
-            <label htmlFor="album-name">Name</label>
-            <input
-              id="album-name"
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-              }}
-              required
-            />
-            <label htmlFor="album-visibility">Audience</label>
-            <select
-              id="album-visibility"
-              value={visibility}
-              onChange={(event) => {
-                setVisibility(event.target.value as AlbumVisibility);
-              }}
-            >
-              <option value="family_space">Family Space</option>
-              <option value="selected">Selected people</option>
-              <option value="private">Private</option>
-            </select>
-            <button type="submit" disabled={create.isPending}>
-              Create Album
-            </button>
-          </form>
-        </section>
-      )}
       <Link to={`/families/${encodeURIComponent(familySlug)}`}>
         Back to Family Space
       </Link>

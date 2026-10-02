@@ -3,6 +3,7 @@ import { Link, Route, Routes } from "react-router";
 
 import { AlbumPage } from "@/features/albums/pages/AlbumPage";
 import { AlbumsPage } from "@/features/albums/pages/AlbumsPage";
+import { CreateAlbumPage } from "@/features/albums/pages/CreateAlbumPage";
 import { CollectionPage } from "@/features/collections/pages/CollectionPage";
 import { CollectionsPage } from "@/features/collections/pages/CollectionsPage";
 import { DuplicateReviewPage } from "@/features/duplicates/pages/DuplicateReviewPage";
@@ -151,6 +152,10 @@ export function App() {
             element={<FaceClustersPage />}
           />
           <Route path="/families/:familySlug/albums" element={<AlbumsPage />} />
+          <Route
+            path="/families/:familySlug/albums/new"
+            element={<CreateAlbumPage />}
+          />
           <Route
             path="/families/:familySlug/albums/:albumId"
             element={<AlbumPage />}

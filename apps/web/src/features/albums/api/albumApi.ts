@@ -9,6 +9,15 @@ import type {
 } from "../types/album";
 import type { MediaUpload } from "@/features/media-uploads/types/mediaUpload";
 
+type AlbumUploadInitiation = Pick<
+  MediaUpload,
+  "id" | "state" | "upload_authorization"
+> & {
+  target_album_id: string;
+  cover_intent_accepted: boolean;
+  cover_intent_reason: string | null;
+};
+
 function albumsPath(familySlug: string) {
   return `/api/families/${encodeURIComponent(familySlug)}/albums`;
 }
@@ -127,15 +136,29 @@ export async function uploadPhotoToAlbum(
   familySlug: string,
   albumId: string,
   file: File,
-): Promise<MediaUpload> {
+  asCover = false,
+  coverFocalY = 0.5,
+): Promise<MediaUpload | AlbumUploadInitiation> {
   await ensureCsrfCookie();
   const initiated = unwrap(
-    await apiClient.post<ApiEnvelope<MediaUpload>>(
+    await apiClient.post<ApiEnvelope<AlbumUploadInitiation>>(
       `${albumsPath(familySlug)}/${encodeURIComponent(albumId)}/media-uploads`,
-      { client_filename: file.name, client_mime_type: file.type || null },
+      {
+        client_filename: file.name,
+        client_mime_type: file.type || null,
+        as_cover: asCover,
+        ...(asCover ? { cover_focal_x: 0.5, cover_focal_y: coverFocalY } : {}),
+      },
       { headers: { "Idempotency-Key": crypto.randomUUID() } },
     ),
   );
+  if (asCover && !initiated.cover_intent_accepted) {
+    throw new Error(
+      initiated.cover_intent_reason === "album_update_forbidden"
+        ? "Album cover authority changed before upload."
+        : "The cover upload is no longer the current Album cover choice.",
+    );
+  }
   if (initiated.state !== "initiated") return initiated;
   if (initiated.upload_authorization === null) {
     throw new Error("Upload authority was not returned for this file.");

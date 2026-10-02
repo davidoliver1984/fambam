@@ -1,12 +1,14 @@
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { server } from "@/test/msw/server";
 
-import { deleteAlbum, updateAlbum } from "./albumApi";
+import { deleteAlbum, updateAlbum, uploadPhotoToAlbum } from "./albumApi";
 import type { Album } from "../types/album";
 
 const apiBaseUrl = "http://localhost:8082";
+
+afterEach(() => vi.restoreAllMocks());
 
 const album: Album = {
   id: "01K90000000000000000000000",
@@ -78,5 +80,58 @@ describe("albumApi", () => {
     await expect(
       updateAlbum("family", album.id, { name: "Unavailable" }),
     ).rejects.toMatchObject({ response: { status: 403 } });
+  });
+
+  it("stops an upload when current Album cover authority is not accepted", async () => {
+    const objectUpload = vi.spyOn(globalThis, "fetch");
+    server.use(
+      http.get(`${apiBaseUrl}/sanctum/csrf-cookie`, () =>
+        HttpResponse.json({}),
+      ),
+      http.post(
+        `${apiBaseUrl}/api/families/mercer-family/albums/album-1/media-uploads`,
+        async ({ request }) => {
+          expect(await request.json()).toEqual({
+            client_filename: "cover.jpg",
+            client_mime_type: "image/jpeg",
+            as_cover: true,
+            cover_focal_x: 0.5,
+            cover_focal_y: 0.5,
+          });
+          return HttpResponse.json(
+            {
+              data: {
+                id: "01KUPLOAD00000000000000000",
+                state: "initiated",
+                client_filename: "cover.jpg",
+                byte_size: null,
+                uploaded_at: null,
+                upload_batch_id: null,
+                upload_authorization: {
+                  url: "https://storage.test/staging-object",
+                  method: "PUT",
+                  headers: {},
+                  expires_at: "2026-09-26T12:00:00Z",
+                },
+                target_album_id: "album-1",
+                cover_intent_accepted: false,
+                cover_intent_reason: "album_update_forbidden",
+              },
+            },
+            { status: 201 },
+          );
+        },
+      ),
+    );
+
+    await expect(
+      uploadPhotoToAlbum(
+        "mercer-family",
+        "album-1",
+        new File(["cover"], "cover.jpg", { type: "image/jpeg" }),
+        true,
+      ),
+    ).rejects.toThrow("Album cover authority changed before upload.");
+    expect(objectUpload).not.toHaveBeenCalled();
   });
 });

@@ -319,7 +319,9 @@ class AlbumManager
         $isMember = ! $photo->trashed() && $photo->family_space_id === $album->family_space_id
             && AlbumPhoto::query()->where('album_id', $album->id)->where('photo_id', $photo->id)->exists();
         $album->update(($canManage && $isMember
-            ? ['cover_photo_id' => $photo->id, 'cover_focal_x' => 0.5, 'cover_focal_y' => 0.5]
+            ? ['cover_photo_id' => $photo->id,
+                'cover_focal_x' => (float) ($upload->cover_focal_x ?? 0.5),
+                'cover_focal_y' => (float) ($upload->cover_focal_y ?? 0.5)]
             : []) + ['current_cover_intent_id' => null]);
     }
 

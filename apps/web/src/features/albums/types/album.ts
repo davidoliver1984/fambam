@@ -1,3 +1,5 @@
+import type { RichTextDocument } from "@/features/stories/types/story";
+
 export type AlbumVisibility = "private" | "selected" | "family_space";
 export type GuestParticipation = "none" | "view" | "contribute";
 
@@ -64,10 +66,17 @@ export type Album = {
 
 export type CreateAlbumInput = {
   name: string;
-  description: string | null;
+  description: RichTextDocument | null;
   visibility: AlbumVisibility;
   event_id?: string | null;
   guest_participation?: GuestParticipation;
+  starts_on?: string | null;
+  ends_on?: string | null;
+  location?: string | null;
+  tags?: string[];
+  person_ids?: string[];
+  cover_photo_id?: string | null;
+  confirm_visibility_widening?: boolean;
 };
 
 export type UpdateAlbumInput = Partial<

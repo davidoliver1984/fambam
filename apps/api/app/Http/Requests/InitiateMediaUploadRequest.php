@@ -19,6 +19,8 @@ class InitiateMediaUploadRequest extends FormRequest
             'client_mime_type' => ['nullable', 'string', 'max:255'],
             'upload_batch_id' => ['nullable', 'ulid'],
             'as_cover' => ['sometimes', 'boolean'],
+            'cover_focal_x' => ['nullable', 'numeric', 'between:0,1'],
+            'cover_focal_y' => ['nullable', 'numeric', 'between:0,1'],
         ];
     }
 }

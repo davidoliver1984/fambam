@@ -45,6 +45,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'canonical_sha256',
     'upload_batch_id',
     'target_album_id',
+    'cover_focal_x',
+    'cover_focal_y',
     'upload_method',
     'rejection_reason',
     'idempotency_key',
@@ -115,6 +117,8 @@ class MediaUpload extends Model
             'original_orientation' => 'integer',
             'gps_latitude' => 'decimal:7',
             'gps_longitude' => 'decimal:7',
+            'cover_focal_x' => 'decimal:3',
+            'cover_focal_y' => 'decimal:3',
             'uploaded_at' => 'immutable_datetime',
             'staging_deleted_at' => 'immutable_datetime',
         ];

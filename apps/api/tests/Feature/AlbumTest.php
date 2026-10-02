@@ -154,7 +154,8 @@ class AlbumTest extends TestCase
         $old = MediaUpload::factory()->create(['family_space_id' => $family->id, 'user_id' => $owner->id,
             'state' => MediaUploadState::Ready, 'target_album_id' => $album->id]);
         $new = MediaUpload::factory()->create(['family_space_id' => $family->id, 'user_id' => $owner->id,
-            'state' => MediaUploadState::Ready, 'target_album_id' => $album->id]);
+            'state' => MediaUploadState::Ready, 'target_album_id' => $album->id,
+            'cover_focal_x' => 0.25, 'cover_focal_y' => 0.75]);
         $album->update(['current_cover_intent_id' => $new->id]);
         $finalizer = app(AlbumContributionFinalizer::class);
         $context = new TenantOperationContext($family->id, $owner->id, 'album-cover-intent',
@@ -165,6 +166,8 @@ class AlbumTest extends TestCase
         $finalizer->finalize($new, $context);
         $this->assertSame(Photo::query()->where('media_upload_id', $new->id)->firstOrFail()->id,
             $album->refresh()->cover_photo_id);
+        $this->assertSame(0.25, $album->cover_focal_x);
+        $this->assertSame(0.75, $album->cover_focal_y);
         $this->assertNull($album->current_cover_intent_id);
     }
 

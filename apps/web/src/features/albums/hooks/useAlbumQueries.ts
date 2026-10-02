@@ -15,6 +15,7 @@ import {
 import { albumKeys } from "../api/albumKeys";
 import { familyExportKeys } from "@/features/exports/api/familyExportKeys";
 import { homeKeys } from "@/features/home/hooks/useHomeQuery";
+import { photoKeys } from "@/features/photos/api/photoKeys";
 import { searchKeys } from "@/features/search/api/searchKeys";
 import type {
   CreateAlbumInput,
@@ -43,10 +44,27 @@ export function useAlbumQuery(familySlug: string, albumId: string) {
 export function useAlbumUploadMutation(familySlug: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (input: { albumId: string; file: File }) =>
-      uploadPhotoToAlbum(familySlug, input.albumId, input.file),
-    onSuccess: () =>
-      client.invalidateQueries({ queryKey: albumKeys.all(familySlug) }),
+    mutationFn: (input: {
+      albumId: string;
+      file: File;
+      asCover?: boolean;
+      coverFocalY?: number;
+    }) =>
+      uploadPhotoToAlbum(
+        familySlug,
+        input.albumId,
+        input.file,
+        input.asCover,
+        input.coverFocalY,
+      ),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: albumKeys.all(familySlug) }),
+        client.invalidateQueries({ queryKey: photoKeys.all(familySlug) }),
+        client.invalidateQueries({ queryKey: searchKeys.all(familySlug) }),
+        client.invalidateQueries({ queryKey: homeKeys.detail(familySlug) }),
+      ]);
+    },
   });
 }
 
@@ -60,8 +78,31 @@ export function useCreateAlbumMutation(familySlug: string) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateAlbumInput) => createAlbum(familySlug, input),
-    onSuccess: () =>
-      client.invalidateQueries({ queryKey: albumKeys.all(familySlug) }),
+    onSuccess: async (album) => {
+      client.setQueryData(albumKeys.detail(familySlug, album.id), album);
+      await Promise.all([
+        client.invalidateQueries({ queryKey: albumKeys.list(familySlug) }),
+        client.invalidateQueries({ queryKey: searchKeys.all(familySlug) }),
+        client.invalidateQueries({ queryKey: homeKeys.detail(familySlug) }),
+      ]);
+    },
+  });
+}
+
+export function useSetAlbumCoverMutation(familySlug: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { albumId: string; cover: SetAlbumCoverInput }) =>
+      setAlbumCover(familySlug, input.albumId, input.cover),
+    onSuccess: async (album) => {
+      client.setQueryData(albumKeys.detail(familySlug, album.id), album);
+      await Promise.all([
+        client.invalidateQueries({ queryKey: albumKeys.list(familySlug) }),
+        client.invalidateQueries({ queryKey: photoKeys.all(familySlug) }),
+        client.invalidateQueries({ queryKey: searchKeys.all(familySlug) }),
+        client.invalidateQueries({ queryKey: homeKeys.detail(familySlug) }),
+      ]);
+    },
   });
 }
 

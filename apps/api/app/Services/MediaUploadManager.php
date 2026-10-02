@@ -26,7 +26,7 @@ class MediaUploadManager
         private readonly AuditRecorder $audit,
     ) {}
 
-    /** @param array{client_filename: string, client_mime_type?: string|null, upload_batch_id?: string|null, as_cover?: bool} $input */
+    /** @param array{client_filename: string, client_mime_type?: string|null, upload_batch_id?: string|null, as_cover?: bool, cover_focal_x?: float|null, cover_focal_y?: float|null} $input */
     public function initiate(
         FamilySpace $familySpace,
         User $actor,
@@ -41,6 +41,10 @@ class MediaUploadManager
             'upload_batch_id' => $input['upload_batch_id'] ?? null,
             'target_album_id' => $targetAlbumId,
             ...(($input['as_cover'] ?? false) ? ['as_cover' => true] : []),
+            ...(($input['as_cover'] ?? false) ? [
+                'cover_focal_x' => $input['cover_focal_x'] ?? 0.5,
+                'cover_focal_y' => $input['cover_focal_y'] ?? 0.5,
+            ] : []),
         ], JSON_THROW_ON_ERROR));
 
         $existing = $this->findIdempotent($familySpace, $actor, $idempotencyKey);
@@ -57,6 +61,8 @@ class MediaUploadManager
             'client_mime_type' => $input['client_mime_type'] ?? null,
             'upload_batch_id' => $input['upload_batch_id'] ?? null,
             'target_album_id' => $targetAlbumId,
+            'cover_focal_x' => ($input['as_cover'] ?? false) ? ($input['cover_focal_x'] ?? 0.5) : null,
+            'cover_focal_y' => ($input['as_cover'] ?? false) ? ($input['cover_focal_y'] ?? 0.5) : null,
             'upload_method' => 'single',
             'idempotency_key' => $idempotencyKey,
             'request_fingerprint' => $fingerprint,
