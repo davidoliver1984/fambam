@@ -335,6 +335,20 @@ describe("mediaUploadApi", () => {
               total: 1,
               active: false,
               counts: { ready: 1 },
+              face_review: {
+                analysis_pending: false,
+                analysis: {
+                  pending: 0,
+                  processing: 0,
+                  succeeded: 1,
+                  failed: 0,
+                  succeeded_with_zero_faces: 0,
+                },
+                has_reviewable_faces: true,
+                reviewable_face_count: 2,
+                affected_photo_count: 1,
+                zero_detected_faces: false,
+              },
               items: [],
             },
           }),
@@ -348,6 +362,10 @@ describe("mediaUploadApi", () => {
         "01KBATCH000000000000000000",
         controller.signal,
       ),
-    ).resolves.toMatchObject({ total: 1, active: false });
+    ).resolves.toMatchObject({
+      total: 1,
+      active: false,
+      face_review: { has_reviewable_faces: true, reviewable_face_count: 2 },
+    });
   });
 });

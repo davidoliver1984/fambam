@@ -102,6 +102,21 @@ const emptyCounts: Record<MediaUploadState, number> = {
   degraded: 0,
 };
 
+const emptyFaceReview = {
+  analysis_pending: false,
+  analysis: {
+    pending: 0,
+    processing: 0,
+    succeeded: 0,
+    failed: 0,
+    succeeded_with_zero_faces: 0,
+  },
+  has_reviewable_faces: false,
+  reviewable_face_count: 0,
+  affected_photo_count: 0,
+  zero_detected_faces: false,
+};
+
 function uploadedMedia(id: string, filename: string) {
   return {
     id,
@@ -138,6 +153,7 @@ describe("MediaUploadPage", () => {
       total: 2,
       active: false,
       counts: { ...emptyCounts, ready: 2 },
+      face_review: emptyFaceReview,
       items: [
         {
           id: "01KUPLOAD00000000000000001",
@@ -204,6 +220,7 @@ describe("MediaUploadPage", () => {
       total: 1,
       active: true,
       counts: { ...emptyCounts, uploaded: 1 },
+      face_review: emptyFaceReview,
       items: [
         {
           id: "01KUPLOAD00000000000000001",
@@ -249,6 +266,7 @@ describe("MediaUploadPage", () => {
       total: 1,
       active: true,
       counts: { ...emptyCounts, degraded: 1 },
+      face_review: emptyFaceReview,
       items: [
         {
           id: "01KUPLOAD00000000000000001",
@@ -295,6 +313,7 @@ describe("MediaUploadPage", () => {
       total: 1,
       active: false,
       counts: { ...emptyCounts, ready: 1 },
+      face_review: emptyFaceReview,
       items: [
         {
           id: "01KUPLOAD00000000000000001",

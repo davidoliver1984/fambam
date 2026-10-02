@@ -6,4 +6,13 @@ export const faceRecognitionKeys = {
     [...faceRecognitionKeys.all(familySlug), "suppressions"] as const,
   clusters: (familySlug: string) =>
     [...faceRecognitionKeys.all(familySlug), "clusters"] as const,
+  review: (
+    familySlug: string,
+    filters: {
+      uploadBatchId?: string;
+      photoId?: string;
+      limit?: number;
+      page?: number;
+    },
+  ) => [...faceRecognitionKeys.all(familySlug), "review", filters] as const,
 };

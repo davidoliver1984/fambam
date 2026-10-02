@@ -66,3 +66,79 @@ export type FaceSuggestionPreview = {
   assignment_id: string | null;
   candidates: FacePersonSummary[];
 };
+
+export type FaceReviewAnalysisState =
+  | "pending"
+  | "processing"
+  | "succeeded"
+  | "failed";
+
+export type FaceReviewObservation = {
+  id: string;
+  face_index: number;
+  bounds: FaceBounds;
+  review_state: "unreviewed" | "identified" | "left_unidentified";
+  reviewed: boolean;
+  identity_assignment: null | {
+    id: string;
+    status: "pending" | "approved";
+    proposal_source: string;
+    person: FacePersonSummary;
+  };
+};
+
+export type FaceReviewPhoto = {
+  photo_id: string;
+  upload_batch_id: string | null;
+  caption: string | null;
+  display_label: string;
+  media: {
+    media_upload_id: string;
+    canonical_width: number | null;
+    canonical_height: number | null;
+    presentation_width: number | null;
+    presentation_height: number | null;
+    presentation_url: string | null;
+    presentation_expires_at: string | null;
+    fallback_delivery_endpoint: string;
+  };
+  analysis: {
+    state: FaceReviewAnalysisState;
+    succeeded_with_zero_faces: boolean;
+  };
+  detected_face_count: number;
+  reviewed_count: number;
+  remaining_count: number;
+  observations: FaceReviewObservation[];
+};
+
+export type FaceReviewSession = {
+  scope: { upload_batch_id: string | null; photo_id: string | null };
+  summary: {
+    total_photos: number;
+    analysis: Record<FaceReviewAnalysisState, number> & {
+      succeeded_with_zero_faces: number;
+    };
+    total_faces: number;
+    reviewed_count: number;
+    remaining_count: number;
+    reviewable_photo_count: number;
+    current_photo_id: string | null;
+    next_photo_id: string | null;
+  };
+  photos: FaceReviewPhoto[];
+  pagination: { page: number; limit: number; has_more: boolean };
+};
+
+export type FaceReviewFilters = {
+  uploadBatchId?: string;
+  photoId?: string;
+  limit?: number;
+  page?: number;
+};
+
+export type LeaveFaceUnidentifiedResult = {
+  observation_id: string;
+  review_state: "left_unidentified";
+  reviewed_at: string;
+};

@@ -11,6 +11,7 @@ use App\Models\EventExport;
 use App\Models\FaceCluster;
 use App\Models\FaceIdentityAssignment;
 use App\Models\FaceIdentitySuppression;
+use App\Models\FaceObservationReview;
 use App\Models\FamilyCircle;
 use App\Models\FamilyCirclePerson;
 use App\Models\FamilyEvent;
@@ -123,6 +124,7 @@ class AuditRecorder
             || $subject instanceof FamilyExport
             || $subject instanceof FaceIdentityAssignment
             || $subject instanceof FaceIdentitySuppression
+            || $subject instanceof FaceObservationReview
             || $subject instanceof FaceCluster) {
             return $subject->family_space_id;
         }

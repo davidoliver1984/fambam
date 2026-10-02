@@ -67,7 +67,7 @@ class PostgresRowLevelSecurityTest extends TestCase
         $this->admin->unprepared(<<<'SQL'
 TRUNCATE TABLE notification_deliveries, notifications, notification_candidates, family_exports,
     notification_preferences, contribution_groups, family_activities, saved_search_people, saved_searches,
-    face_identity_suppressions, face_identity_assignments,
+    face_observation_reviews, face_identity_suppressions, face_identity_assignments,
     face_cluster_members, face_clusters, face_cluster_generations,
     face_embedding_projections, face_observations, face_analysis_attempts, face_analysis_runs,
     perceptual_hashes, media_upload_duplicate_holds, duplicate_decisions, duplicate_candidates,
@@ -139,6 +139,7 @@ WHERE relname IN (
     'duplicate_candidates', 'duplicate_decisions', 'media_upload_duplicate_holds', 'perceptual_hashes',
     'face_analysis_runs', 'face_analysis_attempts', 'face_observations', 'face_embedding_projections',
     'face_cluster_generations', 'face_clusters', 'face_cluster_members', 'face_identity_assignments',
+    'face_observation_reviews',
     'face_identity_suppressions', 'saved_searches', 'saved_search_people', 'family_activities',
     'contribution_groups', 'notification_candidates', 'notifications', 'notification_deliveries',
     'notification_preferences',
@@ -147,7 +148,7 @@ WHERE relname IN (
 ORDER BY relname
 SQL);
 
-        $this->assertCount(58, $tables);
+        $this->assertCount(59, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");

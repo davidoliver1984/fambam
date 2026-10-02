@@ -8,11 +8,13 @@ import {
   getFaceClusters,
   getFaceIdentityAssignments,
   getFaceIdentitySuppressions,
+  getFaceReview,
   generateFaceIdentitySuggestions,
   mergeFaceClusters,
   nameFaceCluster,
   proposeFaceIdentity,
   rejectFaceIdentityAssignment,
+  leaveFaceUnidentified,
   reopenFaceIdentitySuppression,
   splitFaceCluster,
 } from "./faceRecognitionApi";
@@ -81,6 +83,41 @@ describe("faceRecognitionApi", () => {
         respond({ id: "suppression-1", status: "suppressed" }),
       ),
       http.get(`${base}/face-identity-suppressions`, respond([suppression])),
+      http.get(`${base}/face-review`, ({ request }) => {
+        const url = new URL(request.url);
+        paths.push(`${url.pathname}?${url.searchParams.toString()}`);
+        return HttpResponse.json({
+          data: {
+            scope: { upload_batch_id: "batch-1", photo_id: null },
+            summary: {
+              total_photos: 1,
+              analysis: {
+                pending: 0,
+                processing: 0,
+                succeeded: 1,
+                failed: 0,
+                succeeded_with_zero_faces: 0,
+              },
+              total_faces: 1,
+              reviewed_count: 0,
+              remaining_count: 1,
+              reviewable_photo_count: 1,
+              current_photo_id: "photo-1",
+              next_photo_id: null,
+            },
+            photos: [],
+            pagination: { page: 1, limit: 25, has_more: false },
+          },
+        });
+      }),
+      http.put(
+        `${base}/face-observations/observation-1/review/left-unidentified`,
+        respond({
+          observation_id: "observation-1",
+          review_state: "left_unidentified",
+          reviewed_at: "2026-10-02T10:00:00Z",
+        }),
+      ),
       http.post(
         `${base}/face-identity-suppressions/suppression-1/reopen`,
         respond({ id: "suppression-1", status: "reopened" }),
@@ -110,6 +147,14 @@ describe("faceRecognitionApi", () => {
     await approveFaceIdentityAssignment("family-archive", "assignment-1");
     await rejectFaceIdentityAssignment("family-archive", "assignment-1");
     await getFaceIdentitySuppressions("family-archive");
+    const review = await getFaceReview("family-archive", {
+      uploadBatchId: "batch-1",
+      limit: 25,
+    });
+    const leftUnidentified = await leaveFaceUnidentified(
+      "family-archive",
+      "observation-1",
+    );
     await reopenFaceIdentitySuppression("family-archive", "suppression-1");
     const clusters = await getFaceClusters("family-archive");
     await nameFaceCluster("family-archive", "cluster-1", "person-1", true);
@@ -124,6 +169,8 @@ describe("faceRecognitionApi", () => {
     );
     expect(clusters.recognition_processing_enabled).toBe(false);
     expect(clusters.clusters).toHaveLength(1);
+    expect(review.summary.remaining_count).toBe(1);
+    expect(leftUnidentified.review_state).toBe("left_unidentified");
     expect(paths).toEqual([
       "/api/families/family-archive/face-identity-assignments",
       "/api/families/family-archive/face-observations/observation-1/identity-assignments",
@@ -131,6 +178,8 @@ describe("faceRecognitionApi", () => {
       "/api/families/family-archive/face-identity-assignments/assignment-1/approve",
       "/api/families/family-archive/face-identity-assignments/assignment-1/reject",
       "/api/families/family-archive/face-identity-suppressions",
+      "/api/families/family-archive/face-review?upload_batch_id=batch-1&limit=25",
+      "/api/families/family-archive/face-observations/observation-1/review/left-unidentified",
       "/api/families/family-archive/face-identity-suppressions/suppression-1/reopen",
       "/api/families/family-archive/face-clusters",
       "/api/families/family-archive/face-clusters/cluster-1/name",

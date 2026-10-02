@@ -8,6 +8,9 @@ import type {
   FaceIdentitySuppression,
   FaceObservationSummary,
   FaceSuggestionPreview,
+  FaceReviewFilters,
+  FaceReviewSession,
+  LeaveFaceUnidentifiedResult,
   NameFaceClusterResult,
 } from "../types/faceRecognition";
 
@@ -208,4 +211,38 @@ export async function splitFaceCluster(
     ),
   );
   return values.map((value) => cluster(familySlug, value));
+}
+
+export async function getFaceReview(
+  familySlug: string,
+  filters: FaceReviewFilters = {},
+  signal?: AbortSignal,
+): Promise<FaceReviewSession> {
+  const query = new URLSearchParams();
+  if (filters.uploadBatchId !== undefined) {
+    query.set("upload_batch_id", filters.uploadBatchId);
+  }
+  if (filters.photoId !== undefined) query.set("photo_id", filters.photoId);
+  if (filters.limit !== undefined) query.set("limit", String(filters.limit));
+  if (filters.page !== undefined) query.set("page", String(filters.page));
+  const suffix = query.size === 0 ? "" : `?${query.toString()}`;
+
+  return unwrap(
+    await apiClient.get<ApiEnvelope<FaceReviewSession>>(
+      `${base(familySlug)}/face-review${suffix}`,
+      { signal },
+    ),
+  );
+}
+
+export async function leaveFaceUnidentified(
+  familySlug: string,
+  faceObservationId: string,
+): Promise<LeaveFaceUnidentifiedResult> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.put<ApiEnvelope<LeaveFaceUnidentifiedResult>>(
+      `${base(familySlug)}/face-observations/${encodeURIComponent(faceObservationId)}/review/left-unidentified`,
+    ),
+  );
 }

@@ -10,6 +10,7 @@ use App\Jobs\ProcessNotificationCandidate;
 use App\Models\FaceIdentityAssignment;
 use App\Models\FaceIdentitySuppression;
 use App\Models\FaceObservation;
+use App\Models\FaceObservationReview;
 use App\Models\Person;
 use App\Models\Photo;
 use App\Models\PhotoPerson;
@@ -75,6 +76,9 @@ final class FaceIdentityAssignmentManager
                 'status' => FaceIdentityAssignmentStatus::Pending,
                 'proposed_by' => $actor->id,
             ]);
+            FaceObservationReview::query()
+                ->where('face_observation_id', $lockedObservation->id)
+                ->delete();
             $this->audit->record('face_identity_assignment.proposed', $assignment, $actor, $request, [
                 'face_observation_id' => $lockedObservation->id,
                 'person_id' => $lockedPerson->id,

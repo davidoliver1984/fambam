@@ -47,6 +47,18 @@ docker run --rm --network "container:$container_name" \
     DB_USERNAME="$owner_name" \
     DB_PASSWORD="$owner_password" \
     DB_RUNTIME_USERNAME="$runtime_name" \
+    php artisan test tests/Feature/FaceReviewHttpTest.php
+
+    docker exec "$container_name" psql --username "$owner_name" --dbname "$database_name" \
+        --command 'DROP FUNCTION IF EXISTS app_due_photo_edit_previews();' >/dev/null
+
+    DB_CONNECTION=pgsql \
+    DB_HOST=127.0.0.1 \
+    DB_PORT="$host_port" \
+    DB_DATABASE="$database_name" \
+    DB_USERNAME="$owner_name" \
+    DB_PASSWORD="$owner_password" \
+    DB_RUNTIME_USERNAME="$runtime_name" \
     php artisan migrate:fresh --force
 
     DB_CONNECTION=pgsql \
@@ -62,6 +74,9 @@ docker run --rm --network "container:$container_name" \
     DB_ADMIN_USERNAME="$owner_name" \
     DB_ADMIN_PASSWORD="$owner_password" \
     php artisan test tests/Feature/PostgresRowLevelSecurityTest.php tests/Feature/FaceEmbeddingProjectionPostgresTest.php tests/Feature/FaceClusteringPostgresTest.php tests/Feature/SearchPostgresTest.php tests/Feature/FamilyExportPostgresTest.php tests/Feature/BackupHealthPostgresTest.php tests/Feature/RestoreReconciliationPostgresTest.php tests/Feature/StoryPostgresTest.php tests/Feature/AlbumMetadataPostgresTest.php tests/Feature/EventTagPostgresTest.php tests/Feature/EventRsvpPostgresTest.php tests/Feature/CollectionPostgresTest.php tests/Feature/LovePostgresTest.php tests/Feature/PhotoVersionPostgresTest.php tests/Feature/PhotoAlbumHistoryPostgresTest.php tests/Feature/PhotoThreadingPostgresTest.php
+
+    docker exec "$container_name" psql --username "$owner_name" --dbname "$database_name" \
+        --command 'DROP FUNCTION IF EXISTS app_due_photo_edit_previews();' >/dev/null
 
     DB_CONNECTION=pgsql \
     DB_HOST=127.0.0.1 \

@@ -13,6 +13,7 @@ use App\Http\Controllers\EventExportController;
 use App\Http\Controllers\FaceClusterController;
 use App\Http\Controllers\FaceIdentityAssignmentController;
 use App\Http\Controllers\FaceIdentitySuppressionController;
+use App\Http\Controllers\FaceReviewController;
 use App\Http\Controllers\FamilyActivityController;
 use App\Http\Controllers\FamilyCircleController;
 use App\Http\Controllers\FamilyEventController;
@@ -117,6 +118,8 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::get('/media-upload-duplicate-holds', [DuplicateHoldController::class, 'index']);
         Route::post('/media-upload-duplicate-holds/{hold}/resolve', [DuplicateHoldController::class, 'resolve']);
         Route::get('/face-identity-assignments', [FaceIdentityAssignmentController::class, 'index']);
+        Route::get('/face-review', [FaceReviewController::class, 'index']);
+        Route::put('/face-observations/{faceObservation}/review/left-unidentified', [FaceReviewController::class, 'leaveUnidentified']);
         Route::post('/face-observations/{faceObservation}/identity-assignments', [FaceIdentityAssignmentController::class, 'store']);
         Route::post('/face-observations/{faceObservation}/identity-suggestions', [FaceIdentityAssignmentController::class, 'suggestions']);
         Route::post('/face-identity-assignments/{assignment}/approve', [FaceIdentityAssignmentController::class, 'approve']);

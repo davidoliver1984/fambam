@@ -8,6 +8,8 @@ import {
   getFaceIdentityAssignments,
   getFaceIdentitySuppressions,
   generateFaceIdentitySuggestions,
+  getFaceReview,
+  leaveFaceUnidentified,
   mergeFaceClusters,
   nameFaceCluster,
   proposeFaceIdentity,
@@ -16,6 +18,7 @@ import {
   splitFaceCluster,
 } from "../api/faceRecognitionApi";
 import { faceRecognitionKeys } from "../api/faceRecognitionKeys";
+import type { FaceReviewFilters } from "../types/faceRecognition";
 
 export function useFaceIdentityAssignmentsQuery(familySlug: string) {
   return useQuery({
@@ -39,6 +42,18 @@ export function useFaceClustersQuery(familySlug: string) {
   return useQuery({
     queryKey: faceRecognitionKeys.clusters(familySlug),
     queryFn: ({ signal }) => getFaceClusters(familySlug, signal),
+    enabled: familySlug !== "",
+    retry: false,
+  });
+}
+
+export function useFaceReviewQuery(
+  familySlug: string,
+  filters: FaceReviewFilters = {},
+) {
+  return useQuery({
+    queryKey: faceRecognitionKeys.review(familySlug, filters),
+    queryFn: ({ signal }) => getFaceReview(familySlug, filters, signal),
     enabled: familySlug !== "",
     retry: false,
   });
@@ -101,6 +116,15 @@ export function useReopenFaceSuppressionMutation(familySlug: string) {
   return useMutation({
     mutationFn: (suppressionId: string) =>
       reopenFaceIdentitySuppression(familySlug, suppressionId),
+    onSuccess: invalidate,
+  });
+}
+
+export function useLeaveFaceUnidentifiedMutation(familySlug: string) {
+  const invalidate = useInvalidateFaceRecognition(familySlug);
+  return useMutation({
+    mutationFn: (faceObservationId: string) =>
+      leaveFaceUnidentified(familySlug, faceObservationId),
     onSuccess: invalidate,
   });
 }
