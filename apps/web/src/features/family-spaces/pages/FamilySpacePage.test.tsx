@@ -20,6 +20,27 @@ const apiBaseUrl = "http://localhost:8082";
 
 function renderPage(path: string) {
   server.use(
+    http.get(`${apiBaseUrl}/api/user`, () =>
+      HttpResponse.json({
+        data: {
+          id: 1,
+          name: "David Oliver",
+          email: "david@example.test",
+          timezone: "Europe/London",
+          email_verified_at: "2026-01-01T00:00:00Z",
+          can_create_family_spaces: false,
+          two_factor_enabled: false,
+        },
+      }),
+    ),
+    http.get(`${apiBaseUrl}/api/families/:familySlug/home`, () =>
+      HttpResponse.json({
+        data: { activity: [], latest_photos: [], on_this_day: null },
+      }),
+    ),
+    http.get(`${apiBaseUrl}/api/families/:familySlug/people`, () =>
+      HttpResponse.json({ data: [] }),
+    ),
     http.get(`${apiBaseUrl}/api/families/:familySlug/notifications`, () =>
       HttpResponse.json({ data: [] }),
     ),
@@ -75,16 +96,15 @@ describe("FamilySpacePage", () => {
     renderPage("/families/oliver-family");
 
     expect(
-      await screen.findByRole("heading", { name: "Oliver Family" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", {
-        name: /Manage family members and invitations/i,
+      await screen.findByRole("heading", {
+        name: /Good (morning|afternoon|evening), David/,
       }),
-    ).toHaveAttribute("href", "/families/oliver-family/settings");
-    expect(
-      screen.getByRole("link", { name: "Export your archive" }),
-    ).toHaveAttribute("href", "/families/oliver-family/exports");
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Create album" })).toHaveAttribute(
+      "href",
+      "/families/oliver-family/albums/new",
+    );
+    expect(screen.getByText("The Oliver Family")).toBeInTheDocument();
   });
 
   it("renders the same unavailable state for a tenant 404", async () => {
@@ -130,18 +150,14 @@ describe("FamilySpacePage", () => {
     );
 
     const { router } = renderPage("/families/oliver-family");
-    expect(
-      await screen.findByRole("heading", { name: "Oliver Family" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("The Oliver Family")).toBeInTheDocument();
 
     await act(async () => {
       await router.navigate("/families/second-family");
     });
 
-    expect(
-      await screen.findByRole("heading", { name: "Second Family" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Oliver Family")).not.toBeInTheDocument();
+    expect(await screen.findByText("The Second Family")).toBeInTheDocument();
+    expect(screen.queryByText("The Oliver Family")).not.toBeInTheDocument();
     expect(requestedSlugs).toEqual(["oliver-family", "second-family"]);
   });
 
@@ -164,9 +180,7 @@ describe("FamilySpacePage", () => {
     );
 
     const { queryClient } = renderPage("/families/oliver-family");
-    expect(
-      await screen.findByRole("heading", { name: "Oliver Family" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("The Oliver Family")).toBeInTheDocument();
 
     hasAccess = false;
     await act(async () => {
@@ -180,7 +194,7 @@ describe("FamilySpacePage", () => {
     ).toBeInTheDocument();
   });
 
-  it("only links roles with Phase 4 directory access to People", async () => {
+  it("does not offer Album creation to a contributor", async () => {
     server.use(
       http.get(`${apiBaseUrl}/api/families/oliver-family`, () =>
         HttpResponse.json({
@@ -197,10 +211,12 @@ describe("FamilySpacePage", () => {
 
     renderPage("/families/oliver-family");
     expect(
-      await screen.findByRole("heading", { name: "Oliver Family" }),
+      await screen.findByRole("heading", {
+        name: /Good (morning|afternoon|evening), David/,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: "Open people directory" }),
+      screen.queryByRole("link", { name: "Create album" }),
     ).not.toBeInTheDocument();
   });
 });

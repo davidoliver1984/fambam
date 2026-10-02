@@ -1,11 +1,7 @@
 import { Link, useParams } from "react-router";
 
 import { toAppError } from "@/api/errors";
-import { RecentFamilyActivity } from "@/features/activities/components/RecentFamilyActivity";
-import { DateMemories } from "@/features/memories/components/DateMemories";
-import { PersonAndStoryMemories } from "@/features/memories/components/PersonAndStoryMemories";
-import { QuietFamilySpaceGuide } from "@/features/memories/components/QuietFamilySpaceGuide";
-import { NotificationCentre } from "@/features/notifications/components/NotificationCentre";
+import { HomePage } from "@/features/home/components/HomePage";
 
 import { useFamilySpaceQuery } from "../hooks/useFamilySpaceQuery";
 
@@ -13,14 +9,6 @@ export function FamilySpacePage() {
   const { familySlug = "" } = useParams();
   const familySpaceQuery = useFamilySpaceQuery(familySlug);
   const familySpace = familySpaceQuery.data;
-  const canManageInvitations =
-    familySpace?.role === "owner" || familySpace?.role === "administrator";
-  const canAccessPeople =
-    familySpace?.role === "owner" ||
-    familySpace?.role === "administrator" ||
-    familySpace?.role === "member";
-  const canUploadMedia = canAccessPeople;
-  const canAccessAlbums = familySpace?.role !== "guest";
   const notFound =
     familySpaceQuery.isError &&
     toAppError(familySpaceQuery.error).status === 404;
@@ -43,126 +31,5 @@ export function FamilySpacePage() {
     return <p role="alert">This Family Space could not be loaded.</p>;
   }
 
-  return (
-    <main className="family-home" aria-labelledby="family-space-title">
-      <header className="family-home-hero">
-        <p className="eyebrow">Your private family archive</p>
-        <h1 id="family-space-title">{familySpace.name}</h1>
-        <p>Photographs, people and stories, together in one place.</p>
-      </header>
-      <div className="family-home-highlights">
-        <div id="notifications">
-          <NotificationCentre familySlug={familySpace.slug} />
-        </div>
-        {familySpace.role !== "guest" && (
-          <>
-            <RecentFamilyActivity familySlug={familySpace.slug} />
-            <DateMemories familySlug={familySpace.slug} />
-            <PersonAndStoryMemories familySlug={familySpace.slug} />
-            <QuietFamilySpaceGuide
-              familySlug={familySpace.slug}
-              canExplorePeople={canAccessPeople}
-              canExploreEvents={canAccessPeople}
-              canExploreAlbums={canAccessAlbums}
-            />
-          </>
-        )}
-      </div>
-      <section
-        className="family-home-explore"
-        aria-label="Explore your Family Space"
-      >
-        {canAccessPeople && (
-          <p>
-            <Link
-              to={`/families/${encodeURIComponent(familySpace.slug)}/people`}
-            >
-              Open people directory
-            </Link>
-          </p>
-        )}
-        {canUploadMedia && (
-          <>
-            <p>
-              <Link
-                to={`/families/${encodeURIComponent(familySpace.slug)}/search`}
-              >
-                Search the archive
-              </Link>
-            </p>
-            <p>
-              <Link
-                to={`/families/${encodeURIComponent(familySpace.slug)}/events`}
-              >
-                Open events
-              </Link>
-            </p>
-            <p>
-              <Link
-                to={`/families/${encodeURIComponent(familySpace.slug)}/photos`}
-              >
-                Open photograph archive
-              </Link>
-            </p>
-            <p>
-              <Link
-                to={`/families/${encodeURIComponent(familySpace.slug)}/uploads`}
-              >
-                Upload photographs
-              </Link>
-            </p>
-          </>
-        )}
-        {canAccessAlbums && (
-          <p>
-            <Link
-              to={`/families/${encodeURIComponent(familySpace.slug)}/albums`}
-            >
-              Open albums
-            </Link>
-          </p>
-        )}
-        <p>
-          <Link
-            to={`/families/${encodeURIComponent(familySpace.slug)}/exports`}
-          >
-            Export your archive
-          </Link>
-        </p>
-        <p>
-          <Link
-            to={`/families/${encodeURIComponent(familySpace.slug)}/stories`}
-          >
-            Read and create Stories
-          </Link>
-        </p>
-        <p>
-          <Link
-            to={`/families/${encodeURIComponent(familySpace.slug)}/collections`}
-          >
-            Open your Collections
-          </Link>
-        </p>
-        {canManageInvitations ? (
-          <>
-            <p>
-              <Link
-                to={`/families/${encodeURIComponent(familySpace.slug)}/duplicates`}
-              >
-                Review possible duplicate Photos
-              </Link>
-            </p>
-            <p>
-              <Link
-                to={`/families/${encodeURIComponent(familySpace.slug)}/settings`}
-              >
-                Manage family members and invitations
-              </Link>
-            </p>
-          </>
-        ) : null}
-      </section>
-      <Link to="/account">Back to your account</Link>
-    </main>
-  );
+  return <HomePage familySpace={familySpace} />;
 }

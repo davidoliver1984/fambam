@@ -10,6 +10,7 @@ import {
 } from "../api/storyApi";
 import { storyKeys } from "../api/storyKeys";
 import type { CreateStoryInput, RichTextDocument } from "../types/story";
+import { homeKeys } from "@/features/home/hooks/useHomeQuery";
 
 export function useStoryQuery(familySlug: string, storyId: string) {
   return useQuery({
@@ -21,24 +22,34 @@ export function useStoryQuery(familySlug: string, storyId: string) {
 }
 
 export function useCreateStoryMutation(familySlug: string) {
+  const client = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateStoryInput) => createStory(familySlug, input),
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: homeKeys.detail(familySlug) }),
   });
 }
 
 export function useStoryMutations(familySlug: string, storyId: string) {
   const client = useQueryClient();
   const refresh = () =>
-    client.invalidateQueries({
-      queryKey: storyKeys.detail(familySlug, storyId),
-    });
+    Promise.all([
+      client.invalidateQueries({
+        queryKey: storyKeys.detail(familySlug, storyId),
+      }),
+      client.invalidateQueries({ queryKey: homeKeys.detail(familySlug) }),
+    ]);
   return {
     comment: useMutation({
       mutationFn: (body: RichTextDocument) =>
         addStoryComment(familySlug, storyId, body),
       onSuccess: refresh,
     }),
-    remove: useMutation({ mutationFn: () => deleteStory(familySlug, storyId) }),
+    remove: useMutation({
+      mutationFn: () => deleteStory(familySlug, storyId),
+      onSuccess: () =>
+        client.invalidateQueries({ queryKey: homeKeys.detail(familySlug) }),
+    }),
     update: useMutation({
       mutationFn: (body: RichTextDocument) =>
         updateStory(familySlug, storyId, body),

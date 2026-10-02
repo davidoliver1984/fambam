@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { getLoveSummary, removeLove, saveLove } from "../api/loveApi";
 import type { LoveTarget } from "../types/love";
+import { homeKeys } from "@/features/home/hooks/useHomeQuery";
 
 export function useLove(
   familySlug: string,
@@ -24,7 +25,12 @@ export function useLove(
         await saveLove(familySlug, targetType, targetId);
       }
     },
-    onSuccess: () => client.invalidateQueries({ queryKey: key }),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: key }),
+        client.invalidateQueries({ queryKey: homeKeys.detail(familySlug) }),
+      ]);
+    },
   });
   return { query, mutation };
 }

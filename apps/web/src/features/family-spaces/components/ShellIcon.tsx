@@ -5,17 +5,23 @@ type ShellIconName =
   | "bell"
   | "chevron-down"
   | "chevron-right"
+  | "file-text"
   | "heart"
+  | "image"
+  | "image-plus"
+  | "link"
   | "lock"
   | "log-out"
   | "map-pin"
   | "menu"
+  | "message-circle"
   | "moon"
   | "palette"
   | "pencil"
   | "search"
   | "settings"
   | "shield-check"
+  | "sparkles"
   | "sun"
   | "users"
   | "x";
@@ -62,10 +68,41 @@ export function ShellIcon({ name, ...props }: ShellIconProps) {
           <path d="m9 18 6-6-6-6" />
         </svg>
       );
+    case "file-text":
+      return (
+        <svg {...common}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+          <path d="M14 2v6h6M8 13h8M8 17h8" />
+        </svg>
+      );
     case "heart":
       return (
         <svg {...common}>
           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z" />
+        </svg>
+      );
+    case "image":
+      return (
+        <svg {...common}>
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="9" cy="9" r="2" />
+          <path d="m21 15-5-5L5 21" />
+        </svg>
+      );
+    case "image-plus":
+      return (
+        <svg {...common}>
+          <path d="M16 5h6M19 2v6" />
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" />
+          <circle cx="9" cy="9" r="2" />
+          <path d="m21 15-5-5L5 21" />
+        </svg>
+      );
+    case "link":
+      return (
+        <svg {...common}>
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
         </svg>
       );
     case "lock":
@@ -93,6 +130,12 @@ export function ShellIcon({ name, ...props }: ShellIconProps) {
       return (
         <svg {...common}>
           <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      );
+    case "message-circle":
+      return (
+        <svg {...common}>
+          <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" />
         </svg>
       );
     case "moon":
@@ -137,6 +180,13 @@ export function ShellIcon({ name, ...props }: ShellIconProps) {
         <svg {...common}>
           <path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3Z" />
           <path d="m9 12 2 2 4-4" />
+        </svg>
+      );
+    case "sparkles":
+      return (
+        <svg {...common}>
+          <path d="m12 3-1.1 3.1a3 3 0 0 1-1.8 1.8L6 9l3.1 1.1a3 3 0 0 1 1.8 1.8L12 15l1.1-3.1a3 3 0 0 1 1.8-1.8L18 9l-3.1-1.1a3 3 0 0 1-1.8-1.8Z" />
+          <path d="m19 16-.6 1.4a2 2 0 0 1-1 1L16 19l1.4.6a2 2 0 0 1 1 1L19 22l.6-1.4a2 2 0 0 1 1-1L22 19l-1.4-.6a2 2 0 0 1-1-1Z" />
         </svg>
       );
     case "sun":
