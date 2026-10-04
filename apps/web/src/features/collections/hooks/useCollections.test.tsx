@@ -39,6 +39,7 @@ const collection = {
   id: collectionId,
   name: "Favourites",
   description: null,
+  purpose: null,
   created_at: null,
   updated_at: null,
   photo_count: 0,

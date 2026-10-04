@@ -2,6 +2,7 @@
 
 namespace App\Demo;
 
+use App\Enums\CollectionPurpose;
 use App\Enums\DatePrecision;
 use App\Enums\FamilySpaceRole;
 use App\Enums\FamilySpaceStatus;
@@ -194,6 +195,7 @@ final class DemoFamilyBuilder
         $tags = $this->tags($familyId, $users['admin'], $anchor);
         $this->eventTags($familyId, $events, $tags, $users['admin'], $anchor);
         $photos = $this->photos($familyId, $people, $events, $albums, $tags, $users, $anchor);
+        $this->collections($familyId, $photos, $users['owner'], $anchor);
         $this->conversations($familyId, $people, $events, $photos, $albums, $users, $anchor);
         $this->savedSearches($familyId, $people, $events, $albums, $users, $anchor);
     }
@@ -448,6 +450,38 @@ final class DemoFamilyBuilder
         }
 
         return $photos;
+    }
+
+    /** @param array<int, string> $photos */
+    private function collections(string $familyId, array $photos, User $owner, CarbonImmutable $anchor): void
+    {
+        $definitions = [
+            ['William’s 50th birthday', 'The final photographs for William’s birthday book.', null, [25, 26, 27, 28, 29, 30]],
+            ['Prints for Mum', 'A small set to order as proper prints.', CollectionPurpose::Prints, [1, 7, 13, 19]],
+            ['Family calendar shortlist', 'Possible photographs for next year’s calendar.', CollectionPurpose::Calendar, [2, 8, 14, 20, 25]],
+        ];
+        foreach ($definitions as $offset => [$name, $description, $purpose, $photoNumbers]) {
+            $collectionId = (string) Str::ulid();
+            $createdAt = $anchor->subDays(3 - $offset);
+            $this->insert('collections', [
+                'id' => $collectionId,
+                'family_space_id' => $familyId,
+                'owner_user_id' => $owner->id,
+                'name' => $name,
+                'description' => $description,
+                'purpose' => $purpose?->value,
+            ], $createdAt);
+            foreach ($photoNumbers as $position => $photoNumber) {
+                DB::table('collection_photos')->insert([
+                    'id' => (string) Str::ulid(),
+                    'family_space_id' => $familyId,
+                    'collection_id' => $collectionId,
+                    'photo_id' => $photos[$photoNumber],
+                    'position' => $position + 1,
+                    'created_at' => $createdAt,
+                ]);
+            }
+        }
     }
 
     private function writeMedia(string $familyId, string $uploadId, int $scene, int $people, User $creator, CarbonImmutable $createdAt): void
@@ -785,6 +819,7 @@ final class DemoFamilyBuilder
                 'reactions' => DB::table('photo_reactions')->where('family_space_id', $id)->count(),
                 'tags' => DB::table('tags')->where('family_space_id', $id)->count(),
                 'saved_searches' => DB::table('saved_searches')->where('family_space_id', $id)->count(),
+                'collections' => DB::table('collections')->where('family_space_id', $id)->count(),
             ];
         });
     }
@@ -797,6 +832,7 @@ final class DemoFamilyBuilder
             && $summary['albums'] === 6 && $summary['media_uploads'] === 36
             && $summary['photos'] === 36 && $summary['stories'] === 14 && $summary['story_comments'] === 1
             && $summary['comments'] === 10 && $summary['reactions'] === 18
-            && $summary['tags'] === 10 && $summary['saved_searches'] === 3;
+            && $summary['tags'] === 10 && $summary['saved_searches'] === 3
+            && $summary['collections'] === 3;
     }
 }

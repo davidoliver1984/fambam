@@ -17,6 +17,7 @@ const collection = {
   id: "collection-1",
   name: "Family favourites",
   description: "Private notes",
+  purpose: null,
   created_at: "2026-09-26T09:00:00Z",
   updated_at: "2026-09-26T10:00:00Z",
   photo_count: 0,
@@ -39,6 +40,7 @@ describe("collectionApi", () => {
   it("parses the canonical Collection index presentation", async () => {
     const indexed = {
       ...collection,
+      purpose: "prints" as const,
       photo_count: 3,
       preview_photo: {
         photo_id: "photo-1",
@@ -54,6 +56,33 @@ describe("collectionApi", () => {
     await expect(getCollections("oliver-family")).resolves.toEqual([indexed]);
   });
 
+  it("sends canonical Collection index filters", async () => {
+    let query = new URLSearchParams();
+    server.use(
+      http.get(
+        `${apiBaseUrl}/api/families/oliver-family/collections`,
+        ({ request }) => {
+          query = new URL(request.url).searchParams;
+          return HttpResponse.json({ data: [] });
+        },
+      ),
+    );
+
+    await getCollections("oliver-family", {
+      q: "William",
+      sort: "name",
+      collection_id: "01KCOLLECTION00000000000000",
+      purpose: ["prints", "calendar"],
+    });
+
+    expect(query.get("q")).toBe("William");
+    expect(query.get("sort")).toBe("name");
+    expect(query.get("collection_id")).toBe("01KCOLLECTION00000000000000");
+    expect([...query.values()]).toEqual(
+      expect.arrayContaining(["prints", "calendar"]),
+    );
+  });
+
   it("rejects malformed Collection preview payloads at runtime", async () => {
     server.use(
       http.get(`${apiBaseUrl}/api/families/oliver-family/collections`, () =>
@@ -66,6 +95,16 @@ describe("collectionApi", () => {
             },
           ],
         }),
+      ),
+    );
+
+    await expect(getCollections("oliver-family")).rejects.toThrow();
+  });
+
+  it("rejects non-canonical Collection purposes at runtime", async () => {
+    server.use(
+      http.get(`${apiBaseUrl}/api/families/oliver-family/collections`, () =>
+        HttpResponse.json({ data: [{ ...collection, purpose: "book" }] }),
       ),
     );
 

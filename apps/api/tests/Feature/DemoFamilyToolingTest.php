@@ -102,6 +102,7 @@ final class DemoFamilyToolingTest extends TestCase
         $this->assertSame(10, $second['comments']);
         $this->assertSame(18, $second['reactions']);
         $this->assertSame(3, $second['saved_searches']);
+        $this->assertSame(3, $second['collections']);
         $this->assertCount(180, $this->storage->objects);
 
         $demoId = (string) $first['family_space_id'];
@@ -116,6 +117,13 @@ final class DemoFamilyToolingTest extends TestCase
             ->whereRaw("CAST(filters AS TEXT) LIKE '%person_ids%'")->count());
         $this->assertSame(3, DB::table('saved_searches')->where('family_space_id', $demoId)
             ->distinct()->count('created_by'));
+        $this->assertSame([
+            'Family calendar shortlist' => 'calendar',
+            'Prints for Mum' => 'prints',
+            'William’s 50th birthday' => null,
+        ], DB::table('collections')->where('family_space_id', $demoId)
+            ->orderBy('name')->pluck('purpose', 'name')->all());
+        $this->assertSame(15, DB::table('collection_photos')->where('family_space_id', $demoId)->count());
         $this->assertSame(6, DB::table('photos')->where('family_space_id', $demoId)
             ->distinct()->count('historical_date_precision'));
         $this->assertSame(2, DB::table('photos')->where('family_space_id', $demoId)

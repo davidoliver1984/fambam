@@ -41,6 +41,9 @@ class CollectionPostgresTest extends TestCase
         $this->admin->table('collections')->insert(['id' => $collectionId,
             'family_space_id' => $familyId, 'owner_user_id' => $ownerId,
             'name' => 'Private selections', 'created_at' => now(), 'updated_at' => now()]);
+        $this->assertNull($this->admin->table('collections')->where('id', $collectionId)->value('purpose'));
+        $this->rejects(fn () => $this->admin->table('collections')->where('id', $collectionId)
+            ->update(['purpose' => 'unsupported']));
         $firstLink = ['id' => (string) Str::ulid(), 'family_space_id' => $familyId,
             'collection_id' => $collectionId, 'photo_id' => $photoId, 'position' => 1];
         $this->admin->table('collection_photos')->insert($firstLink);
@@ -110,8 +113,11 @@ class CollectionPostgresTest extends TestCase
         $base = '/api/families/collection-pg-index/collections';
 
         $this->assertSame(config('database.runtime_role'), DB::selectOne('SELECT current_user')->current_user);
-        $collectionId = $this->actingAs($actor)->postJson($base, ['name' => 'Runtime selections'])
+        $collectionId = $this->actingAs($actor)->postJson($base, [
+            'name' => 'Runtime selections', 'purpose' => 'prints',
+        ])
             ->assertCreated()
+            ->assertJsonPath('data.purpose', 'prints')
             ->assertJsonPath('data.photo_count', 0)
             ->assertJsonPath('data.preview_photo', null)
             ->json('data.id');
@@ -133,6 +139,10 @@ class CollectionPostgresTest extends TestCase
             ->assertJsonPath('data.0.preview_photo.photo_id', $firstPhotoId)
             ->assertJsonPath('data.0.preview_photo.media_upload_id', $firstUploadId)
             ->json('data.0.updated_at');
+        $this->actingAs($actor)->getJson("{$base}?purpose=prints&q=runtime")
+            ->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $collectionId);
+        $this->actingAs($actor)->getJson("{$base}?purpose=calendar")
+            ->assertOk()->assertJsonCount(0, 'data');
         Carbon::setTestNow('2026-10-04 09:00:03');
         $this->actingAs($actor)->putJson("{$base}/{$collectionId}/order", [
             'photo_ids' => [$secondPhotoId, $firstPhotoId],
@@ -172,6 +182,8 @@ class CollectionPostgresTest extends TestCase
         $otherActor->forceFill(['id' => $otherUserId, 'name' => 'Other owner']);
         $otherActor->exists = true;
         $this->actingAs($otherActor)->getJson($base)
+            ->assertOk()->assertJsonCount(0, 'data');
+        $this->actingAs($otherActor)->getJson("{$base}?purpose=prints&collection_id={$collectionId}")
             ->assertOk()->assertJsonCount(0, 'data');
         Carbon::setTestNow();
     }

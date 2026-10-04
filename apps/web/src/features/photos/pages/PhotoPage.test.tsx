@@ -434,6 +434,7 @@ describe("PhotoPage", () => {
       id: "collection-birthday",
       name: "William’s 50th birthday",
       description: null,
+      purpose: null,
       created_at: "2026-09-26T09:00:00Z",
       updated_at: "2026-09-26T09:00:00Z",
       photo_count: 3,

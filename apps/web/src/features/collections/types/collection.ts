@@ -1,9 +1,19 @@
 import type { UncertainDate } from "@/features/photos/types/photo";
 
+export type CollectionPurpose = "prints" | "calendar";
+
+export type CollectionListCriteria = {
+  q?: string;
+  sort?: "updated" | "name";
+  collection_id?: string;
+  purpose?: CollectionPurpose | CollectionPurpose[];
+};
+
 export type FamilyCollection = {
   id: string;
   name: string;
   description: string | null;
+  purpose: CollectionPurpose | null;
   created_at: string | null;
   updated_at: string | null;
   photo_count: number;
@@ -22,5 +32,9 @@ export type FamilyCollection = {
   }>;
 };
 
-export type CollectionInput = { name: string; description: string | null };
+export type CollectionInput = {
+  name: string;
+  description: string | null;
+  purpose?: CollectionPurpose | null;
+};
 export type CollectionUpdateInput = Partial<CollectionInput>;

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CollectionPurpose;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -15,6 +16,7 @@ use Illuminate\Support\Carbon;
  * @property int $owner_user_id
  * @property string $name
  * @property string|null $description
+ * @property CollectionPurpose|null $purpose
  * @property Carbon|null $deleting_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -22,7 +24,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $preview_photo_id
  * @property string|null $preview_media_upload_id
  */
-#[Fillable(['family_space_id', 'owner_user_id', 'name', 'description', 'deleting_at'])]
+#[Fillable(['family_space_id', 'owner_user_id', 'name', 'description', 'purpose', 'deleting_at'])]
 class Collection extends Model
 {
     use HasUlids;
@@ -52,6 +54,6 @@ class Collection extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['deleting_at' => 'immutable_datetime'];
+        return ['purpose' => CollectionPurpose::class, 'deleting_at' => 'immutable_datetime'];
     }
 }

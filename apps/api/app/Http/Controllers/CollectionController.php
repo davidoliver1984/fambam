@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\CollectionPurpose;
+use App\Http\Requests\ListCollectionsRequest;
 use App\Models\Album;
 use App\Models\Collection;
 use App\Models\CollectionPhoto;
@@ -25,11 +27,11 @@ class CollectionController extends Controller
         private readonly CollectionManager $manager,
     ) {}
 
-    public function index(FamilySpace $familySpace, Request $request): JsonResponse
+    public function index(FamilySpace $familySpace, ListCollectionsRequest $request): JsonResponse
     {
         Gate::authorize('viewAny', Collection::class);
 
-        return response()->json(['data' => $this->collections->listOwnedBy($request->user())
+        return response()->json(['data' => $this->collections->listOwnedBy($request->user(), $request->criteria())
             ->map(fn (Collection $collection): array => $this->payload($collection))]);
     }
 
@@ -37,7 +39,8 @@ class CollectionController extends Controller
     {
         Gate::authorize('create', Collection::class);
         $data = $request->validate(['name' => ['required', 'string', 'max:120'],
-            'description' => ['nullable', 'string', 'max:5000']]);
+            'description' => ['nullable', 'string', 'max:5000'],
+            'purpose' => ['nullable', Rule::enum(CollectionPurpose::class)]]);
 
         return response()->json(['data' => $this->payload(
             $this->manager->create($familySpace, $request->user(), $data), true,
@@ -53,7 +56,8 @@ class CollectionController extends Controller
     {
         $target = $this->owned($familySpace, $collection, $request);
         $data = $request->validate(['name' => ['sometimes', 'required', 'string', 'max:120'],
-            'description' => ['sometimes', 'nullable', 'string', 'max:5000']]);
+            'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'purpose' => ['sometimes', 'nullable', Rule::enum(CollectionPurpose::class)]]);
 
         return response()->json(['data' => $this->payload($this->manager->update($target, $data), true)]);
     }
@@ -144,6 +148,7 @@ class CollectionController extends Controller
     {
         $data = ['id' => $collection->id, 'name' => $collection->name,
             'description' => $collection->description,
+            'purpose' => $collection->purpose?->value,
             'created_at' => $collection->created_at?->toIso8601String(),
             'updated_at' => $collection->updated_at?->toIso8601String()];
         if (! $detailed) {

@@ -21,15 +21,16 @@ final class CollectionManager
 {
     public function __construct(private readonly MediaObjectStorage $storage) {}
 
-    /** @param array{name:string,description?:string|null} $data */
+    /** @param array{name:string,description?:string|null,purpose?:string|null} $data */
     public function create(FamilySpace $family, User $owner, array $data): Collection
     {
         return Collection::query()->create(['family_space_id' => $family->id,
             'owner_user_id' => $owner->id, 'name' => trim($data['name']),
-            'description' => $data['description'] ?? null]);
+            'description' => $data['description'] ?? null,
+            'purpose' => $data['purpose'] ?? null]);
     }
 
-    /** @param array{name?:string,description?:string|null} $data */
+    /** @param array{name?:string,description?:string|null,purpose?:string|null} $data */
     public function update(Collection $collection, array $data): Collection
     {
         $collection->update($data);

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\AlbumVisibility;
+use App\Enums\CollectionPurpose;
 use App\Enums\DatePrecision;
 use App\Enums\FamilySpaceRole;
 use App\Enums\GuestParticipation;
@@ -326,6 +327,117 @@ class CollectionHttpTest extends TestCase
         $this->actingAs($owner)->postJson("{$base}/{$id}/photos/batch", [
             'photo_ids' => [$visible->id],
         ])->assertNotFound();
+    }
+
+    public function test_purpose_is_optional_validated_returned_and_editable_without_spurious_touches(): void
+    {
+        Carbon::setTestNow('2026-10-04 10:00:00');
+        $family = FamilySpace::factory()->create(['slug' => 'collection-purpose']);
+        [$owner] = $this->member($family, FamilySpaceRole::Owner);
+        $base = "/api/families/{$family->slug}/collections";
+
+        $withoutPurpose = $this->actingAs($owner)->postJson($base, ['name' => 'Unsorted'])
+            ->assertCreated()
+            ->assertJsonPath('data.purpose', null)
+            ->json('data.id');
+        $withPurpose = $this->actingAs($owner)->postJson($base, [
+            'name' => 'Print order', 'purpose' => CollectionPurpose::Prints->value,
+        ])->assertCreated()
+            ->assertJsonPath('data.purpose', 'prints')
+            ->json('data.id');
+        $this->actingAs($owner)->postJson($base, ['name' => 'Invalid', 'purpose' => 'book'])
+            ->assertUnprocessable()->assertJsonValidationErrors('purpose');
+
+        Carbon::setTestNow('2026-10-04 10:00:01');
+        $this->actingAs($owner)->patchJson("{$base}/{$withPurpose}", ['purpose' => 'calendar'])
+            ->assertOk()->assertJsonPath('data.purpose', 'calendar');
+        $changedAt = $this->collectionUpdatedAt($withPurpose);
+        $this->assertSame('2026-10-04 10:00:01', $changedAt->format('Y-m-d H:i:s'));
+
+        Carbon::setTestNow('2026-10-04 10:00:02');
+        $this->actingAs($owner)->patchJson("{$base}/{$withPurpose}", ['purpose' => 'calendar'])
+            ->assertOk()->assertJsonPath('data.purpose', 'calendar');
+        $this->assertTrue($this->collectionUpdatedAt($withPurpose)->equalTo($changedAt));
+
+        Carbon::setTestNow('2026-10-04 10:00:03');
+        $this->actingAs($owner)->patchJson("{$base}/{$withPurpose}", ['purpose' => null])
+            ->assertOk()->assertJsonPath('data.purpose', null);
+        $this->assertTrue($this->collectionUpdatedAt($withPurpose)->greaterThan($changedAt));
+        $this->actingAs($owner)->getJson("{$base}/{$withoutPurpose}")
+            ->assertOk()->assertJsonPath('data.purpose', null);
+        $this->actingAs($owner)->getJson($base)
+            ->assertOk()->assertJsonPath('data.0.purpose', null);
+        Carbon::setTestNow();
+    }
+
+    public function test_collection_filters_compose_server_side_without_owner_or_family_leakage(): void
+    {
+        Carbon::setTestNow('2026-10-04 11:00:00');
+        $family = FamilySpace::factory()->create(['slug' => 'collection-filters']);
+        [$owner] = $this->member($family, FamilySpaceRole::Owner);
+        [$otherOwner] = $this->member($family, FamilySpaceRole::Member);
+        $base = "/api/families/{$family->slug}/collections";
+        $birthday = $this->actingAs($owner)->postJson($base, [
+            'name' => 'William’s 50th birthday',
+            'description' => 'Birthday book shortlist',
+            'purpose' => 'prints',
+        ])->assertCreated()->json('data.id');
+        Carbon::setTestNow('2026-10-04 11:00:01');
+        $calendar = $this->actingAs($owner)->postJson($base, [
+            'name' => 'Family calendar shortlist',
+            'description' => 'Possible photographs',
+            'purpose' => 'calendar',
+        ])->assertCreated()->json('data.id');
+        Carbon::setTestNow('2026-10-04 11:00:02');
+        $prints = $this->actingAs($owner)->postJson($base, [
+            'name' => 'Prints for Mum',
+            'description' => 'Proper prints',
+            'purpose' => 'prints',
+        ])->assertCreated()->json('data.id');
+        $none = $this->actingAs($owner)->postJson($base, ['name' => 'Loose ideas'])
+            ->assertCreated()->json('data.id');
+        $privateOther = $this->actingAs($otherOwner)->postJson($base, [
+            'name' => 'Secret prints', 'purpose' => 'prints',
+        ])->assertCreated()->json('data.id');
+
+        $this->actingAs($owner)->getJson("{$base}?purpose=prints")
+            ->assertOk()->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.id', $prints)
+            ->assertJsonPath('data.1.id', $birthday);
+        $this->actingAs($owner)->getJson("{$base}?purpose=calendar")
+            ->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $calendar);
+        $this->actingAs($owner)->getJson("{$base}?purpose[]=prints&purpose[]=calendar&sort=name")
+            ->assertOk()->assertJsonCount(3, 'data')
+            ->assertJsonPath('data.0.id', $calendar)
+            ->assertJsonPath('data.1.id', $prints)
+            ->assertJsonPath('data.2.id', $birthday);
+        $this->actingAs($owner)->getJson("{$base}?q=birthday&purpose=prints")
+            ->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $birthday);
+        $this->actingAs($owner)->getJson("{$base}?q=proper&purpose=calendar")
+            ->assertOk()->assertJsonCount(0, 'data');
+        $this->actingAs($owner)->getJson("{$base}?collection_id={$birthday}&purpose=prints")
+            ->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $birthday);
+        $this->actingAs($owner)->getJson("{$base}?collection_id={$birthday}&purpose=calendar")
+            ->assertOk()->assertJsonCount(0, 'data');
+        $this->actingAs($owner)->getJson("{$base}?collection_id={$privateOther}")
+            ->assertOk()->assertJsonCount(0, 'data');
+        $this->actingAs($owner)->getJson($base)
+            ->assertOk()->assertJsonCount(4, 'data')
+            ->assertJsonMissing(['id' => $privateOther])
+            ->assertJsonFragment(['id' => $none, 'purpose' => null]);
+
+        $otherFamily = FamilySpace::factory()->create(['slug' => 'collection-filters-other']);
+        FamilySpaceMembership::factory()->create(['family_space_id' => $otherFamily->id,
+            'user_id' => $owner->id, 'role' => FamilySpaceRole::Member]);
+        $outside = PhotoCollection::query()->create([
+            'family_space_id' => $otherFamily->id, 'owner_user_id' => $owner->id,
+            'name' => 'Outside calendar', 'purpose' => CollectionPurpose::Calendar,
+        ]);
+        $this->actingAs($owner)->getJson("{$base}?collection_id={$outside->id}")
+            ->assertOk()->assertJsonCount(0, 'data');
+        $this->actingAs($owner)->getJson("{$base}?purpose=unknown")
+            ->assertUnprocessable()->assertJsonValidationErrors('purpose.0');
+        Carbon::setTestNow();
     }
 
     /** @return array{User, FamilySpaceMembership} */

@@ -6,6 +6,7 @@ import type { FamilyExport } from "@/features/exports/types/familyExport";
 
 import type {
   CollectionInput,
+  CollectionListCriteria,
   CollectionUpdateInput,
   FamilyCollection,
 } from "../types/collection";
@@ -14,6 +15,7 @@ const collectionIndexSchema = z.looseObject({
   id: z.string().min(1),
   name: z.string(),
   description: z.string().nullable(),
+  purpose: z.enum(["prints", "calendar"]).nullable(),
   created_at: z.string().nullable(),
   updated_at: z.string().nullable(),
   photo_count: z.number().int().nonnegative(),
@@ -39,11 +41,13 @@ function path(familySlug: string, collectionId?: string): string {
 
 export async function getCollections(
   familySlug: string,
+  criteria: CollectionListCriteria = {},
   signal?: AbortSignal,
 ): Promise<FamilyCollection[]> {
   return parseCollectionIndex(
     unwrap(
       await apiClient.get<ApiEnvelope<unknown>>(path(familySlug), {
+        params: criteria,
         signal,
       }),
     ),

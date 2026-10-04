@@ -21,6 +21,7 @@ describe("CollectionsPage", () => {
               id: "collection-1",
               name: "For the reunion",
               description: "Print shortlist",
+              purpose: "prints",
               created_at: null,
               updated_at: null,
               photo_count: 0,

@@ -17,13 +17,18 @@ import { collectionKeys } from "../api/collectionKeys";
 import { familyExportKeys } from "@/features/exports/api/familyExportKeys";
 import type {
   CollectionInput,
+  CollectionListCriteria,
   CollectionUpdateInput,
 } from "../types/collection";
 
-export function useCollectionsQuery(familySlug: string, enabled = true) {
+export function useCollectionsQuery(
+  familySlug: string,
+  enabled = true,
+  criteria: CollectionListCriteria = {},
+) {
   return useQuery({
-    queryKey: collectionKeys.list(familySlug),
-    queryFn: ({ signal }) => getCollections(familySlug, signal),
+    queryKey: collectionKeys.list(familySlug, criteria),
+    queryFn: ({ signal }) => getCollections(familySlug, criteria, signal),
     enabled: enabled && familySlug !== "",
     retry: false,
   });
