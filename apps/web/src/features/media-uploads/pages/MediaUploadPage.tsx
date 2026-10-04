@@ -101,6 +101,7 @@ export function MediaUploadPage() {
   );
   const serverBatchId = lastResult?.batch_id ?? null;
   const batchQuery = useMediaUploadBatchQuery(familySlug, serverBatchId);
+  const refetchBatch = batchQuery.refetch;
   const processingRetry = useMediaProcessingRetryMutation(
     familySlug,
     serverBatchId,
@@ -181,6 +182,7 @@ export function MediaUploadPage() {
           [mediaUploadId]: { status: "ready", photoId: result.photo.id },
         }));
         await invalidatePhotoContinuity(false);
+        await refetchBatch();
       } catch (error: unknown) {
         setPromotions((current) => ({
           ...current,
@@ -192,7 +194,7 @@ export function MediaUploadPage() {
         }));
       }
     },
-    [familySlug, invalidatePhotoContinuity],
+    [familySlug, invalidatePhotoContinuity, refetchBatch],
   );
 
   useEffect(() => {
@@ -255,6 +257,19 @@ export function MediaUploadPage() {
     retryingId: processingRetry.isPending ? processingRetry.variables : null,
   });
   const readyCount = rows.filter((row) => row.tone === "ready").length;
+  const faceReview = batchQuery.data?.face_review;
+  const faceReviewPath =
+    serverBatchId === null
+      ? null
+      : `/families/${encodeURIComponent(familySlug)}/photos/review-people?${new URLSearchParams(
+          {
+            upload_batch_id: serverBatchId,
+            return_to:
+              scope === "album"
+                ? `/families/${encodeURIComponent(familySlug)}/albums/${encodeURIComponent(albumId)}/uploads`
+                : `/families/${encodeURIComponent(familySlug)}/uploads`,
+          },
+        ).toString()}`;
 
   function beginUpload(files: File[]) {
     const supported = files.filter(
@@ -534,26 +549,61 @@ export function MediaUploadPage() {
             rows.every(
               (row) => row.tone !== "uploading" && row.tone !== "processing",
             ) ? (
-              <section
-                className="upload-handoff"
-                aria-labelledby="upload-handoff-title"
-              >
-                <div>
-                  <CheckIcon />
-                  <span>
-                    <b id="upload-handoff-title">Your photographs are ready</b>
-                    <small>
-                      {scope === "album"
-                        ? `Ready Photos are now in ${albumName ?? "this Album"}.`
-                        : "Ready Photos are now in your Family Space."}
-                    </small>
-                  </span>
-                </div>
-                <ButtonLink variant="primary" to={backPath}>
-                  {scope === "album" ? "Back to album" : "View photographs"}
-                  <ChevronRightIcon />
-                </ButtonLink>
-              </section>
+              <div className="upload-handoffs">
+                <section
+                  className="upload-handoff"
+                  aria-labelledby="upload-handoff-title"
+                >
+                  <div>
+                    <CheckIcon />
+                    <span>
+                      <b id="upload-handoff-title">
+                        Your photographs are ready
+                      </b>
+                      <small>
+                        {scope === "album"
+                          ? `Ready Photos are now in ${albumName ?? "this Album"}.`
+                          : "Ready Photos are now in your Family Space."}
+                      </small>
+                    </span>
+                  </div>
+                  <ButtonLink variant="primary" to={backPath}>
+                    {scope === "album" ? "Back to album" : "View photographs"}
+                    <ChevronRightIcon />
+                  </ButtonLink>
+                </section>
+                {faceReview?.has_reviewable_faces === true &&
+                  faceReview.reviewable_face_count > 0 &&
+                  faceReview.affected_photo_count > 0 &&
+                  faceReviewPath !== null && (
+                    <section
+                      className="upload-review-handoff"
+                      aria-labelledby="upload-review-handoff-title"
+                    >
+                      <div>
+                        <PeopleIcon />
+                        <span>
+                          <b id="upload-review-handoff-title">
+                            Faces found in your ready photographs
+                          </b>
+                          <small>
+                            {faceReview.reviewable_face_count}{" "}
+                            {plural("face", faceReview.reviewable_face_count)}{" "}
+                            across {faceReview.affected_photo_count}{" "}
+                            {plural(
+                              "photograph",
+                              faceReview.affected_photo_count,
+                            )}{" "}
+                            are ready to review.
+                          </small>
+                        </span>
+                      </div>
+                      <ButtonLink variant="primary" to={faceReviewPath}>
+                        Review people <ChevronRightIcon />
+                      </ButtonLink>
+                    </section>
+                  )}
+              </div>
             ) : undefined
           }
           onCollapsedChange={setCollapsed}
@@ -589,6 +639,10 @@ export function MediaUploadPage() {
       />
     </main>
   );
+}
+
+function plural(word: string, count: number) {
+  return count === 1 ? word : `${word}s`;
 }
 
 type BuildRowsInput = {
@@ -839,6 +893,20 @@ function CheckIcon() {
     >
       <circle cx="12" cy="12" r="9" />
       <path d="m8 12 2.5 2.5L16 9" />
+    </svg>
+  );
+}
+
+function PeopleIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+    >
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3 20v-2c0-3 2.5-5 6-5s6 2 6 5v2M17 9a3 3 0 0 1 0 6M18 15c2 0 3 1.5 3 4v1" />
     </svg>
   );
 }

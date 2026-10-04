@@ -11,6 +11,7 @@ import { EventPage } from "@/features/events/pages/EventPage";
 import { EventsPage } from "@/features/events/pages/EventsPage";
 import { FamilyExportsPage } from "@/features/exports/pages/FamilyExportsPage";
 import { FaceClustersPage } from "@/features/face-recognition/pages/FaceClustersPage";
+import { FaceReviewPage } from "@/features/face-recognition/pages/FaceReviewPage";
 import { FaceRecognitionReviewPage } from "@/features/face-recognition/pages/FaceRecognitionReviewPage";
 import { RequireAuth } from "@/features/auth/components/RequireAuth";
 import { TwoFactorChallengePage } from "@/features/auth/pages/TwoFactorChallengePage";
@@ -106,6 +107,10 @@ export function App() {
             element={<MediaUploadPage />}
           />
           <Route path="/families/:familySlug/photos" element={<PhotosPage />} />
+          <Route
+            path="/families/:familySlug/photos/review-people"
+            element={<FaceReviewPage />}
+          />
           <Route path="/families/:familySlug/search" element={<SearchPage />} />
           <Route
             path="/families/:familySlug/stories"

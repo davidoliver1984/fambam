@@ -8,16 +8,10 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { getAlbum, getAlbums } from "@/features/albums/api/albumApi";
 import type { Album } from "@/features/albums/types/album";
 import { getMediaVariantDelivery } from "@/features/media-uploads/api/mediaUploadApi";
-import { getPeople } from "@/features/people/api/personApi";
 import type { Person } from "@/features/people/types/person";
 import { getPhotoVersions } from "../api/photoEditorApi";
-import {
-  getPhoto,
-  getPhotoAlbumHistory,
-  submitPhotoMetadata,
-  submitPhotoPerson,
-} from "../api/photoApi";
-import type { Photo, PhotoMetadataProposal } from "../types/photo";
+import { getPhoto, getPhotoAlbumHistory } from "../api/photoApi";
+import type { Photo } from "../types/photo";
 import { PhotoPage } from "./PhotoPage";
 
 vi.mock("@/features/albums/api/albumApi", () => ({
@@ -27,21 +21,28 @@ vi.mock("@/features/albums/api/albumApi", () => ({
   getAlbums: vi.fn(),
   removePhotoFromAlbum: vi.fn(),
 }));
+vi.mock("@/features/family-spaces/hooks/useFamilySpaceQuery", () => ({
+  useFamilySpaceQuery: () => ({ data: { role: "owner" } }),
+}));
 vi.mock("@/features/events/components/EventPhotoTile", () => ({
   PhotoTileMenu: ({
     onEditDetails,
     onReviewPeople,
+    showReviewPeople,
   }: {
     onEditDetails?: () => void;
     onReviewPeople?: () => void;
+    showReviewPeople?: boolean;
   }) => (
     <>
       <button type="button" onClick={onEditDetails}>
         Open edit details
       </button>
-      <button type="button" onClick={onReviewPeople}>
-        Open people review
-      </button>
+      {showReviewPeople && (
+        <button type="button" onClick={onReviewPeople}>
+          Open people review
+        </button>
+      )}
     </>
   ),
 }));
@@ -71,7 +72,6 @@ vi.mock("../api/photoApi", () => ({
   submitPhotoProvenance: vi.fn(),
   updatePhoto: vi.fn(),
 }));
-vi.mock("@/features/people/api/personApi", () => ({ getPeople: vi.fn() }));
 vi.mock("@/features/media-uploads/api/mediaUploadApi", () => ({
   getMediaVariantDelivery: vi.fn(),
   getOriginalMediaDelivery: vi.fn(),
@@ -195,20 +195,6 @@ const album: Album = {
   permissions: { can_manage: true, can_contribute: true },
 };
 
-const metadataProposal: PhotoMetadataProposal = {
-  id: "proposal-date",
-  photo_id: photo.id,
-  field: "historical_date",
-  date: { precision: "year", value: "1987" },
-  location_description: null,
-  clears_claim: false,
-  status: "pending",
-  proposed_by: 1,
-  resolved_by: null,
-  resolved_at: null,
-  created_at: "2026-08-24T11:00:00Z",
-};
-
 function renderPage(
   entry = `/families/oliver-family/photos/${photo.id}?albumId=${album.id}`,
 ) {
@@ -259,14 +245,6 @@ beforeEach(() => {
     url: "https://storage.test/signed-display",
     method: "GET",
     expires_at: "2026-08-10T12:05:00+00:00",
-  });
-  vi.mocked(getPeople).mockResolvedValue([person]);
-  vi.mocked(submitPhotoMetadata).mockResolvedValue(metadataProposal);
-  vi.mocked(submitPhotoPerson).mockResolvedValue({
-    ...photo.people[0],
-    status: "pending",
-    resolved_by: null,
-    resolved_at: null,
   });
 });
 
@@ -451,39 +429,17 @@ describe("PhotoPage", () => {
     expect(screen.getByLabelText("Caption")).toHaveValue("Family picnic");
   });
 
-  it("submits metadata and Person proposals from Identify / Review people", async () => {
+  it("opens the shared photo-scoped review from Identify / Review people", async () => {
     const user = userEvent.setup();
-    renderPage();
+    const { router } = renderPage();
     await user.click(
       await screen.findByRole("button", { name: "Open people review" }),
     );
-    await user.selectOptions(screen.getByLabelText("Date precision"), "year");
-    await user.type(screen.getByLabelText("Date value"), "1987");
-    await user.click(
-      screen.getByRole("button", { name: "Submit family metadata" }),
-    );
-    await user.selectOptions(
-      screen.getByLabelText("Person appearing in this Photo"),
-      person.id,
-    );
-    await user.click(
-      screen.getByRole("button", { name: "Submit Person proposal" }),
-    );
 
-    await waitFor(() => {
-      expect(submitPhotoMetadata).toHaveBeenCalledWith(
-        "oliver-family",
-        photo.id,
-        {
-          field: "historical_date",
-          date: { precision: "year", value: "1987" },
-        },
-      );
-      expect(submitPhotoPerson).toHaveBeenCalledWith(
-        "oliver-family",
-        photo.id,
-        person.id,
-      );
-    });
+    expect(router.state.location.pathname).toBe(
+      "/families/oliver-family/photos/review-people",
+    );
+    expect(router.state.location.search).toContain("photo_id=photo-family");
+    expect(router.state.location.search).toContain("return_to=");
   });
 });

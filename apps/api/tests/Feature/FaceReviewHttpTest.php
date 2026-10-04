@@ -199,6 +199,28 @@ class FaceReviewHttpTest extends TestCase
             ->assertJsonPath('data.photos.0.observations.0.permissions.can_assign', true);
     }
 
+    public function test_photo_scope_never_includes_or_navigates_to_another_photo(): void
+    {
+        [$family, $owner] = $this->familyMember(FamilySpaceRole::Owner, 'single-photo-review');
+        $requested = $this->photo($family, $owner, null, 'Requested', now()->subMinute());
+        $other = $this->photo($family, $owner, null, 'Other', now());
+        $this->observation($family, $this->analysisRun($requested, FaceAnalysisRunStatus::Succeeded), 0);
+        $this->observation($family, $this->analysisRun($other, FaceAnalysisRunStatus::Succeeded), 0);
+
+        $this->actingAs($owner)
+            ->getJson("/api/families/{$family->slug}/face-review?photo_id={$requested->id}")
+            ->assertOk()
+            ->assertJsonPath('data.scope.photo_id', $requested->id)
+            ->assertJsonPath('data.scope.upload_batch_id', null)
+            ->assertJsonPath('data.summary.total_photos', 1)
+            ->assertJsonPath('data.summary.current_photo_id', $requested->id)
+            ->assertJsonPath('data.summary.next_photo_id', null)
+            ->assertJsonPath('data.pagination.has_more', false)
+            ->assertJsonCount(1, 'data.photos')
+            ->assertJsonPath('data.photos.0.photo_id', $requested->id)
+            ->assertJsonMissing(['photo_id' => $other->id]);
+    }
+
     public function test_upload_batch_handoff_only_reports_real_unresolved_faces(): void
     {
         [$family, $owner] = $this->familyMember(FamilySpaceRole::Owner, 'batch-face-review');

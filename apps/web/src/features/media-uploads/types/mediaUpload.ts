@@ -44,7 +44,10 @@ export type MediaUploadBatchStatus = {
   counts: Record<MediaUploadState, number>;
   face_review: {
     analysis_pending: boolean;
-    analysis: Record<"pending" | "processing" | "succeeded" | "failed", number> & {
+    analysis: Record<
+      "pending" | "processing" | "succeeded" | "failed",
+      number
+    > & {
       succeeded_with_zero_faces: number;
     };
     has_reviewable_faces: boolean;

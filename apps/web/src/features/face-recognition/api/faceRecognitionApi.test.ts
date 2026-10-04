@@ -2,6 +2,7 @@ import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
 import { server } from "@/test/msw/server";
+import type { FaceReviewSession } from "../types/faceRecognition";
 
 import {
   approveFaceIdentityAssignment,
@@ -96,6 +97,51 @@ describe("faceRecognitionApi", () => {
         ],
       }),
     ).toThrow("Inconsistent face observation review progress.");
+  });
+
+  it("rejects read models that escape their requested review scope", () => {
+    const photoScoped: FaceReviewSession = {
+      scope: { upload_batch_id: null, photo_id: "photo-1" },
+      summary: {
+        total_photos: 1,
+        analysis: {
+          pending: 0,
+          processing: 0,
+          succeeded: 1,
+          failed: 0,
+          succeeded_with_zero_faces: 1,
+          succeeded_with_unresolved_faces: 0,
+          succeeded_with_all_faces_resolved: 0,
+        },
+        total_faces: 0,
+        reviewed_count: 0,
+        remaining_count: 0,
+        reviewable_photo_count: 0,
+        current_photo_id: null,
+        next_photo_id: null,
+      },
+      pagination: { page: 1, limit: 1, has_more: false },
+      photos: [],
+    };
+
+    expect(() =>
+      parseFaceReviewSession(
+        {
+          ...photoScoped,
+          scope: { upload_batch_id: null, photo_id: "photo-2" },
+        },
+        { photoId: "photo-1" },
+      ),
+    ).toThrow("Photo-scoped face review escaped its requested Photo.");
+    expect(() =>
+      parseFaceReviewSession(
+        {
+          ...photoScoped,
+          scope: { upload_batch_id: "batch-2", photo_id: null },
+        },
+        { uploadBatchId: "batch-1" },
+      ),
+    ).toThrow("Batch-scoped face review escaped its upload batch.");
   });
 
   it("owns all Phase 10 functional-review endpoint paths and image mapping", async () => {

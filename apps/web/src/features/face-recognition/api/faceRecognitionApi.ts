@@ -50,7 +50,31 @@ const analysisReviewStates = new Set([
 
 export function parseFaceReviewSession(
   value: FaceReviewSession,
+  filters: FaceReviewFilters = {},
 ): FaceReviewSession {
+  if (filters.photoId !== undefined) {
+    if (
+      value.scope.photo_id !== filters.photoId ||
+      value.scope.upload_batch_id !== null ||
+      value.photos.some((photo) => photo.photo_id !== filters.photoId) ||
+      value.photos.length > 1 ||
+      value.summary.next_photo_id !== null ||
+      value.pagination.has_more
+    ) {
+      throw new Error("Photo-scoped face review escaped its requested Photo.");
+    }
+  }
+  if (filters.uploadBatchId !== undefined) {
+    if (
+      value.scope.upload_batch_id !== filters.uploadBatchId ||
+      value.scope.photo_id !== null ||
+      value.photos.some(
+        (photo) => photo.upload_batch_id !== filters.uploadBatchId,
+      )
+    ) {
+      throw new Error("Batch-scoped face review escaped its upload batch.");
+    }
+  }
   for (const photo of value.photos) {
     if (!analysisReviewStates.has(photo.analysis.review_state)) {
       throw new Error("Unsupported face-review analysis state.");
@@ -273,6 +297,7 @@ export async function getFaceReview(
         { signal },
       ),
     ),
+    filters,
   );
 }
 

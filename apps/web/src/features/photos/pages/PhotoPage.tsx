@@ -1,5 +1,11 @@
 import { useEffect, useState, type SyntheticEvent } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router";
 
 import { toAppError } from "@/api/errors";
 import {
@@ -15,23 +21,19 @@ import {
   PenLineGlyph,
 } from "@/features/events/components/EventGlyphs";
 import { PersonAvatar } from "@/features/family-spaces/components/PersonAvatar";
-import { usePeopleQuery } from "@/features/people/hooks/usePeopleQuery";
+import { useFamilySpaceQuery } from "@/features/family-spaces/hooks/useFamilySpaceQuery";
+import { faceBoundsStyle } from "@/features/face-recognition/faceGeometry";
 import { Button, Dialog, EntityLink } from "@/components/ui";
 
 import {
   PhotoConversationPanel,
   PhotoLoveControl,
 } from "../components/PhotoConversationPanel";
-import { PhotoFamilyMetadataProposals } from "../components/PhotoFamilyMetadataProposals";
 import { PhotoForm } from "../components/PhotoForm";
-import { PhotoMetadataForm } from "../components/PhotoMetadataForm";
-import { PhotoPersonForm } from "../components/PhotoPersonForm";
 import { PhotoPresentationImage } from "../components/PhotoPresentationImage";
 import { PhotoTagsForm } from "../components/PhotoTagsForm";
 import {
   useReplacePhotoTagsMutation,
-  useSubmitPhotoMetadataMutation,
-  useSubmitPhotoPersonMutation,
   useUpdatePhotoMutation,
 } from "../hooks/usePhotoMutations";
 import {
@@ -45,6 +47,9 @@ import "./photo-detail.css";
 export function PhotoPage() {
   const { familySlug = "", photoId = "" } = useParams();
   const [search] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const family = useFamilySpaceQuery(familySlug);
   const photoQuery = usePhotoQuery(familySlug, photoId);
   const history = usePhotoAlbumHistoryQuery(familySlug, photoId);
   const albums = useAlbumsQuery(familySlug);
@@ -59,11 +64,8 @@ export function PhotoPage() {
   const album = useAlbumQuery(familySlug, albumId);
   const updatePhoto = useUpdatePhotoMutation(familySlug, photoId);
   const replaceTags = useReplacePhotoTagsMutation(familySlug, photoId);
-  const submitMetadata = useSubmitPhotoMetadataMutation(familySlug, photoId);
-  const submitPerson = useSubmitPhotoPersonMutation(familySlug, photoId);
   const createAlbum = useCreateAlbumMutation(familySlug);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [peopleOpen, setPeopleOpen] = useState(false);
   const [createAlbumOpen, setCreateAlbumOpen] = useState(false);
   const [albumName, setAlbumName] = useState("");
   const [albumVisibility, setAlbumVisibility] =
@@ -73,9 +75,6 @@ export function PhotoPage() {
     null,
   );
 
-  const canWorkWithPeople =
-    photoQuery.data?.permissions.can_propose_provenance === true;
-  const peopleQuery = usePeopleQuery(familySlug, canWorkWithPeople);
   const notFound =
     photoQuery.isError && toAppError(photoQuery.error).status === 404;
 
@@ -204,12 +203,11 @@ export function PhotoPage() {
                   onBlur={() => {
                     setHighlightedPersonId(null);
                   }}
-                  style={{
-                    left: `${String((face.bounds.x / face.image_width) * 100)}%`,
-                    top: `${String((face.bounds.y / face.image_height) * 100)}%`,
-                    width: `${String((face.bounds.width / face.image_width) * 100)}%`,
-                    height: `${String((face.bounds.height / face.image_height) * 100)}%`,
-                  }}
+                  style={faceBoundsStyle(
+                    face.bounds,
+                    face.image_width,
+                    face.image_height,
+                  )}
                 >
                   <span>{face.person.preferred_name}</span>
                 </EntityLink>
@@ -283,8 +281,18 @@ export function PhotoPage() {
               onEditDetails={() => {
                 setDetailsOpen(true);
               }}
+              showReviewPeople={
+                family.data !== undefined &&
+                ["owner", "administrator", "member"].includes(family.data.role)
+              }
               onReviewPeople={() => {
-                setPeopleOpen(true);
+                const query = new URLSearchParams({
+                  photo_id: photo.id,
+                  return_to: `${location.pathname}${location.search}`,
+                });
+                void navigate(
+                  `/families/${encodeURIComponent(familySlug)}/photos/review-people?${query.toString()}`,
+                );
               }}
             />
           </div>
@@ -387,39 +395,6 @@ export function PhotoPage() {
             compact
             pending={replaceTags.isPending}
             onSubmit={(tags) => replaceTags.mutateAsync(tags)}
-          />
-        )}
-      </Dialog>
-
-      <Dialog
-        open={peopleOpen}
-        title="Identify / Review people"
-        description="Use confirmed family identities for this Photo."
-        className="photo-detail-dialog"
-        pending={submitMetadata.isPending || submitPerson.isPending}
-        onClose={() => {
-          setPeopleOpen(false);
-        }}
-      >
-        {canWorkWithPeople && peopleQuery.data !== undefined ? (
-          <>
-            <PhotoMetadataForm
-              pending={submitMetadata.isPending}
-              onSubmit={(input) => submitMetadata.mutateAsync(input)}
-            />
-            <PhotoPersonForm
-              people={peopleQuery.data}
-              pending={submitPerson.isPending}
-              onSubmit={(personId) => submitPerson.mutateAsync(personId)}
-            />
-          </>
-        ) : (
-          <p>You do not have permission to propose Photo identities.</p>
-        )}
-        {photo.permissions.can_resolve_provenance && (
-          <PhotoFamilyMetadataProposals
-            familySlug={familySlug}
-            photoId={photo.id}
           />
         )}
       </Dialog>

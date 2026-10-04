@@ -13,6 +13,10 @@ export function useMediaUploadBatchQuery(
       getMediaUploadBatch(familySlug, batchId ?? "", signal),
     enabled: batchId !== null,
     retry: false,
-    refetchInterval: (query) => (query.state.data?.active ? 2_000 : false),
+    refetchInterval: (query) =>
+      query.state.data?.active === true ||
+      query.state.data?.face_review.analysis_pending === true
+        ? 2_000
+        : false,
   });
 }

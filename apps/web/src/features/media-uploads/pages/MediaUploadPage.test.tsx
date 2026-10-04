@@ -153,7 +153,13 @@ describe("MediaUploadPage", () => {
       total: 2,
       active: false,
       counts: { ...emptyCounts, ready: 2 },
-      face_review: emptyFaceReview,
+      face_review: {
+        ...emptyFaceReview,
+        analysis: { ...emptyFaceReview.analysis, succeeded: 2 },
+        has_reviewable_faces: true,
+        reviewable_face_count: 3,
+        affected_photo_count: 2,
+      },
       items: [
         {
           id: "01KUPLOAD00000000000000001",
@@ -193,6 +199,18 @@ describe("MediaUploadPage", () => {
     expect(
       screen.getByRole("link", { name: "View photographs" }),
     ).toHaveAttribute("href", "/families/oliver-family/photos");
+    expect(
+      screen.getByText("Faces found in your ready photographs"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("3 faces across 2 photographs are ready to review."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Review people" })).toHaveAttribute(
+      "href",
+      expect.stringContaining(
+        "/families/oliver-family/photos/review-people?upload_batch_id=01KBATCH000000000000000000",
+      ),
+    );
   });
 
   it("keeps partial failures visible and offers a duplicate-safe retry", async () => {

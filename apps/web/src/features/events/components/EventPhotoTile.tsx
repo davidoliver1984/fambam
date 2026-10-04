@@ -205,6 +205,7 @@ export function PhotoTileMenu({
   onSetAlbumCover,
   onEditDetails,
   onReviewPeople,
+  showReviewPeople = true,
   allowDelete = true,
 }: {
   familySlug: string;
@@ -217,6 +218,7 @@ export function PhotoTileMenu({
   onSetAlbumCover?: () => void;
   onEditDetails?: () => void;
   onReviewPeople?: () => void;
+  showReviewPeople?: boolean;
   allowDelete?: boolean;
 }) {
   const client = useQueryClient();
@@ -375,17 +377,18 @@ export function PhotoTileMenu({
             Edit details
           </button>
         )}
-        {onReviewPeople === undefined ? (
-          <Link to={`${photoUrl}#photo-family-metadata-title`}>
-            <ScanFaceGlyph />
-            Identify / Review people
-          </Link>
-        ) : (
-          <button type="button" onClick={onReviewPeople}>
-            <ScanFaceGlyph />
-            Identify / Review people
-          </button>
-        )}
+        {showReviewPeople &&
+          (onReviewPeople === undefined ? (
+            <Link to={`${photoUrl}#photo-family-metadata-title`}>
+              <ScanFaceGlyph />
+              Identify / Review people
+            </Link>
+          ) : (
+            <button type="button" onClick={onReviewPeople}>
+              <ScanFaceGlyph />
+              Identify / Review people
+            </button>
+          ))}
         <button
           type="button"
           disabled={download.isPending}
