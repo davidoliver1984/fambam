@@ -201,6 +201,9 @@ export function PhotoTileMenu({
   caption,
   album,
   availableAlbums,
+  hasMoreAlbums = false,
+  loadingMoreAlbums = false,
+  onLoadMoreAlbums,
   onCreateAlbum,
   onSetAlbumCover,
   onEditDetails,
@@ -214,6 +217,9 @@ export function PhotoTileMenu({
   caption: string | null;
   album?: { id: string; canManage: boolean; name: string };
   availableAlbums: Album[];
+  hasMoreAlbums?: boolean;
+  loadingMoreAlbums?: boolean;
+  onLoadMoreAlbums?: () => void;
   onCreateAlbum: () => void;
   onSetAlbumCover?: () => void;
   onEditDetails?: () => void;
@@ -485,6 +491,16 @@ export function PhotoTileMenu({
                 </span>
               </label>
             ))}
+          {hasMoreAlbums && onLoadMoreAlbums !== undefined && (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={loadingMoreAlbums}
+              onClick={onLoadMoreAlbums}
+            >
+              {loadingMoreAlbums ? "Loading more albums…" : "Load more albums"}
+            </Button>
+          )}
         </div>
         <button
           type="button"

@@ -13,6 +13,9 @@ type Props = {
   album: Album;
   photos: AlbumPhoto[];
   availableAlbums: Album[];
+  hasMoreAlbums: boolean;
+  loadingMoreAlbums: boolean;
+  onLoadMoreAlbums: () => void;
   view: "grid" | "list";
   onCreateAlbum: () => void;
   onSetCover: (photoId: string) => void;
@@ -61,6 +64,9 @@ export function AlbumDetailPhotoGrid({
   album,
   photos,
   availableAlbums,
+  hasMoreAlbums,
+  loadingMoreAlbums,
+  onLoadMoreAlbums,
   view,
   onCreateAlbum,
   onSetCover,
@@ -122,6 +128,9 @@ export function AlbumDetailPhotoGrid({
                 name: album.name,
               }}
               availableAlbums={availableAlbums}
+              hasMoreAlbums={hasMoreAlbums}
+              loadingMoreAlbums={loadingMoreAlbums}
+              onLoadMoreAlbums={onLoadMoreAlbums}
               onCreateAlbum={onCreateAlbum}
               onSetAlbumCover={
                 album.permissions.can_manage

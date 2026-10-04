@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -7,11 +7,18 @@ import { familyExportKeys } from "@/features/exports/api/familyExportKeys";
 import { homeKeys } from "@/features/home/hooks/useHomeQuery";
 import { searchKeys } from "@/features/search/api/searchKeys";
 
-import { deleteAlbum, updateAlbum } from "../api/albumApi";
+import {
+  createAlbum,
+  deleteAlbum,
+  getAlbums,
+  updateAlbum,
+} from "../api/albumApi";
 import { albumKeys } from "../api/albumKeys";
 import type { Album } from "../types/album";
 import {
   useDeleteAlbumMutation,
+  useAlbumsQuery,
+  useCreateAlbumMutation,
   useUpdateAlbumMutation,
 } from "./useAlbumQueries";
 
@@ -35,6 +42,7 @@ const album = {
   name: "Album",
   created_at: "2026-09-01T10:00:00+00:00",
   updated_at: "2026-09-01T10:00:00+00:00",
+  is_new: false,
 } as Album;
 
 function harness() {
@@ -77,6 +85,26 @@ describe("Album mutations", () => {
     keys.forEach((key) => {
       expect(client.getQueryState(key)?.isInvalidated).toBe(true);
     });
+  });
+
+  it("invalidates every paged Album list after create", async () => {
+    vi.mocked(createAlbum).mockResolvedValue({ ...album, name: "Created" });
+    const { client, wrapper } = harness();
+    const listKey = albumKeys.page(familySlug, { sort: "newest" });
+    client.setQueryData(listKey, { pages: [], pageParams: [] });
+    const { result } = renderHook(() => useCreateAlbumMutation(familySlug), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        name: "Created",
+        description: null,
+        visibility: "family_space",
+      });
+    });
+
+    expect(client.getQueryState(listKey)?.isInvalidated).toBe(true);
   });
 
   it("removes stale detail and invalidates list, search, Home and exports after delete", async () => {
@@ -123,5 +151,82 @@ describe("Album mutations", () => {
     });
 
     expect(client.getQueryState(listKey)?.isInvalidated).toBe(false);
+  });
+});
+
+describe("Album infinite query", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("keeps page boundaries in cache while exposing one flattened Album list", async () => {
+    vi.mocked(getAlbums).mockImplementation((_family, _criteria, cursor) =>
+      Promise.resolve(
+        cursor === null
+          ? { items: [album], next_cursor: "page-2" }
+          : {
+              items: [{ ...album, id: "album-2", name: "Second" }],
+              next_cursor: null,
+            },
+      ),
+    );
+    const { client, wrapper } = harness();
+    const { result } = renderHook(
+      () => useAlbumsQuery(familySlug, { sort: "newest" }),
+      { wrapper },
+    );
+    await waitFor(() => {
+      expect(result.current.data).toEqual([album]);
+    });
+
+    await act(async () => {
+      await result.current.fetchNextPage();
+    });
+
+    await waitFor(() => {
+      expect(result.current.data?.map((item) => item.id)).toEqual([
+        album.id,
+        "album-2",
+      ]);
+    });
+    const cached = client.getQueryData<{
+      pages: Array<{ items: Album[] }>;
+    }>(albumKeys.page(familySlug, { sort: "newest" }));
+    expect(cached?.pages).toHaveLength(2);
+  });
+
+  it("starts from the first page when sort, search, or filter criteria change", async () => {
+    vi.mocked(getAlbums).mockResolvedValue({
+      items: [album],
+      next_cursor: "unused-continuation",
+    });
+    const { wrapper } = harness();
+    const { rerender } = renderHook(
+      ({ sort, q, tagId }) =>
+        useAlbumsQuery(familySlug, { sort, q, tag_id: tagId }),
+      {
+        initialProps: {
+          sort: "newest" as "newest" | "oldest",
+          q: "summer",
+          tagId: "tag-summer",
+        },
+        wrapper,
+      },
+    );
+    await waitFor(() => {
+      expect(getAlbums).toHaveBeenCalledTimes(1);
+    });
+
+    rerender({ sort: "oldest", q: "winter", tagId: "tag-winter" });
+    await waitFor(() => {
+      expect(getAlbums).toHaveBeenCalledTimes(2);
+    });
+
+    expect(vi.mocked(getAlbums).mock.calls[1]?.[1]).toEqual({
+      sort: "oldest",
+      q: "winter",
+      tag_id: "tag-winter",
+    });
+    expect(vi.mocked(getAlbums).mock.calls[1]?.[2]).toBeNull();
   });
 });

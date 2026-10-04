@@ -78,6 +78,9 @@ const album = {
   description: "A week by the sea.",
   visibility: "family_space",
   created_by: 1,
+  created_at: "2026-09-25T12:00:00Z",
+  updated_at: "2026-09-25T12:00:00Z",
+  is_new: true,
   guest_participation: "none",
   photos: albumPhotos,
   grants: [],
@@ -277,15 +280,18 @@ async function mockPhoto(page: Page) {
     } else if (path.endsWith(`/albums/${album.id}`)) {
       data = album;
     } else if (path.endsWith("/albums")) {
-      data = [
-        album,
-        {
-          ...album,
-          id: "album-portraits",
-          name: "Family portraits",
-          photos: [],
-        },
-      ];
+      data = {
+        items: [
+          album,
+          {
+            ...album,
+            id: "album-portraits",
+            name: "Family portraits",
+            photos: [],
+          },
+        ],
+        next_cursor: null,
+      };
     } else if (path.endsWith("/people")) {
       data = photo.people.map((item) => ({
         ...item.person,

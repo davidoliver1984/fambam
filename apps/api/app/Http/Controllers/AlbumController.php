@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Albums\AlbumFreshness;
 use App\Enums\FamilySpaceRole;
 use App\Http\Requests\InitiateMediaUploadRequest;
+use App\Http\Requests\ListAlbumsRequest;
 use App\Http\Requests\SetAlbumCoverRequest;
 use App\Http\Requests\StoreAlbumGrantRequest;
 use App\Http\Requests\StoreAlbumPhotoRequest;
@@ -33,16 +35,20 @@ class AlbumController extends Controller
         private readonly MediaUploadManager $uploads,
         private readonly RichTextPresenter $presenter,
         private readonly TenantContext $tenantContext,
+        private readonly AlbumFreshness $freshness,
     ) {}
 
-    public function index(FamilySpace $familySpace, Request $request): JsonResponse
+    public function index(FamilySpace $familySpace, ListAlbumsRequest $request): JsonResponse
     {
         Gate::authorize('viewAny', Album::class);
 
-        $albums = $this->albums->listVisibleTo($request->user());
-        $this->loadPresentation($albums);
+        $page = $this->albums->pageVisibleTo($request->user(), $request->criteria($familySpace->id));
+        $this->loadPresentation($page->items);
 
-        return response()->json(['data' => $albums->map(fn (Album $album): array => $this->payload($album, false))]);
+        return response()->json(['data' => [
+            'items' => $page->items->map(fn (Album $album): array => $this->payload($album, false))->values(),
+            'next_cursor' => $page->nextCursor,
+        ]]);
     }
 
     public function store(FamilySpace $familySpace, StoreAlbumRequest $request): JsonResponse
@@ -178,6 +184,7 @@ class AlbumController extends Controller
             'creator' => $album->creator === null ? null : ['id' => $album->creator->id, 'name' => $album->creator->name],
             'created_at' => $album->created_at?->toAtomString(),
             'updated_at' => $album->updated_at?->toAtomString(),
+            'is_new' => $this->freshness->isNew($album),
             'starts_on' => $album->starts_on?->format('Y-m-d'),
             'ends_on' => $album->ends_on?->format('Y-m-d'), 'location' => $album->location,
             'tags' => $album->tags->map(fn ($tag) => ['id' => $tag->id, 'label' => $tag->label])->values(),

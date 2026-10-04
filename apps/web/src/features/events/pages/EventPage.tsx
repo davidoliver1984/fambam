@@ -180,9 +180,8 @@ export function EventPage() {
   const remove = useDeleteEventMutation(familySlug, eventId);
   const createAlbum = useCreateEventAlbumMutation(familySlug, eventId);
   const albums = useAlbumsQuery(familySlug);
-  const eventAlbums = (albums.data ?? []).filter(
-    (album) => album.event_id === eventId,
-  );
+  const eventAlbumPages = useAlbumsQuery(familySlug, { event_id: eventId });
+  const eventAlbums = eventAlbumPages.data ?? [];
   const photos = useArchiveSearchQuery(
     familySlug,
     "photos",
@@ -802,41 +801,56 @@ export function EventPage() {
               </div>
             </div>
             {eventAlbums.length > 0 ? (
-              <div className="event-card-grid">
-                {eventAlbums.map((album, index) => {
-                  const firstPhoto =
-                    album.photos.length > 0 ? album.photos[0] : undefined;
-                  const coverPhotoId = album.cover?.photo_id ?? firstPhoto?.id;
-                  const coverMediaUploadId =
-                    album.cover?.media_upload_id ?? firstPhoto?.media_upload_id;
-                  return (
-                    <article className="event-album-card-wrap" key={album.id}>
-                      <Link
-                        className="event-album-card"
-                        to={`/families/${encodeURIComponent(familySlug)}/albums/${album.id}?eventId=${encodeURIComponent(eventId)}`}
-                      >
-                        <span className="event-album-card__cover">
-                          {coverPhotoId !== undefined &&
-                            coverMediaUploadId !== undefined && (
-                              <PhotoPresentationImage
-                                familySlug={familySlug}
-                                photoId={coverPhotoId}
-                                mediaUploadId={coverMediaUploadId}
-                                fallbackTransform="thumbnail"
-                                alt=""
-                              />
-                            )}
-                        </span>
-                        <span className="event-album-card__details">
-                          {index === 0 && <em>New</em>}
-                          <b>{album.name}</b>
-                          <small>{`${String(album.photos.length)} photos · ${albumVisibilityLabels[album.visibility]}`}</small>
-                        </span>
-                      </Link>
-                    </article>
-                  );
-                })}
-              </div>
+              <>
+                <div className="event-card-grid">
+                  {eventAlbums.map((album) => {
+                    const firstPhoto =
+                      album.photos.length > 0 ? album.photos[0] : undefined;
+                    const coverPhotoId =
+                      album.cover?.photo_id ?? firstPhoto?.id;
+                    const coverMediaUploadId =
+                      album.cover?.media_upload_id ??
+                      firstPhoto?.media_upload_id;
+                    return (
+                      <article className="event-album-card-wrap" key={album.id}>
+                        <Link
+                          className="event-album-card"
+                          to={`/families/${encodeURIComponent(familySlug)}/albums/${album.id}?eventId=${encodeURIComponent(eventId)}`}
+                        >
+                          <span className="event-album-card__cover">
+                            {coverPhotoId !== undefined &&
+                              coverMediaUploadId !== undefined && (
+                                <PhotoPresentationImage
+                                  familySlug={familySlug}
+                                  photoId={coverPhotoId}
+                                  mediaUploadId={coverMediaUploadId}
+                                  fallbackTransform="thumbnail"
+                                  alt=""
+                                />
+                              )}
+                          </span>
+                          <span className="event-album-card__details">
+                            {album.is_new && <em>New</em>}
+                            <b>{album.name}</b>
+                            <small>{`${String(album.photos.length)} photos · ${albumVisibilityLabels[album.visibility]}`}</small>
+                          </span>
+                        </Link>
+                      </article>
+                    );
+                  })}
+                </div>
+                {eventAlbumPages.hasNextPage && (
+                  <Button
+                    type="button"
+                    disabled={eventAlbumPages.isFetchingNextPage}
+                    onClick={() => void eventAlbumPages.fetchNextPage()}
+                  >
+                    {eventAlbumPages.isFetchingNextPage
+                      ? "Loading more Albums…"
+                      : "Load more Albums"}
+                  </Button>
+                )}
+              </>
             ) : (
               <p>No Albums are linked yet.</p>
             )}
@@ -934,6 +948,11 @@ export function EventPage() {
                       caption={photo.caption}
                       album={albumPhotoIds.get(photo.id)}
                       availableAlbums={albums.data ?? []}
+                      hasMoreAlbums={albums.hasNextPage}
+                      loadingMoreAlbums={albums.isFetchingNextPage}
+                      onLoadMoreAlbums={() => {
+                        void albums.fetchNextPage();
+                      }}
                       onCreateAlbum={() => {
                         setCreateAlbumOpen(true);
                       }}

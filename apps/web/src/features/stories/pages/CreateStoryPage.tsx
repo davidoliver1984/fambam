@@ -28,7 +28,7 @@ export function CreateStoryPage() {
   const [body, setBody] = useState("");
   const people = usePeopleQuery(familySlug, type === "person");
   const photos = usePhotosQuery(familySlug, {}, type === "photo");
-  const albums = useAlbumsQuery(familySlug, type === "album");
+  const albums = useAlbumsQuery(familySlug, {}, type === "album");
   const events = useEventsQuery(familySlug, type === "event");
   const create = useCreateStoryMutation(familySlug);
   const options =
@@ -87,6 +87,19 @@ export function CreateStoryPage() {
           <option value="album">Album</option>
           <option value="event">Event</option>
         </select>
+        {type === "album" && albums.hasNextPage && (
+          <button
+            type="button"
+            disabled={albums.isFetchingNextPage}
+            onClick={() => {
+              void albums.fetchNextPage();
+            }}
+          >
+            {albums.isFetchingNextPage
+              ? "Loading more albums…"
+              : "Load more albums"}
+          </button>
+        )}
         <label htmlFor="story-subject">Choose {type}</label>
         <select
           id="story-subject"

@@ -48,6 +48,7 @@ const album: Album = {
   creator: { id: 1, name: "Album creator" },
   created_at: "2026-09-01T10:00:00+00:00",
   updated_at: "2026-09-02T10:00:00+00:00",
+  is_new: false,
   photo_count: 0,
   event_id: "01KB0000000000000000000000",
   event: {
@@ -84,7 +85,7 @@ beforeEach(() => {
     can_edit: false,
     versions: [],
   });
-  vi.mocked(getAlbums).mockResolvedValue([album]);
+  vi.mocked(getAlbums).mockResolvedValue({ items: [album], next_cursor: null });
   vi.mocked(getPhotos).mockResolvedValue([]);
   vi.mocked(getFamilySpace).mockResolvedValue({
     id: "01K90000000000000000000000",
@@ -98,25 +99,152 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("AlbumsPage", () => {
-  it("shows authorised thumbnails in the general Album listing", async () => {
-    vi.mocked(getAlbums).mockResolvedValue([
-      {
-        ...album,
-        photos: [
-          {
-            id: "photo-1",
-            media_upload_id: "upload-1",
-            caption: "Family wedding",
-            client_filename: "wedding.jpg",
-            visibility: "family_space",
-            position: 1,
-          },
-        ],
+  it("loads the next server page automatically near the scroll boundary without duplicate requests", async () => {
+    let callback: IntersectionObserverCallback | undefined;
+    let options: IntersectionObserverInit | undefined;
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(
+          suppliedCallback: IntersectionObserverCallback,
+          suppliedOptions?: IntersectionObserverInit,
+        ) {
+          callback = suppliedCallback;
+          options = suppliedOptions;
+        }
+        observe() {}
+        disconnect() {}
       },
-    ]);
+    );
+    const second = { ...album, id: "album-2", name: "Second page" };
+    vi.mocked(getAlbums).mockImplementation((_familySlug, _criteria, cursor) =>
+      Promise.resolve(
+        cursor === null
+          ? { items: [album], next_cursor: "next-page" }
+          : { items: [second], next_cursor: null },
+      ),
+    );
+
+    renderPage();
+    await screen.findByText(album.name);
+    expect(options?.rootMargin).toBe("400px 0px");
+    callback?.(
+      [{ isIntersecting: true } as IntersectionObserverEntry],
+      {} as IntersectionObserver,
+    );
+    callback?.(
+      [{ isIntersecting: true } as IntersectionObserverEntry],
+      {} as IntersectionObserver,
+    );
+
+    expect(await screen.findByText("Second page")).toBeInTheDocument();
+    expect(getAlbums).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(getAlbums).mock.calls[1]?.[2]).toBe("next-page");
+  });
+
+  it("offers a keyboard-accessible fallback when automatic observation is unavailable", async () => {
+    vi.stubGlobal("IntersectionObserver", undefined);
+    const second = { ...album, id: "album-2", name: "Fallback page" };
+    vi.mocked(getAlbums).mockImplementation((_familySlug, _criteria, cursor) =>
+      Promise.resolve(
+        cursor === null
+          ? { items: [album], next_cursor: "next-page" }
+          : { items: [second], next_cursor: null },
+      ),
+    );
+    const user = userEvent.setup();
+
+    renderPage();
+    await user.click(
+      await screen.findByRole("button", { name: "Load more albums" }),
+    );
+
+    expect(await screen.findByText("Fallback page")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Load more albums" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps loaded albums mounted and announces next-page loading", async () => {
+    let callback: IntersectionObserverCallback | undefined;
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(suppliedCallback: IntersectionObserverCallback) {
+          callback = suppliedCallback;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    let resolveNextPage:
+      ((page: { items: Album[]; next_cursor: null }) => void) | undefined;
+    vi.mocked(getAlbums).mockImplementation((_familySlug, _criteria, cursor) =>
+      cursor === null
+        ? Promise.resolve({ items: [album], next_cursor: "next-page" })
+        : new Promise((resolve) => {
+            resolveNextPage = resolve;
+          }),
+    );
+
+    renderPage();
+    await screen.findByText(album.name);
+    callback?.(
+      [{ isIntersecting: true } as IntersectionObserverEntry],
+      {} as IntersectionObserver,
+    );
+
+    expect(await screen.findByText("Loading more albums…")).toHaveAttribute(
+      "role",
+      "status",
+    );
+    expect(screen.getByText(album.name)).toBeInTheDocument();
+    resolveNextPage?.({
+      items: [{ ...album, id: "album-2", name: "Second page" }],
+      next_cursor: null,
+    });
+    expect(await screen.findByText("Second page")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.queryByText("Loading more albums…"),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("renders New only from the server-provided flag", async () => {
+    vi.mocked(getAlbums).mockResolvedValue({
+      items: [{ ...album, is_new: true }],
+      next_cursor: null,
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("New")).toBeInTheDocument();
+  });
+
+  it("shows authorised thumbnails in the general Album listing", async () => {
+    vi.mocked(getAlbums).mockResolvedValue({
+      items: [
+        {
+          ...album,
+          photos: [
+            {
+              id: "photo-1",
+              media_upload_id: "upload-1",
+              caption: "Family wedding",
+              client_filename: "wedding.jpg",
+              visibility: "family_space",
+              position: 1,
+            },
+          ],
+        },
+      ],
+      next_cursor: null,
+    });
     vi.mocked(getMediaVariantDelivery).mockResolvedValue({
       asset: "variant",
       transform_name: "thumbnail",
@@ -164,9 +292,12 @@ describe("AlbumsPage", () => {
       status: "active",
       role: "guest",
     });
-    vi.mocked(getAlbums).mockResolvedValue([
-      { ...album, permissions: { can_manage: false, can_contribute: false } },
-    ]);
+    vi.mocked(getAlbums).mockResolvedValue({
+      items: [
+        { ...album, permissions: { can_manage: false, can_contribute: false } },
+      ],
+      next_cursor: null,
+    });
 
     renderPage();
 

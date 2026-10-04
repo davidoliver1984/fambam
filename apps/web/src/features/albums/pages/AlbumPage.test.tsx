@@ -54,7 +54,7 @@ vi.mock("@/features/search/hooks/useArchiveSearchQuery", () => ({
 }));
 
 beforeEach(() => {
-  vi.mocked(getAlbums).mockResolvedValue([]);
+  vi.mocked(getAlbums).mockResolvedValue({ items: [], next_cursor: null });
   vi.mocked(getMediaVariantDelivery).mockImplementation(
     (_familySlug, mediaUploadId) =>
       Promise.resolve({
@@ -74,12 +74,16 @@ afterEach(() => {
 });
 
 function albumFixture(
-  input: Omit<Album, "creator" | "created_at" | "updated_at" | "photo_count">,
+  input: Omit<
+    Album,
+    "creator" | "created_at" | "updated_at" | "is_new" | "photo_count"
+  >,
 ): Album {
   return {
     creator: null,
     created_at: "2026-09-25T10:00:00+00:00",
     updated_at: "2026-09-25T10:00:00+00:00",
+    is_new: false,
     photo_count: input.photos.length,
     ...input,
   };

@@ -3,6 +3,8 @@ import { type ApiEnvelope, unwrap } from "@/api/envelope";
 
 import type {
   Album,
+  AlbumListCriteria,
+  AlbumListPage,
   CreateAlbumInput,
   SetAlbumCoverInput,
   UpdateAlbumInput,
@@ -34,9 +36,18 @@ export async function requestAlbumExport(
   );
 }
 
-export async function getAlbums(familySlug: string, signal?: AbortSignal) {
+export async function getAlbums(
+  familySlug: string,
+  criteria: AlbumListCriteria = {},
+  cursor: string | null = null,
+  signal?: AbortSignal,
+): Promise<AlbumListPage> {
   return unwrap(
-    await apiClient.get<ApiEnvelope<Album[]>>(albumsPath(familySlug), {
+    await apiClient.get<ApiEnvelope<AlbumListPage>>(albumsPath(familySlug), {
+      params: {
+        ...criteria,
+        ...(cursor === null ? {} : { cursor }),
+      },
       signal,
     }),
   );

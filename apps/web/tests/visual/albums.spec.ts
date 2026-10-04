@@ -64,6 +64,7 @@ const album = {
   creator: { id: 1, name: "David" },
   created_at: "2026-09-20T10:00:00Z",
   updated_at: "2026-09-25T10:00:00Z",
+  is_new: true,
   photo_count: photos.length,
   event_id: null,
   event: null,
@@ -115,7 +116,7 @@ async function mockAlbum(page: Page) {
     } else if (path.endsWith("/albums/album-1")) {
       data = album;
     } else if (path.endsWith("/albums")) {
-      data = [album];
+      data = { items: [album], next_cursor: null };
     } else if (path.endsWith("/people")) {
       data = [];
     } else if (path.endsWith("/collections")) {

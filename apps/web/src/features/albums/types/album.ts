@@ -46,6 +46,7 @@ export type Album = {
   creator: { id: number; name: string } | null;
   created_at: string;
   updated_at: string;
+  is_new: boolean;
   photo_count: number;
   event_id?: string | null;
   event?: { id: string; name: string; starts_on: string | null } | null;
@@ -62,6 +63,25 @@ export type Album = {
     can_contribute: boolean;
     can_delete?: boolean;
   };
+};
+
+export type AlbumSort = "newest" | "oldest" | "updated";
+
+export type AlbumListCriteria = {
+  sort?: AlbumSort;
+  q?: string;
+  location?: string;
+  date_from?: string;
+  date_to?: string;
+  tag_id?: string;
+  person_ids?: string[];
+  event_id?: string;
+  limit?: number;
+};
+
+export type AlbumListPage = {
+  items: Album[];
+  next_cursor: string | null;
 };
 
 export type CreateAlbumInput = {

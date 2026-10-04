@@ -182,6 +182,7 @@ const album: Album = {
   creator: { id: 1, name: "David" },
   created_at: "2026-08-24T10:00:00Z",
   updated_at: "2026-08-24T10:00:00Z",
+  is_new: false,
   photo_count: 1,
   guest_participation: "none",
   photos: [
@@ -234,7 +235,7 @@ beforeEach(() => {
       is_current: true,
     },
   ]);
-  vi.mocked(getAlbums).mockResolvedValue([album]);
+  vi.mocked(getAlbums).mockResolvedValue({ items: [album], next_cursor: null });
   vi.mocked(getAlbum).mockResolvedValue(album);
   vi.mocked(getPhotoVersions).mockResolvedValue({
     active_photo_version_id: null,
@@ -369,7 +370,10 @@ describe("PhotoPage", () => {
       ],
     };
     vi.mocked(getPhotoAlbumHistory).mockResolvedValue([]);
-    vi.mocked(getAlbums).mockResolvedValue([cycleAlbum]);
+    vi.mocked(getAlbums).mockResolvedValue({
+      items: [cycleAlbum],
+      next_cursor: null,
+    });
     vi.mocked(getAlbum).mockResolvedValue(cycleAlbum);
 
     const { router } = renderPage(`/families/oliver-family/photos/${photo.id}`);

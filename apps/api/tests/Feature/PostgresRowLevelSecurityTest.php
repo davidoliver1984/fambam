@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Albums\AlbumListCriteria;
 use App\Backups\DeletionLedger;
 use App\Enums\FamilySpaceRole;
 use App\Enums\MembershipState;
@@ -18,10 +19,13 @@ use App\Media\MediaDeliveryUrlSigner;
 use App\Media\MediaSigningAudience;
 use App\Media\UploadAuthorization;
 use App\Models\Album;
+use App\Models\FamilySpace;
+use App\Models\FamilySpaceMembership;
 use App\Models\Invitation;
 use App\Models\MediaUpload;
 use App\Models\Photo;
 use App\Models\User;
+use App\Queries\AlbumQuery;
 use App\Services\AlbumManager;
 use App\Services\ExactDuplicateDetector;
 use App\Services\FaceAnalysisPipeline;
@@ -30,6 +34,7 @@ use App\Services\FamilySpaceManager;
 use App\Services\InvitationManager;
 use App\Services\MembershipInvitationAcceptor;
 use App\Tenancy\DatabaseTenantContext;
+use App\Tenancy\TenantContext;
 use App\Tenancy\TenantOperationContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\ConnectionInterface;
@@ -152,6 +157,53 @@ SQL);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
+        }
+    }
+
+    public function test_album_cursor_pages_remain_inside_the_active_rls_family_context(): void
+    {
+        [$ownerId, $familySpaceId] = $this->createOwnedFamily('album-page-family');
+        [, $otherFamilySpaceId] = $this->createOwnedFamily('other-album-page-family');
+        $now = CarbonImmutable::parse('2026-10-04T12:00:00Z');
+        $firstId = (string) Str::ulid();
+        $secondId = (string) Str::ulid();
+        $foreignId = (string) Str::ulid();
+        $this->admin->table('albums')->insert([
+            ['id' => $firstId, 'family_space_id' => $familySpaceId, 'created_by' => $ownerId,
+                'name' => 'First local Album', 'visibility' => 'family_space', 'starts_on' => '2025-01-01',
+                'created_at' => $now, 'updated_at' => $now],
+            ['id' => $secondId, 'family_space_id' => $familySpaceId, 'created_by' => $ownerId,
+                'name' => 'Second local Album', 'visibility' => 'family_space', 'starts_on' => '2024-01-01',
+                'created_at' => $now, 'updated_at' => $now],
+            ['id' => $foreignId, 'family_space_id' => $otherFamilySpaceId, 'created_by' => null,
+                'name' => 'Foreign Album', 'visibility' => 'family_space', 'starts_on' => '2026-01-01',
+                'created_at' => $now, 'updated_at' => $now],
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $context = app(DatabaseTenantContext::class);
+            $context->establishUser($ownerId);
+            $context->establishFamilySpace($familySpaceId, canManageMemberships: true);
+            $viewer = User::query()->findOrFail($ownerId);
+            app(TenantContext::class)->establish(
+                FamilySpace::query()->findOrFail($familySpaceId),
+                FamilySpaceMembership::query()
+                    ->where('family_space_id', $familySpaceId)
+                    ->where('user_id', $ownerId)
+                    ->firstOrFail(),
+                $viewer,
+            );
+            $albums = app(AlbumQuery::class);
+            $first = $albums->pageVisibleTo($viewer, new AlbumListCriteria('newest', 1, null, scope: $familySpaceId));
+            $second = $albums->pageVisibleTo($viewer, new AlbumListCriteria('newest', 1, $first->nextCursor, scope: $familySpaceId));
+
+            $this->assertSame([$firstId], $first->items->pluck('id')->all());
+            $this->assertSame([$secondId], $second->items->pluck('id')->all());
+            $this->assertNull($second->nextCursor);
+            $this->assertNotContains($foreignId, [...$first->items->pluck('id'), ...$second->items->pluck('id')]);
+        } finally {
+            DB::rollBack();
         }
     }
 

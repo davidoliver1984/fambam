@@ -3,7 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { server } from "@/test/msw/server";
 
-import { deleteAlbum, updateAlbum, uploadPhotoToAlbum } from "./albumApi";
+import {
+  deleteAlbum,
+  getAlbums,
+  updateAlbum,
+  uploadPhotoToAlbum,
+} from "./albumApi";
 import type { Album } from "../types/album";
 
 const apiBaseUrl = "http://localhost:8082";
@@ -26,6 +31,7 @@ const album: Album = {
   creator: { id: 1, name: "David" },
   created_at: "2026-09-01T10:00:00+00:00",
   updated_at: "2026-09-02T10:00:00+00:00",
+  is_new: false,
   photo_count: 0,
   event_id: null,
   event: null,
@@ -36,6 +42,30 @@ const album: Album = {
 };
 
 describe("albumApi", () => {
+  it("requests a bounded Album page with the active criteria and cursor", async () => {
+    const path = `${apiBaseUrl}/api/families/family/albums`;
+    server.use(
+      http.get(path, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get("sort")).toBe("updated");
+        expect(url.searchParams.get("q")).toBe("summer");
+        expect(url.searchParams.get("limit")).toBe("12");
+        expect(url.searchParams.get("cursor")).toBe("opaque-cursor");
+        return HttpResponse.json({
+          data: { items: [album], next_cursor: null },
+        });
+      }),
+    );
+
+    await expect(
+      getAlbums(
+        "family",
+        { sort: "updated", q: "summer", limit: 12 },
+        "opaque-cursor",
+      ),
+    ).resolves.toEqual({ items: [album], next_cursor: null });
+  });
+
   it("patches Album metadata and unwraps the updated contract", async () => {
     const path = `${apiBaseUrl}/api/families/family/albums/${album.id}`;
     server.use(

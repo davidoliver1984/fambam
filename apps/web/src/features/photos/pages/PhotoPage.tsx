@@ -275,6 +275,11 @@ export function PhotoPage() {
                   : undefined
               }
               availableAlbums={albums.data ?? []}
+              hasMoreAlbums={albums.hasNextPage}
+              loadingMoreAlbums={albums.isFetchingNextPage}
+              onLoadMoreAlbums={() => {
+                void albums.fetchNextPage();
+              }}
               onCreateAlbum={() => {
                 setCreateAlbumOpen(true);
               }}

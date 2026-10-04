@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 
 import { useFamilySpaceQuery } from "@/features/family-spaces/hooks/useFamilySpaceQuery";
@@ -27,9 +27,50 @@ export function AlbumsPage() {
   const uploadPhoto = useAlbumUploadMutation(familySlug);
   const [photoIds, setPhotoIds] = useState<Record<string, string>>({});
   const [files, setFiles] = useState<Record<string, File | undefined>>({});
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const nextPageRequestRef = useRef(false);
+  const observerAvailable = typeof IntersectionObserver !== "undefined";
+  const {
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+  } = albums;
+
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (
+      target === null ||
+      !observerAvailable ||
+      !hasNextPage ||
+      isFetchingNextPage
+    ) {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries.some((entry) => entry.isIntersecting) &&
+          !nextPageRequestRef.current
+        ) {
+          nextPageRequestRef.current = true;
+          void fetchNextPage().finally(() => {
+            nextPageRequestRef.current = false;
+          });
+        }
+      },
+      { rootMargin: "400px 0px" },
+    );
+    observer.observe(target);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, observerAvailable]);
 
   if (albums.isPending) return <p role="status">Loading albums…</p>;
-  if (albums.isError) return <p role="alert">Albums could not be loaded.</p>;
+  if (albums.isError && albums.data === undefined)
+    return <p role="alert">Albums could not be loaded.</p>;
 
   return (
     <main className="journey-page" aria-labelledby="albums-title">
@@ -58,6 +99,7 @@ export function AlbumsPage() {
               >
                 {album.name}
               </Link>
+              {album.is_new && <span>New</span>}
             </h2>
             {((album.cover !== null && album.cover !== undefined) ||
               album.photos.length > 0) && (
@@ -184,6 +226,26 @@ export function AlbumsPage() {
           </section>
         ))}
       </div>
+      <div ref={loadMoreRef} aria-hidden="true" />
+      {isFetchingNextPage && (
+        <p role="status" aria-live="polite">
+          Loading more albums…
+        </p>
+      )}
+      {hasNextPage && (!observerAvailable || isFetchNextPageError) && (
+        <button
+          type="button"
+          onClick={() => {
+            void fetchNextPage();
+          }}
+          disabled={isFetchingNextPage}
+        >
+          Load more albums
+        </button>
+      )}
+      {isFetchNextPageError && (
+        <p role="alert">More albums could not be loaded.</p>
+      )}
       <Link to={`/families/${encodeURIComponent(familySlug)}`}>
         Back to Family Space
       </Link>

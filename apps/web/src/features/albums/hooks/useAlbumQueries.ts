@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import {
   addPhotoToAlbum,
@@ -19,14 +24,23 @@ import { photoKeys } from "@/features/photos/api/photoKeys";
 import { searchKeys } from "@/features/search/api/searchKeys";
 import type {
   CreateAlbumInput,
+  AlbumListCriteria,
   SetAlbumCoverInput,
   UpdateAlbumInput,
 } from "../types/album";
 
-export function useAlbumsQuery(familySlug: string, enabled = true) {
-  return useQuery({
-    queryKey: albumKeys.list(familySlug),
-    queryFn: ({ signal }) => getAlbums(familySlug, signal),
+export function useAlbumsQuery(
+  familySlug: string,
+  criteria: AlbumListCriteria = {},
+  enabled = true,
+) {
+  return useInfiniteQuery({
+    queryKey: albumKeys.page(familySlug, criteria),
+    queryFn: ({ pageParam, signal }) =>
+      getAlbums(familySlug, criteria, pageParam, signal),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
+    select: (data) => data.pages.flatMap((page) => page.items),
     enabled: enabled && familySlug !== "",
     retry: false,
   });

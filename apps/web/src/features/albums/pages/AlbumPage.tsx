@@ -995,6 +995,11 @@ export function AlbumPage() {
             album={album}
             photos={photos}
             availableAlbums={albums.data ?? [album]}
+            hasMoreAlbums={albums.hasNextPage}
+            loadingMoreAlbums={albums.isFetchingNextPage}
+            onLoadMoreAlbums={() => {
+              void albums.fetchNextPage();
+            }}
             view={view}
             onCreateAlbum={() =>
               void navigate(

@@ -100,7 +100,7 @@ vi.mocked(getEventRsvps).mockResolvedValue({
   not_attending: [],
 });
 vi.mocked(getFamilyMemberships).mockResolvedValue([]);
-vi.mocked(getAlbums).mockResolvedValue([]);
+vi.mocked(getAlbums).mockResolvedValue({ items: [], next_cursor: null });
 vi.mocked(getSearchSuggestions).mockResolvedValue([]);
 vi.mocked(updateEvent).mockImplementation((_familySlug, _eventId, input) =>
   Promise.resolve({
@@ -181,25 +181,29 @@ describe("EventPage", () => {
       albums: [],
       attendees: [],
     });
-    vi.mocked(getAlbums).mockResolvedValue([
-      {
-        id: "album-1",
-        name: "Wedding photographs",
-        description: null,
-        visibility: "family_space",
-        created_by: 1,
-        creator: { id: 1, name: "Album creator" },
-        created_at: "2026-09-01T10:00:00+00:00",
-        updated_at: "2026-09-02T10:00:00+00:00",
-        photo_count: 0,
-        event_id: "event-1",
-        event: { id: "event-1", name: "Family wedding", starts_on: null },
-        guest_participation: "view",
-        photos: [],
-        grants: [],
-        permissions: { can_manage: false, can_contribute: false },
-      },
-    ]);
+    vi.mocked(getAlbums).mockResolvedValue({
+      items: [
+        {
+          id: "album-1",
+          name: "Wedding photographs",
+          description: null,
+          visibility: "family_space",
+          created_by: 1,
+          creator: { id: 1, name: "Album creator" },
+          created_at: "2026-09-01T10:00:00+00:00",
+          updated_at: "2026-09-02T10:00:00+00:00",
+          is_new: false,
+          photo_count: 0,
+          event_id: "event-1",
+          event: { id: "event-1", name: "Family wedding", starts_on: null },
+          guest_participation: "view",
+          photos: [],
+          grants: [],
+          permissions: { can_manage: false, can_contribute: false },
+        },
+      ],
+      next_cursor: null,
+    });
 
     renderEventPage();
 
