@@ -7,6 +7,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 
 import { getAlbum, getAlbums } from "@/features/albums/api/albumApi";
 import type { Album } from "@/features/albums/types/album";
+import { getCollection } from "@/features/collections/api/collectionApi";
 import { getMediaVariantDelivery } from "@/features/media-uploads/api/mediaUploadApi";
 import type { Person } from "@/features/people/types/person";
 import { getPhotoVersions } from "../api/photoEditorApi";
@@ -20,6 +21,9 @@ vi.mock("@/features/albums/api/albumApi", () => ({
   getAlbum: vi.fn(),
   getAlbums: vi.fn(),
   removePhotoFromAlbum: vi.fn(),
+}));
+vi.mock("@/features/collections/api/collectionApi", () => ({
+  getCollection: vi.fn(),
 }));
 vi.mock("@/features/family-spaces/hooks/useFamilySpaceQuery", () => ({
   useFamilySpaceQuery: () => ({ data: { role: "owner" } }),
@@ -237,6 +241,7 @@ beforeEach(() => {
   ]);
   vi.mocked(getAlbums).mockResolvedValue({ items: [album], next_cursor: null });
   vi.mocked(getAlbum).mockResolvedValue(album);
+  vi.mocked(getCollection).mockRejectedValue(new Error("Not requested"));
   vi.mocked(getPhotoVersions).mockResolvedValue({
     active_photo_version_id: null,
     can_edit: true,
@@ -422,6 +427,118 @@ describe("PhotoPage", () => {
       "/families/oliver-family/photos/photo-next",
     );
     comment.remove();
+  });
+
+  it("uses persisted Collection context without forking canonical Photo Detail", async () => {
+    vi.mocked(getCollection).mockResolvedValue({
+      id: "collection-birthday",
+      name: "William’s 50th birthday",
+      description: null,
+      created_at: "2026-09-26T09:00:00Z",
+      updated_at: "2026-09-26T09:00:00Z",
+      photo_count: 3,
+      preview_photo: {
+        photo_id: "photo-first",
+        media_upload_id: "upload-first",
+      },
+      photos: [
+        {
+          id: "photo-first",
+          caption: "First",
+          media_upload_id: "upload-first",
+          historical_date: null,
+          location_description: null,
+          people: [],
+          position: 0,
+        },
+        {
+          id: photo.id,
+          caption: photo.caption,
+          media_upload_id: photo.media_upload.id,
+          historical_date: photo.historical_date,
+          location_description: photo.location_description,
+          people: [],
+          position: 1,
+        },
+        {
+          id: "photo-last",
+          caption: "Last",
+          media_upload_id: "upload-last",
+          historical_date: null,
+          location_description: null,
+          people: [],
+          position: 2,
+        },
+      ],
+    });
+
+    renderPage(
+      `/families/oliver-family/photos/${photo.id}?collectionId=collection-birthday`,
+    );
+
+    expect(
+      await screen.findByText(
+        "You are viewing “William’s 50th birthday” collection",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("2 of 3")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", {
+        name: "Back to “William’s 50th birthday”",
+      }),
+    ).toHaveAttribute(
+      "href",
+      "/families/oliver-family/collections/collection-birthday",
+    );
+    expect(
+      screen.getByRole("link", {
+        name: "Previous Photo in William’s 50th birthday",
+      }),
+    ).toHaveAttribute(
+      "href",
+      "/families/oliver-family/photos/photo-first?collectionId=collection-birthday",
+    );
+    expect(
+      screen.getByRole("link", {
+        name: "Next Photo in William’s 50th birthday",
+      }),
+    ).toHaveAttribute(
+      "href",
+      "/families/oliver-family/photos/photo-last?collectionId=collection-birthday",
+    );
+    expect(screen.getByText("Conversation")).toHaveAttribute(
+      "data-album-id",
+      album.id,
+    );
+    expect(screen.getByRole("button", { name: "Love · 2" })).toHaveAttribute(
+      "data-album-id",
+      album.id,
+    );
+  });
+
+  it("does not show Collection context on normal Photo entry", async () => {
+    renderPage();
+
+    await screen.findByRole("heading", { name: "Family picnic" });
+    expect(screen.queryByText(/You are viewing .* collection/)).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: /Back to/ }),
+    ).not.toBeInTheDocument();
+    expect(getCollection).not.toHaveBeenCalled();
+  });
+
+  it("falls back to canonical Photo behavior for an unavailable or stale Collection context", async () => {
+    vi.mocked(getCollection).mockRejectedValue(new Error("Unavailable"));
+    renderPage(
+      `/families/oliver-family/photos/${photo.id}?collectionId=deleted-collection`,
+    );
+
+    await screen.findByRole("heading", { name: "Family picnic" });
+    expect(screen.queryByText(/You are viewing .* collection/)).toBeNull();
+    expect(screen.getByRole("link", { name: album.name })).toHaveAttribute(
+      "href",
+      `/families/oliver-family/albums/${album.id}`,
+    );
   });
 
   it("opens production edit details in the approved dialog action", async () => {

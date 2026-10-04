@@ -7,6 +7,7 @@ type ConfirmDialogProps = {
   title: string;
   children: ReactNode;
   confirmLabel: string;
+  className?: string;
   destructive?: boolean;
   pending?: boolean;
   onCancel: () => void;
@@ -18,6 +19,7 @@ export function ConfirmDialog({
   title,
   children,
   confirmLabel,
+  className,
   destructive = false,
   pending = false,
   onCancel,
@@ -64,7 +66,7 @@ export function ConfirmDialog({
     <div className="ui-dialog-backdrop">
       <section
         ref={dialog}
-        className="ui-dialog"
+        className={`ui-dialog${className ? ` ${className}` : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

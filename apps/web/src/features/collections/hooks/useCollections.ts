@@ -28,10 +28,15 @@ export function useCollectionsQuery(familySlug: string, enabled = true) {
     retry: false,
   });
 }
-export function useCollectionQuery(familySlug: string, collectionId: string) {
+export function useCollectionQuery(
+  familySlug: string,
+  collectionId: string,
+  enabled = true,
+) {
   return useQuery({
     queryKey: collectionKeys.detail(familySlug, collectionId),
     queryFn: ({ signal }) => getCollection(familySlug, collectionId, signal),
+    enabled: enabled && familySlug !== "" && collectionId !== "",
     retry: false,
   });
 }
@@ -83,10 +88,14 @@ export function useReorderCollectionPhotosMutation(
   return useMutation({
     mutationFn: (photoIds: string[]) =>
       reorderCollectionPhotos(familySlug, collectionId, photoIds),
-    onSuccess: () =>
-      client.invalidateQueries({
-        queryKey: collectionKeys.detail(familySlug, collectionId),
-      }),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({
+          queryKey: collectionKeys.detail(familySlug, collectionId),
+        }),
+        client.invalidateQueries({ queryKey: collectionKeys.list(familySlug) }),
+      ]);
+    },
   });
 }
 export function useAddCollectionPhotosMutation(
@@ -97,10 +106,14 @@ export function useAddCollectionPhotosMutation(
   return useMutation({
     mutationFn: (photoIds: string[]) =>
       addCollectionPhotos(familySlug, collectionId, photoIds),
-    onSuccess: () =>
-      client.invalidateQueries({
-        queryKey: collectionKeys.detail(familySlug, collectionId),
-      }),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({
+          queryKey: collectionKeys.detail(familySlug, collectionId),
+        }),
+        client.invalidateQueries({ queryKey: collectionKeys.list(familySlug) }),
+      ]);
+    },
   });
 }
 export function useCollectionMutations(
@@ -108,10 +121,14 @@ export function useCollectionMutations(
   collectionId: string,
 ) {
   const client = useQueryClient();
-  const refresh = () =>
-    client.invalidateQueries({
-      queryKey: collectionKeys.detail(familySlug, collectionId),
-    });
+  const refresh = async () => {
+    await Promise.all([
+      client.invalidateQueries({
+        queryKey: collectionKeys.detail(familySlug, collectionId),
+      }),
+      client.invalidateQueries({ queryKey: collectionKeys.list(familySlug) }),
+    ]);
+  };
   return {
     add: useMutation({
       mutationFn: (photoId: string) =>
@@ -125,6 +142,8 @@ export function useCollectionMutations(
     }),
     removeCollection: useMutation({
       mutationFn: () => deleteCollection(familySlug, collectionId),
+      onSuccess: () =>
+        client.invalidateQueries({ queryKey: collectionKeys.list(familySlug) }),
     }),
     requestExport: useMutation({
       mutationFn: () => requestCollectionExport(familySlug, collectionId),

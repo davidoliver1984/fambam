@@ -85,10 +85,12 @@ describe("Collection mutations", () => {
     expect(client.getQueryState(list)?.isInvalidated).toBe(true);
   });
 
-  it("invalidates detail after reorder and batch add", async () => {
+  it("invalidates list and detail after reorder and batch add", async () => {
     const { client, wrapper } = setup();
     const detail = collectionKeys.detail(familySlug, collectionId);
+    const list = collectionKeys.list(familySlug);
     client.setQueryData(detail, collection);
+    client.setQueryData(list, [collection]);
     const reorder = renderHook(
       () => useReorderCollectionPhotosMutation(familySlug, collectionId),
       { wrapper },
@@ -105,7 +107,9 @@ describe("Collection mutations", () => {
       ["second", "first"],
     );
     expect(client.getQueryState(detail)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(list)?.isInvalidated).toBe(true);
     client.setQueryData(detail, collection);
+    client.setQueryData(list, [collection]);
 
     await batch.result.current.mutateAsync(["first", "second"]);
     expect(addCollectionPhotos).toHaveBeenCalledWith(familySlug, collectionId, [
@@ -113,6 +117,7 @@ describe("Collection mutations", () => {
       "second",
     ]);
     expect(client.getQueryState(detail)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(list)?.isInvalidated).toBe(true);
   });
 
   it("returns the export and invalidates the canonical export query", async () => {

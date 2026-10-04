@@ -24,6 +24,7 @@ import { PersonAvatar } from "@/features/family-spaces/components/PersonAvatar";
 import { useFamilySpaceQuery } from "@/features/family-spaces/hooks/useFamilySpaceQuery";
 import { faceBoundsStyle } from "@/features/face-recognition/faceGeometry";
 import { Button, Dialog, EntityLink } from "@/components/ui";
+import { useCollectionQuery } from "@/features/collections/hooks/useCollections";
 
 import {
   PhotoConversationPanel,
@@ -54,6 +55,12 @@ export function PhotoPage() {
   const history = usePhotoAlbumHistoryQuery(familySlug, photoId);
   const albums = useAlbumsQuery(familySlug);
   const requestedAlbumId = search.get("albumId") ?? "";
+  const requestedCollectionId = search.get("collectionId") ?? "";
+  const collection = useCollectionQuery(
+    familySlug,
+    requestedCollectionId,
+    requestedCollectionId !== "",
+  );
   const historyAlbumId =
     history.data?.find((item) => item.is_current)?.album.id ?? "";
   const membershipAlbumId =
@@ -87,6 +94,8 @@ export function PhotoPage() {
     );
   if (photoQuery.isError)
     return <p role="alert">The Photo record could not be loaded.</p>;
+  if (requestedCollectionId !== "" && collection.isPending)
+    return <p role="status">Loading Photo…</p>;
 
   const photo = photoQuery.data;
   const faceCanvas = (photo.identified_faces ?? []).find(
@@ -109,21 +118,53 @@ export function PhotoPage() {
   const nextPhoto = canCycleAlbum
     ? albumPhotos[(albumPhotoIndex + 1) % albumPhotos.length]
     : undefined;
+  const collectionPhotos = collection.data?.photos ?? [];
+  const collectionPhotoIndex = collectionPhotos.findIndex(
+    (candidate) => candidate.id === photo.id,
+  );
+  const hasCollectionContext =
+    requestedCollectionId !== "" &&
+    collection.data !== undefined &&
+    collectionPhotoIndex >= 0;
+  const previousCollectionPhoto = hasCollectionContext
+    ? collectionPhotos[collectionPhotoIndex - 1]
+    : undefined;
+  const nextCollectionPhoto = hasCollectionContext
+    ? collectionPhotos[collectionPhotoIndex + 1]
+    : undefined;
   const albumPath = album.data
     ? `/families/${encodeURIComponent(familySlug)}/albums/${encodeURIComponent(album.data.id)}`
     : `/families/${encodeURIComponent(familySlug)}/photos`;
-  const position =
-    albumPhotoIndex >= 0 && album.data
+  const collectionPath = hasCollectionContext
+    ? `/families/${encodeURIComponent(familySlug)}/collections/${encodeURIComponent(collection.data.id)}`
+    : undefined;
+  const returnPath = collectionPath ?? albumPath;
+  const position = hasCollectionContext
+    ? `${String(collectionPhotoIndex + 1)} of ${String(collectionPhotos.length)}`
+    : albumPhotoIndex >= 0 && album.data
       ? `${String(albumPhotoIndex + 1)} of ${String(album.data.photos.length)}`
       : photo.visibility === "private"
         ? "Private Photo"
         : "Family Photo";
 
-  const photoPath = (id: string) =>
-    `/families/${encodeURIComponent(familySlug)}/photos/${encodeURIComponent(id)}?albumId=${encodeURIComponent(albumId)}`;
+  const photoPath = (id: string) => {
+    const query = hasCollectionContext
+      ? `collectionId=${encodeURIComponent(collection.data.id)}`
+      : `albumId=${encodeURIComponent(albumId)}`;
+    return `/families/${encodeURIComponent(familySlug)}/photos/${encodeURIComponent(id)}?${query}`;
+  };
+
+  const contextualPreviousPhoto = hasCollectionContext
+    ? previousCollectionPhoto
+    : previousPhoto;
+  const contextualNextPhoto = hasCollectionContext
+    ? nextCollectionPhoto
+    : nextPhoto;
 
   const sharePhoto = async () => {
-    const url = window.location.href;
+    const shareUrl = new URL(window.location.href);
+    if (hasCollectionContext) shareUrl.searchParams.delete("collectionId");
+    const url = shareUrl.toString();
     const shareNavigator = navigator as unknown as {
       share?: (data: ShareData) => Promise<void>;
     };
@@ -147,15 +188,34 @@ export function PhotoPage() {
     <main className="photo-detail-page" aria-labelledby="photo-title">
       <PhotoKeyboardNavigation
         previousPath={
-          previousPhoto === undefined ? undefined : photoPath(previousPhoto.id)
+          contextualPreviousPhoto === undefined
+            ? undefined
+            : photoPath(contextualPreviousPhoto.id)
         }
-        nextPath={nextPhoto === undefined ? undefined : photoPath(nextPhoto.id)}
+        nextPath={
+          contextualNextPhoto === undefined
+            ? undefined
+            : photoPath(contextualNextPhoto.id)
+        }
       />
       <section className="photo-detail-stage" aria-label="Photo viewer">
-        <Link className="photo-detail-back" to={albumPath}>
-          <ChevronLeftGlyph />
-          {album.data?.name ?? "Photographs"}
-        </Link>
+        <div
+          className={`photo-detail-navigation${hasCollectionContext ? " photo-detail-navigation--collection" : ""}`}
+        >
+          <Link className="photo-detail-back" to={returnPath}>
+            <ChevronLeftGlyph />
+            <span>
+              {hasCollectionContext
+                ? `Back to “${collection.data.name}”`
+                : (album.data?.name ?? "Photographs")}
+            </span>
+          </Link>
+          {hasCollectionContext && (
+            <p className="photo-detail-collection-context">
+              You are viewing “{collection.data.name}” collection
+            </p>
+          )}
+        </div>
         <figure className="photo-detail-image">
           <PhotoPresentationImage
             familySlug={familySlug}
@@ -215,20 +275,28 @@ export function PhotoPage() {
             })}
           </div>
         </figure>
-        {previousPhoto !== undefined && (
+        {contextualPreviousPhoto !== undefined && (
           <Link
             className="photo-detail-arrow photo-detail-arrow--left"
-            to={photoPath(previousPhoto.id)}
-            aria-label="Previous photo"
+            to={photoPath(contextualPreviousPhoto.id)}
+            aria-label={
+              hasCollectionContext
+                ? `Previous Photo in ${collection.data.name}`
+                : "Previous photo"
+            }
           >
             <ChevronLeftGlyph />
           </Link>
         )}
-        {nextPhoto !== undefined && (
+        {contextualNextPhoto !== undefined && (
           <Link
             className="photo-detail-arrow photo-detail-arrow--right"
-            to={photoPath(nextPhoto.id)}
-            aria-label="Next photo"
+            to={photoPath(contextualNextPhoto.id)}
+            aria-label={
+              hasCollectionContext
+                ? `Next Photo in ${collection.data.name}`
+                : "Next photo"
+            }
           >
             <ChevronRightGlyph />
           </Link>

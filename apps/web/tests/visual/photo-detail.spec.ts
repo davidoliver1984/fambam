@@ -87,7 +87,7 @@ const album = {
   permissions: { can_manage: true, can_contribute: true },
 };
 
-async function mockPhoto(page: Page) {
+async function mockPhoto(page: Page, options?: { unavailable?: boolean }) {
   let loved = true;
   const comments = [
     {
@@ -307,6 +307,22 @@ async function mockPhoto(page: Page) {
         updated_at: photo.updated_at,
         permissions: {},
       }));
+    } else if (path.endsWith("/collections/collection-1")) {
+      data = {
+        id: "collection-1",
+        name: "Collection context verification",
+        description: "The final photographs for the family book.",
+        created_at: "2026-09-26T09:00:00Z",
+        photos: [
+          albumPhotos[10],
+          {
+            ...albumPhotos[11],
+            id: photo.id,
+            media_upload_id: photo.media_upload.id,
+          },
+          albumPhotos[12],
+        ],
+      };
     } else if (
       path.endsWith("/collections") ||
       path.endsWith("/notifications")
@@ -319,7 +335,9 @@ async function mockPhoto(page: Page) {
         asset: path.endsWith("/original") ? "original" : "variant",
         transform_name: "display",
         processing_version: 1,
-        url: photograph,
+        url: options?.unavailable
+          ? "data:image/png;base64,not-an-image"
+          : photograph,
         method: "GET",
         expires_at: "2026-09-27T00:00:00Z",
       };
@@ -332,6 +350,50 @@ async function mockPhoto(page: Page) {
     });
   });
 }
+
+test("Collection-context Photo detail contains unavailable media", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop");
+  await mockPhoto(page, { unavailable: true });
+  await page.goto(
+    `/families/mercer-family-demo/photos/${photo.id}?collectionId=collection-1`,
+  );
+
+  await expect(
+    page.getByText("This photograph is currently unavailable."),
+  ).toBeVisible();
+  const stage = await page.locator(".photo-detail-stage").boundingBox();
+  const media = await page.locator(".photo-detail-image").boundingBox();
+  const context = await page.locator(".photo-detail-context").boundingBox();
+  const back = await page.locator(".photo-detail-back").boundingBox();
+  const collectionContext = await page
+    .locator(".photo-detail-collection-context")
+    .boundingBox();
+
+  expect(stage).not.toBeNull();
+  expect(media).not.toBeNull();
+  expect(context).not.toBeNull();
+  expect(back).not.toBeNull();
+  expect(collectionContext).not.toBeNull();
+  if (
+    stage === null ||
+    media === null ||
+    context === null ||
+    back === null ||
+    collectionContext === null
+  ) {
+    throw new Error("Photo detail geometry was not available");
+  }
+  expect(media.x + media.width).toBeLessThanOrEqual(
+    stage.x + stage.width + 0.5,
+  );
+  expect(context.x).toBeGreaterThanOrEqual(stage.x + stage.width - 0.5);
+  expect(back.x + back.width).toBeLessThanOrEqual(collectionContext.x - 8);
+  await expect(page).toHaveScreenshot(
+    "photo-detail-collection-unavailable.png",
+  );
+});
 
 for (const theme of ["light", "dark"] as const) {
   test(`Photo detail — ${theme}`, async ({ page }, testInfo) => {
