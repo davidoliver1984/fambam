@@ -16,6 +16,7 @@ type EntityLinkProps = {
   className?: string;
   style?: CSSProperties;
   "aria-label"?: string;
+  tabIndex?: number;
   onMouseEnter?: MouseEventHandler<HTMLAnchorElement>;
   onMouseLeave?: MouseEventHandler<HTMLAnchorElement>;
   onFocus?: FocusEventHandler<HTMLAnchorElement>;
@@ -29,6 +30,7 @@ export function EntityLink({
   className = "",
   style,
   "aria-label": ariaLabel,
+  tabIndex,
   onMouseEnter,
   onMouseLeave,
   onFocus,
@@ -39,6 +41,7 @@ export function EntityLink({
       className={`ui-entity-link ui-entity-link--${entity} ${className}`.trim()}
       data-entity-kind={entity}
       aria-label={ariaLabel}
+      tabIndex={tabIndex}
       style={style}
       to={to}
       onMouseEnter={onMouseEnter}

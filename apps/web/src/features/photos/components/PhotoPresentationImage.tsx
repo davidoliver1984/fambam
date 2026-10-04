@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 
 import { MediaVariantImage } from "@/features/media-uploads/components/MediaVariantImage";
 import type { MediaVariantTransform } from "@/features/media-uploads/types/mediaUpload";
@@ -15,6 +15,7 @@ type Props = {
   alt: string;
   className?: string;
   fallbackTransform?: MediaVariantTransform;
+  style?: CSSProperties;
 };
 
 export function PhotoPresentationImage({
@@ -24,6 +25,7 @@ export function PhotoPresentationImage({
   alt,
   className,
   fallbackTransform = "display",
+  style,
 }: Props) {
   const versions = usePhotoVersionsQuery(familySlug, photoId);
   const activeId = versions.data?.active_photo_version_id ?? null;
@@ -52,6 +54,7 @@ export function PhotoPresentationImage({
         transform={fallbackTransform}
         alt={alt}
         className={className}
+        style={style}
       />
     );
   }
@@ -73,6 +76,7 @@ export function PhotoPresentationImage({
   return (
     <img
       className={className}
+      style={style}
       src={delivery.data.url}
       alt={alt}
       onError={() => {

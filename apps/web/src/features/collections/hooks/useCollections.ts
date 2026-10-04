@@ -20,10 +20,11 @@ import type {
   CollectionUpdateInput,
 } from "../types/collection";
 
-export function useCollectionsQuery(familySlug: string) {
+export function useCollectionsQuery(familySlug: string, enabled = true) {
   return useQuery({
     queryKey: collectionKeys.list(familySlug),
     queryFn: ({ signal }) => getCollections(familySlug, signal),
+    enabled: enabled && familySlug !== "",
     retry: false,
   });
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 
 import { useMediaVariantQuery } from "../hooks/useMediaVariantQuery";
 import type { MediaVariantTransform } from "../types/mediaUpload";
@@ -9,6 +9,7 @@ type Props = {
   transform: MediaVariantTransform;
   alt: string;
   className?: string;
+  style?: CSSProperties;
 };
 
 export function MediaVariantImage({
@@ -17,6 +18,7 @@ export function MediaVariantImage({
   transform,
   alt,
   className,
+  style,
 }: Props) {
   const delivery = useMediaVariantQuery(familySlug, mediaUploadId, transform);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
@@ -40,6 +42,7 @@ export function MediaVariantImage({
   return (
     <img
       className={className}
+      style={style}
       src={delivery.data.url}
       alt={alt}
       onError={() => {

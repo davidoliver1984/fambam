@@ -12,6 +12,7 @@ type ArchiveCardProps = {
   actions?: ReactNode;
   children?: ReactNode;
   className?: string;
+  stretchLink?: boolean;
 };
 
 export function ArchiveCard({
@@ -24,11 +25,17 @@ export function ArchiveCard({
   actions,
   children,
   className = "",
+  stretchLink = false,
 }: ArchiveCardProps) {
   return (
     <article className={`ui-archive-card ${className}`.trim()}>
       {media && (
-        <EntityLink className="ui-archive-card__media" entity={entity} to={to}>
+        <EntityLink
+          className="ui-archive-card__media"
+          entity={entity}
+          to={to}
+          tabIndex={stretchLink ? -1 : undefined}
+        >
           {media}
         </EntityLink>
       )}
@@ -37,7 +44,11 @@ export function ArchiveCard({
           <div>
             {eyebrow && <p className="ui-eyebrow">{eyebrow}</p>}
             <h3>
-              <EntityLink entity={entity} to={to}>
+              <EntityLink
+                className={stretchLink ? "ui-archive-card__stretched-link" : ""}
+                entity={entity}
+                to={to}
+              >
                 {title}
               </EntityLink>
             </h3>
