@@ -40,6 +40,9 @@ const collection = {
   name: "Favourites",
   description: null,
   created_at: null,
+  updated_at: null,
+  photo_count: 0,
+  preview_photo: null,
   photos: [],
 };
 const familyExport = {

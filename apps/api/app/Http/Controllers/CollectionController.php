@@ -10,6 +10,7 @@ use App\Models\FamilySpace;
 use App\Models\Photo;
 use App\Models\User;
 use App\People\UncertainDate;
+use App\Queries\CollectionQuery;
 use App\Services\CollectionManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,14 +20,16 @@ use Illuminate\Validation\Rule;
 
 class CollectionController extends Controller
 {
-    public function __construct(private readonly CollectionManager $manager) {}
+    public function __construct(
+        private readonly CollectionQuery $collections,
+        private readonly CollectionManager $manager,
+    ) {}
 
     public function index(FamilySpace $familySpace, Request $request): JsonResponse
     {
         Gate::authorize('viewAny', Collection::class);
 
-        return response()->json(['data' => Collection::query()->where('family_space_id', $familySpace->id)
-            ->where('owner_user_id', $request->user()->id)->orderBy('name')->orderBy('id')->get()
+        return response()->json(['data' => $this->collections->listOwnedBy($request->user())
             ->map(fn (Collection $collection): array => $this->payload($collection))]);
     }
 
@@ -69,7 +72,7 @@ class CollectionController extends Controller
         $photoId = $request->validate(['photo_id' => ['required', 'ulid']])['photo_id'];
         $this->manager->add($target, $request->user(), $photoId);
 
-        return response()->json(['data' => $this->payload($target, true)], 201);
+        return response()->json(['data' => $this->payload($target->refresh(), true)], 201);
     }
 
     public function addPhotos(FamilySpace $familySpace, string $collection, Request $request): JsonResponse
@@ -81,7 +84,7 @@ class CollectionController extends Controller
         ])['photo_ids'];
         $added = $this->manager->addAuthorized($target, $request->user(), $photoIds);
 
-        return response()->json(['data' => $this->payload($target, true), 'added' => $added], 201);
+        return response()->json(['data' => $this->payload($target->refresh(), true), 'added' => $added], 201);
     }
 
     public function removePhoto(FamilySpace $familySpace, string $collection, string $photo, Request $request): JsonResponse
@@ -98,7 +101,7 @@ class CollectionController extends Controller
             'photo_ids.*' => ['ulid', 'distinct']])['photo_ids'];
         $this->manager->reorder($target, $request->user(), $ids);
 
-        return response()->json(['data' => $this->payload($target, true)]);
+        return response()->json(['data' => $this->payload($target->refresh(), true)]);
     }
 
     public function populate(FamilySpace $familySpace, string $collection, Request $request): JsonResponse
@@ -122,7 +125,7 @@ class CollectionController extends Controller
 
         $added = $this->manager->addVisible($target, $request->user(), $ids);
 
-        return response()->json(['data' => $this->payload($target, true), 'added' => $added]);
+        return response()->json(['data' => $this->payload($target->refresh(), true), 'added' => $added]);
     }
 
     private function owned(FamilySpace $familySpace, string $id, Request $request): Collection
@@ -141,8 +144,16 @@ class CollectionController extends Controller
     {
         $data = ['id' => $collection->id, 'name' => $collection->name,
             'description' => $collection->description,
-            'created_at' => $collection->created_at?->toIso8601String()];
+            'created_at' => $collection->created_at?->toIso8601String(),
+            'updated_at' => $collection->updated_at?->toIso8601String()];
         if (! $detailed) {
+            $data['photo_count'] = (int) $collection->getAttribute('photo_count');
+            $previewPhotoId = $collection->getAttribute('preview_photo_id');
+            $previewMediaUploadId = $collection->getAttribute('preview_media_upload_id');
+            $data['preview_photo'] = is_string($previewPhotoId) && is_string($previewMediaUploadId)
+                ? ['photo_id' => $previewPhotoId, 'media_upload_id' => $previewMediaUploadId]
+                : null;
+
             return $data;
         }
         $data['photos'] = CollectionPhoto::query()->where('collection_id', $collection->id)
@@ -161,6 +172,12 @@ class CollectionController extends Controller
                     'preferred_name' => $association->person->preferred_name,
                 ])->values(),
                 'position' => $row->position])->values();
+        $data['photo_count'] = $data['photos']->count();
+        $preview = $data['photos']->first();
+        $data['preview_photo'] = $preview === null ? null : [
+            'photo_id' => $preview['id'],
+            'media_upload_id' => $preview['media_upload_id'],
+        ];
 
         return $data;
     }

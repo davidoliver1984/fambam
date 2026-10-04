@@ -5,6 +5,12 @@ export type FamilyCollection = {
   name: string;
   description: string | null;
   created_at: string | null;
+  updated_at: string | null;
+  photo_count: number;
+  preview_photo: {
+    photo_id: string;
+    media_upload_id: string;
+  } | null;
   photos?: Array<{
     id: string;
     caption: string | null;

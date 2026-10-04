@@ -1,5 +1,6 @@
 import { apiClient, ensureCsrfCookie } from "@/api/client";
 import { type ApiEnvelope, unwrap } from "@/api/envelope";
+import { z } from "zod";
 
 import type { FamilyExport } from "@/features/exports/types/familyExport";
 
@@ -8,6 +9,26 @@ import type {
   CollectionUpdateInput,
   FamilyCollection,
 } from "../types/collection";
+
+const collectionIndexSchema = z.looseObject({
+  id: z.string().min(1),
+  name: z.string(),
+  description: z.string().nullable(),
+  created_at: z.string().nullable(),
+  updated_at: z.string().nullable(),
+  photo_count: z.number().int().nonnegative(),
+  preview_photo: z
+    .object({
+      photo_id: z.string().min(1),
+      media_upload_id: z.string().min(1),
+    })
+    .strict()
+    .nullable(),
+});
+
+function parseCollectionIndex(value: unknown): FamilyCollection[] {
+  return z.array(collectionIndexSchema).parse(value);
+}
 
 function path(familySlug: string, collectionId?: string): string {
   const base = `/api/families/${encodeURIComponent(familySlug)}/collections`;
@@ -20,10 +41,12 @@ export async function getCollections(
   familySlug: string,
   signal?: AbortSignal,
 ): Promise<FamilyCollection[]> {
-  return unwrap(
-    await apiClient.get<ApiEnvelope<FamilyCollection[]>>(path(familySlug), {
-      signal,
-    }),
+  return parseCollectionIndex(
+    unwrap(
+      await apiClient.get<ApiEnvelope<unknown>>(path(familySlug), {
+        signal,
+      }),
+    ),
   );
 }
 export async function getCollection(

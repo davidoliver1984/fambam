@@ -5,6 +5,7 @@ import { server } from "@/test/msw/server";
 
 import {
   addCollectionPhotos,
+  getCollections,
   reorderCollectionPhotos,
   requestCollectionExport,
   updateCollection,
@@ -17,6 +18,9 @@ const collection = {
   name: "Family favourites",
   description: "Private notes",
   created_at: "2026-09-26T09:00:00Z",
+  updated_at: "2026-09-26T10:00:00Z",
+  photo_count: 0,
+  preview_photo: null,
   photos: [],
 };
 const familyExport = {
@@ -32,6 +36,42 @@ const familyExport = {
 };
 
 describe("collectionApi", () => {
+  it("parses the canonical Collection index presentation", async () => {
+    const indexed = {
+      ...collection,
+      photo_count: 3,
+      preview_photo: {
+        photo_id: "photo-1",
+        media_upload_id: "upload-1",
+      },
+    };
+    server.use(
+      http.get(`${apiBaseUrl}/api/families/oliver-family/collections`, () =>
+        HttpResponse.json({ data: [indexed] }),
+      ),
+    );
+
+    await expect(getCollections("oliver-family")).resolves.toEqual([indexed]);
+  });
+
+  it("rejects malformed Collection preview payloads at runtime", async () => {
+    server.use(
+      http.get(`${apiBaseUrl}/api/families/oliver-family/collections`, () =>
+        HttpResponse.json({
+          data: [
+            {
+              ...collection,
+              photo_count: 1,
+              preview_photo: { photo_id: "photo-1" },
+            },
+          ],
+        }),
+      ),
+    );
+
+    await expect(getCollections("oliver-family")).rejects.toThrow();
+  });
+
   it("uses the canonical update, reorder and atomic batch contracts", async () => {
     const requests: Array<{ method: string; path: string; body: unknown }> = [];
     const record = async ({ request }: { request: Request }) => {

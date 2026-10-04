@@ -212,6 +212,9 @@ beforeEach(() => {
       name: "Prints for Mum",
       description: null,
       created_at: null,
+      updated_at: null,
+      photo_count: 0,
+      preview_photo: null,
     },
   ]);
   vi.mocked(updateAlbum).mockResolvedValue(album);
@@ -224,12 +227,18 @@ beforeEach(() => {
     name: "New collection",
     description: null,
     created_at: null,
+    updated_at: null,
+    photo_count: 0,
+    preview_photo: null,
   });
   vi.mocked(populateCollection).mockResolvedValue({
     id: "collection-1",
     name: "Prints for Mum",
     description: null,
     created_at: null,
+    updated_at: null,
+    photo_count: 0,
+    preview_photo: null,
   });
 });
 

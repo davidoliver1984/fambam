@@ -121,7 +121,11 @@ final class CollectionManager
     {
         DB::transaction(function () use ($collection, $photoId): void {
             $locked = Collection::query()->whereKey($collection->id)->lockForUpdate()->firstOrFail();
-            CollectionPhoto::query()->where('collection_id', $locked->id)->where('photo_id', $photoId)->delete();
+            $removed = CollectionPhoto::query()->where('collection_id', $locked->id)
+                ->where('photo_id', $photoId)->delete();
+            if ($removed > 0) {
+                $locked->touch();
+            }
         });
     }
 
@@ -140,6 +144,9 @@ final class CollectionManager
                 || array_diff($expected, $photoIds) !== []) {
                 throw ValidationException::withMessages(['photo_ids' => ['Provide each currently visible Collection Photo exactly once.']]);
             }
+            if ($expected === $photoIds) {
+                return;
+            }
             $positions = $visible->pluck('position')->all();
             $byPhoto = $visible->keyBy('photo_id');
             $temporary = ((int) $rows->max('position')) + count($rows) + 1;
@@ -149,6 +156,7 @@ final class CollectionManager
             foreach ($photoIds as $index => $photoId) {
                 $byPhoto[$photoId]->update(['position' => $positions[$index]]);
             }
+            $locked->touch();
         });
     }
 
@@ -168,6 +176,7 @@ final class CollectionManager
                 'collection_id' => $collection->id, 'photo_id' => $photoId, 'position' => $position++,
                 'created_at' => now()];
         }, $photoIds));
+        $collection->touch();
 
         return count($photoIds);
     }

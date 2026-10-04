@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use App\Tenancy\DatabaseTenantContext;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -92,6 +94,86 @@ class CollectionPostgresTest extends TestCase
         $this->admin->table('collections')->where('id', $collectionId)->delete();
         $this->assertSame(0, $this->admin->table('collection_photos')->where('collection_id', $collectionId)->count());
         $this->assertSame(1, $this->admin->table('photos')->where('id', $photoId)->count());
+    }
+
+    public function test_collection_index_read_model_runs_under_the_runtime_role_without_owner_leakage(): void
+    {
+        Carbon::setTestNow('2026-10-04 09:00:00');
+        [$ownerId, $familyId, $firstPhotoId, $secondPhotoId] = $this->fixture('collection-pg-index');
+        $firstUploadId = $this->admin->table('photos')->where('id', $firstPhotoId)
+            ->value('media_upload_id');
+        $secondUploadId = $this->admin->table('photos')->where('id', $secondPhotoId)
+            ->value('media_upload_id');
+        $actor = new User;
+        $actor->forceFill(['id' => $ownerId, 'name' => 'Runtime owner']);
+        $actor->exists = true;
+        $base = '/api/families/collection-pg-index/collections';
+
+        $this->assertSame(config('database.runtime_role'), DB::selectOne('SELECT current_user')->current_user);
+        $collectionId = $this->actingAs($actor)->postJson($base, ['name' => 'Runtime selections'])
+            ->assertCreated()
+            ->assertJsonPath('data.photo_count', 0)
+            ->assertJsonPath('data.preview_photo', null)
+            ->json('data.id');
+        Carbon::setTestNow('2026-10-04 09:00:01');
+        $this->actingAs($actor)->postJson("{$base}/{$collectionId}/photos", [
+            'photo_id' => $firstPhotoId,
+        ])->assertCreated()
+            ->assertJsonPath('data.photo_count', 1)
+            ->assertJsonPath('data.preview_photo.media_upload_id', $firstUploadId);
+        Carbon::setTestNow('2026-10-04 09:00:02');
+        $this->actingAs($actor)->postJson("{$base}/{$collectionId}/photos/batch", [
+            'photo_ids' => [$secondPhotoId],
+        ])->assertCreated()->assertJsonPath('added', 1);
+        $beforeReorder = $this->actingAs($actor)->getJson($base)
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $collectionId)
+            ->assertJsonPath('data.0.photo_count', 2)
+            ->assertJsonPath('data.0.preview_photo.photo_id', $firstPhotoId)
+            ->assertJsonPath('data.0.preview_photo.media_upload_id', $firstUploadId)
+            ->json('data.0.updated_at');
+        Carbon::setTestNow('2026-10-04 09:00:03');
+        $this->actingAs($actor)->putJson("{$base}/{$collectionId}/order", [
+            'photo_ids' => [$secondPhotoId, $firstPhotoId],
+        ])->assertOk();
+        $afterReorder = $this->actingAs($actor)->getJson($base)
+            ->assertOk()
+            ->assertJsonPath('data.0.preview_photo.photo_id', $secondPhotoId)
+            ->assertJsonPath('data.0.preview_photo.media_upload_id', $secondUploadId)
+            ->json('data.0.updated_at');
+        $this->assertNotSame($beforeReorder, $afterReorder);
+        Carbon::setTestNow('2026-10-04 09:00:04');
+        $this->actingAs($actor)->deleteJson("{$base}/{$collectionId}/photos/{$secondPhotoId}")
+            ->assertNoContent();
+        $this->actingAs($actor)->getJson($base)
+            ->assertOk()
+            ->assertJsonPath('data.0.photo_count', 1)
+            ->assertJsonPath('data.0.preview_photo.photo_id', $firstPhotoId);
+
+        $otherUserId = (int) $this->admin->table('users')->insertGetId([
+            'name' => 'Other owner',
+            'email' => 'collection-pg-index-other@example.test',
+            'password' => 'not-used',
+            'timezone' => 'Europe/London',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $this->admin->table('family_space_memberships')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $familyId,
+            'user_id' => $otherUserId,
+            'role' => 'member',
+            'state' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $otherActor = new User;
+        $otherActor->forceFill(['id' => $otherUserId, 'name' => 'Other owner']);
+        $otherActor->exists = true;
+        $this->actingAs($otherActor)->getJson($base)
+            ->assertOk()->assertJsonCount(0, 'data');
+        Carbon::setTestNow();
     }
 
     /** @return array{int, string, string, string} */

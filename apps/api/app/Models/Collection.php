@@ -17,6 +17,10 @@ use Illuminate\Support\Carbon;
  * @property string|null $description
  * @property Carbon|null $deleting_at
  * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property int $photo_count
+ * @property string|null $preview_photo_id
+ * @property string|null $preview_media_upload_id
  */
 #[Fillable(['family_space_id', 'owner_user_id', 'name', 'description', 'deleting_at'])]
 class Collection extends Model
