@@ -52,8 +52,11 @@ export type Person = {
   alternate_names: string[];
   identity_status: "confirmed" | "provisional";
   birth_date: UncertainDate;
+  birth_place: string | null;
   is_deceased: boolean;
   death_date: UncertainDate;
+  death_place: string | null;
+  residence_place: string | null;
   biography: string | null;
   account_link: PersonAccountLink | null;
   redirected_from_person_id: string | null;
@@ -66,8 +69,11 @@ export type PersonDetailsInput = {
   preferred_name: string;
   alternate_names: string[];
   birth_date: UncertainDate;
+  birth_place?: string | null;
   is_deceased: boolean;
   death_date: UncertainDate;
+  death_place?: string | null;
+  residence_place?: string | null;
   biography: string | null;
 };
 

@@ -21,10 +21,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property PersonIdentityStatus $identity_status
  * @property CarbonImmutable|null $birth_date
  * @property DatePrecision $birth_date_precision
+ * @property string|null $birth_place
  * @property bool $is_deceased
  * @property bool $recognition_allowed
  * @property CarbonImmutable|null $death_date
  * @property DatePrecision $death_date_precision
+ * @property string|null $death_place
+ * @property string|null $residence_place
  * @property CarbonImmutable|null $confirmed_at
  * @property array<string, mixed>|null $biography
  * @property string|null $biography_plain_text
@@ -36,9 +39,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'identity_status',
     'birth_date',
     'birth_date_precision',
+    'birth_place',
     'is_deceased',
     'death_date',
     'death_date_precision',
+    'death_place',
+    'residence_place',
     'biography',
     'created_by',
     'confirmed_by',

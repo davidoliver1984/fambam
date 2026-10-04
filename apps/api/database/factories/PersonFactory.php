@@ -23,9 +23,12 @@ class PersonFactory extends Factory
             'identity_status' => PersonIdentityStatus::Confirmed,
             'birth_date' => null,
             'birth_date_precision' => DatePrecision::Unknown,
+            'birth_place' => null,
             'is_deceased' => false,
             'death_date' => null,
             'death_date_precision' => DatePrecision::Unknown,
+            'death_place' => null,
+            'residence_place' => null,
             'biography' => null,
             'confirmed_at' => now(),
         ];

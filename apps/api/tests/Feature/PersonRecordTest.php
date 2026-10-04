@@ -6,6 +6,7 @@ use App\Enums\DatePrecision;
 use App\Enums\FamilySpaceRole;
 use App\Enums\PersonIdentityStatus;
 use App\Enums\PersonProposalStatus;
+use App\Models\AuditEvent;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\Person;
@@ -25,22 +26,31 @@ class PersonRecordTest extends TestCase
             'preferred_name' => 'Joan Oliver',
             'alternate_names' => ['Joan Smith'],
             'birth_date' => ['precision' => 'year', 'value' => '1928'],
+            'birth_place' => '  Manchester, England  ',
             'is_deceased' => true,
             'death_date' => ['precision' => 'unknown', 'value' => null],
+            'death_place' => '  Salford, England  ',
+            'residence_place' => 'Glossop, Derbyshire',
             'biography' => 'Remembered by the whole family.',
         ])->assertCreated()
             ->assertJsonPath('data.identity_status', PersonIdentityStatus::Confirmed->value)
             ->assertJsonPath('data.birth_date.precision', DatePrecision::Year->value)
             ->assertJsonPath('data.birth_date.value', '1928')
+            ->assertJsonPath('data.birth_place', 'Manchester, England')
             ->assertJsonPath('data.is_deceased', true)
             ->assertJsonPath('data.death_date.precision', DatePrecision::Unknown->value)
             ->assertJsonPath('data.death_date.value', null)
+            ->assertJsonPath('data.death_place', 'Salford, England')
+            ->assertJsonPath('data.residence_place', 'Glossop, Derbyshire')
             ->assertJsonPath('data.permissions.can_update_authoritatively', true);
 
         $person = Person::query()->findOrFail($response->json('data.id'));
         $this->assertSame($familySpace->id, $person->family_space_id);
         $this->assertSame('1928-01-01', $person->birth_date?->format('Y-m-d'));
         $this->assertNull($person->death_date);
+        $this->assertSame('Manchester, England', $person->birth_place);
+        $this->assertSame('Salford, England', $person->death_place);
+        $this->assertSame('Glossop, Derbyshire', $person->residence_place);
         $this->assertSame($owner->id, $person->confirmed_by);
         $this->assertDatabaseHas('audit_events', [
             'family_space_id' => $familySpace->id,
@@ -69,17 +79,26 @@ class PersonRecordTest extends TestCase
 
         $this->actingAs($member)
             ->patchJson("/api/families/review-family/people/{$created['id']}", [
-                'preferred_name' => 'Grandfather',
+                'birth_place' => 'Unapproved place',
             ])
             ->assertForbidden();
+
+        $this->assertNull(Person::query()->findOrFail($created['id'])->birth_place);
 
         $proposal = $this->actingAs($member)
             ->postJson("/api/families/review-family/people/{$created['id']}/proposals", [
                 'preferred_name' => 'Grandfather',
                 'birth_date' => ['precision' => 'decade', 'value' => '1920s'],
+                'birth_place' => '  Ashton-under-Lyne ',
+                'is_deceased' => true,
+                'death_place' => ' Stockport ',
+                'residence_place' => ' Sheffield ',
             ])
             ->assertCreated()
             ->assertJsonPath('data.status', PersonProposalStatus::Pending->value)
+            ->assertJsonPath('data.changes.birth_place', 'Ashton-under-Lyne')
+            ->assertJsonPath('data.changes.death_place', 'Stockport')
+            ->assertJsonPath('data.changes.residence_place', 'Sheffield')
             ->json('data');
 
         $this->assertSame('Grandad', Person::query()->findOrFail($created['id'])->preferred_name);
@@ -107,6 +126,9 @@ class PersonRecordTest extends TestCase
         $this->assertSame('Grandfather', $person->preferred_name);
         $this->assertSame(PersonIdentityStatus::Confirmed, $person->identity_status);
         $this->assertSame(DatePrecision::Decade, $person->birth_date_precision);
+        $this->assertSame('Ashton-under-Lyne', $person->birth_place);
+        $this->assertSame('Stockport', $person->death_place);
+        $this->assertSame('Sheffield', $person->residence_place);
         $this->assertDatabaseHas('audit_events', ['action' => 'person.detail_proposed']);
         $this->assertDatabaseHas('audit_events', ['action' => 'person.detail_proposal_approved']);
     }
@@ -184,11 +206,11 @@ class PersonRecordTest extends TestCase
             ->assertNotFound();
         $this->actingAs($owner)
             ->patchJson("/api/families/first-people-family/people/{$person->id}", [
-                'preferred_name' => 'Cross-tenant write',
+                'birth_place' => 'Cross-tenant write',
             ])
             ->assertNotFound();
 
-        $this->assertNotSame('Cross-tenant write', $person->refresh()->preferred_name);
+        $this->assertNotSame('Cross-tenant write', $person->refresh()->birth_place);
     }
 
     public function test_uncertain_date_validation_and_deceased_state_are_independent(): void
@@ -215,10 +237,57 @@ class PersonRecordTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('death_date');
 
         $this->actingAs($owner)->postJson('/api/families/dates-family/people', [
+            'preferred_name' => 'Living Person With Death Place',
+            'is_deceased' => false,
+            'death_place' => 'Manchester',
+        ])->assertUnprocessable()->assertJsonValidationErrors('death_place');
+
+        $this->actingAs($owner)->postJson('/api/families/dates-family/people', [
             'preferred_name' => 'Deceased Date Unknown',
             'is_deceased' => true,
             'death_date' => ['precision' => 'unknown', 'value' => null],
         ])->assertCreated()->assertJsonPath('data.is_deceased', true);
+    }
+
+    public function test_place_facts_are_nullable_bounded_normalized_and_audited(): void
+    {
+        [$familySpace, $owner] = $this->familyWithRole(FamilySpaceRole::Owner, 'place-facts-family');
+        $person = Person::factory()->create([
+            'family_space_id' => $familySpace->id,
+            'preferred_name' => 'Sparse Person',
+            'is_deceased' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->getJson("/api/families/place-facts-family/people/{$person->id}")
+            ->assertOk()
+            ->assertJsonPath('data.birth_place', null)
+            ->assertJsonPath('data.death_place', null)
+            ->assertJsonPath('data.residence_place', null)
+            ->assertJsonPath('data.biography', null);
+
+        $this->actingAs($owner)
+            ->patchJson("/api/families/place-facts-family/people/{$person->id}", [
+                'birth_place' => '  Leeds, England  ',
+                'death_place' => '  Bradford, England  ',
+                'residence_place' => '   ',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.birth_place', 'Leeds, England')
+            ->assertJsonPath('data.death_place', 'Bradford, England')
+            ->assertJsonPath('data.residence_place', null);
+
+        $audit = AuditEvent::query()->where('action', 'person.identity_changed')->latest('id')->firstOrFail();
+        $this->assertContains('birth_place', $audit->metadata['changed_fields']);
+        $this->assertContains('death_place', $audit->metadata['changed_fields']);
+
+        $this->actingAs($owner)
+            ->patchJson("/api/families/place-facts-family/people/{$person->id}", [
+                'birth_place' => str_repeat('x', 256),
+                'death_place' => str_repeat('x', 256),
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['birth_place', 'death_place']);
     }
 
     /** @return array{FamilySpace, User} */

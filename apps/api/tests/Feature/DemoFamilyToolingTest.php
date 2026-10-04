@@ -92,7 +92,7 @@ final class DemoFamilyToolingTest extends TestCase
 
         $this->assertTrue($first['created']);
         $this->assertFalse($second['created']);
-        $this->assertSame(8, $second['people']);
+        $this->assertSame(9, $second['people']);
         $this->assertSame(12, $second['relationships']);
         $this->assertSame(4, $second['events']);
         $this->assertSame(6, $second['albums']);
@@ -131,6 +131,9 @@ final class DemoFamilyToolingTest extends TestCase
 
         $william = DB::table('people')->where('family_space_id', $demoId)->where('preferred_name', 'William Mercer')->first();
         $this->assertNotNull($william);
+        $this->assertSame('Ashton-under-Lyne', $william->birth_place);
+        $this->assertNull($william->death_place);
+        $this->assertSame('Glossop, Derbyshire', $william->residence_place);
         $this->assertGreaterThanOrEqual(10, DB::table('photo_people')->where('family_space_id', $demoId)
             ->where('person_id', $william->id)->where('status', 'approved')->count());
         $this->assertSame(11, DB::table('stories')->where('family_space_id', $demoId)->whereNotNull('photo_id')->count());
@@ -154,6 +157,45 @@ final class DemoFamilyToolingTest extends TestCase
             ->join('photo_people', 'photo_people.photo_id', '=', 'album_photos.photo_id')
             ->where('events.family_space_id', $demoId)->where('photo_people.person_id', $william->id)->exists());
 
+        $demoOwner = User::query()->where('email', DemoFamilyBuilder::OWNER_EMAIL)->firstOrFail();
+        $this->actingAs($demoOwner)
+            ->getJson('/api/families/mercer-family-demo/people/'.$william->id)
+            ->assertOk()
+            ->assertJsonPath('data.preferred_name', 'William Mercer')
+            ->assertJsonPath('data.birth_date.value', '1945-05-14')
+            ->assertJsonPath('data.birth_place', 'Ashton-under-Lyne')
+            ->assertJsonPath('data.death_place', null)
+            ->assertJsonPath('data.residence_place', 'Glossop, Derbyshire')
+            ->assertJsonPath('data.biography', 'Family storyteller, railway enthusiast and keeper of the old photo boxes.');
+
+        $alex = DB::table('people')->where('family_space_id', $demoId)->where('preferred_name', 'Alex Mercer')->first();
+        $this->assertNotNull($alex);
+        $this->assertNull($alex->birth_date);
+        $this->assertSame('unknown', $alex->birth_date_precision);
+        $this->assertNull($alex->birth_place);
+        $this->assertFalse((bool) $alex->is_deceased);
+        $this->assertNull($alex->death_date);
+        $this->assertSame('unknown', $alex->death_date_precision);
+        $this->assertNull($alex->death_place);
+        $this->assertNull($alex->residence_place);
+        $this->assertNull($alex->biography);
+        $this->assertNull($alex->biography_plain_text);
+        $this->assertSame(0, DB::table('photo_people')->where('person_id', $alex->id)->count());
+        $this->assertSame(0, DB::table('stories')->where('person_id', $alex->id)->count());
+        $this->assertSame(0, DB::table('person_relationships')
+            ->where('subject_person_id', $alex->id)->orWhere('related_person_id', $alex->id)->count());
+
+        $this->actingAs($demoOwner)
+            ->getJson('/api/families/mercer-family-demo/people/'.$alex->id)
+            ->assertOk()
+            ->assertJsonPath('data.preferred_name', 'Alex Mercer')
+            ->assertJsonPath('data.birth_date.value', null)
+            ->assertJsonPath('data.birth_place', null)
+            ->assertJsonPath('data.death_date.value', null)
+            ->assertJsonPath('data.death_place', null)
+            ->assertJsonPath('data.residence_place', null)
+            ->assertJsonPath('data.biography', null);
+
         $this->artisan('fambam:demo-family:reset', ['--force' => true])->assertSuccessful();
         $this->assertDatabaseHas('family_spaces', ['id' => $demoId, 'status' => 'deleted']);
         $this->assertDatabaseMissing('family_space_memberships', ['family_space_id' => $demoId, 'state' => 'active']);
@@ -167,6 +209,7 @@ final class DemoFamilyToolingTest extends TestCase
         $this->assertTrue($restored['created']);
         $this->assertSame($demoId, $restored['family_space_id']);
         $this->assertSame(36, $restored['photos']);
+        $this->assertSame(9, $restored['people']);
     }
 
     public function test_generated_archive_asset_is_a_valid_deterministic_png(): void

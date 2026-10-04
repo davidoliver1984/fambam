@@ -41,6 +41,48 @@ class PersonMergeTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_merge_preserves_survivor_place_facts_and_restores_absorbed_place_facts(): void
+    {
+        [$family, $owner] = $this->familyWithRole(FamilySpaceRole::Owner, 'place-fact-merge');
+        $absorbed = Person::factory()->create([
+            'family_space_id' => $family->id,
+            'preferred_name' => 'Absorbed',
+            'is_deceased' => true,
+            'birth_place' => 'Leeds',
+            'death_place' => 'Bradford',
+            'residence_place' => 'York',
+        ]);
+        $survivor = Person::factory()->create([
+            'family_space_id' => $family->id,
+            'preferred_name' => 'Survivor',
+            'is_deceased' => true,
+            'birth_place' => 'Manchester',
+            'death_place' => 'Salford',
+            'residence_place' => 'Glossop',
+        ]);
+
+        $mergeId = $this->actingAs($owner)
+            ->postJson("/api/families/{$family->slug}/people/{$absorbed->id}/merge", [
+                'survivor_person_id' => $survivor->id,
+            ])->assertCreated()->json('data.id');
+
+        $this->assertDatabaseHas('people', [
+            'id' => $survivor->id, 'birth_place' => 'Manchester', 'death_place' => 'Salford',
+            'residence_place' => 'Glossop',
+        ]);
+        $this->assertDatabaseHas('people', [
+            'id' => $absorbed->id, 'birth_place' => 'Leeds', 'death_place' => 'Bradford',
+            'residence_place' => 'York',
+        ]);
+
+        $this->actingAs($owner)
+            ->postJson("/api/families/{$family->slug}/person-merges/{$mergeId}/reverse")
+            ->assertOk();
+        $this->assertSame('Leeds', $absorbed->refresh()->birth_place);
+        $this->assertSame('Bradford', $absorbed->death_place);
+        $this->assertSame('York', $absorbed->residence_place);
+    }
+
     public function test_event_people_merge_collision_and_noncollision_are_guardedly_reversed(): void
     {
         [$family, $owner] = $this->familyWithRole(FamilySpaceRole::Owner, 'event-people-merge');

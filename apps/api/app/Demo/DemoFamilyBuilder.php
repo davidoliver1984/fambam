@@ -202,28 +202,40 @@ final class DemoFamilyBuilder
     private function people(string $familyId, User $owner, CarbonImmutable $anchor): array
     {
         $definitions = [
-            'william' => ['William Mercer', '1945-05-14', 'Family storyteller, railway enthusiast and keeper of the old photo boxes.'],
-            'margaret' => ['Margaret Mercer', '1947-11-02', 'Known for generous Christmas tables and carefully labelled albums.'],
-            'elaine' => ['Elaine Mercer', '1969-03-20', 'Eldest child of William and Margaret.'],
-            'thomas' => ['Thomas Mercer', '1972-07-08', 'Family holiday organiser and enthusiastic photographer.'],
-            'sarah' => ['Sarah Mercer', '1976-02-17', 'Youngest of William and Margaret’s children.'],
-            'david' => ['David Mercer', '1992-09-11', 'Elaine’s son and a collector of family stories.'],
-            'maya' => ['Maya Mercer', '1998-04-06', 'Thomas’s daughter and contributor to the digital archive.'],
-            'james' => ['James Mercer', '2002-12-19', 'Sarah’s son and the youngest Mercer in the archive.'],
+            'william' => ['William Mercer', '1945-05-14', 'Family storyteller, railway enthusiast and keeper of the old photo boxes.', 'Ashton-under-Lyne', 'Glossop, Derbyshire'],
+            'margaret' => ['Margaret Mercer', '1947-11-02', 'Known for generous Christmas tables and carefully labelled albums.', null, null],
+            'elaine' => ['Elaine Mercer', '1969-03-20', 'Eldest child of William and Margaret.', null, null],
+            'thomas' => ['Thomas Mercer', '1972-07-08', 'Family holiday organiser and enthusiastic photographer.', null, null],
+            'sarah' => ['Sarah Mercer', '1976-02-17', 'Youngest of William and Margaret’s children.', null, null],
+            'david' => ['David Mercer', '1992-09-11', 'Elaine’s son and a collector of family stories.', null, null],
+            'maya' => ['Maya Mercer', '1998-04-06', 'Thomas’s daughter and contributor to the digital archive.', null, null],
+            'james' => ['James Mercer', '2002-12-19', 'Sarah’s son and the youngest Mercer in the archive.', null, null],
         ];
         $ids = [];
-        foreach ($definitions as $key => [$name, $birthDate, $biography]) {
+        foreach ($definitions as $key => [$name, $birthDate, $biography, $birthPlace, $residencePlace]) {
             $ids[$key] = (string) Str::ulid();
             $this->insert('people', [
                 'id' => $ids[$key], 'family_space_id' => $familyId, 'preferred_name' => $name,
                 'alternate_names' => null, 'identity_status' => 'confirmed', 'birth_date' => $birthDate,
-                'birth_date_precision' => DatePrecision::Exact->value, 'is_deceased' => false,
+                'birth_date_precision' => DatePrecision::Exact->value, 'birth_place' => $birthPlace, 'is_deceased' => false,
                 'death_date' => null, 'death_date_precision' => DatePrecision::Unknown->value,
+                'residence_place' => $residencePlace,
                 'biography' => $this->documentJson($biography), 'biography_plain_text' => $biography,
                 'created_by' => $owner->id, 'confirmed_by' => $owner->id,
                 'confirmed_at' => $anchor->subDays(27), 'recognition_allowed' => false,
             ], $anchor->subDays(27));
         }
+
+        $ids['alex'] = (string) Str::ulid();
+        $this->insert('people', [
+            'id' => $ids['alex'], 'family_space_id' => $familyId, 'preferred_name' => 'Alex Mercer',
+            'alternate_names' => null, 'identity_status' => 'confirmed', 'birth_date' => null,
+            'birth_date_precision' => DatePrecision::Unknown->value, 'birth_place' => null, 'is_deceased' => false,
+            'death_date' => null, 'death_date_precision' => DatePrecision::Unknown->value,
+            'death_place' => null, 'residence_place' => null, 'biography' => null, 'biography_plain_text' => null,
+            'created_by' => $owner->id, 'confirmed_by' => $owner->id,
+            'confirmed_at' => $anchor->subDays(27), 'recognition_allowed' => false,
+        ], $anchor->subDays(27));
 
         return $ids;
     }
@@ -780,7 +792,7 @@ final class DemoFamilyBuilder
     /** @param array<string, int|string> $summary */
     private function isComplete(array $summary): bool
     {
-        return $summary['memberships'] === 3 && $summary['people'] === 8
+        return $summary['memberships'] === 3 && $summary['people'] === 9
             && $summary['relationships'] === 12 && $summary['events'] === 4
             && $summary['albums'] === 6 && $summary['media_uploads'] === 36
             && $summary['photos'] === 36 && $summary['stories'] === 14 && $summary['story_comments'] === 1

@@ -26,8 +26,11 @@ class PersonManager
         'preferred_name',
         'alternate_names',
         'birth_date',
+        'birth_place',
         'is_deceased',
         'death_date',
+        'death_place',
+        'residence_place',
         'biography',
     ];
 
@@ -48,8 +51,11 @@ class PersonManager
                 'preferred_name' => '',
                 'alternate_names' => [],
                 'birth_date' => ['precision' => DatePrecision::Unknown->value, 'value' => null],
+                'birth_place' => null,
                 'is_deceased' => false,
                 'death_date' => ['precision' => DatePrecision::Unknown->value, 'value' => null],
+                'death_place' => null,
+                'residence_place' => null,
                 'biography' => null,
             ]));
             $person->family_space_id = $familySpace->id;
@@ -217,10 +223,19 @@ class PersonManager
         $birth = UncertainDate::fromInput($birthInput);
         $death = UncertainDate::fromInput($deathInput);
         $isDeceased = (bool) $details['is_deceased'];
+        $birthPlace = $this->normalizePlace($details['birth_place']);
+        $deathPlace = $this->normalizePlace($details['death_place']);
+        $residencePlace = $this->normalizePlace($details['residence_place']);
 
         if (! $isDeceased && $death->precision !== DatePrecision::Unknown) {
             throw ValidationException::withMessages([
                 'death_date' => ['Death information requires the Person to be marked as deceased.'],
+            ]);
+        }
+
+        if (! $isDeceased && $deathPlace !== null) {
+            throw ValidationException::withMessages([
+                'death_place' => ['Death information requires the Person to be marked as deceased.'],
             ]);
         }
 
@@ -238,9 +253,12 @@ class PersonManager
             'alternate_names' => array_values(array_unique(array_map('trim', $alternateNames))),
             'birth_date' => $birth->storageDate(),
             'birth_date_precision' => $birth->precision,
+            'birth_place' => $birthPlace,
             'is_deceased' => $isDeceased,
             'death_date' => $death->storageDate(),
             'death_date_precision' => $death->precision,
+            'death_place' => $deathPlace,
+            'residence_place' => $residencePlace,
             'biography' => $details['biography'],
         ];
     }
@@ -255,11 +273,14 @@ class PersonManager
                 $person->birth_date_precision,
                 $person->birth_date?->format('Y-m-d'),
             )->toPayload(),
+            'birth_place' => $person->birth_place,
             'is_deceased' => $person->is_deceased,
             'death_date' => UncertainDate::fromStorage(
                 $person->death_date_precision,
                 $person->death_date?->format('Y-m-d'),
             )->toPayload(),
+            'death_place' => $person->death_place,
+            'residence_place' => $person->residence_place,
             'biography' => $person->biography,
         ];
     }
@@ -281,10 +302,27 @@ class PersonManager
             $changes['preferred_name'] = trim((string) $changes['preferred_name']);
         }
 
+        foreach (['birth_place', 'death_place', 'residence_place'] as $field) {
+            if (array_key_exists($field, $changes)) {
+                $changes[$field] = $this->normalizePlace($changes[$field]);
+            }
+        }
+
         if (array_key_exists('biography', $changes)) {
             $changes['biography'] = $this->documents->normalize($changes['biography']);
         }
 
         return $changes;
+    }
+
+    private function normalizePlace(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $place = trim((string) $value);
+
+        return $place === '' ? null : $place;
     }
 }

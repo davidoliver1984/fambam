@@ -320,6 +320,12 @@ class FamilyExportHttpTest extends TestCase
         $family = FamilySpace::factory()->create(['name' => 'Archive family']);
         [$owner] = $this->membership($family, FamilySpaceRole::Owner, 'Owner');
         $photo = $this->photo($family, $owner, PhotoVisibility::FamilySpace);
+        Person::factory()->create([
+            'family_space_id' => $family->id,
+            'birth_place' => 'Ashton-under-Lyne',
+            'death_place' => 'Manchester, England',
+            'residence_place' => 'Glossop, Derbyshire',
+        ]);
         $photo->delete();
         $unattachedBytes = 'unattached-preserved-original';
         $unattached = MediaUpload::factory()->create([
@@ -362,6 +368,9 @@ class FamilyExportHttpTest extends TestCase
         $this->assertArrayNotHasKey('checksums.json', $checksums);
         $this->assertCount($archive->numFiles - 1, $checksums);
         $this->assertStringNotContainsString('recognition_allowed', (string) $archive->getFromName('people.json'));
+        $this->assertStringContainsString('Ashton-under-Lyne', (string) $archive->getFromName('people.json'));
+        $this->assertStringContainsString('Manchester, England', (string) $archive->getFromName('people.json'));
+        $this->assertStringContainsString('Glossop, Derbyshire', (string) $archive->getFromName('people.json'));
         $this->assertStringNotContainsString('face_', (string) $archive->getFromName('photos.json'));
         foreach ($checksums as $path => $checksum) {
             $this->assertSame($checksum, hash('sha256', $archive->getFromName($path)));

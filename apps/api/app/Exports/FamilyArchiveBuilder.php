@@ -293,7 +293,8 @@ class FamilyArchiveBuilder
             'people.json' => $people->map(function (Person $person) use ($accountLinks): array {
                 $row = $this->only($person, [
                     'id', 'preferred_name', 'alternate_names', 'identity_status', 'birth_date', 'birth_date_precision',
-                    'is_deceased', 'death_date', 'death_date_precision', 'biography', 'confirmed_at',
+                    'birth_place', 'is_deceased', 'death_date', 'death_date_precision', 'death_place', 'residence_place',
+                    'biography', 'confirmed_at',
                     'created_at', 'updated_at', 'deleted_at',
                 ]);
                 $link = $accountLinks->get($person->id);

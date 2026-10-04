@@ -20,10 +20,13 @@ trait ValidatesPersonDetails
             'birth_date' => ['sometimes', 'array'],
             'birth_date.precision' => ['required_with:birth_date', Rule::enum(DatePrecision::class)],
             'birth_date.value' => ['present_with:birth_date', 'nullable', 'string', 'max:10'],
+            'birth_place' => ['sometimes', 'nullable', 'string', 'max:255'],
             'is_deceased' => ['sometimes', 'boolean'],
             'death_date' => ['sometimes', 'array'],
             'death_date.precision' => ['required_with:death_date', Rule::enum(DatePrecision::class)],
             'death_date.value' => ['present_with:death_date', 'nullable', 'string', 'max:10'],
+            'death_place' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'residence_place' => ['sometimes', 'nullable', 'string', 'max:255'],
             'biography' => ['sometimes', 'nullable'],
         ];
     }
