@@ -41,6 +41,7 @@ use App\Http\Controllers\RecentSignInController;
 use App\Http\Controllers\RelationshipController;
 use App\Http\Controllers\SavedSearchController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\SettingsOverviewController;
 use App\Http\Controllers\StoryController;
 use Aws\Sqs\SqsClient;
 use Illuminate\Http\JsonResponse;
@@ -83,6 +84,7 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
         Route::post('/ownership-transfer', [FamilySpaceController::class, 'transferOwnership']);
         Route::post('/leave', [FamilySpaceController::class, 'leave']);
         Route::get('/home', [HomeController::class, 'show']);
+        Route::get('/settings/overview', [SettingsOverviewController::class, 'show']);
         Route::get('/activities/recent', [FamilyActivityController::class, 'index']);
         Route::get('/memories/date-based', [DateMemoryController::class, 'index']);
         Route::get('/memories/homepage', [HomepageMemoryController::class, 'index']);

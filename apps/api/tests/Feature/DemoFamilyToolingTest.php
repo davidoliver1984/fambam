@@ -166,6 +166,37 @@ final class DemoFamilyToolingTest extends TestCase
             ->where('events.family_space_id', $demoId)->where('photo_people.person_id', $william->id)->exists());
 
         $demoOwner = User::query()->where('email', DemoFamilyBuilder::OWNER_EMAIL)->firstOrFail();
+        $datedPhotos = DB::table('photos')->where('family_space_id', $demoId)
+            ->whereNotNull('historical_date')->whereNotNull('historical_date_precision')
+            ->where('historical_date_precision', '!=', 'unknown')->count();
+        $connectedPeople = DB::table('person_relationships')->where('family_space_id', $demoId)
+            ->where('status', 'confirmed')->get(['subject_person_id', 'related_person_id'])
+            ->flatMap(fn ($relationship): array => [
+                $relationship->subject_person_id,
+                $relationship->related_person_id,
+            ])->unique()->count();
+        $this->actingAs($demoOwner)
+            ->getJson('/api/families/mercer-family-demo/settings/overview')
+            ->assertOk()
+            ->assertJsonPath('data.counts.people', $second['people'])
+            ->assertJsonPath('data.counts.photos', $second['photos'])
+            ->assertJsonPath('data.counts.albums', $second['albums'])
+            ->assertJsonPath('data.counts.stories', $second['stories'])
+            ->assertJsonPath('data.archive_health.photos_dated.numerator', $datedPhotos)
+            ->assertJsonPath('data.archive_health.photos_dated.denominator', $second['photos'])
+            ->assertJsonPath(
+                'data.archive_health.photos_dated.percentage',
+                round(($datedPhotos / $second['photos']) * 100, 2),
+            )
+            ->assertJsonPath('data.archive_health.faces_identified.numerator', 0)
+            ->assertJsonPath('data.archive_health.faces_identified.denominator', 0)
+            ->assertJsonPath('data.archive_health.faces_identified.percentage', null)
+            ->assertJsonPath('data.archive_health.people_connected.numerator', $connectedPeople)
+            ->assertJsonPath('data.archive_health.people_connected.denominator', $second['people'])
+            ->assertJsonPath(
+                'data.archive_health.people_connected.percentage',
+                round(($connectedPeople / $second['people']) * 100, 2),
+            );
         $this->actingAs($demoOwner)
             ->getJson('/api/families/mercer-family-demo/people/'.$william->id)
             ->assertOk()
