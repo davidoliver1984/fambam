@@ -22,10 +22,12 @@ export function LoveButton({
   familySlug,
   targetType,
   targetId,
+  compact = false,
 }: {
   familySlug: string;
   targetType: LoveTarget;
   targetId: string;
+  compact?: boolean;
 }) {
   const { query, mutation } = useLove(familySlug, targetType, targetId);
   if (query.isPending) return <p role="status">Loading family appreciation…</p>;
@@ -37,6 +39,7 @@ export function LoveButton({
       <button
         type="button"
         className={`love-button${summary.loved_by_me ? " loved" : ""}`}
+        aria-label={`${summary.loved_by_me ? (compact ? "Remove love" : "Loved") : compact ? "Love" : "Love this"} · ${String(summary.count)}`}
         aria-pressed={summary.loved_by_me}
         disabled={mutation.isPending}
         onClick={() => {
@@ -44,9 +47,11 @@ export function LoveButton({
         }}
       >
         <HeartIcon filled={summary.loved_by_me} />
-        <span className="love-control__label">
-          {summary.loved_by_me ? "Loved" : "Love this"} ·
-        </span>{" "}
+        {!compact && (
+          <span className="love-control__label">
+            {summary.loved_by_me ? "Loved" : "Love this"} ·
+          </span>
+        )}{" "}
         <span className="love-control__count">{summary.count}</span>
         <i className="love-sprite" aria-hidden="true">
           <b>♥</b>
@@ -55,7 +60,7 @@ export function LoveButton({
           <b>♥</b>
         </i>
       </button>
-      {summary.reactors.length > 0 && (
+      {!compact && summary.reactors.length > 0 && (
         <p>
           {summary.reactors.map((reactor, index) => (
             <span key={reactor.user_id}>

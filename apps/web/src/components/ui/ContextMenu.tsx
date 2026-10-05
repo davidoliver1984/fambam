@@ -12,6 +12,7 @@ type ContextMenuProps = {
   label: string;
   trigger?: ReactNode;
   children: ReactNode;
+  panelClassName?: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   placement?: "auto" | "bottom-start" | "bottom-end";
@@ -21,6 +22,7 @@ export function ContextMenu({
   label,
   trigger: triggerContent,
   children,
+  panelClassName,
   open: controlledOpen,
   onOpenChange,
   placement = "auto",
@@ -156,7 +158,7 @@ export function ContextMenu({
         createPortal(
           <div
             ref={panelRef}
-            className="ui-context-menu__panel"
+            className={`ui-context-menu__panel${panelClassName === undefined ? "" : ` ${panelClassName}`}`}
             role="menu"
             tabIndex={-1}
             style={panelStyle}

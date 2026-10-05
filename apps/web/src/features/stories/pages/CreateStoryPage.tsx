@@ -7,7 +7,12 @@ import { usePeopleQuery } from "@/features/people/hooks/usePeopleQuery";
 import { usePhotosQuery } from "@/features/photos/hooks/usePhotoQueries";
 
 import { useCreateStoryMutation } from "../hooks/useStories";
-import { plainTextDocument } from "../types/story";
+import { RichTextEditor } from "../components/RichTextEditor";
+import {
+  emptyRichTextDocument,
+  richTextPlainText,
+  type RichTextDocument,
+} from "../types/story";
 import type { FamilyEntity } from "@/navigation/familyEntityPath";
 
 export function CreateStoryPage() {
@@ -25,8 +30,8 @@ export function CreateStoryPage() {
     : "person";
   const [type, setType] = useState<FamilyEntity["type"]>(initialType);
   const [subjectId, setSubjectId] = useState(search.get("subjectId") ?? "");
-  const [body, setBody] = useState("");
-  const people = usePeopleQuery(familySlug, type === "person");
+  const [body, setBody] = useState<RichTextDocument>(emptyRichTextDocument);
+  const people = usePeopleQuery(familySlug);
   const photos = usePhotosQuery(familySlug, {}, type === "photo");
   const albums = useAlbumsQuery(familySlug, {}, type === "album");
   const events = useEventsQuery(familySlug, type === "event");
@@ -52,7 +57,7 @@ export function CreateStoryPage() {
       {
         subject_type: type,
         subject_id: subjectId,
-        body: plainTextDocument(body),
+        body,
       },
       {
         onSuccess: (story) => {
@@ -116,19 +121,24 @@ export function CreateStoryPage() {
             </option>
           ))}
         </select>
-        <label htmlFor="story-body">Your Story</label>
-        <textarea
-          id="story-body"
-          required
-          rows={10}
+        <p className="story-body-label">Your Story</p>
+        <RichTextEditor
+          label="Your Story"
+          familySlug={familySlug}
+          mentionOptions={(people.data ?? []).map((person) => ({
+            id: person.id,
+            label: person.preferred_name,
+          }))}
           value={body}
-          onChange={(event) => {
-            setBody(event.target.value);
-          }}
+          onChange={setBody}
         />
         <button
           type="submit"
-          disabled={create.isPending || subjectId === "" || body.trim() === ""}
+          disabled={
+            create.isPending ||
+            subjectId === "" ||
+            richTextPlainText(body).trim() === ""
+          }
         >
           Publish Story
         </button>

@@ -9,8 +9,8 @@ import {
   updateStory,
 } from "../api/storyApi";
 import { storyKeys } from "../api/storyKeys";
-import type { CreateStoryInput, RichTextDocument } from "../types/story";
 import { homeKeys } from "@/features/home/hooks/useHomeQuery";
+import type { CreateStoryInput, RichTextDocument, Story } from "../types/story";
 
 export function useStoryQuery(familySlug: string, storyId: string) {
   return useQuery({
@@ -53,7 +53,16 @@ export function useStoryMutations(familySlug: string, storyId: string) {
     update: useMutation({
       mutationFn: (body: RichTextDocument) =>
         updateStory(familySlug, storyId, body),
-      onSuccess: refresh,
+      onSuccess: (updatedStory) => {
+        client.setQueryData<Story>(
+          storyKeys.detail(familySlug, storyId),
+          (current) =>
+            current === undefined
+              ? updatedStory
+              : { ...current, ...updatedStory },
+        );
+        return refresh();
+      },
     }),
     removeComment: useMutation({
       mutationFn: (commentId: string) =>

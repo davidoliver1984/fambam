@@ -1,18 +1,57 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
 import { useState } from "react";
 
-import { server } from "@/test/msw/server";
-
 import type { RichTextDocument } from "../types/story";
-import { RichTextEditor } from "./RichTextEditor";
+import {
+  editorElementToRichTextDocument,
+  RichTextEditor,
+  richTextDocumentToEditorHtml,
+} from "./RichTextEditor";
 
 afterEach(cleanup);
 
-function Harness({ initial }: { initial: RichTextDocument }) {
+const richDocument: RichTextDocument = {
+  schema_version: 1,
+  blocks: [
+    {
+      type: "heading_2",
+      content: [{ type: "text", text: "Heading", marks: ["bold", "italic"] }],
+    },
+    {
+      type: "paragraph",
+      content: [
+        { type: "text", text: "With " },
+        {
+          type: "mention",
+          mention_id: "01AAAAAAAAAAAAAAAAAAAAAAAA",
+          person_id: "person-1",
+          label: "Ada Mercer",
+        },
+        { type: "text", text: " at the beach", marks: ["italic"] },
+      ],
+    },
+    { type: "horizontal_rule" },
+    {
+      type: "heading_3",
+      content: [{ type: "text", text: "Afterwards" }],
+    },
+    {
+      type: "paragraph",
+      content: [{ type: "text", text: "Tea on the promenade." }],
+    },
+  ],
+};
+
+function Harness({ initial = richDocument }: { initial?: RichTextDocument }) {
   const [value, setValue] = useState(initial);
   return (
     <>
@@ -21,6 +60,7 @@ function Harness({ initial }: { initial: RichTextDocument }) {
         storyId="story-1"
         label="Story body"
         value={value}
+        mentionOptions={[{ id: "person-1", label: "Ada Mercer" }]}
         onChange={setValue}
       />
       <output data-testid="document">{JSON.stringify(value)}</output>
@@ -29,86 +69,91 @@ function Harness({ initial }: { initial: RichTextDocument }) {
 }
 
 describe("RichTextEditor", () => {
-  it("preserves blocks, marks, dividers and persisted typed mentions", () => {
-    const document: RichTextDocument = {
-      schema_version: 1,
-      blocks: [
-        {
-          type: "heading_2",
-          content: [
-            { type: "text", text: "Heading", marks: ["bold", "italic"] },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { type: "text", text: "With " },
-            {
-              type: "mention",
-              mention_id: "01AAAAAAAAAAAAAAAAAAAAAAAA",
-              person_id: "person-1",
-              label: "Ada Mercer",
-            },
-          ],
-        },
-        { type: "horizontal_rule" },
-      ],
-    };
-    render(<Harness initial={document} />);
+  it("renders one continuous document and hides block-builder controls", () => {
+    render(<Harness />);
 
-    expect(screen.getByDisplayValue("Heading")).toHaveAttribute(
-      "data-bold",
-      "true",
+    const editor = screen.getByRole("textbox", { name: "Story body" });
+    expect(editor).toHaveAttribute("contenteditable", "true");
+    expect(editor.querySelectorAll("h2")).toHaveLength(1);
+    expect(editor.querySelectorAll("h3")).toHaveLength(1);
+    expect(editor.querySelectorAll("hr")).toHaveLength(1);
+    expect(within(editor).getByText("@Ada Mercer")).toHaveAttribute(
+      "data-person-id",
+      "person-1",
     );
-    expect(screen.getByDisplayValue("Heading")).toHaveAttribute(
-      "data-italic",
-      "true",
-    );
-    expect(screen.getByText("@Ada Mercer")).toBeInTheDocument();
-    expect(screen.getByRole("separator")).toBeInTheDocument();
-    expect(screen.getByTestId("document")).toHaveTextContent(
-      JSON.stringify(document),
-    );
+    expect(
+      screen.getByRole("combobox", { name: "Text style" }),
+    ).toHaveTextContent("ParagraphHeading 2Heading 3");
+    expect(
+      screen.queryByRole("button", { name: "Continue writing" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Remove block" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("turns an @Person choice into a typed Person node", async () => {
-    server.use(
-      http.get(
-        "http://localhost:8082/api/families/mercer/stories/story-1/mention-suggestions",
-        ({ request }) => {
-          expect(new URL(request.url).searchParams.get("prefix")).toBe("Ad");
-          return HttpResponse.json({
-            data: [{ id: "person-1", label: "Ada Mercer" }],
-          });
-        },
-      ),
-    );
-    render(
-      <Harness
-        initial={{
-          schema_version: 1,
-          blocks: [
-            { type: "paragraph", content: [{ type: "text", text: "" }] },
-          ],
-        }}
-      />,
-    );
-    const input = screen.getByRole("textbox", { name: "Block 1 text 1" });
-    await userEvent.type(input, "Hello @Ad");
+  it("round-trips headings, marks, dividers and typed mentions without loss", () => {
+    const root = document.createElement("div");
+    root.innerHTML = richTextDocumentToEditorHtml(richDocument);
+    expect(editorElementToRichTextDocument(root)).toEqual(richDocument);
+  });
+
+  it("opens an accessible Person picker from the compact toolbar", async () => {
+    render(<Harness />);
     await userEvent.click(
-      await screen.findByRole("option", { name: "Ada Mercer" }),
+      screen.getByRole("button", { name: "Mention a person" }),
     );
 
-    const document = JSON.parse(
-      screen.getByTestId("document").textContent,
-    ) as RichTextDocument;
-    expect(document.blocks[0]).toEqual({
-      type: "paragraph",
-      content: [
-        { type: "text", text: "Hello " },
-        { type: "mention", person_id: "person-1", label: "Ada Mercer" },
-        { type: "text", text: "" },
-      ],
-    });
+    expect(
+      screen.getByRole("dialog", { name: "Mention a person" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("searchbox", { name: "Find a person" }),
+    ).toBeInTheDocument();
+    const option = screen.getByRole("option", { name: "Ada Mercer" });
+    expect(option).toBeInTheDocument();
+    expect(
+      option.querySelector(".rich-text-editor__mention-avatar"),
+    ).toHaveTextContent("AM");
+
+    await userEvent.click(screen.getByRole("textbox", { name: "Story body" }));
+    expect(
+      screen.queryByRole("dialog", { name: "Mention a person" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("toggles bold and italic off as well as on for selected text", async () => {
+    render(<Harness />);
+    const editor = screen.getByRole("textbox", { name: "Story body" });
+    const paragraph = editor.querySelectorAll("p")[1];
+    const selectedText = paragraph.firstChild;
+    expect(selectedText).toBeInstanceOf(Text);
+    if (selectedText === null) throw new Error("Expected paragraph text");
+
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.setStart(selectedText, 11);
+    range.setEnd(selectedText, 20);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent(document, new Event("selectionchange"));
+
+    const bold = screen.getByRole("button", { name: "Bold" });
+    await userEvent.click(bold);
+    expect(bold).toHaveAttribute("aria-pressed", "true");
+    expect(editor.querySelector("p strong")?.textContent).toBe("promenade");
+    await userEvent.click(bold);
+    expect(bold).toHaveAttribute("aria-pressed", "false");
+    expect(editor.querySelector("p strong")).not.toBeInTheDocument();
+
+    const italic = screen.getByRole("button", { name: "Italic" });
+    await userEvent.click(italic);
+    expect(italic).toHaveAttribute("aria-pressed", "true");
+    expect(editor.querySelector("p:last-of-type em")?.textContent).toBe(
+      "promenade",
+    );
+    await userEvent.click(italic);
+    expect(italic).toHaveAttribute("aria-pressed", "false");
+    expect(editor.querySelector("p:last-of-type em")).not.toBeInTheDocument();
   });
 });

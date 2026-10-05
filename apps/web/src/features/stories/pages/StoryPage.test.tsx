@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router";
 
 import { server } from "@/test/msw/server";
@@ -12,8 +12,18 @@ import { StoryPage } from "./StoryPage";
 
 afterEach(cleanup);
 
+beforeEach(() => {
+  server.use(
+    http.get("http://localhost:8082/api/user", () =>
+      HttpResponse.json({
+        data: { id: 1, name: "David", email: "david@example.test" },
+      }),
+    ),
+  );
+});
+
 describe("StoryPage", () => {
-  it("renders safe rich text and links to its typed subject", async () => {
+  it("renders canonical safe rich text and links only its typed subject", async () => {
     server.use(
       http.get(
         "http://localhost:8082/api/families/mercer/stories/story-1",
@@ -22,9 +32,30 @@ describe("StoryPage", () => {
             data: {
               id: "story-1",
               heading: "Grandad's camera",
-              body: { schema_version: 1, blocks: [] },
-              body_html: "<p>The camera came everywhere.</p>",
-              body_plain_text: "The camera came everywhere.",
+              body: {
+                schema_version: 1,
+                blocks: [
+                  {
+                    type: "paragraph",
+                    content: [
+                      {
+                        type: "text",
+                        text: "The camera came everywhere with ",
+                      },
+                      {
+                        type: "mention",
+                        mention_id: "01AAAAAAAAAAAAAAAAAAAAAAAA",
+                        person_id: "person-hidden",
+                        label: "Private Person",
+                      },
+                    ],
+                  },
+                ],
+              },
+              body_html:
+                "<p>The camera came everywhere with Private Person.</p>",
+              body_plain_text:
+                "The camera came everywhere with Private Person.",
               subject: {
                 type: "person",
                 id: "person-1",
@@ -73,7 +104,12 @@ describe("StoryPage", () => {
     expect(
       await screen.findByRole("heading", { name: "Grandad's camera" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("The camera came everywhere.")).toBeInTheDocument();
+    expect(
+      screen.getByText("The camera came everywhere with Private Person."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Private Person" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Grandad" })).toHaveAttribute(
       "href",
       "/families/mercer/people/person-1",
