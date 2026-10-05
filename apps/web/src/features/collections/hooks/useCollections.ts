@@ -30,6 +30,7 @@ export function useCollectionsQuery(
     queryKey: collectionKeys.list(familySlug, criteria),
     queryFn: ({ signal }) => getCollections(familySlug, criteria, signal),
     enabled: enabled && familySlug !== "",
+    placeholderData: (previousData) => previousData,
     retry: false,
   });
 }
