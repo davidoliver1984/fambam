@@ -151,6 +151,26 @@ class FamilyExportHttpTest extends TestCase
         $this->actingAs($owner)->getJson("{$base}/{$personal->id}/download")->assertNotFound();
     }
 
+    public function test_expired_export_is_deleted_and_cannot_be_downloaded(): void
+    {
+        $family = FamilySpace::factory()->create(['slug' => 'expired-export-family']);
+        [$owner] = $this->membership($family, FamilySpaceRole::Owner, 'Owner');
+        $export = $this->readyExport($family, $owner, FamilyExportScope::Personal);
+        $export->update(['expires_at' => now()->subMinute()]);
+
+        app(FamilyExportManager::class)->expire(
+            TenantOperationContext::forBackground($family->id, $owner->id),
+            $export->id,
+        );
+
+        $this->assertSame(FamilyExportState::Expired, $export->refresh()->state);
+        $this->assertContains($export->object_key, $this->storage->deleted);
+        $this->actingAs($owner)
+            ->getJson("/api/families/expired-export-family/exports/{$export->id}/download")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('export');
+    }
+
     public function test_terminal_transition_records_one_unconditional_notification_intent_and_delivery(): void
     {
         Queue::fake();

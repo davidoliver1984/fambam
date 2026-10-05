@@ -12,7 +12,7 @@ import { FamilyExportsPage } from "./FamilyExportsPage";
 
 const apiBaseUrl = "http://localhost:8082";
 
-function renderPage(role: "owner" | "member") {
+function renderPage(role: "owner" | "member", empty = false) {
   let personalRequested = false;
   server.use(
     http.get(`${apiBaseUrl}/api/families/oliver-family`, () =>
@@ -28,28 +28,30 @@ function renderPage(role: "owner" | "member") {
     ),
     http.get(`${apiBaseUrl}/api/families/oliver-family/exports`, () =>
       HttpResponse.json({
-        data: [
-          {
-            id: "01KEXPORT00000000000000000",
-            scope: "personal",
-            state: "ready",
-            photo_count: 12,
-            byte_size: 4096,
-            failure_reason: null,
-            expires_at: "2026-09-11T12:00:00Z",
-            created_at: "2026-09-10T12:00:00Z",
-          },
-          {
-            id: "01KEXPORTFAILED00000000000",
-            scope: "personal",
-            state: "failed",
-            photo_count: null,
-            byte_size: null,
-            failure_reason: "internal-provider-detail",
-            expires_at: null,
-            created_at: "2026-09-10T12:00:00Z",
-          },
-        ],
+        data: empty
+          ? []
+          : [
+              {
+                id: "01KEXPORT00000000000000000",
+                scope: "personal",
+                state: "ready",
+                photo_count: 12,
+                byte_size: 4096,
+                failure_reason: null,
+                expires_at: "2099-10-06T12:00:00Z",
+                created_at: "2026-10-05T08:30:00Z",
+              },
+              {
+                id: "01KEXPORTFAILED00000000000",
+                scope: "personal",
+                state: "failed",
+                photo_count: null,
+                byte_size: null,
+                failure_reason: "internal-provider-detail",
+                expires_at: null,
+                created_at: "2026-10-05T08:45:00Z",
+              },
+            ],
       }),
     ),
     http.post(
@@ -85,7 +87,7 @@ function renderPage(role: "owner" | "member") {
 afterEach(cleanup);
 
 describe("FamilyExportsPage", () => {
-  it("shows status fields, a safe failure message and both Owner actions", async () => {
+  it("shows human-readable status fields, a safe failure message and both Owner actions", async () => {
     const user = userEvent.setup();
     const request = renderPage("owner");
 
@@ -93,19 +95,19 @@ describe("FamilyExportsPage", () => {
       await screen.findByRole("heading", { name: "Exports" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Request full Family Space archive" }),
+      screen.getByRole("button", { name: "Request Family Space archive" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Download" }),
+      screen.getByRole("button", { name: "Download archive" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("4,096 bytes")).toBeInTheDocument();
-    expect(screen.getByText(/could not be completed/i)).toBeInTheDocument();
+    expect(screen.getByText("4 KB")).toBeInTheDocument();
+    expect(screen.getByText(/could not be prepared/i)).toBeInTheDocument();
     expect(
       screen.queryByText("internal-provider-detail"),
     ).not.toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: "Request my personal archive" }),
+      screen.getByRole("button", { name: "Request my archive" }),
     );
     expect(request.personalWasRequested()).toBe(true);
   });
@@ -115,13 +117,25 @@ describe("FamilyExportsPage", () => {
 
     expect(
       await screen.findByRole("button", {
-        name: "Request my personal archive",
+        name: "Request my archive",
       }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", {
-        name: "Request full Family Space archive",
+        name: "Request Family Space archive",
       }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/only the Family Space Owner can request/i),
+    ).toBeInTheDocument();
+  });
+
+  it("shows an intentional empty state", async () => {
+    renderPage("owner", true);
+
+    expect(
+      await screen.findByRole("heading", { name: "No exports yet" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Not available yet")).not.toBeInTheDocument();
   });
 });

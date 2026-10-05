@@ -330,6 +330,16 @@ export function ProductHeader({
               <ShellIcon name="settings" />
               Family settings
             </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                navigateAccount(`${base}/exports`);
+              }}
+            >
+              <ShellIcon name="file-text" />
+              Exports
+            </button>
             <button type="button" role="menuitem" disabled>
               <ShellIcon name="shield-check" />
               Family overview

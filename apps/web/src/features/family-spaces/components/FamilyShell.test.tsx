@@ -503,6 +503,7 @@ describe("FamilyShell", () => {
     expect(
       screen.getByRole("menuitem", { name: "Family overview" }),
     ).toBeDisabled();
+    expect(screen.getByRole("menuitem", { name: "Exports" })).toBeEnabled();
     expect(
       screen.getByRole("menuitem", { name: "Platform Admin" }),
     ).toBeDisabled();
