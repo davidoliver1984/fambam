@@ -7,6 +7,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -15,15 +16,27 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 
 /**
  * @property Carbon|null $email_verified_at
+ * @property string|null $about
+ * @property string|null $pending_email
+ * @property Carbon|null $pending_email_requested_at
+ * @property string|null $avatar_media_upload_id
+ * @property Carbon|null $last_login_at
+ * @property string|null $last_login_user_agent
  * @property bool $can_create_family_spaces
  * @property Carbon|null $revoked_at
  */
-#[Fillable(['name', 'email', 'password', 'timezone'])]
+#[Fillable(['name', 'about', 'email', 'password', 'timezone'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable;
+
+    /** @return BelongsTo<MediaUpload, $this> */
+    public function avatarMediaUpload(): BelongsTo
+    {
+        return $this->belongsTo(MediaUpload::class, 'avatar_media_upload_id');
+    }
 
     /** @return HasMany<FamilySpaceMembership, $this> */
     public function familySpaceMemberships(): HasMany
@@ -46,6 +59,8 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return [
             'email_verified_at' => 'datetime',
+            'pending_email_requested_at' => 'datetime',
+            'last_login_at' => 'datetime',
             'can_create_family_spaces' => 'boolean',
             'revoked_at' => 'datetime',
             'password' => 'hashed',

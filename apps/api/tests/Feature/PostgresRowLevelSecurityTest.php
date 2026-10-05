@@ -1098,6 +1098,45 @@ SQL);
         });
     }
 
+    public function test_account_avatar_upload_is_visible_to_its_owner_without_exposing_other_media(): void
+    {
+        [$ownerId, $familyId] = $this->createOwnedFamily('account-avatar-rls');
+        [$otherOwnerId] = $this->createOwnedFamily('other-account-avatar-rls');
+        $avatarId = (string) Str::ulid();
+        $archiveId = (string) Str::ulid();
+        $now = now();
+        foreach ([[$avatarId, 'account_avatar'], [$archiveId, 'archive']] as [$uploadId, $purpose]) {
+            $this->admin->table('media_uploads')->insert([
+                'id' => $uploadId,
+                'family_space_id' => $familyId,
+                'user_id' => $ownerId,
+                'purpose' => $purpose,
+                'state' => 'ready',
+                'staging_object_key' => "families/{$familyId}/media-staging/{$uploadId}/original",
+                'canonical_object_key' => "families/{$familyId}/media/{$uploadId}/canonical.jpg",
+                'canonical_mime_type' => 'image/jpeg',
+                'client_filename' => "{$purpose}.jpg",
+                'upload_method' => 'single',
+                'idempotency_key' => "rls-{$uploadId}",
+                'request_fingerprint' => hash('sha256', $uploadId),
+                'correlation_id' => (string) Str::uuid(),
+                'traceparent' => TenantOperationContext::newTraceparent(),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
+        DB::beginTransaction();
+        app(DatabaseTenantContext::class)->establishUser($ownerId);
+        $this->assertSame([$avatarId], DB::table('media_uploads')->pluck('id')->all());
+        DB::rollBack();
+
+        DB::beginTransaction();
+        app(DatabaseTenantContext::class)->establishUser($otherOwnerId);
+        $this->assertSame([], DB::table('media_uploads')->pluck('id')->all());
+        DB::rollBack();
+    }
+
     public function test_people_proposals_and_account_links_use_the_standard_class_c_tenant_boundary(): void
     {
         [$ownerId, $firstFamily] = $this->createOwnedFamily('first-people-rls');

@@ -57,6 +57,7 @@ class PhotoManager
         return DB::transaction(function () use ($familySpace, $actor, $input, $request): PhotoCreationResult {
             $upload = MediaUpload::query()->lockForUpdate()
                 ->where('family_space_id', $familySpace->id)
+                ->where('purpose', 'archive')
                 ->findOrFail((string) $input['media_upload_id']);
             $role = $this->tenantContext->membership()->role;
 

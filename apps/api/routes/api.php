@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\AccountAvatarController;
+use App\Http\Controllers\AccountEmailController;
 use App\Http\Controllers\AccountSecurityController;
 use App\Http\Controllers\AlbumController;
 use App\Http\Controllers\CollectionController;
@@ -35,6 +37,7 @@ use App\Http\Controllers\PhotoController;
 use App\Http\Controllers\PhotoConversationController;
 use App\Http\Controllers\PhotoDownloadController;
 use App\Http\Controllers\PhotoEditorController;
+use App\Http\Controllers\RecentSignInController;
 use App\Http\Controllers\RelationshipController;
 use App\Http\Controllers\SavedSearchController;
 use App\Http\Controllers\SearchController;
@@ -59,6 +62,14 @@ Route::middleware(['throttle:invitation-acceptance', 'database-context'])->group
 Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void {
     Route::get('/user', [CurrentUserController::class, 'show']);
     Route::patch('/user/profile', [CurrentUserController::class, 'update']);
+    Route::put('/user/avatar', [AccountAvatarController::class, 'update']);
+    Route::delete('/user/avatar', [AccountAvatarController::class, 'destroy']);
+    Route::post('/user/email-change', [AccountEmailController::class, 'requestChange'])
+        ->middleware('throttle:account-security');
+    Route::get('/user/email-change/{user}/{hash}', [AccountEmailController::class, 'verify'])
+        ->middleware(['signed', 'throttle:account-security'])
+        ->name('account.email.verify');
+    Route::get('/user/recent-sign-ins', RecentSignInController::class);
     Route::put('/user/password', [AccountSecurityController::class, 'updatePassword'])
         ->middleware('throttle:account-security');
     Route::post('/user/revoke-sessions', [AccountSecurityController::class, 'revokeSessions'])
@@ -114,6 +125,7 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
             ->middleware('throttle:invitation-issuance');
         Route::post('/invitations/{invitation}/revoke', [InvitationController::class, 'revoke']);
         Route::post('/media-uploads', [MediaUploadController::class, 'store']);
+        Route::post('/account/avatar-uploads', [AccountAvatarController::class, 'initiate']);
         Route::get('/media-upload-batches/{uploadBatch}', [MediaUploadController::class, 'batch']);
         Route::get('/media-upload-duplicate-holds', [DuplicateHoldController::class, 'index']);
         Route::post('/media-upload-duplicate-holds/{hold}/resolve', [DuplicateHoldController::class, 'resolve']);

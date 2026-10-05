@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use LogicException;
 
 final class NotificationPresentationBuilder
 {
@@ -166,6 +167,7 @@ final class NotificationPresentationBuilder
                 NotificationCategory::Love => $loveActors->get($sourceId, collect())->pluck('actor_user_id')
                     ->map(fn ($id): int => (int) $id)->values()->all(),
                 NotificationCategory::Attendance, NotificationCategory::Export => [],
+                NotificationCategory::PhotoMemory => throw new LogicException('Photo-memory delivery is not implemented.'),
             };
             if ($photoComments->has($sourceId)) {
                 $details[$notification->id] = Str::limit(trim($photoComments->get($sourceId)->body_plain_text), 120);
@@ -216,6 +218,7 @@ final class NotificationPresentationBuilder
                 $notification->event_id !== null => ['event', $notification->event_id],
                 default => ['story', $notification->story_id],
             },
+            NotificationCategory::PhotoMemory => throw new LogicException('Photo-memory delivery is not implemented.'),
         };
 
         return $id === null ? null : ['type' => $type, 'id' => $id];
@@ -267,6 +270,7 @@ final class NotificationPresentationBuilder
             NotificationCategory::Attendance => 'Someone responded to an Event invitation',
             NotificationCategory::Love => $actor.($actorCount > 1 ? ' and '.($actorCount - 1).' others' : '')
                 .' loved your '.ucfirst($this->target($notification)['type'] ?? 'memory'),
+            NotificationCategory::PhotoMemory => throw new LogicException('Photo-memory delivery is not implemented.'),
         };
     }
 

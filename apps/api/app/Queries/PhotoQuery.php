@@ -202,6 +202,7 @@ class PhotoQuery
         $membership = $this->tenantContext->membership();
         $query = MediaUpload::query()
             ->where('family_space_id', $this->tenantContext->familySpace()->id)
+            ->where('purpose', 'archive')
             ->where('state', MediaUploadState::Ready)
             ->whereNull('target_album_id')
             ->whereDoesntHave('photo');

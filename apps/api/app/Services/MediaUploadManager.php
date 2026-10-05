@@ -26,7 +26,7 @@ class MediaUploadManager
         private readonly AuditRecorder $audit,
     ) {}
 
-    /** @param array{client_filename: string, client_mime_type?: string|null, upload_batch_id?: string|null, as_cover?: bool, cover_focal_x?: float|null, cover_focal_y?: float|null} $input */
+    /** @param array{client_filename: string, client_mime_type?: string|null, upload_batch_id?: string|null, as_cover?: bool, cover_focal_x?: float|null, cover_focal_y?: float|null, purpose?: string} $input */
     public function initiate(
         FamilySpace $familySpace,
         User $actor,
@@ -40,6 +40,7 @@ class MediaUploadManager
             'client_mime_type' => $input['client_mime_type'] ?? null,
             'upload_batch_id' => $input['upload_batch_id'] ?? null,
             'target_album_id' => $targetAlbumId,
+            'purpose' => $input['purpose'] ?? 'archive',
             ...(($input['as_cover'] ?? false) ? ['as_cover' => true] : []),
             ...(($input['as_cover'] ?? false) ? [
                 'cover_focal_x' => $input['cover_focal_x'] ?? 0.5,
@@ -56,6 +57,7 @@ class MediaUploadManager
         $upload = new MediaUpload([
             'family_space_id' => $familySpace->id,
             'user_id' => $actor->id,
+            'purpose' => $input['purpose'] ?? 'archive',
             'state' => MediaUploadState::Initiated,
             'client_filename' => $input['client_filename'],
             'client_mime_type' => $input['client_mime_type'] ?? null,

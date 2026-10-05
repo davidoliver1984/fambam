@@ -88,7 +88,11 @@ afterEach(() => {
 vi.mocked(getCurrentUser).mockResolvedValue({
   id: 1,
   name: "David",
+  about: null,
   email: "david@example.test",
+  pending_email: null,
+  pending_email_requested_at: null,
+  avatar: null,
   timezone: "Europe/London",
   email_verified_at: null,
   can_create_family_spaces: false,

@@ -58,6 +58,83 @@ class NotificationHttpTest extends TestCase
             ->assertOk()->assertJsonFragment(['category' => 'contribution', 'channel' => 'email', 'enabled' => true]);
     }
 
+    public function test_settings_presentation_maps_family_activity_without_destroying_granular_truth(): void
+    {
+        $family = FamilySpace::factory()->create(['slug' => 'settings-preferences']);
+        $user = User::factory()->create();
+        FamilySpaceMembership::query()->create(['family_space_id' => $family->id, 'user_id' => $user->id,
+            'role' => FamilySpaceRole::Member, 'state' => MembershipState::Active, 'accepted_at' => now()]);
+
+        $this->actingAs($user)->getJson('/api/families/settings-preferences/notification-preferences')
+            ->assertOk()
+            ->assertJsonFragment([
+                'key' => 'family_activity',
+                'channel' => 'email',
+                'enabled' => false,
+                'state' => 'mixed',
+                'categories' => ['comment', 'contribution', 'story', 'identity', 'attendance', 'love'],
+            ])
+            ->assertJsonFragment([
+                'key' => 'photo_memories',
+                'channel' => 'email',
+                'enabled' => false,
+                'state' => 'off',
+                'categories' => ['photo_memory'],
+            ]);
+
+        $this->actingAs($user)->putJson('/api/families/settings-preferences/notification-preferences', [
+            'presentation_preferences' => [
+                ['key' => 'family_activity', 'channel' => 'email', 'enabled' => true],
+            ],
+        ])->assertOk()->assertJsonFragment([
+            'key' => 'family_activity', 'channel' => 'email', 'enabled' => true, 'state' => 'on',
+        ]);
+
+        foreach (['comment', 'contribution', 'story', 'identity', 'attendance', 'love'] as $category) {
+            $this->assertDatabaseHas('notification_preferences', [
+                'family_space_id' => $family->id,
+                'user_id' => $user->id,
+                'category' => $category,
+                'channel' => 'email',
+                'enabled' => true,
+            ]);
+        }
+        $this->assertDatabaseMissing('notification_preferences', [
+            'family_space_id' => $family->id,
+            'user_id' => $user->id,
+            'category' => 'photo_memory',
+            'channel' => 'email',
+        ]);
+    }
+
+    public function test_photo_memory_preference_persists_and_preferences_are_self_only(): void
+    {
+        $family = FamilySpace::factory()->create(['slug' => 'photo-memory-preference']);
+        $user = User::factory()->create();
+        $outsider = User::factory()->create();
+        FamilySpaceMembership::query()->create(['family_space_id' => $family->id, 'user_id' => $user->id,
+            'role' => FamilySpaceRole::Member, 'state' => MembershipState::Active, 'accepted_at' => now()]);
+
+        $this->actingAs($user)->putJson('/api/families/photo-memory-preference/notification-preferences', [
+            'presentation_preferences' => [
+                ['key' => 'photo_memories', 'channel' => 'email', 'enabled' => true],
+            ],
+        ])->assertOk()->assertJsonFragment([
+            'category' => 'photo_memory', 'channel' => 'email', 'enabled' => true,
+        ]);
+        $this->assertDatabaseHas('notification_preferences', [
+            'family_space_id' => $family->id,
+            'user_id' => $user->id,
+            'category' => 'photo_memory',
+            'channel' => 'email',
+            'enabled' => true,
+        ]);
+
+        $this->actingAs($outsider)
+            ->getJson('/api/families/photo-memory-preference/notification-preferences')
+            ->assertNotFound();
+    }
+
     public function test_only_the_recipient_can_read_a_notification(): void
     {
         $family = FamilySpace::factory()->create(['slug' => 'private-notifications']);

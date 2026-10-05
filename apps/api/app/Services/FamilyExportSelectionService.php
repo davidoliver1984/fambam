@@ -114,6 +114,7 @@ class FamilyExportSelectionService
             originalPhotoIds: $photoIds,
             unattachedMediaUploadIds: $this->ids(MediaUpload::query()
                 ->where('family_space_id', $familySpaceId)
+                ->where('purpose', 'archive')
                 ->whereIn('state', [
                     MediaUploadState::Preserved,
                     MediaUploadState::Processing,

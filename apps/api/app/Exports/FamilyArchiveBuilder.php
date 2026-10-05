@@ -185,6 +185,7 @@ class FamilyArchiveBuilder
             $unattached = [];
             if ($export->scope === FamilyExportScope::FamilySpaceFull) {
                 $uploads = MediaUpload::query()->whereIn('id', $selection->unattachedMediaUploadIds)
+                    ->where('purpose', 'archive')
                     ->whereIn('state', [
                         MediaUploadState::Preserved,
                         MediaUploadState::Processing,

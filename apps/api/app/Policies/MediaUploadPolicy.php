@@ -31,6 +31,9 @@ class MediaUploadPolicy
         if (! $this->matchesContext($user, $upload) || $upload->user_id !== $user->id) {
             return false;
         }
+        if ($upload->purpose === 'account_avatar') {
+            return true;
+        }
         if ($upload->target_album_id === null) {
             return $this->hasPhaseFiveMediaAccess($user);
         }
@@ -43,6 +46,10 @@ class MediaUploadPolicy
     {
         if (! $this->matchesContext($user, $upload)) {
             return false;
+        }
+
+        if ($upload->purpose === 'account_avatar') {
+            return $upload->user_id === $user->id;
         }
 
         $upload->loadMissing('photo');

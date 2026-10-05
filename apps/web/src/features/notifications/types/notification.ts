@@ -6,10 +6,8 @@ export type NotificationCategory =
   | "export"
   | "attendance"
   | "love";
-export type PreferenceNotificationCategory = Exclude<
-  NotificationCategory,
-  "export"
->;
+export type PreferenceNotificationCategory =
+  Exclude<NotificationCategory, "export"> | "photo_memory";
 export type NotificationChannel = "in_app" | "email";
 export type FamilyNotification = {
   id: string;
@@ -45,4 +43,12 @@ export type NotificationPreference = {
   category: PreferenceNotificationCategory;
   channel: NotificationChannel;
   enabled: boolean;
+};
+
+export type NotificationPresentationPreference = {
+  key: "family_activity" | "photo_memories";
+  channel: NotificationChannel;
+  enabled: boolean;
+  state: "on" | "off" | "mixed";
+  categories: PreferenceNotificationCategory[];
 };

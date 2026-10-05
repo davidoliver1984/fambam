@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 #[Fillable([
     'family_space_id',
     'user_id',
+    'purpose',
     'state',
     'staging_object_key',
     'staging_deleted_at',

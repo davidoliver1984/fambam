@@ -10,6 +10,7 @@ import {
 import { toAppError } from "@/api/errors";
 import { ProductFooter } from "@/components/ui";
 import { useCurrentUserQuery } from "@/features/account/hooks/useCurrentUserQuery";
+import { useAppearancePreference } from "@/features/account/hooks/useAppearancePreference";
 import { useLogoutMutation } from "@/features/auth/hooks/useAuthMutations";
 
 import { useFamilySpaceQuery } from "../hooks/useFamilySpaceQuery";
@@ -47,19 +48,6 @@ function guestRouteContext(
   return { eventId };
 }
 
-function initialTheme(): "light" | "dark" {
-  try {
-    const saved = window.localStorage.getItem("fambam-theme");
-    if (saved === "light" || saved === "dark") return saved;
-  } catch {
-    // A blocked storage API must not prevent the archive from opening.
-  }
-  return typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-}
-
 export function FamilyShell() {
   const { familySlug = "" } = useParams();
   const location = useLocation();
@@ -67,20 +55,11 @@ export function FamilyShell() {
   const family = useFamilySpaceQuery(familySlug);
   const user = useCurrentUserQuery();
   const logout = useLogoutMutation();
-  const [theme, setTheme] = useState<"light" | "dark">(initialTheme);
+  const { theme, setPreference } = useAppearancePreference();
   const [actionError, setActionError] = useState("");
   const content = useRef<HTMLDivElement>(null);
   const previousPath = useRef(location.pathname);
   const base = `/families/${encodeURIComponent(familySlug)}`;
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    try {
-      window.localStorage.setItem("fambam-theme", theme);
-    } catch {
-      // Appearance remains usable even when storage is unavailable.
-    }
-  }, [theme]);
 
   useEffect(() => {
     if (previousPath.current === location.pathname) return;
@@ -126,7 +105,7 @@ export function FamilyShell() {
                   type="button"
                   aria-pressed={theme === "dark"}
                   onClick={() => {
-                    setTheme(theme === "dark" ? "light" : "dark");
+                    setPreference(theme === "dark" ? "light" : "dark");
                   }}
                 >
                   {theme === "dark" ? "Use light mode" : "Use dark mode"}
@@ -196,7 +175,7 @@ export function FamilyShell() {
         role={family.data.role}
         userName={user.data?.name ?? "Account"}
         theme={theme}
-        onThemeChange={setTheme}
+        onThemeChange={setPreference}
         canBrowseArchive={canBrowseArchive}
         canBrowseAlbums={canBrowseAlbums}
         signingOut={logout.isPending}

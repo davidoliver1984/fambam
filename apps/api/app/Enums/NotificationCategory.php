@@ -11,10 +11,11 @@ enum NotificationCategory: string
     case Export = 'export';
     case Attendance = 'attendance';
     case Love = 'love';
+    case PhotoMemory = 'photo_memory';
 
     /** @return list<self> */
     public static function preferenceCases(): array
     {
-        return [self::Comment, self::Contribution, self::Story, self::Identity, self::Attendance, self::Love];
+        return [self::Comment, self::Contribution, self::Story, self::Identity, self::Attendance, self::Love, self::PhotoMemory];
     }
 }

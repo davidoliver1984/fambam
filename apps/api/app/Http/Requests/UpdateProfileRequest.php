@@ -16,7 +16,18 @@ class UpdateProfileRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'about' => ['nullable', 'string', 'max:1000'],
             'timezone' => ['required', 'string', 'timezone:all'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if (! $this->has('about')) {
+            return;
+        }
+
+        $about = trim((string) $this->input('about'));
+        $this->merge(['about' => $about === '' ? null : $about]);
     }
 }

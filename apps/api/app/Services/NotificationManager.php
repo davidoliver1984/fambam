@@ -37,6 +37,7 @@ use Illuminate\Contracts\Notifications\Dispatcher;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use LogicException;
 
 class NotificationManager
 {
@@ -262,6 +263,7 @@ class NotificationManager
             NotificationCategory::Export => ['family_export_id' => $subject['family_export_id']],
             NotificationCategory::Attendance => ['event_id' => $subject['event_id']],
             NotificationCategory::Love => $subject,
+            NotificationCategory::PhotoMemory => throw new LogicException('Photo-memory delivery is not implemented.'),
         };
     }
 
@@ -432,6 +434,7 @@ class NotificationManager
             NotificationCategory::Identity => 'Your identity was confirmed in a photograph.',
             NotificationCategory::Export => 'Your fambam export status changed.',
             NotificationCategory::Attendance => 'Someone responded to an Event invitation.',
+            NotificationCategory::PhotoMemory => throw new LogicException('Photo-memory delivery is not implemented.'),
         };
     }
 

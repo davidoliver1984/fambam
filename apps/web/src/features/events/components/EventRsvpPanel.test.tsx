@@ -37,7 +37,11 @@ describe("EventRsvpPanel", () => {
     vi.mocked(getCurrentUser).mockResolvedValue({
       id: 2,
       name: "Guest",
+      about: null,
       email: "guest@example.test",
+      pending_email: null,
+      pending_email_requested_at: null,
+      avatar: null,
       timezone: "Europe/London",
       email_verified_at: null,
       can_create_family_spaces: false,
@@ -79,7 +83,11 @@ describe("EventRsvpPanel", () => {
     vi.mocked(getCurrentUser).mockResolvedValue({
       id: 3,
       name: "Member",
+      about: null,
       email: "member@example.test",
+      pending_email: null,
+      pending_email_requested_at: null,
+      avatar: null,
       timezone: "Europe/London",
       email_verified_at: null,
       can_create_family_spaces: false,

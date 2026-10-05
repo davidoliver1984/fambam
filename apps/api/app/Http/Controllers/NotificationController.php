@@ -11,11 +11,23 @@ use App\Models\User;
 use App\Services\NotificationPresentationBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class NotificationController extends Controller
 {
+    /** @var list<NotificationCategory> */
+    private const FAMILY_ACTIVITY_CATEGORIES = [
+        NotificationCategory::Comment,
+        NotificationCategory::Contribution,
+        NotificationCategory::Story,
+        NotificationCategory::Identity,
+        NotificationCategory::Attendance,
+        NotificationCategory::Love,
+    ];
+
     public function __construct(private readonly NotificationPresentationBuilder $presentations) {}
 
     public function index(FamilySpace $familySpace, Request $request): JsonResponse
@@ -61,17 +73,97 @@ class NotificationController extends Controller
             }
         }
 
-        return response()->json(['data' => $data]);
+        return response()->json([
+            'data' => $data,
+            'presentation' => $this->presentationPreferences($stored),
+        ]);
     }
 
     public function updatePreferences(FamilySpace $familySpace, Request $request): JsonResponse
     {
-        $data = $request->validate(['preferences' => 'required|array|max:12', 'preferences.*.category' => ['required', Rule::in(array_map(fn (NotificationCategory $category): string => $category->value, NotificationCategory::preferenceCases()))], 'preferences.*.channel' => ['required', Rule::enum(NotificationChannel::class)], 'preferences.*.enabled' => 'required|boolean']);
-        foreach ($data['preferences'] as $preference) {
-            NotificationPreference::query()->updateOrCreate(['family_space_id' => $familySpace->id, 'user_id' => $request->user()->id, 'category' => $preference['category'], 'channel' => $preference['channel']], ['enabled' => $preference['enabled']]);
-        }
+        $data = $request->validate([
+            'preferences' => 'required_without:presentation_preferences|array|max:14',
+            'preferences.*.category' => ['required', Rule::in(array_map(fn (NotificationCategory $category): string => $category->value, NotificationCategory::preferenceCases()))],
+            'preferences.*.channel' => ['required', Rule::enum(NotificationChannel::class)],
+            'preferences.*.enabled' => 'required|boolean',
+            'presentation_preferences' => 'required_without:preferences|array|max:4',
+            'presentation_preferences.*.key' => ['required', Rule::in(['family_activity', 'photo_memories'])],
+            'presentation_preferences.*.channel' => ['required', Rule::enum(NotificationChannel::class)],
+            'presentation_preferences.*.enabled' => 'required|boolean',
+        ]);
+        DB::transaction(function () use ($data, $familySpace, $request): void {
+            foreach ($data['preferences'] ?? [] as $preference) {
+                $this->storePreference($familySpace, (int) $request->user()->id, $preference['category'], $preference['channel'], $preference['enabled']);
+            }
+            foreach ($data['presentation_preferences'] ?? [] as $preference) {
+                $categories = $preference['key'] === 'family_activity'
+                    ? self::FAMILY_ACTIVITY_CATEGORIES
+                    : [NotificationCategory::PhotoMemory];
+                foreach ($categories as $category) {
+                    $this->storePreference($familySpace, (int) $request->user()->id, $category->value, $preference['channel'], $preference['enabled']);
+                }
+            }
+        });
 
         return $this->preferences($familySpace, $request);
+    }
+
+    /** @param Collection<string, NotificationPreference> $stored
+     * @return list<array<string, mixed>>
+     */
+    private function presentationPreferences($stored): array
+    {
+        $result = [];
+        foreach (NotificationChannel::cases() as $channel) {
+            $states = array_map(
+                fn (NotificationCategory $category): bool => $this->enabled($stored, $category, $channel),
+                self::FAMILY_ACTIVITY_CATEGORIES,
+            );
+            $all = ! in_array(false, $states, true);
+            $none = ! in_array(true, $states, true);
+            $result[] = [
+                'key' => 'family_activity',
+                'channel' => $channel->value,
+                'enabled' => $all,
+                'state' => $all ? 'on' : ($none ? 'off' : 'mixed'),
+                'categories' => array_map(fn (NotificationCategory $category): string => $category->value, self::FAMILY_ACTIVITY_CATEGORIES),
+            ];
+            $photoMemories = $this->enabled($stored, NotificationCategory::PhotoMemory, $channel);
+            $result[] = [
+                'key' => 'photo_memories',
+                'channel' => $channel->value,
+                'enabled' => $photoMemories,
+                'state' => $photoMemories ? 'on' : 'off',
+                'categories' => [NotificationCategory::PhotoMemory->value],
+            ];
+        }
+
+        return $result;
+    }
+
+    /** @param Collection<string, NotificationPreference> $stored */
+    private function enabled($stored, NotificationCategory $category, NotificationChannel $channel): bool
+    {
+        $key = $category->value.':'.$channel->value;
+
+        return isset($stored[$key])
+            ? $stored[$key]->enabled
+            : ($channel === NotificationChannel::InApp || in_array($category, [NotificationCategory::Comment, NotificationCategory::Identity], true));
+    }
+
+    private function storePreference(
+        FamilySpace $familySpace,
+        int $userId,
+        string $category,
+        string $channel,
+        bool $enabled,
+    ): void {
+        NotificationPreference::query()->updateOrCreate([
+            'family_space_id' => $familySpace->id,
+            'user_id' => $userId,
+            'category' => $category,
+            'channel' => $channel,
+        ], ['enabled' => $enabled]);
     }
 
     private function visible(Request $request, FamilyNotification $row): bool
