@@ -8,6 +8,7 @@ use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\User;
 use App\Queries\FamilySpaceMembershipQuery;
+use App\Services\ActorPresentationService;
 use App\Services\FamilySpaceManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,16 +19,25 @@ class FamilySpaceMembershipController extends Controller
     public function __construct(
         private readonly FamilySpaceMembershipQuery $memberships,
         private readonly FamilySpaceManager $familySpaces,
+        private readonly ActorPresentationService $presentations,
     ) {}
 
-    public function index(FamilySpace $familySpace): JsonResponse
+    public function index(FamilySpace $familySpace, Request $request): JsonResponse
     {
         Gate::authorize('manageMembers', $familySpace);
+        /** @var User $viewer */
+        $viewer = $request->user();
+        $memberships = $this->memberships->listForFamilySpace($familySpace);
+        $presentations = $this->presentations->forUsers($memberships->pluck('user'), $viewer);
 
         return response()->json([
-            'data' => $this->memberships
-                ->listForFamilySpace($familySpace)
-                ->map($this->payload(...)),
+            'data' => $memberships->map(
+                fn (FamilySpaceMembership $membership): array => $this->payload(
+                    $membership,
+                    $viewer,
+                    $presentations,
+                ),
+            ),
         ]);
     }
 
@@ -47,7 +57,10 @@ class FamilySpaceMembershipController extends Controller
             $request,
         );
 
-        return response()->json(['data' => $this->payload($updated->load('user:id,name,email'))]);
+        $updated->load('user:id,name,email');
+        $presentations = $this->presentations->forUsers(collect([$updated->user]), $actor);
+
+        return response()->json(['data' => $this->payload($updated, $actor, $presentations)]);
     }
 
     public function destroy(
@@ -61,12 +74,20 @@ class FamilySpaceMembershipController extends Controller
         $target = $this->memberships->findForFamilySpace($familySpace, $membership);
         $removed = $this->familySpaces->remove($actor, $target, $request);
 
-        return response()->json(['data' => $this->payload($removed->load('user:id,name,email'))]);
+        $removed->load('user:id,name,email');
+        $presentations = $this->presentations->forUsers(collect([$removed->user]), $actor);
+
+        return response()->json(['data' => $this->payload($removed, $actor, $presentations)]);
     }
 
-    /** @return array{id: string, user: array{id: int, name: string, email: string}, role: string, state: string, removed_at: ?string} */
-    private function payload(FamilySpaceMembership $membership): array
+    /**
+     * @param  array<int, array{display_name: string, person_id: string|null, initials: string, portrait_thumbnail_url: string|null}>  $presentations
+     * @return array<string, mixed>
+     */
+    private function payload(FamilySpaceMembership $membership, User $viewer, array $presentations): array
     {
+        $presentation = $presentations[$membership->user_id] ?? null;
+
         return [
             'id' => $membership->id,
             'user' => [
@@ -76,7 +97,14 @@ class FamilySpaceMembershipController extends Controller
             ],
             'role' => $membership->role->value,
             'state' => $membership->state->value,
+            'joined_at' => $membership->joined_at->toAtomString(),
             'removed_at' => $membership->removed_at?->toAtomString(),
+            'linked_person' => ($presentation['person_id'] ?? null) === null ? null : [
+                'id' => $presentation['person_id'],
+                'display_name' => $presentation['display_name'],
+                'portrait_thumbnail_url' => $presentation['portrait_thumbnail_url'],
+            ],
+            'is_current_user' => $membership->user_id === $viewer->id,
         ];
     }
 }

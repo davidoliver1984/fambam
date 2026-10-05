@@ -23,6 +23,18 @@ class FamilySpacePolicy
             && $this->tenantContext->membership()->role->canManageMembers();
     }
 
+    public function update(User $user, FamilySpace $familySpace): bool
+    {
+        return $this->matchesContext($user, $familySpace)
+            && $this->tenantContext->membership()->role->canManageMembers();
+    }
+
+    public function transferOwnership(User $user, FamilySpace $familySpace): bool
+    {
+        return $this->matchesContext($user, $familySpace)
+            && $this->tenantContext->membership()->role === FamilySpaceRole::Owner;
+    }
+
     public function manageMembers(User $user, FamilySpace $familySpace): bool
     {
         return $this->matchesContext($user, $familySpace)

@@ -49,8 +49,17 @@ beforeEach(() => {
     id: "family-1",
     slug: "family-archive",
     name: "Family Archive",
+    description: null,
+    default_visibility: "family_space",
     status: "active",
     role: "administrator",
+    permissions: {
+      can_update_family_settings: true,
+      can_manage_members: true,
+      can_manage_invitations: true,
+      can_transfer_ownership: false,
+      can_leave_family: true,
+    },
   });
   vi.mocked(getDeletedEvents).mockResolvedValue([]);
   vi.mocked(getPhotoVersions).mockResolvedValue({

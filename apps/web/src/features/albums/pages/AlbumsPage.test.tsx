@@ -188,8 +188,17 @@ beforeEach(() => {
     id: "family-1",
     slug: "family-archive",
     name: "Family Archive",
+    description: null,
+    default_visibility: "family_space",
     status: "active",
     role: "owner",
+    permissions: {
+      can_update_family_settings: true,
+      can_manage_members: true,
+      can_manage_invitations: true,
+      can_transfer_ownership: true,
+      can_leave_family: false,
+    },
   });
   vi.mocked(getPhotoVersions).mockResolvedValue({
     active_photo_version_id: null,

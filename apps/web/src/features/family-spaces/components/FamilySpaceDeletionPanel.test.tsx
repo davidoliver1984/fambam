@@ -57,8 +57,17 @@ describe("FamilySpaceDeletionPanel", () => {
       id: "01K1ZZZZZZZZZZZZZZZZZZZZZZ",
       slug: "oliver-family",
       name: "Oliver Family",
+      description: null,
+      default_visibility: "family_space",
       status: "deletion_requested",
       role: "owner",
+      permissions: {
+        can_update_family_settings: true,
+        can_manage_members: true,
+        can_manage_invitations: true,
+        can_transfer_ownership: true,
+        can_leave_family: false,
+      },
       deletion: {
         requested_at: "2026-09-10T12:00:00Z",
         scheduled_at: "2026-09-24T12:00:00Z",
@@ -88,8 +97,17 @@ describe("FamilySpaceDeletionPanel", () => {
       id: "01K1ZZZZZZZZZZZZZZZZZZZZZZ",
       slug: "oliver-family",
       name: "Oliver Family",
+      description: null,
+      default_visibility: "family_space",
       status: "active",
       role: "administrator",
+      permissions: {
+        can_update_family_settings: true,
+        can_manage_members: true,
+        can_manage_invitations: true,
+        can_transfer_ownership: false,
+        can_leave_family: true,
+      },
     });
 
     expect(

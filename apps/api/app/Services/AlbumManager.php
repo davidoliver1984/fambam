@@ -52,7 +52,8 @@ class AlbumManager
             $album = Album::query()->create([
                 'family_space_id' => $space->id, 'created_by' => $actor->id,
                 'name' => $input['name'], 'description' => $input['description'] ?? null,
-                'visibility' => $input['visibility'] ?? AlbumVisibility::FamilySpace->value,
+                'visibility' => $input['visibility']
+                    ?? AlbumVisibility::from($space->default_visibility->value)->value,
                 'event_id' => $input['event_id'] ?? null,
                 'guest_participation' => ($input['event_id'] ?? null) === null ? 'none' : ($input['guest_participation'] ?? 'none'),
                 'starts_on' => $input['starts_on'] ?? null, 'ends_on' => $input['ends_on'] ?? null,

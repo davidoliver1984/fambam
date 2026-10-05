@@ -1,7 +1,11 @@
 import { apiClient, ensureCsrfCookie } from "@/api/client";
 import { type ApiEnvelope, unwrap } from "@/api/envelope";
 
-import type { CreateFamilySpaceInput, FamilySpace } from "../types/familySpace";
+import type {
+  CreateFamilySpaceInput,
+  FamilySpace,
+  UpdateFamilySpaceInput,
+} from "../types/familySpace";
 import type { FamilyMembership, FamilySpaceRole } from "../types/familySpace";
 
 export async function getFamilySpaces(
@@ -34,6 +38,37 @@ export async function getFamilySpace(
       { signal },
     ),
   );
+}
+
+export async function updateFamilySpace(
+  familySlug: string,
+  input: UpdateFamilySpaceInput,
+): Promise<FamilySpace> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.patch<ApiEnvelope<FamilySpace>>(
+      `/api/families/${encodeURIComponent(familySlug)}`,
+      input,
+    ),
+  );
+}
+
+export async function transferFamilySpaceOwnership(
+  familySlug: string,
+  membershipId: string,
+): Promise<FamilySpace> {
+  await ensureCsrfCookie();
+  return unwrap(
+    await apiClient.post<ApiEnvelope<FamilySpace>>(
+      `/api/families/${encodeURIComponent(familySlug)}/ownership-transfer`,
+      { membership_id: membershipId },
+    ),
+  );
+}
+
+export async function leaveFamilySpace(familySlug: string): Promise<void> {
+  await ensureCsrfCookie();
+  await apiClient.post(`/api/families/${encodeURIComponent(familySlug)}/leave`);
 }
 
 export async function requestFamilySpaceDeletion(

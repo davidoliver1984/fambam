@@ -102,6 +102,7 @@ class BootstrapUser extends Command
                 'user_id' => $user->id,
                 'role' => FamilySpaceRole::Owner,
                 'state' => MembershipState::Active,
+                'joined_at' => now(),
             ]);
 
             $audit->record('account.bootstrapped', $user, metadata: [

@@ -106,8 +106,17 @@ beforeEach(() => {
     id: "01KFAMILY0000000000000000",
     slug: "mercer-family",
     name: "Mercer family",
+    description: null,
+    default_visibility: "family_space",
     status: "active",
     role: "owner",
+    permissions: {
+      can_update_family_settings: true,
+      can_manage_members: true,
+      can_manage_invitations: true,
+      can_transfer_ownership: true,
+      can_leave_family: false,
+    },
     current_user_person_id: null,
   });
   vi.mocked(getPeople).mockResolvedValue([person]);

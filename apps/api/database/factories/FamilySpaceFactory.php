@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\FamilySpaceDefaultVisibility;
 use App\Enums\FamilySpaceStatus;
 use App\Models\FamilySpace;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -20,6 +21,8 @@ class FamilySpaceFactory extends Factory
         return [
             'name' => Str::title($name),
             'slug' => Str::slug($name).'-'.Str::lower(Str::random(6)),
+            'description' => null,
+            'default_visibility' => FamilySpaceDefaultVisibility::FamilySpace,
             'status' => FamilySpaceStatus::Active,
         ];
     }

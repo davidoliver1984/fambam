@@ -37,6 +37,7 @@ use App\Tenancy\DatabaseTenantContext;
 use App\Tenancy\TenantContext;
 use App\Tenancy\TenantOperationContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -1592,6 +1593,125 @@ SQL);
         DB::rollBack();
 
         $this->assertNotSame($ownerId, $otherOwnerId);
+    }
+
+    public function test_self_leave_rls_is_scoped_to_one_safe_non_owner_transition(): void
+    {
+        [, $familySpace] = $this->createOwnedFamily('self-leave-rls');
+        $memberId = $this->createUser('self-leave-rls-member@example.test');
+        $otherId = $this->createUser('self-leave-rls-other@example.test');
+        $membership = $this->addMembership($familySpace, $memberId, FamilySpaceRole::Member);
+        $otherMembership = $this->addMembership($familySpace, $otherId, FamilySpaceRole::Member);
+
+        DB::beginTransaction();
+        $context = app(DatabaseTenantContext::class);
+        $context->establishUser($memberId);
+        $context->establishFamilySpace($familySpace, authoritativeOperation: 'self_leave');
+        $this->assertSame(0, DB::table('family_space_memberships')
+            ->where('id', $otherMembership)
+            ->update(['state' => MembershipState::Removed->value, 'removed_at' => now(), 'removed_by' => $memberId]));
+        $this->assertSame(1, DB::table('family_space_memberships')
+            ->where('id', $membership)
+            ->update(['state' => MembershipState::Removed->value, 'removed_at' => now(), 'removed_by' => $memberId]));
+        DB::rollBack();
+
+        DB::beginTransaction();
+        try {
+            $context->establishUser($memberId);
+            $context->establishFamilySpace($familySpace, authoritativeOperation: 'self_leave');
+            DB::table('family_space_memberships')->where('id', $membership)
+                ->update(['role' => FamilySpaceRole::Owner->value]);
+            $this->fail('The self-leave path unexpectedly allowed a role escalation.');
+        } catch (QueryException $exception) {
+            $this->assertSame('P0001', $exception->errorInfo[0]);
+        } finally {
+            DB::rollBack();
+        }
+    }
+
+    public function test_concurrent_ownership_transfers_serialize_and_recheck_authority(): void
+    {
+        if (! function_exists('pcntl_fork') || ! function_exists('stream_socket_pair')) {
+            $this->markTestSkipped('The PostgreSQL concurrency test requires pcntl and stream sockets.');
+        }
+
+        [$ownerId, $familySpace] = $this->createOwnedFamily('concurrent-ownership-transfer');
+        $targets = [];
+        foreach (['first', 'second'] as $suffix) {
+            $userId = $this->createUser("ownership-{$suffix}@example.test");
+            $targets[] = $this->addMembership($familySpace, $userId, FamilySpaceRole::Member);
+        }
+
+        DB::disconnect();
+        DB::disconnect('pgsql_admin');
+        $children = [];
+        foreach ($targets as $membershipId) {
+            $sockets = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+            $this->assertNotFalse($sockets);
+            $pid = pcntl_fork();
+            $this->assertNotSame(-1, $pid);
+            if ($pid === 0) {
+                fclose($sockets[0]);
+                fread($sockets[1], 1);
+                DB::purge();
+                DB::purge('pgsql_admin');
+
+                try {
+                    $outcome = DB::transaction(function () use ($ownerId, $familySpace, $membershipId): string {
+                        $context = app(DatabaseTenantContext::class);
+                        $context->establishUser($ownerId);
+                        $context->establishFamilySpace($familySpace, canManageMemberships: true);
+                        app(FamilySpaceManager::class)->transferOwnership(
+                            User::query()->findOrFail($ownerId),
+                            FamilySpace::query()->findOrFail($familySpace),
+                            FamilySpaceMembership::query()->findOrFail($membershipId),
+                            Request::create('/ownership-transfer', 'POST'),
+                        );
+
+                        return 'transferred';
+                    });
+                } catch (AuthorizationException) {
+                    $outcome = 'denied';
+                } catch (\Throwable $exception) {
+                    $outcome = 'error:'.get_class($exception).':'.$exception->getMessage();
+                }
+
+                fwrite($sockets[1], $outcome);
+                fclose($sockets[1]);
+                exit(0);
+            }
+
+            fclose($sockets[1]);
+            $children[] = ['pid' => $pid, 'socket' => $sockets[0]];
+        }
+
+        foreach ($children as $child) {
+            fwrite($child['socket'], '1');
+        }
+        $outcomes = [];
+        foreach ($children as $child) {
+            $outcomes[] = stream_get_contents($child['socket']);
+            fclose($child['socket']);
+            pcntl_waitpid($child['pid'], $status);
+            $this->assertTrue(pcntl_wifexited($status));
+            $this->assertSame(0, pcntl_wexitstatus($status));
+        }
+
+        DB::purge();
+        DB::purge('pgsql_admin');
+        $this->admin = DB::connection('pgsql_admin');
+        $this->assertEqualsCanonicalizing(['transferred', 'denied'], $outcomes);
+        $this->assertSame(1, $this->admin->table('family_space_memberships')
+            ->where('family_space_id', $familySpace)
+            ->where('state', MembershipState::Active->value)
+            ->where('role', FamilySpaceRole::Owner->value)
+            ->count());
+        $this->assertSame(FamilySpaceRole::Administrator->value, $this->admin
+            ->table('family_space_memberships')->where('family_space_id', $familySpace)
+            ->where('user_id', $ownerId)->value('role'));
+        $this->assertSame(1, $this->admin->table('audit_events')
+            ->where('family_space_id', $familySpace)
+            ->where('action', 'family_space.ownership_transferred')->count());
     }
 
     public function test_one_tenant_context_cannot_mutate_another_tenant_for_a_multi_space_user(): void

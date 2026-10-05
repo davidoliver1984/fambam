@@ -197,12 +197,15 @@ class InvitationLifecycleTest extends TestCase
             ->sole();
         $membershipId = $membership->id;
         $familySpaceId = $membership->family_space_id;
+        $firstJoinedAt = $membership->joined_at;
+        $createdAt = $membership->created_at;
         $membership->update([
             'state' => MembershipState::Removed,
             'removed_at' => now(),
             'removed_by' => $owner->id,
         ]);
 
+        $this->travel(1)->day();
         $secondToken = $this->issueInvitation($owner, $existingUser->email);
         $secondClaim = $this->postJson('/api/invitations/exchange', ['token' => $secondToken])
             ->json('data.claim_token');
@@ -216,6 +219,8 @@ class InvitationLifecycleTest extends TestCase
             ->sole();
         $this->assertSame($membershipId, $reactivated->id);
         $this->assertSame(MembershipState::Active, $reactivated->state);
+        $this->assertTrue($reactivated->joined_at->greaterThan($firstJoinedAt));
+        $this->assertTrue($reactivated->created_at->equalTo($createdAt));
         $this->assertNull($reactivated->removed_at);
         $this->assertNull($reactivated->removed_by);
         $this->assertDatabaseHas('audit_events', ['action' => 'family_space.member_reactivated']);

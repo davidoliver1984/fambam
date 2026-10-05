@@ -2,7 +2,6 @@
 
 namespace App\Queries;
 
-use App\Enums\FamilySpaceRole;
 use App\Enums\MembershipState;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
@@ -33,9 +32,8 @@ class FamilySpaceMembershipQuery
     public function listForFamilySpace(FamilySpace $familySpace): Collection
     {
         return $this->forFamilySpace($familySpace)
-            ->where('role', '!=', FamilySpaceRole::Guest->value)
             ->with('user:id,name,email')
-            ->orderBy('created_at')
+            ->orderBy('joined_at')
             ->get();
     }
 

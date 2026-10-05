@@ -18,8 +18,17 @@ const family = {
   id: "family-1",
   slug: "mercer-family",
   name: "Mercer family",
+  description: null,
+  default_visibility: "family_space" as const,
   status: "active" as const,
   role: "owner" as const,
+  permissions: {
+    can_update_family_settings: true,
+    can_manage_members: true,
+    can_manage_invitations: true,
+    can_transfer_ownership: true,
+    can_leave_family: false,
+  },
 };
 
 function photo(id: string, alt: string) {

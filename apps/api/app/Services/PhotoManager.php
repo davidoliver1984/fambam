@@ -115,7 +115,7 @@ class PhotoManager
                 'media_upload_id' => $upload->id,
                 'created_by' => $actor->id,
                 'visibility' => PhotoVisibility::tryFrom((string) ($input['visibility'] ?? ''))
-                    ?? PhotoVisibility::FamilySpace,
+                    ?? PhotoVisibility::from($familySpace->default_visibility->value),
                 ...$this->contentAttributes($input),
             ]);
 

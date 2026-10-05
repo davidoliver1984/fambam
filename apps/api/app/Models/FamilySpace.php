@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\FamilySpaceDefaultVisibility;
 use App\Enums\FamilySpaceStatus;
 use Carbon\CarbonImmutable;
 use Database\Factories\FamilySpaceFactory;
@@ -13,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property FamilySpaceStatus $status
+ * @property string|null $description
+ * @property FamilySpaceDefaultVisibility $default_visibility
  * @property CarbonImmutable|null $deletion_requested_at
  * @property int|null $deletion_requested_by
  * @property CarbonImmutable|null $scheduled_deletion_at
@@ -21,6 +24,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'id',
     'slug',
     'name',
+    'description',
+    'default_visibility',
     'status',
     'deletion_requested_at',
     'deletion_requested_by',
@@ -34,6 +39,11 @@ class FamilySpace extends Model
     public $incrementing = false;
 
     protected $keyType = 'string';
+
+    /** @var array<string, mixed> */
+    protected $attributes = [
+        'default_visibility' => FamilySpaceDefaultVisibility::FamilySpace->value,
+    ];
 
     /** @return HasMany<FamilySpaceMembership, $this> */
     public function memberships(): HasMany
@@ -106,6 +116,7 @@ class FamilySpace extends Model
     {
         return [
             'status' => FamilySpaceStatus::class,
+            'default_visibility' => FamilySpaceDefaultVisibility::class,
             'deletion_requested_at' => 'immutable_datetime',
             'scheduled_deletion_at' => 'immutable_datetime',
         ];

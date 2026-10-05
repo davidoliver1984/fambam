@@ -79,6 +79,9 @@ Route::middleware(['auth:sanctum', 'database-context'])->group(function (): void
 
     Route::prefix('/families/{familySpace}')->middleware('family-space')->group(function (): void {
         Route::get('/', [FamilySpaceController::class, 'show']);
+        Route::patch('/', [FamilySpaceController::class, 'update']);
+        Route::post('/ownership-transfer', [FamilySpaceController::class, 'transferOwnership']);
+        Route::post('/leave', [FamilySpaceController::class, 'leave']);
         Route::get('/home', [HomeController::class, 'show']);
         Route::get('/activities/recent', [FamilyActivityController::class, 'index']);
         Route::get('/memories/date-based', [DateMemoryController::class, 'index']);

@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * @property FamilySpaceRole $role
  * @property MembershipState $state
+ * @property CarbonImmutable $joined_at
  * @property CarbonImmutable|null $removed_at
  */
 #[Fillable([
@@ -24,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'role',
     'state',
     'invitation_id',
+    'joined_at',
     'removed_at',
     'removed_by',
 ])]
@@ -72,6 +74,7 @@ class FamilySpaceMembership extends Model
         return [
             'role' => FamilySpaceRole::class,
             'state' => MembershipState::class,
+            'joined_at' => 'immutable_datetime',
             'removed_at' => 'immutable_datetime',
         ];
     }

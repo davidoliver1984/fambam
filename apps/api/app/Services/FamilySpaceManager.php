@@ -45,6 +45,7 @@ class FamilySpaceManager
                 'user_id' => $actor->id,
                 'role' => FamilySpaceRole::Owner,
                 'state' => MembershipState::Active,
+                'joined_at' => now(),
             ]);
             $this->audit->record('family_space.created', $familySpace, $actor, $request, [
                 'initial_owner_membership_id' => $membership->id,
@@ -95,6 +96,124 @@ class FamilySpaceManager
             ]);
 
             return $target;
+        });
+    }
+
+    /** @param array<string, mixed> $settings */
+    public function updateSettings(
+        User $actor,
+        FamilySpace $familySpace,
+        array $settings,
+        Request $request,
+    ): FamilySpace {
+        return DB::transaction(function () use ($actor, $familySpace, $settings, $request): FamilySpace {
+            $locked = FamilySpace::query()->lockForUpdate()->findOrFail($familySpace->id);
+            $actorMembership = $this->activeActorMembership($actor, $locked->id);
+            if (! $actorMembership->role->canManageMembers()) {
+                throw new AuthorizationException;
+            }
+
+            $original = [
+                'name' => $locked->name,
+                'description' => $locked->description,
+                'default_visibility' => $locked->default_visibility->value,
+            ];
+            $locked->fill(array_intersect_key($settings, $original));
+            $changed = array_keys($locked->getDirty());
+            if ($changed === []) {
+                return $locked;
+            }
+
+            $locked->save();
+            if (in_array('name', $changed, true)) {
+                $this->audit->record('family_space.name_changed', $locked, $actor, $request, [
+                    'from' => $original['name'],
+                    'to' => $locked->name,
+                ]);
+            }
+            if (in_array('description', $changed, true)) {
+                $this->audit->record('family_space.description_changed', $locked, $actor, $request, [
+                    'previously_present' => $original['description'] !== null,
+                    'present' => $locked->description !== null,
+                ]);
+            }
+            if (in_array('default_visibility', $changed, true)) {
+                $this->audit->record('family_space.default_visibility_changed', $locked, $actor, $request, [
+                    'from' => $original['default_visibility'],
+                    'to' => $locked->default_visibility->value,
+                ]);
+            }
+
+            return $locked;
+        });
+    }
+
+    /** @return array{former_owner: FamilySpaceMembership, owner: FamilySpaceMembership} */
+    public function transferOwnership(
+        User $actor,
+        FamilySpace $familySpace,
+        FamilySpaceMembership $membership,
+        Request $request,
+    ): array {
+        return DB::transaction(function () use ($actor, $familySpace, $membership, $request): array {
+            FamilySpace::query()->whereKey($familySpace->id)->lockForUpdate()->firstOrFail();
+            $actorMembership = $this->activeActorMembership($actor, $familySpace->id);
+            if ($actorMembership->role !== FamilySpaceRole::Owner) {
+                throw new AuthorizationException;
+            }
+
+            $target = FamilySpaceMembership::query()
+                ->where('family_space_id', $familySpace->id)
+                ->lockForUpdate()
+                ->findOrFail($membership->id);
+            if ($target->state !== MembershipState::Active) {
+                $this->fail('Ownership can be transferred only to an active member.');
+            }
+            if ($target->id === $actorMembership->id) {
+                $this->fail('Choose another active member to receive ownership.');
+            }
+            if ($target->role === FamilySpaceRole::Owner) {
+                $this->fail('The selected member is already an Owner.');
+            }
+
+            $target->update(['role' => FamilySpaceRole::Owner]);
+            $actorMembership->update(['role' => FamilySpaceRole::Administrator]);
+            $this->audit->record('family_space.ownership_transferred', $familySpace, $actor, $request, [
+                'former_owner_membership_id' => $actorMembership->id,
+                'former_owner_user_id' => $actorMembership->user_id,
+                'owner_membership_id' => $target->id,
+                'owner_user_id' => $target->user_id,
+                'former_owner_role' => FamilySpaceRole::Administrator->value,
+            ]);
+
+            return ['former_owner' => $actorMembership, 'owner' => $target];
+        });
+    }
+
+    public function leave(User $actor, FamilySpace $familySpace, Request $request): FamilySpaceMembership
+    {
+        return DB::transaction(function () use ($actor, $familySpace, $request): FamilySpaceMembership {
+            FamilySpace::query()->whereKey($familySpace->id)->lockForUpdate()->firstOrFail();
+            $membership = $this->activeActorMembership($actor, $familySpace->id);
+            if ($membership->role === FamilySpaceRole::Owner) {
+                $this->fail('Transfer ownership before leaving this Family Space.');
+            }
+
+            $this->databaseTenantContext->establishFamilySpace(
+                $familySpace,
+                authoritativeOperation: 'self_leave',
+            );
+            $membership->update([
+                'state' => MembershipState::Removed,
+                'removed_at' => now(),
+                'removed_by' => $actor->id,
+            ]);
+            $this->audit->record('family_space.member_left', $membership, $actor, $request, [
+                'family_space_id' => $familySpace->id,
+                'role' => $membership->role->value,
+            ]);
+
+            return $membership;
         });
     }
 

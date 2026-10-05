@@ -24,13 +24,14 @@ class MembershipInvitationAcceptor
     {
         $result = DB::selectOne(<<<'SQL'
 INSERT INTO family_space_memberships (
-    id, family_space_id, user_id, role, state, invitation_id,
+    id, family_space_id, user_id, role, state, invitation_id, joined_at,
     removed_at, removed_by, created_at, updated_at
-) VALUES (?, ?, ?, ?, 'active', ?, NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+) VALUES (?, ?, ?, ?, 'active', ?, CURRENT_TIMESTAMP, NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (family_space_id, user_id) DO UPDATE SET
     role = EXCLUDED.role,
     state = 'active',
     invitation_id = EXCLUDED.invitation_id,
+    joined_at = CURRENT_TIMESTAMP,
     removed_at = NULL,
     removed_by = NULL,
     updated_at = CURRENT_TIMESTAMP
@@ -66,13 +67,14 @@ SQL, [
 
         DB::statement(<<<'SQL'
 INSERT INTO family_space_memberships (
-    id, family_space_id, user_id, role, state, invitation_id,
+    id, family_space_id, user_id, role, state, invitation_id, joined_at,
     removed_at, removed_by, created_at, updated_at
-) VALUES (?, ?, ?, ?, 'active', ?, NULL, NULL, ?, ?)
+) VALUES (?, ?, ?, ?, 'active', ?, ?, NULL, NULL, ?, ?)
 ON CONFLICT (family_space_id, user_id) DO UPDATE SET
     role = excluded.role,
     state = 'active',
     invitation_id = excluded.invitation_id,
+    joined_at = excluded.joined_at,
     removed_at = NULL,
     removed_by = NULL,
     updated_at = excluded.updated_at
@@ -83,6 +85,7 @@ SQL, [
             $user->id,
             $invitation->role->value,
             $invitation->id,
+            $now,
             $now,
             $now,
         ]);

@@ -22,6 +22,7 @@ class FamilySpaceMembershipFactory extends Factory
             'user_id' => User::factory(),
             'role' => FamilySpaceRole::Member,
             'state' => MembershipState::Active,
+            'joined_at' => now(),
         ];
     }
 }
