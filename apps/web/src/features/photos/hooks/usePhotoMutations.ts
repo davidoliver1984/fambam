@@ -37,7 +37,7 @@ export function useCreatePhotoMutation(familySlug: string) {
         return;
       }
       await queryClient.invalidateQueries({
-        queryKey: photoKeys.list(familySlug),
+        queryKey: photoKeys.lists(familySlug),
       });
       await queryClient.invalidateQueries({
         queryKey: photoKeys.promotableUploads(familySlug),
@@ -64,7 +64,9 @@ export function useDeletePhotoMutation(familySlug: string, photoId: string) {
         queryKey: photoKeys.detail(familySlug, photoId),
       });
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: photoKeys.list(familySlug) }),
+        queryClient.invalidateQueries({
+          queryKey: photoKeys.lists(familySlug),
+        }),
         queryClient.invalidateQueries({
           queryKey: photoKeys.deleted(familySlug),
         }),
@@ -79,7 +81,9 @@ export function useRestorePhotoMutation(familySlug: string) {
     mutationFn: (photoId: string) => restorePhoto(familySlug, photoId),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: photoKeys.list(familySlug) }),
+        queryClient.invalidateQueries({
+          queryKey: photoKeys.lists(familySlug),
+        }),
         queryClient.invalidateQueries({
           queryKey: photoKeys.deleted(familySlug),
         }),
@@ -101,9 +105,14 @@ export function useSubmitPhotoMetadataMutation(
         queryKey: photoKeys.metadataProposals(familySlug, photoId),
       });
       if (proposal.status === "approved") {
-        await queryClient.invalidateQueries({
-          queryKey: photoKeys.detail(familySlug, photoId),
-        });
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: photoKeys.detail(familySlug, photoId),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: photoKeys.lists(familySlug),
+          }),
+        ]);
       }
     },
   });
@@ -131,6 +140,9 @@ export function useResolvePhotoMetadataMutation(
         queryClient.invalidateQueries({
           queryKey: photoKeys.detail(familySlug, photoId),
         }),
+        queryClient.invalidateQueries({
+          queryKey: photoKeys.lists(familySlug),
+        }),
       ]);
     },
   });
@@ -149,9 +161,14 @@ export function useSubmitPhotoPersonMutation(
         queryKey: photoKeys.personProposals(familySlug, photoId),
       });
       if (association.status === "approved") {
-        await queryClient.invalidateQueries({
-          queryKey: photoKeys.detail(familySlug, photoId),
-        });
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: photoKeys.detail(familySlug, photoId),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: photoKeys.lists(familySlug),
+          }),
+        ]);
       }
     },
   });
@@ -184,6 +201,9 @@ export function useResolvePhotoPersonMutation(
         queryClient.invalidateQueries({
           queryKey: photoKeys.detail(familySlug, photoId),
         }),
+        queryClient.invalidateQueries({
+          queryKey: photoKeys.lists(familySlug),
+        }),
       ]);
     },
   });
@@ -197,7 +217,7 @@ export function useUpdatePhotoMutation(familySlug: string, photoId: string) {
     onSuccess: async (photo) => {
       queryClient.setQueryData(photoKeys.detail(familySlug, photoId), photo);
       await queryClient.invalidateQueries({
-        queryKey: photoKeys.list(familySlug),
+        queryKey: photoKeys.lists(familySlug),
       });
     },
   });
@@ -238,7 +258,7 @@ export function useReplacePhotoTagsMutation(
     onSuccess: async (photo) => {
       queryClient.setQueryData(photoKeys.detail(familySlug, photoId), photo);
       await queryClient.invalidateQueries({
-        queryKey: photoKeys.list(familySlug),
+        queryKey: photoKeys.lists(familySlug),
       });
     },
   });
@@ -257,9 +277,14 @@ export function useSubmitPhotoProvenanceMutation(
         queryKey: photoKeys.proposals(familySlug, photoId),
       });
       if (proposal.status === "approved") {
-        await queryClient.invalidateQueries({
-          queryKey: photoKeys.detail(familySlug, photoId),
-        });
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: photoKeys.detail(familySlug, photoId),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: photoKeys.lists(familySlug),
+          }),
+        ]);
       }
     },
   });
@@ -292,7 +317,9 @@ export function useResolvePhotoProvenanceMutation(
         queryClient.invalidateQueries({
           queryKey: photoKeys.detail(familySlug, photoId),
         }),
-        queryClient.invalidateQueries({ queryKey: photoKeys.list(familySlug) }),
+        queryClient.invalidateQueries({
+          queryKey: photoKeys.lists(familySlug),
+        }),
       ]);
     },
   });

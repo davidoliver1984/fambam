@@ -233,19 +233,19 @@ class PhotoConversationTest extends TestCase
             'body' => 'Reply.', 'album_id' => $album->id, 'parent_comment_id' => $parentId,
         ])->assertCreated()->json('data.id');
 
-        $photoData = collect($this->actingAs($member)->getJson("/api/families/{$family->slug}/photos")
-            ->assertOk()->json('data'))->firstWhere('id', $photo->id);
+        $photoData = $this->actingAs($member)->getJson("/api/families/{$family->slug}/photos")
+            ->assertOk()->collect('data.items')->firstWhere('id', $photo->id);
         $this->assertSame(2, $photoData['comment_count']);
         $this->actingAs($member)->getJson("/api/families/{$family->slug}/albums/{$album->id}")
             ->assertOk()->assertJsonPath('data.photos.0.conversation.comment_count', 2);
 
         $this->actingAs($member)->deleteJson("{$base}/comments/{$parentId}")->assertNoContent();
-        $photoData = collect($this->actingAs($member)->getJson("/api/families/{$family->slug}/photos")->json('data'))
-            ->firstWhere('id', $photo->id);
+        $photoData = $this->actingAs($member)->getJson("/api/families/{$family->slug}/photos")
+            ->collect('data.items')->firstWhere('id', $photo->id);
         $this->assertSame(1, $photoData['comment_count']);
         $this->actingAs($member)->deleteJson("{$base}/comments/{$replyId}")->assertNoContent();
-        $photoData = collect($this->actingAs($member)->getJson("/api/families/{$family->slug}/photos")->json('data'))
-            ->firstWhere('id', $photo->id);
+        $photoData = $this->actingAs($member)->getJson("/api/families/{$family->slug}/photos")
+            ->collect('data.items')->firstWhere('id', $photo->id);
         $this->assertSame(0, $photoData['comment_count']);
     }
 

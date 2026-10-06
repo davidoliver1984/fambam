@@ -15,7 +15,8 @@ import type {
   PhotoProposalResolution,
   PhotoProvenanceInput,
   PhotoProvenanceProposal,
-  PhotoFilters,
+  PhotoListCriteria,
+  PhotoListPage,
   PromotableMediaUpload,
   UpdatePhotoInput,
 } from "../types/photo";
@@ -47,17 +48,21 @@ export async function authorizePhotoPresentationDownload(
 
 export async function getPhotos(
   familySlug: string,
-  filters: PhotoFilters = {},
+  criteria: PhotoListCriteria = {},
+  cursor: string | null = null,
   signal?: AbortSignal,
-): Promise<Photo[]> {
+): Promise<PhotoListPage> {
   const params = Object.fromEntries(
-    Object.entries(filters)
+    Object.entries({
+      ...criteria,
+      ...(cursor === null ? {} : { cursor }),
+    })
       .filter(([, value]) => value !== "" && value !== false)
       .map(([key, value]) => [key, value === true ? 1 : value]),
   );
 
   return unwrap(
-    await apiClient.get<ApiEnvelope<Photo[]>>(photosPath(familySlug), {
+    await apiClient.get<ApiEnvelope<PhotoListPage>>(photosPath(familySlug), {
       signal,
       params,
     }),

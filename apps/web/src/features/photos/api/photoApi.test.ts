@@ -140,7 +140,9 @@ describe("photoApi", () => {
         `${apiBaseUrl}/api/families/oliver-family/photos`,
         ({ request }) => {
           query = new URL(request.url).search;
-          return HttpResponse.json({ data: [] });
+          return HttpResponse.json({
+            data: { items: [], next_cursor: null },
+          });
         },
       ),
     );
@@ -153,7 +155,7 @@ describe("photoApi", () => {
         without_confirmed_date: false,
         without_album: false,
       }),
-    ).resolves.toEqual([]);
+    ).resolves.toEqual({ items: [], next_cursor: null });
 
     expect(query).toBe("");
   });
@@ -165,21 +167,67 @@ describe("photoApi", () => {
         `${apiBaseUrl}/api/families/oliver-family/photos`,
         ({ request }) => {
           query = new URL(request.url).search;
-          return HttpResponse.json({ data: [photo] });
+          return HttpResponse.json({
+            data: { items: [photo], next_cursor: "next-page" },
+          });
         },
       ),
     );
 
     await expect(
       getPhotos("oliver-family", { without_album: true }),
-    ).resolves.toEqual([
-      expect.objectContaining({
-        love_count: 3,
-        comment_count: 7,
-        album_count: 2,
-      }),
-    ]);
+    ).resolves.toEqual({
+      items: [
+        expect.objectContaining({
+          love_count: 3,
+          comment_count: 7,
+          album_count: 2,
+        }),
+      ],
+      next_cursor: "next-page",
+    });
     expect(query).toBe("?without_album=1");
+  });
+
+  it("serializes search sort limit structured filters and an opaque cursor", async () => {
+    let query = "not-called";
+    server.use(
+      http.get(
+        `${apiBaseUrl}/api/families/oliver-family/photos`,
+        ({ request }) => {
+          query = new URL(request.url).search;
+          return HttpResponse.json({
+            data: { items: [], next_cursor: null },
+          });
+        },
+      ),
+    );
+
+    await getPhotos(
+      "oliver-family",
+      {
+        q: "family holiday",
+        sort: "recently_added",
+        limit: 25,
+        person_id: "person-1",
+        tag: "Seaside",
+        location: "Blackpool",
+        historical_year: "1986",
+      },
+      "signed+/cursor=",
+    );
+
+    const params = new URLSearchParams(query);
+    expect(Object.fromEntries(params)).toEqual({
+      q: "family holiday",
+      sort: "recently_added",
+      limit: "25",
+      person_id: "person-1",
+      tag: "Seaside",
+      location: "Blackpool",
+      historical_year: "1986",
+      cursor: "signed+/cursor=",
+    });
   });
 
   it("owns and unwraps every Phase 6 S02 Photo endpoint", async () => {
@@ -202,7 +250,9 @@ describe("photoApi", () => {
     server.use(
       http.get(path, () => {
         requests.push("list");
-        return HttpResponse.json({ data: [photo] });
+        return HttpResponse.json({
+          data: { items: [photo], next_cursor: null },
+        });
       }),
       http.get(detail, () => {
         requests.push("show");
@@ -234,7 +284,10 @@ describe("photoApi", () => {
       }),
     );
 
-    await expect(getPhotos("oliver-family")).resolves.toEqual([photo]);
+    await expect(getPhotos("oliver-family")).resolves.toEqual({
+      items: [photo],
+      next_cursor: null,
+    });
     await expect(getPhoto("oliver-family", photo.id)).resolves.toEqual(photo);
     await expect(createPhoto("oliver-family", input)).resolves.toEqual(photo);
     await expect(

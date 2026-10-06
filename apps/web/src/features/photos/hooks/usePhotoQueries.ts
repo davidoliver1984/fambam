@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useCallback, useRef } from "react";
 
 import {
   getPhoto,
@@ -11,19 +12,39 @@ import {
   getPromotableMediaUploads,
 } from "../api/photoApi";
 import { photoKeys } from "../api/photoKeys";
-import type { PhotoFilters } from "../types/photo";
+import type { PhotoListCriteria } from "../types/photo";
 
 export function usePhotosQuery(
   familySlug: string,
-  filters: PhotoFilters = {},
+  criteria: PhotoListCriteria = {},
   enabled = true,
 ) {
-  return useQuery({
-    queryKey: photoKeys.list(familySlug, filters),
-    queryFn: ({ signal }) => getPhotos(familySlug, filters, signal),
+  const query = useInfiniteQuery({
+    queryKey: photoKeys.list(familySlug, criteria),
+    queryFn: ({ pageParam, signal }) =>
+      getPhotos(familySlug, criteria, pageParam, signal),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
+    select: (data) => data.pages.flatMap((page) => page.items),
     enabled: enabled && familySlug !== "",
     retry: false,
   });
+  const nextPageRequest = useRef<ReturnType<typeof query.fetchNextPage> | null>(
+    null,
+  );
+  const fetchQueryNextPage = query.fetchNextPage;
+  const fetchNextPage = useCallback(() => {
+    if (nextPageRequest.current !== null) return nextPageRequest.current;
+    const request = fetchQueryNextPage({ cancelRefetch: false });
+    nextPageRequest.current = request;
+    void request.finally(() => {
+      if (nextPageRequest.current === request) nextPageRequest.current = null;
+    });
+
+    return request;
+  }, [fetchQueryNextPage]);
+
+  return { ...query, fetchNextPage };
 }
 
 export function useDeletedPhotosQuery(familySlug: string) {
@@ -85,11 +106,15 @@ export function usePhotoQuery(
   });
 }
 
-export function usePhotoAlbumHistoryQuery(familySlug: string, photoId: string) {
+export function usePhotoAlbumHistoryQuery(
+  familySlug: string,
+  photoId: string,
+  enabled = true,
+) {
   return useQuery({
     queryKey: photoKeys.albumHistory(familySlug, photoId),
     queryFn: ({ signal }) => getPhotoAlbumHistory(familySlug, photoId, signal),
-    enabled: familySlug !== "" && photoId !== "",
+    enabled: enabled && familySlug !== "" && photoId !== "",
     retry: false,
   });
 }

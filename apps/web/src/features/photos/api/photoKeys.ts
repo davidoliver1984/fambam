@@ -1,7 +1,11 @@
+import type { PhotoListCriteria } from "../types/photo";
+
 export const photoKeys = {
   all: (familySlug: string) => ["photos", familySlug] as const,
-  list: (familySlug: string, filters: object = {}) =>
-    [...photoKeys.all(familySlug), "list", filters] as const,
+  lists: (familySlug: string) =>
+    [...photoKeys.all(familySlug), "list"] as const,
+  list: (familySlug: string, criteria: PhotoListCriteria = {}) =>
+    [...photoKeys.lists(familySlug), criteria] as const,
   deleted: (familySlug: string) =>
     [...photoKeys.all(familySlug), "deleted"] as const,
   promotableUploads: (familySlug: string) =>

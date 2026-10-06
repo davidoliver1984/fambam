@@ -213,7 +213,7 @@ beforeEach(() => {
     method: "GET",
     expires_at: "2026-09-26T12:00:00+00:00",
   });
-  vi.mocked(getPhotos).mockResolvedValue([]);
+  vi.mocked(getPhotos).mockResolvedValue({ items: [], next_cursor: null });
   vi.mocked(getPeople).mockResolvedValue([]);
   vi.mocked(getCollections).mockResolvedValue([
     {

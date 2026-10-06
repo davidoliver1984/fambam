@@ -54,7 +54,7 @@ class PhotoDeletionTest extends TestCase
         $this->actingAs($creator)->deleteJson($base)->assertNoContent();
         $this->assertSoftDeleted($photo);
         $this->actingAs($viewer)->getJson($base)->assertNotFound();
-        $this->actingAs($viewer)->getJson('/api/families/photo-tombstone/photos')->assertJsonCount(0, 'data');
+        $this->actingAs($viewer)->getJson('/api/families/photo-tombstone/photos')->assertJsonCount(0, 'data.items');
         $this->actingAs($viewer)->getJson("/api/families/photo-tombstone/albums/{$album->id}")
             ->assertOk()->assertJsonCount(0, 'data.photos');
         foreach (['canonical', 'original'] as $asset) {

@@ -12,10 +12,16 @@ use App\Models\PhotoMetadataProposal;
 use App\Models\PhotoPerson;
 use App\Models\PhotoProvenanceProposal;
 use App\Models\User;
+use App\Photos\PhotoCursor;
+use App\Photos\PhotoCursorCodec;
+use App\Photos\PhotoListCriteria;
+use App\Photos\PhotoListPage;
 use App\Tenancy\TenantContext;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class PhotoQuery
@@ -23,6 +29,7 @@ class PhotoQuery
     public function __construct(
         private readonly TenantContext $tenantContext,
         private readonly AlbumQuery $albums,
+        private readonly PhotoCursorCodec $cursors,
     ) {}
 
     /** @return Builder<Photo> */
@@ -97,37 +104,194 @@ class PhotoQuery
         return $query;
     }
 
-    /**
-     * @param  array<string, mixed>  $filters
-     * @return Collection<int, Photo>
-     */
-    public function listVisibleTo(User $viewer, array $filters = []): Collection
+    public function pageVisibleTo(User $viewer, PhotoListCriteria $criteria): PhotoListPage
     {
         $familySpaceId = $this->tenantContext->familySpace()->id;
-        $query = $this->visibleTo($viewer)->withCount($this->listAggregates($viewer, $familySpaceId));
-        if (! empty($filters['person_id'])) {
+        $query = $this->visibleTo($viewer)
+            ->select('photos.*')
+            ->withCount($this->listAggregates($viewer, $familySpaceId));
+        $this->applyFilters($query, $criteria, $familySpaceId);
+        $cursor = $this->cursors->decode($criteria->cursor, $criteria);
+        $this->applySortAndCursor($query, $criteria, $cursor);
+
+        /** @var Collection<int, Photo> $items */
+        $items = $query->limit($criteria->limit + 1)->get();
+        $hasMore = $items->count() > $criteria->limit;
+        if ($hasMore) {
+            $items->pop();
+        }
+        $last = $items->last();
+        $nextCursor = $hasMore && $last instanceof Photo
+            ? $this->cursors->encode($this->cursorFor($last, $criteria))
+            : null;
+
+        return new PhotoListPage($items->values(), $nextCursor);
+    }
+
+    /** @param Builder<Photo> $query */
+    private function applyFilters(Builder $query, PhotoListCriteria $criteria, string $familySpaceId): void
+    {
+        if ($criteria->term !== null) {
+            $this->applySearch($query, $criteria->term);
+        }
+        if ($criteria->personId !== null) {
             $query->whereHas('photoPeople', fn (Builder $people) => $people
-                ->where('person_id', $filters['person_id'])->where('status', 'approved'));
+                ->where('person_id', $criteria->personId)->where('status', 'approved'));
         }
-        if (! empty($filters['tag'])) {
+        if ($criteria->tag !== null) {
             $query->whereHas('tags', fn (Builder $tags) => $tags
-                ->where('normalized_label', mb_strtolower(trim($filters['tag']))));
+                ->where('normalized_label', mb_strtolower($criteria->tag)));
         }
-        if (! empty($filters['location'])) {
-            $query->where('location_description', 'like', '%'.addcslashes($filters['location'], '%_').'%');
+        if ($criteria->location !== null) {
+            $query->whereRaw("LOWER(COALESCE(photos.location_description, '')) LIKE ?", [
+                '%'.mb_strtolower(addcslashes($criteria->location, '%_')).'%',
+            ]);
         }
-        if (! empty($filters['historical_year'])) {
-            $query->whereYear('historical_date', (int) $filters['historical_year']);
+        if ($criteria->historicalYear !== null) {
+            $query->whereYear('historical_date', $criteria->historicalYear);
         }
-        if (filter_var($filters['without_confirmed_date'] ?? false, FILTER_VALIDATE_BOOL)) {
+        if ($criteria->withoutConfirmedDate) {
             $query->whereNull('historical_date_precision');
         }
-        if (filter_var($filters['without_album'] ?? false, FILTER_VALIDATE_BOOL)) {
+        if ($criteria->withoutAlbum) {
             $query->whereDoesntHave('albumPhotos', fn (Builder $memberships) => $memberships
                 ->where('album_photos.family_space_id', $familySpaceId));
         }
+    }
 
-        return $query->latest('created_at')->latest('id')->get();
+    /** @param Builder<Photo> $query */
+    private function applySearch(Builder $query, string $term): void
+    {
+        $like = '%'.mb_strtolower(addcslashes($term, '%_')).'%';
+        $dateRange = $this->historicalDateRange($term);
+        $query->where(function (Builder $matches) use ($term, $like, $dateRange): void {
+            if (DB::getDriverName() === 'pgsql') {
+                $matches->whereRaw("photos.search_vector @@ websearch_to_tsquery('simple'::regconfig, ?)", [$term]);
+            } else {
+                $matches->whereRaw(
+                    "LOWER(COALESCE(photos.caption, '') || ' ' || COALESCE(photos.description, '') || ' ' || COALESCE(photos.archive_source_description, '') || ' ' || COALESCE(photos.location_description, '')) LIKE ?",
+                    [$like],
+                );
+            }
+            $matches->orWhereHas('mediaUpload', fn (Builder $uploads) => $uploads
+                ->whereRaw('LOWER(media_uploads.client_filename) LIKE ?', [$like]))
+                ->orWhereHas('photoPeople', fn (Builder $people) => $people
+                    ->where('photo_people.status', 'approved')
+                    ->whereHas('person', fn (Builder $person) => $person
+                        ->whereRaw('LOWER(people.preferred_name) LIKE ?', [$like])))
+                ->orWhereHas('tags', fn (Builder $tags) => $tags
+                    ->whereRaw('LOWER(tags.label) LIKE ?', [$like]))
+                ->orWhereRaw('CAST(photos.historical_date AS TEXT) LIKE ?', [$like]);
+            if ($dateRange !== null) {
+                $matches->orWhereBetween('photos.historical_date', $dateRange);
+            }
+        });
+    }
+
+    /** @return array{string, string}|null */
+    private function historicalDateRange(string $term): ?array
+    {
+        $months = [
+            'january' => 1, 'february' => 2, 'march' => 3, 'april' => 4,
+            'may' => 5, 'june' => 6, 'july' => 7, 'august' => 8,
+            'september' => 9, 'october' => 10, 'november' => 11, 'december' => 12,
+        ];
+        $normalized = mb_strtolower(trim($term));
+        if (preg_match('/^(?:(\d{1,2})\s+)?([a-z]+)\s+(\d{4})$/', $normalized, $matches) === 1
+            && isset($months[$matches[2]])) {
+            $year = (int) $matches[3];
+            $month = $months[$matches[2]];
+            if ($matches[1] !== '') {
+                try {
+                    $date = CarbonImmutable::create($year, $month, (int) $matches[1])->startOfDay();
+                } catch (\Throwable) {
+                    return null;
+                }
+
+                return [$date->format('Y-m-d'), $date->format('Y-m-d')];
+            }
+            $start = CarbonImmutable::create($year, $month, 1)->startOfMonth();
+
+            return [$start->format('Y-m-d'), $start->endOfMonth()->format('Y-m-d')];
+        }
+        if (preg_match('/^\d{4}$/', $normalized) === 1) {
+            return ["{$normalized}-01-01", "{$normalized}-12-31"];
+        }
+
+        return null;
+    }
+
+    /** @param Builder<Photo> $query */
+    private function applySortAndCursor(Builder $query, PhotoListCriteria $criteria, ?PhotoCursor $cursor): void
+    {
+        if ($criteria->sort === 'recently_added') {
+            if ($cursor !== null) {
+                $query->where(function (Builder $after) use ($cursor): void {
+                    $after->where('photos.created_at', '<', $cursor->value)
+                        ->orWhere(function (Builder $tie) use ($cursor): void {
+                            $tie->where('photos.created_at', $cursor->value)->where('photos.id', '<', $cursor->id);
+                        });
+                });
+            }
+            $query->orderByDesc('photos.created_at')->orderByDesc('photos.id');
+
+            return;
+        }
+
+        $direction = $criteria->sort === 'oldest' ? 'asc' : 'desc';
+        if ($cursor !== null) {
+            $this->applyHistoricalDateCursor($query, $cursor, $direction);
+        }
+        // The frozen Newest/Oldest modes mean the archival Photo date. An
+        // undated Photo is never assigned an upload date and stays last in both.
+        $query->orderByRaw('CASE WHEN photos.historical_date IS NULL THEN 1 ELSE 0 END ASC')
+            ->orderBy('photos.historical_date', $direction)
+            ->orderBy('photos.id', $direction);
+    }
+
+    /** @param Builder<Photo> $query */
+    private function applyHistoricalDateCursor(Builder $query, PhotoCursor $cursor, string $direction): void
+    {
+        $operator = $direction === 'asc' ? '>' : '<';
+        $query->where(function (Builder $after) use ($cursor, $operator): void {
+            if ($cursor->nullRank === 0) {
+                $after->whereNull('photos.historical_date')
+                    ->orWhere(function (Builder $dated) use ($cursor, $operator): void {
+                        $dated->whereNotNull('photos.historical_date')
+                            ->where(function (Builder $position) use ($cursor, $operator): void {
+                                $position->whereDate('photos.historical_date', $operator, $cursor->value)
+                                    ->orWhere(function (Builder $tie) use ($cursor, $operator): void {
+                                        $tie->whereDate('photos.historical_date', $cursor->value)
+                                            ->where('photos.id', $operator, $cursor->id);
+                                    });
+                            });
+                    });
+
+                return;
+            }
+            $after->whereNull('photos.historical_date')->where('photos.id', $operator, $cursor->id);
+        });
+    }
+
+    private function cursorFor(Photo $photo, PhotoListCriteria $criteria): PhotoCursor
+    {
+        if ($criteria->sort === 'recently_added') {
+            return new PhotoCursor(
+                $criteria->sort,
+                $criteria->fingerprint(),
+                0,
+                $photo->created_at?->format('Y-m-d H:i:s'),
+                $photo->id,
+            );
+        }
+
+        return new PhotoCursor(
+            $criteria->sort,
+            $criteria->fingerprint(),
+            $photo->historical_date === null ? 1 : 0,
+            $photo->historical_date?->format('Y-m-d'),
+            $photo->id,
+        );
     }
 
     public function loadListAggregates(Photo $photo, User $viewer): void

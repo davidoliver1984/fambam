@@ -5,20 +5,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { familyExportKeys } from "@/features/exports/api/familyExportKeys";
 import { homeKeys } from "@/features/home/hooks/useHomeQuery";
+import { photoKeys } from "@/features/photos/api/photoKeys";
 import { searchKeys } from "@/features/search/api/searchKeys";
 
 import {
+  addPhotoToAlbum,
   createAlbum,
   deleteAlbum,
   getAlbums,
+  removePhotoFromAlbum,
   updateAlbum,
 } from "../api/albumApi";
 import { albumKeys } from "../api/albumKeys";
 import type { Album } from "../types/album";
 import {
   useDeleteAlbumMutation,
+  useAddAlbumPhotoMutation,
   useAlbumsQuery,
   useCreateAlbumMutation,
+  useRemoveAlbumPhotoMutation,
   useUpdateAlbumMutation,
 } from "./useAlbumQueries";
 
@@ -152,7 +157,60 @@ describe("Album mutations", () => {
 
     expect(client.getQueryState(listKey)?.isInvalidated).toBe(false);
   });
+
+  it("invalidates every Photo page and authoritative history after adding membership", async () => {
+    vi.mocked(addPhotoToAlbum).mockResolvedValue();
+    const photoId = "01KP0000000000000000000000";
+    const { client, wrapper } = harness();
+    const keys = membershipDependentKeys(client, photoId);
+    const { result } = renderHook(() => useAddAlbumPhotoMutation(familySlug), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        albumId,
+        photoId,
+        confirmed: true,
+      });
+    });
+
+    keys.forEach((key) => {
+      expect(client.getQueryState(key)?.isInvalidated).toBe(true);
+    });
+  });
+
+  it("invalidates every Photo page and authoritative history after removing membership", async () => {
+    vi.mocked(removePhotoFromAlbum).mockResolvedValue();
+    const photoId = "01KP0000000000000000000000";
+    const { client, wrapper } = harness();
+    const keys = membershipDependentKeys(client, photoId);
+    const { result } = renderHook(
+      () => useRemoveAlbumPhotoMutation(familySlug),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await result.current.mutateAsync({ albumId, photoId });
+    });
+
+    keys.forEach((key) => {
+      expect(client.getQueryState(key)?.isInvalidated).toBe(true);
+    });
+  });
 });
+
+function membershipDependentKeys(client: QueryClient, photoId: string) {
+  const keys = [
+    photoKeys.list(familySlug, { sort: "newest" }),
+    photoKeys.list(familySlug, { q: "holiday", without_album: true }),
+    photoKeys.albumHistory(familySlug, photoId),
+    albumKeys.list(familySlug),
+  ];
+  keys.forEach((key) => client.setQueryData(key, {}));
+
+  return keys;
+}
 
 describe("Album infinite query", () => {
   beforeEach(() => {

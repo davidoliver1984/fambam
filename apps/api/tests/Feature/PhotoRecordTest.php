@@ -179,7 +179,7 @@ class PhotoRecordTest extends TestCase
         ]);
         $base = "/api/families/private-photo/media-uploads/{$upload->id}";
 
-        $this->actingAs($otherMember)->getJson('/api/families/private-photo/photos')->assertJsonCount(0, 'data');
+        $this->actingAs($otherMember)->getJson('/api/families/private-photo/photos')->assertJsonCount(0, 'data.items');
         $this->actingAs($otherMember)->getJson("/api/families/private-photo/photos/{$photo->id}")->assertNotFound();
         $this->actingAs($otherMember)->getJson("{$base}/canonical")->assertForbidden();
         $this->actingAs($otherMember)->getJson("{$base}/variants/thumbnail")->assertForbidden();

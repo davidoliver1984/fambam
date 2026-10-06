@@ -7,6 +7,16 @@ export type PhotoFilters = {
   without_confirmed_date?: boolean;
   without_album?: boolean;
 };
+export type PhotoListSort = "newest" | "oldest" | "recently_added";
+export type PhotoListCriteria = PhotoFilters & {
+  q?: string;
+  sort?: PhotoListSort;
+  limit?: number;
+};
+export type PhotoListPage = {
+  items: Photo[];
+  next_cursor: string | null;
+};
 export type DeletedPhoto = {
   id: string;
   caption: string | null;

@@ -29,7 +29,9 @@ export function useResolvePhotoDuplicateHoldMutation(familySlug: string) {
         queryClient.invalidateQueries({
           queryKey: photoKeys.duplicateHolds(familySlug),
         }),
-        queryClient.invalidateQueries({ queryKey: photoKeys.list(familySlug) }),
+        queryClient.invalidateQueries({
+          queryKey: photoKeys.lists(familySlug),
+        }),
       ]);
     },
   });

@@ -188,8 +188,15 @@ export function useAddAlbumPhotoMutation(familySlug: string) {
         input.photoId,
         input.confirmed,
       ),
-    onSuccess: () =>
-      client.invalidateQueries({ queryKey: albumKeys.all(familySlug) }),
+    onSuccess: async (_data, input) => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: albumKeys.all(familySlug) }),
+        client.invalidateQueries({ queryKey: photoKeys.all(familySlug) }),
+        client.invalidateQueries({
+          queryKey: photoKeys.albumHistory(familySlug, input.photoId),
+        }),
+      ]);
+    },
   });
 }
 
@@ -198,7 +205,14 @@ export function useRemoveAlbumPhotoMutation(familySlug: string) {
   return useMutation({
     mutationFn: (input: { albumId: string; photoId: string }) =>
       removePhotoFromAlbum(familySlug, input.albumId, input.photoId),
-    onSuccess: () =>
-      client.invalidateQueries({ queryKey: albumKeys.all(familySlug) }),
+    onSuccess: async (_data, input) => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: albumKeys.all(familySlug) }),
+        client.invalidateQueries({ queryKey: photoKeys.all(familySlug) }),
+        client.invalidateQueries({
+          queryKey: photoKeys.albumHistory(familySlug, input.photoId),
+        }),
+      ]);
+    },
   });
 }

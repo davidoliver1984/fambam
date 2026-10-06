@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\FaceIdentityAssignmentStatus;
 use App\Enums\PersonProposalStatus;
+use App\Http\Requests\ListPhotosRequest;
 use App\Http\Requests\ReplacePhotoTagsRequest;
 use App\Http\Requests\StorePhotoMetadataProposalRequest;
 use App\Http\Requests\StorePhotoPersonRequest;
@@ -34,22 +35,17 @@ class PhotoController extends Controller
         private readonly PhotoDeletionManager $deletionManager,
     ) {}
 
-    public function index(FamilySpace $familySpace, Request $request): JsonResponse
+    public function index(FamilySpace $familySpace, ListPhotosRequest $request): JsonResponse
     {
         Gate::authorize('viewAny', Photo::class);
         /** @var User $viewer */
         $viewer = $request->user();
+        $page = $this->photos->pageVisibleTo($viewer, $request->criteria($familySpace->id));
 
-        return response()->json([
-            'data' => $this->photos->listVisibleTo($viewer, $request->validate([
-                'person_id' => ['sometimes', 'string', 'size:26'],
-                'tag' => ['sometimes', 'string', 'max:80'],
-                'location' => ['sometimes', 'string', 'max:255'],
-                'historical_year' => ['sometimes', 'integer', 'between:1,9999'],
-                'without_confirmed_date' => ['sometimes', 'boolean'],
-                'without_album' => ['sometimes', 'boolean'],
-            ]))->map(fn (Photo $photo): array => $this->payload($photo)),
-        ]);
+        return response()->json(['data' => [
+            'items' => $page->items->map(fn (Photo $photo): array => $this->payload($photo))->values(),
+            'next_cursor' => $page->nextCursor,
+        ]]);
     }
 
     public function promotableUploads(FamilySpace $familySpace, Request $request): JsonResponse

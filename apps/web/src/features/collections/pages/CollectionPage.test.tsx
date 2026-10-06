@@ -97,7 +97,9 @@ function handlers(exports: unknown[] = []) {
   return [
     http.get(collectionBase, () => HttpResponse.json({ data: collection })),
     http.get(`${apiBaseUrl}/api/families/mercer/photos`, () =>
-      HttpResponse.json({ data: [candidate] }),
+      HttpResponse.json({
+        data: { items: [candidate], next_cursor: null },
+      }),
     ),
     http.get(`${apiBaseUrl}/api/families/mercer/exports`, () =>
       HttpResponse.json({ data: exports }),

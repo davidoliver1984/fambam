@@ -91,7 +91,7 @@ class DateMemoryTest extends TestCase
         $this->actingAs($viewer)
             ->getJson('/api/families/private-date-memories/photos?historical_year=1985')
             ->assertOk()
-            ->assertJsonPath('data.0.id', $suppressed->id);
+            ->assertJsonPath('data.items.0.id', $suppressed->id);
     }
 
     public function test_resurfacing_exclusion_uses_existing_photo_update_authority(): void

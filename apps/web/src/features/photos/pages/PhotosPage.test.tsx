@@ -106,7 +106,7 @@ beforeEach(() => {
     method: "GET",
     expires_at: "2026-09-18T09:00:00Z",
   });
-  vi.mocked(getPhotos).mockResolvedValue([photo]);
+  vi.mocked(getPhotos).mockResolvedValue({ items: [photo], next_cursor: null });
   vi.mocked(getDeletedPhotos).mockResolvedValue([]);
   vi.mocked(getPromotableMediaUploads).mockResolvedValue([promotableUpload]);
   vi.mocked(createPhoto).mockResolvedValue({
@@ -176,6 +176,7 @@ describe("PhotosPage", () => {
         tag: "",
         without_confirmed_date: false,
       },
+      null,
       expect.any(AbortSignal),
     );
   });
@@ -263,7 +264,7 @@ describe("PhotosPage", () => {
   });
 
   it("renders empty and error states accessibly", async () => {
-    vi.mocked(getPhotos).mockResolvedValue([]);
+    vi.mocked(getPhotos).mockResolvedValue({ items: [], next_cursor: null });
     const first = renderPage();
     expect(
       await screen.findByText("No Photo records have been created yet."),

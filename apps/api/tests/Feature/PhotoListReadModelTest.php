@@ -57,7 +57,7 @@ class PhotoListReadModelTest extends TestCase
         /** @var array<int, array<string, mixed>> $memberPhotoData */
         $memberPhotoData = $this->actingAs($viewer)
             ->getJson('/api/families/photo-list-counts/photos')
-            ->assertOk()->json('data');
+            ->assertOk()->json('data.items');
         $memberPhotos = collect($memberPhotoData)->keyBy('id');
 
         $this->assertSame(2, $memberPhotos[$photo->id]['love_count']);
@@ -70,7 +70,7 @@ class PhotoListReadModelTest extends TestCase
         /** @var array<int, array<string, mixed>> $ownerPhotoData */
         $ownerPhotoData = $this->actingAs($owner)
             ->getJson('/api/families/photo-list-counts/photos')
-            ->assertOk()->json('data');
+            ->assertOk()->json('data.items');
         $ownerPhoto = collect($ownerPhotoData)->firstWhere('id', $photo->id);
 
         $this->assertSame(3, $ownerPhoto['love_count']);
@@ -110,7 +110,7 @@ class PhotoListReadModelTest extends TestCase
         /** @var array<int, array<string, mixed>> $allPhotoData */
         $allPhotoData = $this->actingAs($viewer)
             ->getJson('/api/families/photos-without-album/photos')
-            ->assertOk()->json('data');
+            ->assertOk()->json('data.items');
         $all = collect($allPhotoData)->keyBy('id');
         $this->assertSame(0, $all[$orphan->id]['album_count']);
         $this->assertSame(1, $all[$oneMembership->id]['album_count']);
@@ -121,7 +121,7 @@ class PhotoListReadModelTest extends TestCase
         /** @var array<int, array<string, mixed>> $filteredPhotoData */
         $filteredPhotoData = $this->actingAs($viewer)
             ->getJson('/api/families/photos-without-album/photos?without_album=1')
-            ->assertOk()->json('data');
+            ->assertOk()->json('data.items');
         $filtered = collect($filteredPhotoData);
 
         $this->assertSame([$orphan->id], $filtered->pluck('id')->all());
@@ -149,10 +149,11 @@ class PhotoListReadModelTest extends TestCase
         DB::flushQueryLog();
         DB::enableQueryLog();
         $this->actingAs($owner)->getJson('/api/families/photo-list-query-count/photos')
-            ->assertOk()->assertJsonCount(21, 'data');
+            ->assertOk()->assertJsonCount(21, 'data.items');
         $manyPhotoQueries = count(DB::getQueryLog());
         DB::disableQueryLog();
 
+        $this->assertLessThanOrEqual(7, $manyPhotoQueries);
         $this->assertSame($onePhotoQueries, $manyPhotoQueries);
     }
 
