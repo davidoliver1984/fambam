@@ -39,3 +39,7 @@ Schedule::command('fambam:dispatch-missing-perceptual-hashes')
 Schedule::command('fambam:reconcile-stale-face-analysis-attempts')
     ->everyMinute()
     ->withoutOverlapping();
+
+Schedule::command('fambam:dispatch-photo-memory-notifications')
+    ->hourlyAt(15)
+    ->withoutOverlapping();

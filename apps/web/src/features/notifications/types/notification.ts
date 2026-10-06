@@ -5,9 +5,12 @@ export type NotificationCategory =
   | "identity"
   | "export"
   | "attendance"
-  | "love";
-export type PreferenceNotificationCategory =
-  Exclude<NotificationCategory, "export"> | "photo_memory";
+  | "love"
+  | "photo_memory";
+export type PreferenceNotificationCategory = Exclude<
+  NotificationCategory,
+  "export"
+>;
 export type NotificationChannel = "in_app" | "email";
 export type FamilyNotification = {
   id: string;

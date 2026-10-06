@@ -188,7 +188,7 @@ final class HomeQuery
     /** @return array<string, mixed>|null */
     private function onThisDay(User $viewer, CarbonImmutable $today): ?array
     {
-        $memory = $this->dateMemories->forDate($viewer, $today, 1)[0] ?? null;
+        $memory = $this->dateMemories->onThisDay($viewer, $today);
         if ($memory === null) {
             return null;
         }

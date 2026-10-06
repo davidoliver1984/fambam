@@ -37,7 +37,6 @@ use Illuminate\Contracts\Notifications\Dispatcher;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use LogicException;
 
 class NotificationManager
 {
@@ -63,6 +62,15 @@ class NotificationManager
         foreach ($recipientIds as $recipientId) {
             $this->evaluate($rawContext, (int) $recipientId, $category, $sourceActionId, $subject, false);
         }
+    }
+
+    /**
+     * @param  array{family_space_id:string,actor_user_id:int,correlation_id:string,traceparent:string}  $rawContext
+     * @param  array<string, mixed>  $subject
+     */
+    public function processForRecipient(array $rawContext, int $recipientId, NotificationCategory $category, string $sourceActionId, array $subject): void
+    {
+        $this->evaluate($rawContext, $recipientId, $category, $sourceActionId, $subject, false);
     }
 
     /**
@@ -263,7 +271,7 @@ class NotificationManager
             NotificationCategory::Export => ['family_export_id' => $subject['family_export_id']],
             NotificationCategory::Attendance => ['event_id' => $subject['event_id']],
             NotificationCategory::Love => $subject,
-            NotificationCategory::PhotoMemory => throw new LogicException('Photo-memory delivery is not implemented.'),
+            NotificationCategory::PhotoMemory => ['photo_id' => $subject['photo_id']],
         };
     }
 
@@ -434,7 +442,7 @@ class NotificationManager
             NotificationCategory::Identity => 'Your identity was confirmed in a photograph.',
             NotificationCategory::Export => 'Your fambam export status changed.',
             NotificationCategory::Attendance => 'Someone responded to an Event invitation.',
-            NotificationCategory::PhotoMemory => throw new LogicException('Photo-memory delivery is not implemented.'),
+            NotificationCategory::PhotoMemory => 'A photo memory from this day is waiting for you.',
         };
     }
 

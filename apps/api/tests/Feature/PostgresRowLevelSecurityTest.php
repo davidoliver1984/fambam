@@ -12,6 +12,7 @@ use App\FaceAnalysis\FaceAnalysisResultQueue;
 use App\FaceAnalysis\ReceivedFaceAnalysisMessage;
 use App\Jobs\AbandonMediaUpload;
 use App\Jobs\DeleteFamilySpace;
+use App\Jobs\DeliverPhotoMemoryNotification;
 use App\Jobs\PurgeMediaQuarantine;
 use App\Media\FamilyMediaStorageCleaner;
 use App\Media\MediaDeliveryAuthorization;
@@ -882,6 +883,42 @@ SQL);
             fn ($row): string => trim((string) $row->family_export_id),
             $due,
         ));
+    }
+
+    public function test_photo_memory_target_discovery_is_cross_tenant_narrow_and_runtime_executable(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-05 08:15:00 UTC');
+        try {
+            [$firstOwner, $firstFamily] = $this->createOwnedFamily('first-photo-memory-family');
+            [, $inactiveFamily] = $this->createOwnedFamily('inactive-photo-memory-family');
+            $this->admin->table('family_spaces')->where('id', $inactiveFamily)
+                ->update(['status' => 'deletion_requested']);
+
+            $privileges = $this->admin->selectOne(<<<'SQL'
+SELECT
+    has_function_privilege('public', 'app_photo_memory_notification_targets()', 'EXECUTE') AS public_execute,
+    has_function_privilege(?, 'app_photo_memory_notification_targets()', 'EXECUTE') AS runtime_execute
+SQL, [config('database.runtime_role')]);
+            $this->assertFalse($privileges->public_execute);
+            $this->assertTrue($privileges->runtime_execute);
+
+            Queue::fake();
+            $this->artisan('fambam:dispatch-photo-memory-notifications')->assertSuccessful();
+
+            Queue::assertPushed(DeliverPhotoMemoryNotification::class, 1);
+            Queue::assertPushed(
+                DeliverPhotoMemoryNotification::class,
+                fn (DeliverPhotoMemoryNotification $job): bool => $job->context['family_space_id'] === $firstFamily
+                    && $job->context['actor_user_id'] === $firstOwner
+                    && $job->localDate === '2026-10-05',
+            );
+            Queue::assertNotPushed(
+                DeliverPhotoMemoryNotification::class,
+                fn (DeliverPhotoMemoryNotification $job): bool => $job->context['family_space_id'] === $inactiveFamily,
+            );
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
     }
 
     public function test_audit_runtime_access_is_insert_only_with_no_read_or_mutation_policies(): void

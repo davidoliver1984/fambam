@@ -3,6 +3,7 @@
 namespace App\Queries;
 
 use App\Enums\DatePrecision;
+use App\Enums\MediaUploadState;
 use App\Models\Photo;
 use App\Models\User;
 use App\People\UncertainDate;
@@ -12,6 +13,26 @@ use Illuminate\Database\Eloquent\Builder;
 class DateMemoryQuery
 {
     public function __construct(private readonly PhotoQuery $photos) {}
+
+    /** @return array<string, mixed>|null */
+    public function onThisDay(User $viewer, CarbonImmutable $today): ?array
+    {
+        $memory = $this->forDate($viewer, $today, 1)[0] ?? null;
+        if ($memory === null) {
+            return null;
+        }
+
+        $presentable = $this->photos->visibleTo($viewer)->setEagerLoads([])
+            ->whereKey($memory['photo_id'])
+            ->where(function (Builder $query): void {
+                $query->whereNotNull('active_photo_version_id')
+                    ->orWhereHas('mediaUpload', fn (Builder $uploads) => $uploads
+                        ->where('state', MediaUploadState::Ready->value)
+                        ->whereNotNull('canonical_object_key'));
+            })->exists();
+
+        return $presentable ? $memory : null;
+    }
 
     /** @return list<array<string, mixed>> */
     public function forDate(User $viewer, CarbonImmutable $today, int $limit = 12): array

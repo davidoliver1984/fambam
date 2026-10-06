@@ -34,6 +34,7 @@ const categoryLabels = {
   export: "Export status",
   attendance: "Event invitation response",
   love: "New love",
+  photo_memory: "Photo memory",
 } as const;
 
 function presentationFor(
