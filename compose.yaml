@@ -1,4 +1,6 @@
-name: fambam
+name: "${FAMBAM_STACK_ID:-fambam}"
+
+x-api-image: &api-image "${FAMBAM_STACK_ID:-fambam}-api"
 
 services:
   web:
@@ -24,6 +26,8 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
+    image: *api-image
+    pull_policy: build
     command: php artisan serve --host=0.0.0.0 --port=8080
     ports:
       - "${API_PORT:-8082}:8080"
@@ -130,7 +134,8 @@ services:
       - fambam
 
   queue-worker:
-    image: fambam-api
+    image: *api-image
+    pull_policy: never
     command: php artisan queue:work sqs --sleep=3 --tries=3 --timeout=120
     environment:
       APP_NAME: "fambam"
@@ -218,7 +223,8 @@ services:
       - fambam
 
   scheduler:
-    image: fambam-api
+    image: *api-image
+    pull_policy: never
     command: php artisan schedule:work
     environment:
       APP_NAME: "fambam"
@@ -272,6 +278,8 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
+    image: *api-image
+    pull_policy: build
     command: php artisan migrate --force
     environment:
       APP_NAME: "fambam"
@@ -362,7 +370,8 @@ services:
       - fambam
 
   api-image-analysis-results:
-    image: fambam-api
+    image: *api-image
+    pull_policy: never
     command: php artisan fambam:consume-face-analysis-results
     environment:
       APP_NAME: "fambam"
@@ -543,4 +552,4 @@ volumes:
 
 networks:
   fambam:
-    name: fambam
+    name: "${FAMBAM_STACK_ID:-fambam}"
