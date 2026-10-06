@@ -148,6 +148,10 @@ function setup(
             ),
           },
           {
+            path: "photos/:photoId",
+            element: <h1>Photo detail</h1>,
+          },
+          {
             path: "events/:eventId",
             element: <h1>Invited Event</h1>,
           },
@@ -457,6 +461,64 @@ describe("FamilyShell", () => {
     expect(router.state.location.pathname).toBe(
       "/families/first-family/albums/album-1",
     );
+  });
+
+  it("presents a photo memory as a keyboard-accessible canonical Photo Detail link", async () => {
+    const router = setup();
+    server.use(
+      http.get(`${baseUrl}/api/families/:familySlug/notifications`, () =>
+        HttpResponse.json({
+          data: [
+            {
+              id: "notification-memory",
+              category: "photo_memory",
+              photo_id: "photo-memory-1",
+              album_id: null,
+              story_id: null,
+              person_id: null,
+              comment_id: null,
+              family_export_id: null,
+              read_at: null,
+              created_at: "2026-10-05T09:15:00Z",
+              presentation: {
+                actor: null,
+                headline: "A photo memory from this day is waiting for you",
+                detail: null,
+                target_label: "Family picnic",
+                thumbnail_url: null,
+                target: { type: "photo", id: "photo-memory-1" },
+              },
+            },
+          ],
+        }),
+      ),
+    );
+
+    await screen.findByRole("heading", { name: "Family home" });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Notifications" }),
+    );
+    const memoryLink = await screen.findByRole("link", {
+      name: "A photo memory from this day is waiting for you",
+    });
+    expect(memoryLink).toHaveAttribute(
+      "href",
+      "/families/first-family/photos/photo-memory-1",
+    );
+    expect(memoryLink.closest(".shell-notification-item")).toHaveTextContent(
+      "Family picnic",
+    );
+
+    memoryLink.focus();
+    expect(memoryLink).toHaveFocus();
+    await userEvent.keyboard("{Enter}");
+
+    expect(router.state.location.pathname).toBe(
+      "/families/first-family/photos/photo-memory-1",
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Photo detail" }),
+    ).toBeInTheDocument();
   });
 
   it("preserves album context when a notification opens a photo comment", () => {

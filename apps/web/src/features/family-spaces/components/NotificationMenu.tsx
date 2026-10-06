@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import {
@@ -164,7 +165,7 @@ export function NotificationMenu({
           ) : (
             actorFirstName
           );
-          const entity = (
+          const notificationLink = (label: ReactNode) => (
             <Link
               className="shell-notification-link"
               to={notificationTarget(familySlug, item)}
@@ -172,9 +173,10 @@ export function NotificationMenu({
                 followNotificationLink(item);
               }}
             >
-              {targetNoun(item)}
+              {label}
             </Link>
           );
+          const entity = notificationLink(targetNoun(item));
           const headline = (() => {
             switch (item.category) {
               case "comment":
@@ -219,6 +221,8 @@ export function NotificationMenu({
                 );
               case "export":
                 return <>Your {entity} status changed</>;
+              case "photo_memory":
+                return notificationLink(presentation.headline);
             }
           })();
           return (
