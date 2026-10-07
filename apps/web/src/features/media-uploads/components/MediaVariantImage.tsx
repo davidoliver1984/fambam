@@ -45,6 +45,8 @@ export function MediaVariantImage({
       style={style}
       src={delivery.data.url}
       alt={alt}
+      loading="lazy"
+      decoding="async"
       onError={() => {
         setFailedUrl(delivery.data.url);
       }}
