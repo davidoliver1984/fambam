@@ -3,11 +3,11 @@
 namespace App\Services;
 
 use App\Enums\MediaUploadState;
+use App\Media\AttachmentMediaDeliveryUrlSigner;
 use App\Media\MediaDeliveryAuthorization;
 use App\Media\MediaDeliveryUrlSigner;
 use App\Media\MediaSigningAudience;
 use App\Media\PhotoPresentationResolver;
-use App\Media\S3MediaDeliveryUrlSigner;
 use App\Models\MediaUpload;
 use App\Models\MediaVariant;
 use App\Models\Photo;
@@ -64,7 +64,7 @@ class MediaDeliveryManager
         }
 
         $contentType = $upload->detected_mime_type ?? 'application/octet-stream';
-        $authorization = $this->signer instanceof S3MediaDeliveryUrlSigner
+        $authorization = $this->signer instanceof AttachmentMediaDeliveryUrlSigner
             ? $this->authorizeAttachment(
                 $this->signer,
                 $upload->original_object_key,
@@ -125,7 +125,7 @@ class MediaDeliveryManager
     }
 
     private function authorizeAttachment(
-        S3MediaDeliveryUrlSigner $signer,
+        AttachmentMediaDeliveryUrlSigner $signer,
         string $key,
         string $responseContentType,
         string $filename,

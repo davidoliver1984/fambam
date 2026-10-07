@@ -37,6 +37,25 @@ class S3MediaObjectStorageTest extends TestCase
         $this->assertTrue($authorization->expiresAt->equalTo($expiresAt));
     }
 
+    public function test_attachment_read_authority_preserves_a_safe_download_filename(): void
+    {
+        $this->configureStorage();
+        $authorization = (new S3MediaDeliveryUrlSigner)->authorizeAttachmentRead(
+            'families/01KTEST/media/01KUPLOAD/original',
+            'image/jpeg',
+            'Family holiday 1986.jpg',
+            now()->addMinutes(5),
+            MediaSigningAudience::Browser,
+        );
+        parse_str((string) parse_url($authorization->url, PHP_URL_QUERY), $query);
+
+        $this->assertSame('image/jpeg', $query['response-content-type'] ?? null);
+        $this->assertSame(
+            'attachment; filename="Family_holiday_1986.jpg"; filename*=UTF-8\'\'Family%20holiday%201986.jpg',
+            $query['response-content-disposition'] ?? null,
+        );
+    }
+
     public function test_upload_authority_is_key_scoped_short_lived_and_write_once(): void
     {
         $this->configureStorage();

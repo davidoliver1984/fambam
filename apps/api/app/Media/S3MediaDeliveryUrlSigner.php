@@ -6,7 +6,7 @@ use Aws\S3\S3Client;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
 
-class S3MediaDeliveryUrlSigner implements MediaDeliveryUrlSigner
+class S3MediaDeliveryUrlSigner implements AttachmentMediaDeliveryUrlSigner, MediaDeliveryUrlSigner
 {
     private S3Client $browserClient;
 

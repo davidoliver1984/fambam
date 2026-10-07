@@ -218,9 +218,10 @@ afterEach(() => {
 describe("PhotosPage", () => {
   it("renders the approved archive card with authorized presentation data and aggregate engagement", async () => {
     renderPage();
-    expect(
-      await screen.findByRole("img", { name: "Family picnic" }),
-    ).toHaveAttribute("src", "https://storage.test/signed-card");
+    const image = await screen.findByRole("img", { name: "Family picnic" });
+    expect(image).toHaveAttribute("src", "https://storage.test/signed-card");
+    expect(image).toHaveAttribute("loading", "lazy");
+    expect(image).toHaveAttribute("decoding", "async");
     expect(screen.getByRole("button", { name: "Love · 7" })).toBeDisabled();
     expect(screen.getByRole("link", { name: "3 comments" })).toHaveAttribute(
       "href",
@@ -343,6 +344,21 @@ describe("PhotosPage", () => {
       "aria-pressed",
       "true",
     );
+  });
+
+  it("closes search suggestions when the search value is cleared", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const search = await screen.findByRole("textbox", {
+      name: "Search photographs…",
+    });
+
+    await user.type(search, "Blackpool");
+    expect(screen.getByText("Suggestions")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Clear search" }));
+
+    expect(screen.queryByText("Suggestions")).not.toBeInTheDocument();
+    expect(search).toHaveValue("");
   });
 
   it("uses the canonical server-side Not in an album filter", async () => {
@@ -516,6 +532,28 @@ describe("PhotosPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("offers the continuation fallback when observer setup fails", async () => {
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor() {
+          throw new Error("observer unavailable");
+        }
+        observe() {}
+      },
+    );
+    vi.mocked(getPhotos).mockResolvedValue({
+      items: [photo],
+      next_cursor: "page-2",
+    });
+
+    renderPage();
+
+    expect(
+      await screen.findByRole("button", { name: "Load more photographs" }),
+    ).toBeInTheDocument();
+  });
+
   it("shows the exact index menu without Delete and opens the Album picker", async () => {
     const user = userEvent.setup();
     renderPage();
@@ -546,7 +584,7 @@ describe("PhotosPage", () => {
       }),
     ).toHaveAttribute(
       "href",
-      `/families/oliver-family/photos/review-people?photo_id=${photo.id}&return_to=%2Ffamilies%2Foliver-family%2Fphotos`,
+      `/families/oliver-family/photos/review-people?photo_id=${photo.id}`,
     );
     await user.click(within(menu).getByText("Add to album…"));
     expect(

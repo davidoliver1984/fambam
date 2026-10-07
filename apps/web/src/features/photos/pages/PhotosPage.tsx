@@ -214,6 +214,7 @@ export function PhotosPage() {
   const [layout, setLayout] = useState<Layout>("grid");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [observerFailed, setObserverFailed] = useState(false);
   const searchWrap = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const nextPageRequestRef = useRef(false);
@@ -239,7 +240,8 @@ export function PhotosPage() {
     () => buildSuggestions(search, people.data ?? []),
     [people.data, search],
   );
-  const observerAvailable = typeof IntersectionObserver !== "undefined";
+  const observerAvailable =
+    typeof IntersectionObserver !== "undefined" && !observerFailed;
   const {
     fetchNextPage,
     hasNextPage,
@@ -277,28 +279,35 @@ export function PhotosPage() {
     ) {
       return;
     }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (
-          entries.some((entry) => entry.isIntersecting) &&
-          !nextPageRequestRef.current
-        ) {
-          nextPageRequestRef.current = true;
-          void fetchNextPage().finally(() => {
-            nextPageRequestRef.current = false;
-          });
-        }
-      },
-      { rootMargin: "400px 0px" },
-    );
-    observer.observe(target);
-    return () => {
-      observer.disconnect();
-    };
+    try {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (
+            entries.some((entry) => entry.isIntersecting) &&
+            !nextPageRequestRef.current
+          ) {
+            nextPageRequestRef.current = true;
+            void fetchNextPage().finally(() => {
+              nextPageRequestRef.current = false;
+            });
+          }
+        },
+        { rootMargin: "400px 0px" },
+      );
+      observer.observe(target);
+      return () => {
+        observer.disconnect();
+      };
+    } catch {
+      queueMicrotask(() => {
+        setObserverFailed(true);
+      });
+    }
   }, [
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    observerFailed,
     observerAvailable,
     photos.isPending,
   ]);

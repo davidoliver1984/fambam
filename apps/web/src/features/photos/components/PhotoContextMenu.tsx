@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 import {
   ActionNotice,
@@ -46,7 +46,6 @@ type Props = {
 
 export function PhotoContextMenu({ familySlug, photo }: Props) {
   const navigate = useNavigate();
-  const location = useLocation();
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const [albumPickerOpen, setAlbumPickerOpen] = useState(false);
@@ -245,12 +244,7 @@ export function PhotoContextMenu({ familySlug, photo }: Props) {
           Edit details
         </Link>
         <Link
-          to={`/families/${encodeURIComponent(familySlug)}/photos/review-people?${new URLSearchParams(
-            {
-              photo_id: photo.id,
-              return_to: `${location.pathname}${location.search}`,
-            },
-          ).toString()}`}
+          to={`/families/${encodeURIComponent(familySlug)}/photos/review-people?${new URLSearchParams({ photo_id: photo.id }).toString()}`}
         >
           <ScanFaceGlyph />
           Identify / Review people
