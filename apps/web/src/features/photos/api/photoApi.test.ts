@@ -43,6 +43,9 @@ const photo: Photo = {
   love_count: 3,
   comment_count: 7,
   album_count: 2,
+  interaction_album_id: "01KA0000000000000000000000",
+  viewer_has_loved: true,
+  interaction_can_interact: true,
   provenance: {
     photographer: { person: null, description: null },
     scanner: { person: null, description: null },

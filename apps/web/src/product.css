@@ -364,23 +364,27 @@
   font-size: 0.55rem;
 }
 
-.love-button.loved .love-sprite b {
+.love-button.loved .love-sprite b,
+.event-photo-love.loved .love-sprite b {
   animation: love-pop 0.7s ease-out forwards;
 }
 
-.love-button.loved .love-sprite b:nth-child(2) {
+.love-button.loved .love-sprite b:nth-child(2),
+.event-photo-love.loved .love-sprite b:nth-child(2) {
   animation-delay: 0.05s;
   --tx: 17px;
   --ty: -18px;
 }
 
-.love-button.loved .love-sprite b:nth-child(3) {
+.love-button.loved .love-sprite b:nth-child(3),
+.event-photo-love.loved .love-sprite b:nth-child(3) {
   animation-delay: 0.09s;
   --tx: -17px;
   --ty: -16px;
 }
 
-.love-button.loved .love-sprite b:nth-child(4) {
+.love-button.loved .love-sprite b:nth-child(4),
+.event-photo-love.loved .love-sprite b:nth-child(4) {
   animation-delay: 0.13s;
   --tx: 7px;
   --ty: -27px;
@@ -401,7 +405,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .love-button.loved .love-sprite b {
+  .love-button.loved .love-sprite b,
+  .event-photo-love.loved .love-sprite b {
     animation: none !important;
   }
 }

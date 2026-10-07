@@ -138,6 +138,9 @@ const photo: Photo = {
   love_count: 0,
   comment_count: 0,
   album_count: 1,
+  interaction_album_id: "album-1",
+  viewer_has_loved: false,
+  interaction_can_interact: true,
   provenance: {
     photographer: { person: null, description: "Unknown studio" },
     scanner: { person: null, description: null },

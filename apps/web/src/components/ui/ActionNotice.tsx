@@ -1,3 +1,5 @@
+import { createPortal } from "react-dom";
+
 export type ActionNoticeMessage = {
   title: string;
   description?: string;
@@ -41,7 +43,7 @@ export function ActionNotice({
   description,
   onDismiss,
 }: ActionNoticeProps) {
-  return (
+  return createPortal(
     <div className="ui-action-notice" role="status">
       <span className="ui-action-notice__icon">
         <NoticeGlyph />
@@ -57,6 +59,7 @@ export function ActionNotice({
       >
         <CloseGlyph />
       </button>
-    </div>
+    </div>,
+    document.querySelector<HTMLElement>(".shell-content") ?? document.body,
   );
 }

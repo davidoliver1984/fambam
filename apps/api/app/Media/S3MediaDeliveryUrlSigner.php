@@ -43,14 +43,50 @@ class S3MediaDeliveryUrlSigner implements MediaDeliveryUrlSigner
         DateTimeInterface $expiresAt,
         MediaSigningAudience $audience,
     ): MediaDeliveryAuthorization {
+        return $this->authorizeReadRequest($key, $responseContentType, $expiresAt, $audience);
+    }
+
+    public function authorizeAttachmentRead(
+        string $key,
+        string $responseContentType,
+        string $filename,
+        DateTimeInterface $expiresAt,
+        MediaSigningAudience $audience,
+    ): MediaDeliveryAuthorization {
+        $fallback = preg_replace('/[^A-Za-z0-9._-]/', '_', $filename) ?: 'photograph';
+
+        return $this->authorizeReadRequest(
+            $key,
+            $responseContentType,
+            $expiresAt,
+            $audience,
+            sprintf(
+                'attachment; filename="%s"; filename*=UTF-8\'\'%s',
+                addcslashes($fallback, '\\"'),
+                rawurlencode($filename),
+            ),
+        );
+    }
+
+    private function authorizeReadRequest(
+        string $key,
+        string $responseContentType,
+        DateTimeInterface $expiresAt,
+        MediaSigningAudience $audience,
+        ?string $responseContentDisposition = null,
+    ): MediaDeliveryAuthorization {
         $client = $audience === MediaSigningAudience::Service
             ? $this->serviceClient
             : $this->browserClient;
-        $command = $client->getCommand('GetObject', [
+        $input = [
             'Bucket' => (string) config('filesystems.disks.s3.bucket'),
             'Key' => $key,
             'ResponseContentType' => $responseContentType,
-        ]);
+        ];
+        if ($responseContentDisposition !== null) {
+            $input['ResponseContentDisposition'] = $responseContentDisposition;
+        }
+        $command = $client->getCommand('GetObject', $input);
         $request = $client->createPresignedRequest($command, $expiresAt);
 
         return new MediaDeliveryAuthorization(

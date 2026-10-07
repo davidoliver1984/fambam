@@ -401,6 +401,10 @@ class PhotoController extends Controller
             'love_count' => (int) $photo->love_count,
             'comment_count' => (int) $photo->comment_count,
             'album_count' => (int) $photo->album_count,
+            'interaction_album_id' => $photo->getAttribute('interaction_album_id'),
+            'viewer_has_loved' => (bool) $photo->getAttribute('viewer_has_loved'),
+            'interaction_can_interact' => is_string($photo->getAttribute('interaction_album_id'))
+                && Gate::allows('interact', $photo),
             'provenance' => [
                 'photographer' => $this->claimPayload($photo->photographer, $photo->photographer_description),
                 'scanner' => $this->claimPayload($photo->scanner, $photo->scanner_description),

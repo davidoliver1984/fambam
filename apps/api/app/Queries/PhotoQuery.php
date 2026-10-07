@@ -21,6 +21,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -109,6 +110,14 @@ class PhotoQuery
         $familySpaceId = $this->tenantContext->familySpace()->id;
         $query = $this->visibleTo($viewer)
             ->select('photos.*')
+            ->selectSub(
+                $this->interactionAlbumIdQuery($viewer, $familySpaceId),
+                'interaction_album_id',
+            )
+            ->selectSub(
+                $this->viewerHasLovedInteractionQuery($viewer, $familySpaceId),
+                'viewer_has_loved',
+            )
             ->withCount($this->listAggregates($viewer, $familySpaceId));
         $this->applyFilters($query, $criteria, $familySpaceId);
         $cursor = $this->cursors->decode($criteria->cursor, $criteria);
@@ -334,6 +343,36 @@ class PhotoQuery
                 $memberships->where('album_photos.family_space_id', $familySpaceId);
             },
         ];
+    }
+
+    private function interactionAlbumIdQuery(User $viewer, string $familySpaceId): QueryBuilder
+    {
+        return DB::table('album_photos')
+            ->select('album_photos.album_id')
+            ->whereColumn('album_photos.photo_id', 'photos.id')
+            ->where('album_photos.family_space_id', $familySpaceId)
+            ->whereIn(
+                'album_photos.album_id',
+                $this->albums->visibleTo($viewer)->select('albums.id'),
+            )
+            ->latest('album_photos.created_at')
+            ->latest('album_photos.id')
+            ->limit(1);
+    }
+
+    private function viewerHasLovedInteractionQuery(User $viewer, string $familySpaceId): QueryBuilder
+    {
+        return DB::table('photo_reactions')
+            ->selectRaw('CASE WHEN count(*) > 0 THEN 1 ELSE 0 END')
+            ->whereColumn('photo_reactions.photo_id', 'photos.id')
+            ->where('photo_reactions.family_space_id', $familySpaceId)
+            ->where('photo_reactions.user_id', $viewer->id)
+            ->where('photo_reactions.reaction', 'love')
+            ->where(
+                'photo_reactions.album_id',
+                '=',
+                $this->interactionAlbumIdQuery($viewer, $familySpaceId),
+            );
     }
 
     /** @param Builder<Model> $query */

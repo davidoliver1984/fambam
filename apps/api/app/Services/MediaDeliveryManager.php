@@ -7,6 +7,7 @@ use App\Media\MediaDeliveryAuthorization;
 use App\Media\MediaDeliveryUrlSigner;
 use App\Media\MediaSigningAudience;
 use App\Media\PhotoPresentationResolver;
+use App\Media\S3MediaDeliveryUrlSigner;
 use App\Models\MediaUpload;
 use App\Models\MediaVariant;
 use App\Models\Photo;
@@ -62,10 +63,15 @@ class MediaDeliveryManager
             throw new NotFoundHttpException;
         }
 
-        $authorization = $this->authorize(
-            $upload->original_object_key,
-            $upload->detected_mime_type ?? 'application/octet-stream',
-        );
+        $contentType = $upload->detected_mime_type ?? 'application/octet-stream';
+        $authorization = $this->signer instanceof S3MediaDeliveryUrlSigner
+            ? $this->authorizeAttachment(
+                $this->signer,
+                $upload->original_object_key,
+                $contentType,
+                $upload->client_filename,
+            )
+            : $this->authorize($upload->original_object_key, $contentType);
         $this->audit->record(
             'original_download_authorised',
             $upload,
@@ -113,6 +119,26 @@ class MediaDeliveryManager
         return $this->signer->authorizeRead(
             $key,
             $responseContentType,
+            now()->addMinutes($ttlMinutes),
+            MediaSigningAudience::Browser,
+        );
+    }
+
+    private function authorizeAttachment(
+        S3MediaDeliveryUrlSigner $signer,
+        string $key,
+        string $responseContentType,
+        string $filename,
+    ): MediaDeliveryAuthorization {
+        $ttlMinutes = max(1, min(
+            15,
+            (int) config('media.delivery.authority_ttl_minutes'),
+        ));
+
+        return $signer->authorizeAttachmentRead(
+            $key,
+            $responseContentType,
+            $filename,
             now()->addMinutes($ttlMinutes),
             MediaSigningAudience::Browser,
         );

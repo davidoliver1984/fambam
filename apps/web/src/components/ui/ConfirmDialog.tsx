@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 import { Button } from "./Button";
 
@@ -62,7 +63,7 @@ export function ConfirmDialog({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="ui-dialog-backdrop">
       <section
         ref={dialog}
@@ -86,6 +87,7 @@ export function ConfirmDialog({
           </Button>
         </div>
       </section>
-    </div>
+    </div>,
+    document.querySelector<HTMLElement>(".shell-content") ?? document.body,
   );
 }

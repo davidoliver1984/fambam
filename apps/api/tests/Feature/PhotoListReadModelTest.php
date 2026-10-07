@@ -63,9 +63,15 @@ class PhotoListReadModelTest extends TestCase
         $this->assertSame(2, $memberPhotos[$photo->id]['love_count']);
         $this->assertSame(2, $memberPhotos[$photo->id]['comment_count']);
         $this->assertSame(2, $memberPhotos[$photo->id]['album_count']);
+        $this->assertSame($readable->id, $memberPhotos[$photo->id]['interaction_album_id']);
+        $this->assertFalse($memberPhotos[$photo->id]['viewer_has_loved']);
+        $this->assertTrue($memberPhotos[$photo->id]['interaction_can_interact']);
         $this->assertSame(0, $memberPhotos[$zero->id]['love_count']);
         $this->assertSame(0, $memberPhotos[$zero->id]['comment_count']);
         $this->assertSame(0, $memberPhotos[$zero->id]['album_count']);
+        $this->assertNull($memberPhotos[$zero->id]['interaction_album_id']);
+        $this->assertFalse($memberPhotos[$zero->id]['viewer_has_loved']);
+        $this->assertFalse($memberPhotos[$zero->id]['interaction_can_interact']);
 
         /** @var array<int, array<string, mixed>> $ownerPhotoData */
         $ownerPhotoData = $this->actingAs($owner)
@@ -76,6 +82,9 @@ class PhotoListReadModelTest extends TestCase
         $this->assertSame(3, $ownerPhoto['love_count']);
         $this->assertSame(3, $ownerPhoto['comment_count']);
         $this->assertSame(2, $ownerPhoto['album_count']);
+        $this->assertSame($hidden->id, $ownerPhoto['interaction_album_id']);
+        $this->assertTrue($ownerPhoto['viewer_has_loved']);
+        $this->assertTrue($ownerPhoto['interaction_can_interact']);
     }
 
     public function test_without_album_uses_same_family_membership_truth_and_preserves_photo_visibility(): void

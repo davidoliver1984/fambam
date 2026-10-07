@@ -7,6 +7,7 @@ import {
 } from "@/features/collections/hooks/useCollections";
 
 import { LockGlyph, SparklesGlyph } from "./EventGlyphs";
+import "./CollectionPickerDialog.css";
 
 export function CollectionPickerDialog({
   open,
@@ -25,7 +26,7 @@ export function CollectionPickerDialog({
   onClose: () => void;
   onAdd: (collectionId: string) => void;
 }) {
-  const collections = useCollectionsQuery(familySlug);
+  const collections = useCollectionsQuery(familySlug, open);
   const create = useCreateCollectionMutation(familySlug);
   const [choice, setChoice] = useState("");
   const [newName, setNewName] = useState(sourceName);

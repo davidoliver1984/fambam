@@ -6,6 +6,7 @@ import { server } from "@/test/msw/server";
 import {
   getMediaVariantDelivery,
   getMediaUploadBatch,
+  getOriginalMediaDelivery,
   uploadMediaBatch,
   uploadMediaFile,
 } from "./mediaUploadApi";
@@ -15,6 +16,36 @@ const apiBaseUrl = "http://localhost:8082";
 afterEach(() => vi.restoreAllMocks());
 
 describe("mediaUploadApi", () => {
+  it("requests an authorised original for the download action", async () => {
+    server.use(
+      http.get(
+        `${apiBaseUrl}/api/families/oliver-family/media-uploads/01KUPLOAD00000000000000000/original`,
+        () =>
+          HttpResponse.json({
+            data: {
+              asset: "original",
+              transform_name: null,
+              processing_version: null,
+              url: "https://storage.test/signed-original",
+              method: "GET",
+              expires_at: "2026-08-10T12:05:00+00:00",
+            },
+          }),
+      ),
+    );
+
+    await expect(
+      getOriginalMediaDelivery("oliver-family", "01KUPLOAD00000000000000000"),
+    ).resolves.toEqual({
+      asset: "original",
+      transform_name: null,
+      processing_version: null,
+      url: "https://storage.test/signed-original",
+      method: "GET",
+      expires_at: "2026-08-10T12:05:00+00:00",
+    });
+  });
+
   it("requests an authorised presentation variant and unwraps its delivery authority", async () => {
     server.use(
       http.get(

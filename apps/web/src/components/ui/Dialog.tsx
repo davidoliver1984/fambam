@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 type DialogProps = {
   open: boolean;
@@ -64,7 +65,7 @@ export function Dialog({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
       className="ui-dialog-backdrop"
       role="presentation"
@@ -115,6 +116,7 @@ export function Dialog({
         </div>
         {children}
       </section>
-    </div>
+    </div>,
+    document.querySelector<HTMLElement>(".shell-content") ?? document.body,
   );
 }

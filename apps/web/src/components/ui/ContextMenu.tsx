@@ -119,11 +119,15 @@ export function ContextMenu({
     const items = panelRef.current?.querySelectorAll<HTMLElement>(
       ":scope > a[href], :scope > button:not(:disabled)",
     );
+    const selectedIndex = Array.from(items ?? []).findIndex(
+      (item) => item.getAttribute("aria-checked") === "true",
+    );
+    const focusIndex = selectedIndex < 0 ? 0 : selectedIndex;
     items?.forEach((item, index) => {
-      item.setAttribute("role", "menuitem");
-      item.tabIndex = index === 0 ? 0 : -1;
+      if (!item.hasAttribute("role")) item.setAttribute("role", "menuitem");
+      item.tabIndex = index === focusIndex ? 0 : -1;
     });
-    items?.[0]?.focus();
+    items?.[focusIndex]?.focus();
   }, [open]);
 
   return (
@@ -132,7 +136,7 @@ export function ContextMenu({
         ref={triggerRef}
         className={`ui-button ui-button--ghost${triggerContent === undefined ? " ui-button--icon" : ""}`}
         type="button"
-        aria-label={triggerContent === undefined ? label : undefined}
+        aria-label={label}
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => {

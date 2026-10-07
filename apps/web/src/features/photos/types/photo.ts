@@ -81,6 +81,9 @@ export type Photo = {
   love_count: number;
   comment_count: number;
   album_count: number;
+  interaction_album_id: string | null;
+  viewer_has_loved: boolean;
+  interaction_can_interact: boolean;
   provenance: {
     photographer: PhotoClaim;
     scanner: PhotoClaim;
