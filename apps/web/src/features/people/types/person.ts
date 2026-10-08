@@ -65,6 +65,37 @@ export type Person = {
   permissions: PersonPermissions;
 };
 
+export type PersonListSort = "az" | "za";
+export type PersonListStatus = "all" | "living" | "remembered";
+
+export type PersonListCriteria = {
+  sort?: PersonListSort;
+  q?: string;
+  status?: PersonListStatus;
+  limit?: number;
+};
+
+export type PersonSummary = Pick<
+  Person,
+  | "id"
+  | "preferred_name"
+  | "alternate_names"
+  | "identity_status"
+  | "birth_date"
+  | "death_date"
+> & {
+  status: Exclude<PersonListStatus, "all">;
+  portrait_thumbnail_url: string | null;
+  relationship_summary: { type: RelationshipType; label: string } | null;
+};
+
+export type PersonListPage = {
+  items: PersonSummary[];
+  next_cursor: string | null;
+};
+
+export type PersonOption = Pick<Person, "id" | "preferred_name">;
+
 export type PersonDetailsInput = {
   preferred_name: string;
   alternate_names: string[];

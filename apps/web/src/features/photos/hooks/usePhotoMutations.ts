@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { memoryKeys } from "@/features/memories/api/memoryKeys";
+import { personKeys } from "@/features/people/api/personKeys";
 
 import {
   authorizePhotoPresentationDownload,
@@ -70,6 +71,9 @@ export function useDeletePhotoMutation(familySlug: string, photoId: string) {
         queryClient.invalidateQueries({
           queryKey: photoKeys.deleted(familySlug),
         }),
+        queryClient.invalidateQueries({
+          queryKey: personKeys.list(familySlug),
+        }),
       ]);
     },
   });
@@ -86,6 +90,9 @@ export function useRestorePhotoMutation(familySlug: string) {
         }),
         queryClient.invalidateQueries({
           queryKey: photoKeys.deleted(familySlug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: personKeys.list(familySlug),
         }),
       ]);
     },
@@ -111,6 +118,9 @@ export function useSubmitPhotoMetadataMutation(
           }),
           queryClient.invalidateQueries({
             queryKey: photoKeys.lists(familySlug),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: personKeys.list(familySlug),
           }),
         ]);
       }
@@ -143,6 +153,9 @@ export function useResolvePhotoMetadataMutation(
         queryClient.invalidateQueries({
           queryKey: photoKeys.lists(familySlug),
         }),
+        queryClient.invalidateQueries({
+          queryKey: personKeys.list(familySlug),
+        }),
       ]);
     },
   });
@@ -167,6 +180,9 @@ export function useSubmitPhotoPersonMutation(
           }),
           queryClient.invalidateQueries({
             queryKey: photoKeys.lists(familySlug),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: personKeys.list(familySlug),
           }),
         ]);
       }
@@ -204,6 +220,9 @@ export function useResolvePhotoPersonMutation(
         queryClient.invalidateQueries({
           queryKey: photoKeys.lists(familySlug),
         }),
+        queryClient.invalidateQueries({
+          queryKey: personKeys.list(familySlug),
+        }),
       ]);
     },
   });
@@ -216,9 +235,14 @@ export function useUpdatePhotoMutation(familySlug: string, photoId: string) {
       updatePhoto(familySlug, photoId, input),
     onSuccess: async (photo) => {
       queryClient.setQueryData(photoKeys.detail(familySlug, photoId), photo);
-      await queryClient.invalidateQueries({
-        queryKey: photoKeys.lists(familySlug),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: photoKeys.lists(familySlug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: personKeys.list(familySlug),
+        }),
+      ]);
     },
   });
 }

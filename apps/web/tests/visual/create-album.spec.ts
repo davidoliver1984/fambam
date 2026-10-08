@@ -104,7 +104,7 @@ async function mockCreateAlbum(page: Page) {
     } else if (url.pathname === "/api/families/mercer-family-demo") {
       data = family;
     } else if (url.pathname.endsWith("/people")) {
-      data = people;
+      data = { items: people, next_cursor: null };
     } else if (url.pathname.endsWith("/photos")) {
       data = [photo];
     } else if (url.pathname.endsWith("/photos/photo-pier/versions")) {

@@ -62,7 +62,7 @@ async function mockFaceReview(
         current_user_person_id: "person-1",
       };
     } else if (path.endsWith("/people")) {
-      data = people;
+      data = { items: people, next_cursor: null };
     } else if (path.endsWith("/face-review")) {
       const session = {
         scope: { upload_batch_id: "batch-blackpool", photo_id: null },

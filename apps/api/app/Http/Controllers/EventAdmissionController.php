@@ -73,7 +73,7 @@ class EventAdmissionController extends Controller
     {
         $target = $this->event($familySpace, $event);
         Gate::authorize('view', $target);
-        $rows = EventAdmission::query()->with('membership.user:id,name,email')
+        $rows = EventAdmission::query()->with('membership.user.personAccountLinks:id,family_space_id,user_id,person_id')
             ->where('event_id', $target->id)->whereNull('revoked_at')
             ->where('admitted_at', '>', now()->subDays((int) config('events.admission_lifetime_days')))
             ->orderBy('id')->get();
@@ -82,8 +82,11 @@ class EventAdmissionController extends Controller
             if ($row->membership->state->value !== 'active') {
                 continue;
             }
+            $personId = $row->membership->user->personAccountLinks
+                ->firstWhere('family_space_id', $row->family_space_id)?->person_id;
             $groups[$row->rsvp_status][] = ['id' => $row->id,
-                'user' => ['id' => $row->membership->user->id, 'name' => $row->membership->user->name]];
+                'user' => ['id' => $row->membership->user->id, 'name' => $row->membership->user->name,
+                    'person_id' => $personId]];
         }
 
         return response()->json(['data' => $groups]);

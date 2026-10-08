@@ -214,7 +214,7 @@ beforeEach(() => {
     expires_at: "2026-09-26T12:00:00+00:00",
   });
   vi.mocked(getPhotos).mockResolvedValue({ items: [], next_cursor: null });
-  vi.mocked(getPeople).mockResolvedValue([]);
+  vi.mocked(getPeople).mockResolvedValue({ items: [], next_cursor: null });
   vi.mocked(getCollections).mockResolvedValue([
     {
       id: "collection-1",
@@ -564,10 +564,13 @@ describe("AlbumsPage", () => {
       );
     });
 
-    vi.mocked(getPeople).mockResolvedValue([
-      { id: "person-1", preferred_name: "William Mercer" },
-      { id: "person-2", preferred_name: "Margaret Shaw" },
-    ] as never);
+    vi.mocked(getPeople).mockResolvedValue({
+      items: [
+        { id: "person-1", preferred_name: "William Mercer" },
+        { id: "person-2", preferred_name: "Margaret Shaw" },
+      ] as never,
+      next_cursor: null,
+    });
     user = await openMenu();
     await user.click(screen.getByRole("menuitem", { name: "Manage people" }));
     await user.click(

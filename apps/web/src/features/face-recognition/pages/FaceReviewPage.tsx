@@ -14,7 +14,10 @@ import { toAppError } from "@/api/errors";
 import { PersonAvatar } from "@/features/family-spaces/components/PersonAvatar";
 import { useCreatePersonMutation } from "@/features/people/hooks/usePersonMutations";
 import { usePeopleQuery } from "@/features/people/hooks/usePeopleQuery";
-import type { Person } from "@/features/people/types/person";
+import type {
+  PersonOption,
+  PersonSummary,
+} from "@/features/people/types/person";
 
 import {
   useFaceReviewQuery,
@@ -31,7 +34,7 @@ import { faceBoundsStyle } from "../faceGeometry";
 
 import "./face-review.css";
 
-type Suggestions = Partial<Record<string, Person[]>>;
+type Suggestions = Partial<Record<string, PersonSummary[]>>;
 
 export function FaceReviewPage() {
   const { familySlug = "" } = useParams();
@@ -147,7 +150,7 @@ export function FaceReviewPage() {
     ];
     const priority = priorityIds
       .map((id) => allPeople.find((person) => person.id === id))
-      .filter((person): person is Person => person !== undefined);
+      .filter((person): person is PersonSummary => person !== undefined);
     const ordered = [
       ...priority,
       ...allPeople.filter(
@@ -199,14 +202,16 @@ export function FaceReviewPage() {
               .map((candidate) =>
                 knownPeople.find((person) => person.id === candidate.id),
               )
-              .filter((person): person is Person => person !== undefined),
+              .filter(
+                (person): person is PersonSummary => person !== undefined,
+              ),
           }));
         },
       });
     }
   }
 
-  async function choosePerson(person: Person) {
+  async function choosePerson(person: PersonOption) {
     if (selectedObservationId === null) return;
     setActionError("");
     try {

@@ -118,7 +118,7 @@ async function mockAlbum(page: Page) {
     } else if (path.endsWith("/albums")) {
       data = { items: [album], next_cursor: null };
     } else if (path.endsWith("/people")) {
-      data = [];
+      data = { items: [], next_cursor: null };
     } else if (path.endsWith("/collections")) {
       data = [];
     } else if (path.endsWith("/search")) {

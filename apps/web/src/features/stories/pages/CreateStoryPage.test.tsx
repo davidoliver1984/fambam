@@ -25,7 +25,10 @@ describe("CreateStoryPage", () => {
     server.use(
       http.get("http://localhost:8082/api/families/mercer/people", () =>
         HttpResponse.json({
-          data: [{ id: "person-1", preferred_name: "Ada Mercer" }],
+          data: {
+            items: [{ id: "person-1", preferred_name: "Ada Mercer" }],
+            next_cursor: null,
+          },
         }),
       ),
       http.get("http://localhost:8082/sanctum/csrf-cookie", () =>

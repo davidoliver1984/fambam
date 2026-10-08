@@ -18,7 +18,7 @@ import type {
 import { removeLove, saveLove } from "@/features/love/api/loveApi";
 import type { LoveTarget } from "@/features/love/types/love";
 import { usePeopleQuery } from "@/features/people/hooks/usePeopleQuery";
-import type { Person } from "@/features/people/types/person";
+import type { PersonSummary } from "@/features/people/types/person";
 import { familyEntityPath } from "@/navigation/familyEntityPath";
 
 import "./HomePage.css";
@@ -439,15 +439,15 @@ function StoryActivityCard({
   );
 }
 
-type Birthday = { person: Person; date: Date; age: number };
+type Birthday = { person: PersonSummary; date: Date; age: number };
 
-function upcomingBirthdays(people: Person[]): Birthday[] {
+function upcomingBirthdays(people: PersonSummary[]): Birthday[] {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const birthdays: Birthday[] = [];
   for (const person of people) {
     if (
-      person.is_deceased ||
+      person.status === "remembered" ||
       person.birth_date.precision !== "exact" ||
       person.birth_date.value === null
     )

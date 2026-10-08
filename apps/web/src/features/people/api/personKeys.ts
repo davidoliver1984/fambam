@@ -1,7 +1,11 @@
+import type { PersonListCriteria } from "../types/person";
+
 export const personKeys = {
   all: ["people"] as const,
   lists: () => [...personKeys.all, "list"] as const,
   list: (familySlug: string) => [...personKeys.lists(), familySlug] as const,
+  page: (familySlug: string, criteria: PersonListCriteria) =>
+    [...personKeys.list(familySlug), criteria] as const,
   details: () => [...personKeys.all, "detail"] as const,
   detail: (familySlug: string, personId: string) =>
     [...personKeys.details(), familySlug, personId] as const,

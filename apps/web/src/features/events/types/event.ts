@@ -53,7 +53,10 @@ export type EventAdmission = {
 export type EventRsvpStatus = "pending" | "going" | "not_attending";
 export type EventRsvpGroups = Record<
   EventRsvpStatus,
-  Array<{ id: string; user: { id: number; name: string } }>
+  Array<{
+    id: string;
+    user: { id: number; name: string; person_id?: string | null };
+  }>
 >;
 
 export type EventInput = {

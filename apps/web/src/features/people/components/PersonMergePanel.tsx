@@ -12,9 +12,13 @@ import {
   usePersonMergeProposalsQuery,
   usePersonMergesQuery,
 } from "../hooks/usePersonMergeQueries";
-import type { AccountLinkResolution, Person } from "../types/person";
+import type {
+  AccountLinkResolution,
+  Person,
+  PersonOption,
+} from "../types/person";
 
-type Props = { familySlug: string; person: Person; people: Person[] };
+type Props = { familySlug: string; person: Person; people: PersonOption[] };
 
 export function PersonMergePanel({ familySlug, person, people }: Props) {
   const [survivorId, setSurvivorId] = useState("");

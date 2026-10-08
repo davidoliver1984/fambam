@@ -293,20 +293,23 @@ async function mockPhoto(page: Page, options?: { unavailable?: boolean }) {
         next_cursor: null,
       };
     } else if (path.endsWith("/people")) {
-      data = photo.people.map((item) => ({
-        ...item.person,
-        alternate_names: [],
-        identity_status: "confirmed",
-        birth_date: { precision: "unknown", value: null },
-        is_deceased: false,
-        death_date: { precision: "unknown", value: null },
-        biography: null,
-        account_link: null,
-        redirected_from_person_id: null,
-        created_at: photo.created_at,
-        updated_at: photo.updated_at,
-        permissions: {},
-      }));
+      data = {
+        items: photo.people.map((item) => ({
+          ...item.person,
+          alternate_names: [],
+          identity_status: "confirmed",
+          birth_date: { precision: "unknown", value: null },
+          is_deceased: false,
+          death_date: { precision: "unknown", value: null },
+          biography: null,
+          account_link: null,
+          redirected_from_person_id: null,
+          created_at: photo.created_at,
+          updated_at: photo.updated_at,
+          permissions: {},
+        })),
+        next_cursor: null,
+      };
     } else if (path.endsWith("/collections/collection-1")) {
       data = {
         id: "collection-1",

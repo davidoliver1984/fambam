@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\PersonProposalStatus;
 use App\FaceRecognition\RecognitionConsentManager;
+use App\Http\Requests\ListPeopleRequest;
 use App\Http\Requests\ProposePersonDetailsRequest;
 use App\Http\Requests\StorePersonRequest;
 use App\Http\Requests\UpdatePersonRequest;
@@ -15,7 +16,9 @@ use App\Models\PersonDetailProposal;
 use App\Models\User;
 use App\People\UncertainDate;
 use App\Queries\PersonQuery;
+use App\Queries\RelationshipQuery;
 use App\Services\PersonManager;
+use App\Services\PresentationThumbnailService;
 use App\Stories\RichTextPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,15 +31,28 @@ class PersonController extends Controller
         private readonly PersonManager $personManager,
         private readonly RecognitionConsentManager $recognitionConsent,
         private readonly RichTextPresenter $presenter,
+        private readonly PresentationThumbnailService $thumbnails,
+        private readonly RelationshipQuery $relationships,
     ) {}
 
-    public function index(FamilySpace $familySpace): JsonResponse
+    public function index(FamilySpace $familySpace, ListPeopleRequest $request): JsonResponse
     {
         Gate::authorize('viewAny', Person::class);
+        /** @var User $viewer */
+        $viewer = $request->user();
+        $page = $this->people->pageForCurrentFamilySpace($request->criteria($familySpace->id));
+        $personIds = $page->items->pluck('id')->all();
+        $portraits = $this->thumbnails->forPeople($personIds, $viewer);
+        $relationships = $this->relationships->summariesToViewer($personIds, $viewer);
 
-        return response()->json([
-            'data' => $this->people->listForCurrentFamilySpace()->map($this->payload(...)),
-        ]);
+        return response()->json(['data' => [
+            'items' => $page->items->map(fn (Person $person): array => $this->summaryPayload(
+                $person,
+                $portraits[$person->id] ?? null,
+                $relationships[$person->id] ?? null,
+            ))->values(),
+            'next_cursor' => $page->nextCursor,
+        ]]);
     }
 
     public function store(FamilySpace $familySpace, StorePersonRequest $request): JsonResponse
@@ -213,6 +229,31 @@ class PersonController extends Controller
                 'name' => $link->user->name,
                 'is_current_user' => $link->user_id === $viewer->id,
             ],
+        ];
+    }
+
+    /**
+     * @param  array{type: string, label: string}|null  $relationship
+     * @return array<string, mixed>
+     */
+    private function summaryPayload(Person $person, ?string $portraitThumbnailUrl, ?array $relationship): array
+    {
+        return [
+            'id' => $person->id,
+            'preferred_name' => $person->preferred_name,
+            'alternate_names' => $person->alternate_names ?? [],
+            'identity_status' => $person->identity_status->value,
+            'birth_date' => UncertainDate::fromStorage(
+                $person->birth_date_precision,
+                $person->birth_date?->format('Y-m-d'),
+            )->toPayload(),
+            'death_date' => UncertainDate::fromStorage(
+                $person->death_date_precision,
+                $person->death_date?->format('Y-m-d'),
+            )->toPayload(),
+            'status' => $person->death_date === null ? 'living' : 'remembered',
+            'portrait_thumbnail_url' => $portraitThumbnailUrl,
+            'relationship_summary' => $relationship,
         ];
     }
 

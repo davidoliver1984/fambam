@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { toLaravelFieldErrors } from "@/api/errors";
+import { personKeys } from "@/features/people/api/personKeys";
 
 import {
   approveFaceIdentityAssignment,
@@ -62,9 +63,14 @@ export function useFaceReviewQuery(
 function useInvalidateFaceRecognition(familySlug: string) {
   const queryClient = useQueryClient();
   return () =>
-    queryClient.invalidateQueries({
-      queryKey: faceRecognitionKeys.all(familySlug),
-    });
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: faceRecognitionKeys.all(familySlug),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: personKeys.list(familySlug),
+      }),
+    ]);
 }
 
 export function useProposeFaceIdentityMutation(familySlug: string) {

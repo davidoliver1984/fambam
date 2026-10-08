@@ -170,10 +170,13 @@ async function mockAlbums(page: Page, initialAlbums = albums) {
         },
       ];
     } else if (path.endsWith("/people")) {
-      data = [
-        { id: "person-1", preferred_name: "William Mercer" },
-        { id: "person-2", preferred_name: "Margaret Shaw" },
-      ];
+      data = {
+        items: [
+          { id: "person-1", preferred_name: "William Mercer" },
+          { id: "person-2", preferred_name: "Margaret Shaw" },
+        ],
+        next_cursor: null,
+      };
     } else if (path.endsWith("/photos")) {
       data = [];
     } else if (path.includes("/photos/") && path.endsWith("/versions")) {

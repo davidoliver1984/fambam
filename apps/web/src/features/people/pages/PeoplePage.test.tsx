@@ -69,7 +69,10 @@ function renderPage() {
 }
 
 beforeEach(() => {
-  vi.mocked(getPeople).mockResolvedValue([person]);
+  vi.mocked(getPeople).mockResolvedValue({
+    items: [person] as never,
+    next_cursor: null,
+  });
   vi.mocked(createPerson).mockResolvedValue(person);
   vi.mocked(getFamilyCircles).mockResolvedValue([]);
 });
@@ -88,16 +91,25 @@ describe("PeoplePage", () => {
     expect(screen.getByText("Provisional")).toBeInTheDocument();
     expect(getPeople).toHaveBeenCalledWith(
       "oliver-family",
+      {},
+      null,
       expect.any(AbortSignal),
     );
   });
 
   it("filters the directory by an alternate name without hiding the Person link", async () => {
     const user = userEvent.setup();
-    vi.mocked(getPeople).mockResolvedValue([
-      { ...person, alternate_names: ["Ada Jones"] },
-      { ...person, id: "person-2", preferred_name: "Grace Oliver" },
-    ]);
+    vi.mocked(getPeople).mockImplementation((_family, criteria = {}) =>
+      Promise.resolve({
+        items: (criteria.q
+          ? [{ ...person, alternate_names: ["Ada Jones"] }]
+          : [
+              { ...person, alternate_names: ["Ada Jones"] },
+              { ...person, id: "person-2", preferred_name: "Grace Oliver" },
+            ]) as never,
+        next_cursor: null,
+      }),
+    );
     renderPage();
     await screen.findByRole("link", { name: "Ada Oliver" });
     await user.type(
@@ -114,7 +126,7 @@ describe("PeoplePage", () => {
   });
 
   it("renders an empty directory state", async () => {
-    vi.mocked(getPeople).mockResolvedValue([]);
+    vi.mocked(getPeople).mockResolvedValue({ items: [], next_cursor: null });
     renderPage();
     expect(
       await screen.findByText(/No People have been added/i),

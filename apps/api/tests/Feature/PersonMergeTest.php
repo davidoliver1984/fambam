@@ -403,7 +403,7 @@ class PersonMergeTest extends TestCase
             ->assertJsonPath('data.id', $survivor->id)
             ->assertJsonPath('data.redirected_from_person_id', $absorbed->id);
         $this->actingAs($owner)->getJson('/api/families/merge-family/people')
-            ->assertOk()->assertJsonCount(3, 'data');
+            ->assertOk()->assertJsonCount(3, 'data.items');
         $this->assertDatabaseHas('audit_events', ['action' => 'person.merged', 'subject_id' => $mergeId]);
         $this->assertIsArray(PersonMerge::query()->findOrFail($mergeId)->provenance['before']);
     }

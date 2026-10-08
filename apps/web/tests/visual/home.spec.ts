@@ -144,23 +144,29 @@ async function mockHome(page: Page) {
     } else if (path.endsWith("/home")) {
       data = home;
     } else if (path.endsWith("/people")) {
-      data = [
-        {
-          id: "person-emma",
-          preferred_name: "Emma Mercer",
-          alternate_names: [],
-          identity_status: "confirmed",
-          birth_date: { precision: "exact", value: "2003-10-02" },
-          is_deceased: false,
-          death_date: { precision: "unknown", value: null },
-          biography: null,
-          account_link: null,
-          redirected_from_person_id: null,
-          created_at: "2026-01-01T00:00:00Z",
-          updated_at: "2026-01-01T00:00:00Z",
-          permissions: {},
-        },
-      ];
+      data = {
+        items: [
+          {
+            id: "person-emma",
+            preferred_name: "Emma Mercer",
+            alternate_names: [],
+            identity_status: "confirmed",
+            birth_date: { precision: "exact", value: "2003-10-02" },
+            is_deceased: false,
+            death_date: { precision: "unknown", value: null },
+            status: "living",
+            portrait_thumbnail_url: null,
+            relationship_summary: null,
+            biography: null,
+            account_link: null,
+            redirected_from_person_id: null,
+            created_at: "2026-01-01T00:00:00Z",
+            updated_at: "2026-01-01T00:00:00Z",
+            permissions: {},
+          },
+        ],
+        next_cursor: null,
+      };
     }
 
     await route.fulfill({

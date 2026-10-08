@@ -92,7 +92,10 @@ function renderPage() {
 }
 
 beforeEach(() => {
-  vi.mocked(getPeople).mockResolvedValue([person]);
+  vi.mocked(getPeople).mockResolvedValue({
+    items: [person] as never,
+    next_cursor: null,
+  });
   vi.mocked(getRelationships).mockResolvedValue([]);
   vi.mocked(getRelationshipProposals).mockResolvedValue([]);
   vi.mocked(getPersonProposals).mockResolvedValue([]);

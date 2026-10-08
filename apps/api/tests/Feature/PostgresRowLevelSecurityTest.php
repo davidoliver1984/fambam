@@ -26,7 +26,9 @@ use App\Models\Invitation;
 use App\Models\MediaUpload;
 use App\Models\Photo;
 use App\Models\User;
+use App\People\PersonListCriteria;
 use App\Queries\AlbumQuery;
+use App\Queries\PersonQuery;
 use App\Services\AlbumManager;
 use App\Services\ExactDuplicateDetector;
 use App\Services\FaceAnalysisPipeline;
@@ -204,6 +206,72 @@ SQL);
             $this->assertSame([$secondId], $second->items->pluck('id')->all());
             $this->assertNull($second->nextCursor);
             $this->assertNotContains($foreignId, [...$first->items->pluck('id'), ...$second->items->pluck('id')]);
+        } finally {
+            DB::rollBack();
+        }
+    }
+
+    public function test_people_search_status_and_cursor_pages_remain_inside_the_active_rls_family_context(): void
+    {
+        [$ownerId, $familySpaceId] = $this->createOwnedFamily('people-page-family');
+        [, $otherFamilySpaceId] = $this->createOwnedFamily('other-people-page-family');
+        $now = CarbonImmutable::parse('2026-10-08T12:00:00Z');
+        $localIds = [(string) Str::ulid(), (string) Str::ulid(), (string) Str::ulid()];
+        $foreignId = (string) Str::ulid();
+        $this->admin->table('people')->insert([
+            ['id' => $localIds[0], 'family_space_id' => $familySpaceId, 'preferred_name' => 'Alpha Match',
+                'alternate_names' => json_encode([]), 'identity_status' => 'confirmed', 'death_date' => null,
+                'deleted_at' => null, 'created_at' => $now, 'updated_at' => $now],
+            ['id' => $localIds[1], 'family_space_id' => $familySpaceId, 'preferred_name' => 'Beta Match',
+                'alternate_names' => json_encode([]), 'identity_status' => 'confirmed', 'death_date' => null,
+                'deleted_at' => null, 'created_at' => $now, 'updated_at' => $now],
+            ['id' => $localIds[2], 'family_space_id' => $familySpaceId, 'preferred_name' => 'Deleted Match',
+                'alternate_names' => json_encode([]), 'identity_status' => 'confirmed', 'death_date' => null,
+                'deleted_at' => $now, 'created_at' => $now, 'updated_at' => $now],
+            ['id' => $foreignId, 'family_space_id' => $otherFamilySpaceId, 'preferred_name' => 'Foreign Match',
+                'alternate_names' => json_encode([]), 'identity_status' => 'confirmed', 'death_date' => null,
+                'deleted_at' => null, 'created_at' => $now, 'updated_at' => $now],
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $context = app(DatabaseTenantContext::class);
+            $context->establishUser($ownerId);
+            $context->establishFamilySpace($familySpaceId, canManageMemberships: true);
+            $viewer = User::query()->findOrFail($ownerId);
+            app(TenantContext::class)->establish(
+                FamilySpace::query()->findOrFail($familySpaceId),
+                FamilySpaceMembership::query()
+                    ->where('family_space_id', $familySpaceId)
+                    ->where('user_id', $ownerId)
+                    ->firstOrFail(),
+                $viewer,
+            );
+            DB::statement('SET LOCAL enable_seqscan TO off');
+            $plan = DB::select(<<<'SQL'
+EXPLAIN (FORMAT JSON, COSTS FALSE)
+SELECT id
+FROM people
+WHERE family_space_id = ? AND deleted_at IS NULL
+ORDER BY LOWER(TRIM(preferred_name)), id
+LIMIT 2
+SQL, [$familySpaceId]);
+            $this->assertStringContainsString(
+                'people_directory_name_cursor_idx',
+                json_encode($plan, JSON_THROW_ON_ERROR),
+            );
+            $people = app(PersonQuery::class);
+            $criteria = new PersonListCriteria('az', 1, null, 'match', 'living', $familySpaceId);
+            $first = $people->pageForCurrentFamilySpace($criteria);
+            $second = $people->pageForCurrentFamilySpace(new PersonListCriteria(
+                'az', 1, $first->nextCursor, 'match', 'living', $familySpaceId,
+            ));
+
+            $this->assertSame([$localIds[0]], $first->items->pluck('id')->all());
+            $this->assertSame([$localIds[1]], $second->items->pluck('id')->all());
+            $this->assertNull($second->nextCursor);
+            $this->assertNotContains($foreignId, [...$first->items->pluck('id'), ...$second->items->pluck('id')]);
+            $this->assertNotContains($localIds[2], [...$first->items->pluck('id'), ...$second->items->pluck('id')]);
         } finally {
             DB::rollBack();
         }

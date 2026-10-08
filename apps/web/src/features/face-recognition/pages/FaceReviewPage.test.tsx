@@ -258,7 +258,7 @@ beforeEach(() => {
     review_state: "left_unidentified",
     reviewed_at: "2026-10-02T12:00:00Z",
   });
-  peopleApi.getPeople.mockResolvedValue([person]);
+  peopleApi.getPeople.mockResolvedValue({ items: [person], next_cursor: null });
   peopleApi.createPerson.mockResolvedValue({
     ...person,
     id: "person-new",

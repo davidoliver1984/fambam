@@ -20,13 +20,16 @@ function useInvalidateRelationships(familySlug: string, personId: string) {
     const personIds = [
       ...new Set([personId, ...additionalPersonIds].filter((id) => id !== "")),
     ];
-    await Promise.all(
-      personIds.map((id) =>
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: personKeys.list(familySlug),
+      }),
+      ...personIds.map((id) =>
         queryClient.invalidateQueries({
           queryKey: personKeys.relationships(familySlug, id),
         }),
       ),
-    );
+    ]);
   };
 }
 

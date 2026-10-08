@@ -39,7 +39,7 @@ function renderPage(path: string) {
       }),
     ),
     http.get(`${apiBaseUrl}/api/families/:familySlug/people`, () =>
-      HttpResponse.json({ data: [] }),
+      HttpResponse.json({ data: { items: [], next_cursor: null } }),
     ),
     http.get(`${apiBaseUrl}/api/families/:familySlug/notifications`, () =>
       HttpResponse.json({ data: [] }),

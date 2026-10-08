@@ -181,7 +181,7 @@ class PersonRecordTest extends TestCase
             $this->actingAs($user)
                 ->getJson('/api/families/visibility-family/people')
                 ->assertOk()
-                ->assertJsonPath('data.0.preferred_name', 'Visible Person');
+                ->assertJsonPath('data.items.0.preferred_name', 'Visible Person');
         }
 
         foreach ([FamilySpaceRole::Contributor, FamilySpaceRole::Guest] as $role) {

@@ -10,10 +10,14 @@ import { usePeopleQuery } from "../hooks/usePeopleQuery";
 
 export function PeoplePage() {
   const { familySlug = "" } = useParams();
-  const peopleQuery = usePeopleQuery(familySlug);
   const family = useFamilySpaceQuery(familySlug);
   const createPerson = useCreatePersonMutation(familySlug);
   const [nameFilter, setNameFilter] = useState("");
+  const normalizedFilter = nameFilter.trim();
+  const peopleQuery = usePeopleQuery(
+    familySlug,
+    normalizedFilter === "" ? {} : { q: normalizedFilter },
+  );
 
   if (peopleQuery.isPending) {
     return <p role="status">Loading people…</p>;
@@ -23,11 +27,7 @@ export function PeoplePage() {
     return <p role="alert">The people directory could not be loaded.</p>;
   }
 
-  const visiblePeople = peopleQuery.data.filter((person) =>
-    [person.preferred_name, ...person.alternate_names].some((name) =>
-      name.toLocaleLowerCase().includes(nameFilter.trim().toLocaleLowerCase()),
-    ),
-  );
+  const visiblePeople = peopleQuery.data;
   const canReviewIdentity =
     family.data?.role === "owner" || family.data?.role === "administrator";
 

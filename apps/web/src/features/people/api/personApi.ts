@@ -4,6 +4,8 @@ import { type ApiEnvelope, unwrap } from "@/api/envelope";
 import type {
   Person,
   PersonDetailsInput,
+  PersonListCriteria,
+  PersonListPage,
   PersonProposal,
   PersonProposalResolution,
 } from "../types/person";
@@ -14,10 +16,16 @@ function peoplePath(familySlug: string): string {
 
 export async function getPeople(
   familySlug: string,
+  criteria: PersonListCriteria = {},
+  cursor: string | null = null,
   signal?: AbortSignal,
-): Promise<Person[]> {
+): Promise<PersonListPage> {
   return unwrap(
-    await apiClient.get<ApiEnvelope<Person[]>>(peoplePath(familySlug), {
+    await apiClient.get<ApiEnvelope<PersonListPage>>(peoplePath(familySlug), {
+      params: {
+        ...criteria,
+        ...(cursor === null ? {} : { cursor }),
+      },
       signal,
     }),
   );

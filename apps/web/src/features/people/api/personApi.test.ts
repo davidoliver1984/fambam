@@ -12,7 +12,11 @@ import {
   resolvePersonProposal,
   updatePerson,
 } from "./personApi";
-import type { Person, PersonDetailsInput } from "../types/person";
+import type {
+  Person,
+  PersonDetailsInput,
+  PersonSummary,
+} from "../types/person";
 
 const apiBaseUrl = "http://localhost:8082";
 const person: Person = {
@@ -51,15 +55,33 @@ const input: PersonDetailsInput = {
   death_date: person.death_date,
   biography: person.biography,
 };
+const summary: PersonSummary = {
+  id: person.id,
+  preferred_name: person.preferred_name,
+  alternate_names: person.alternate_names,
+  identity_status: person.identity_status,
+  birth_date: person.birth_date,
+  death_date: person.death_date,
+  status: "living",
+  portrait_thumbnail_url: null,
+  relationship_summary: null,
+};
 
 describe("personApi", () => {
   it("uses family-scoped typed endpoints for Person records", async () => {
     const requests: string[] = [];
+    let listQuery = "";
     server.use(
-      http.get(`${apiBaseUrl}/api/families/oliver-family/people`, () => {
-        requests.push("list");
-        return HttpResponse.json({ data: [person] });
-      }),
+      http.get(
+        `${apiBaseUrl}/api/families/oliver-family/people`,
+        ({ request }) => {
+          requests.push("list");
+          listQuery = new URL(request.url).search;
+          return HttpResponse.json({
+            data: { items: [summary], next_cursor: "next" },
+          });
+        },
+      ),
       http.get(
         `${apiBaseUrl}/api/families/oliver-family/people/${person.id}`,
         () => {
@@ -126,7 +148,18 @@ describe("personApi", () => {
       ),
     );
 
-    await expect(getPeople("oliver-family")).resolves.toEqual([person]);
+    await expect(
+      getPeople("oliver-family", {
+        sort: "za",
+        q: "ada",
+        status: "living",
+        limit: 24,
+      }),
+    ).resolves.toEqual({ items: [summary], next_cursor: "next" });
+    expect(listQuery).toContain("sort=za");
+    expect(listQuery).toContain("q=ada");
+    expect(listQuery).toContain("status=living");
+    expect(listQuery).toContain("limit=24");
     await expect(getPerson("oliver-family", person.id)).resolves.toEqual(
       person,
     );

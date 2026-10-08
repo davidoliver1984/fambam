@@ -13,7 +13,7 @@ import {
   useRelationshipProposalsQuery,
   useRelationshipsQuery,
 } from "../hooks/useRelationshipQueries";
-import type { Person, RelationshipType } from "../types/person";
+import type { Person, PersonOption, RelationshipType } from "../types/person";
 
 const relationshipTypes: Array<{ value: RelationshipType; label: string }> = [
   { value: "parent_of", label: "Parent of" },
@@ -32,7 +32,7 @@ export function PersonRelationshipsPanel({
 }: {
   familySlug: string;
   person: Person;
-  people: Person[];
+  people: PersonOption[];
 }) {
   const relationships = useRelationshipsQuery(familySlug, person.id);
   const proposals = useRelationshipProposalsQuery(

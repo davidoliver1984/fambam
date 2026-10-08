@@ -30,30 +30,33 @@ async function mockShell(page: Page) {
     } else if (path === "/api/families/mercer-family-demo") {
       data = family;
     } else if (path.endsWith("/people")) {
-      data = [
-        {
-          id: "person-david",
-          preferred_name: "David Oliver",
-          alternate_names: [],
-          identity_status: "confirmed",
-          birth_date: { precision: "unknown", value: null },
-          is_deceased: false,
-          death_date: { precision: "unknown", value: null },
-          biography: null,
-          account_link: {
-            id: "link-1",
-            account: {
-              id: 1,
-              name: "David Oliver",
-              is_current_user: true,
+      data = {
+        items: [
+          {
+            id: "person-david",
+            preferred_name: "David Oliver",
+            alternate_names: [],
+            identity_status: "confirmed",
+            birth_date: { precision: "unknown", value: null },
+            is_deceased: false,
+            death_date: { precision: "unknown", value: null },
+            biography: null,
+            account_link: {
+              id: "link-1",
+              account: {
+                id: 1,
+                name: "David Oliver",
+                is_current_user: true,
+              },
             },
+            redirected_from_person_id: null,
+            created_at: "2026-01-01T00:00:00Z",
+            updated_at: "2026-01-01T00:00:00Z",
+            permissions: {},
           },
-          redirected_from_person_id: null,
-          created_at: "2026-01-01T00:00:00Z",
-          updated_at: "2026-01-01T00:00:00Z",
-          permissions: {},
-        },
-      ];
+        ],
+        next_cursor: null,
+      };
     } else if (path.endsWith("/notifications")) {
       data = [
         {

@@ -1,6 +1,6 @@
 import { type SyntheticEvent, useState } from "react";
 
-import type { Person } from "@/features/people/types/person";
+import type { PersonOption } from "@/features/people/types/person";
 
 import type { PhotoPerson } from "../types/photo";
 
@@ -9,7 +9,7 @@ export function PhotoPersonForm({
   pending,
   onSubmit,
 }: {
-  people: Person[];
+  people: PersonOption[];
   pending: boolean;
   onSubmit: (personId: string) => Promise<PhotoPerson>;
 }) {

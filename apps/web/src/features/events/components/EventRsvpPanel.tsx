@@ -1,7 +1,6 @@
 import { Link } from "react-router";
 
 import { useCurrentUserQuery } from "@/features/account/hooks/useCurrentUserQuery";
-import { usePeopleQuery } from "@/features/people/hooks/usePeopleQuery";
 
 import {
   useEventRsvpMutation,
@@ -78,7 +77,6 @@ export function EventRsvpPanel({
 }) {
   const currentUser = useCurrentUserQuery();
   const rsvps = useEventRsvpsQuery(familySlug, eventId);
-  const people = usePeopleQuery(familySlug);
   const respond = useEventRsvpMutation(familySlug, eventId);
 
   if (rsvps.isPending || currentUser.isPending)
@@ -89,14 +87,6 @@ export function EventRsvpPanel({
   const ownResponse = groups.find(({ value }) =>
     rsvps.data[value].some((entry) => entry.user.id === currentUser.data.id),
   )?.value;
-  const personByUserId = new Map(
-    (people.data ?? []).flatMap((person) =>
-      person.account_link === null
-        ? []
-        : [[person.account_link.account.id, person] as const],
-    ),
-  );
-
   return (
     <>
       <section
@@ -120,18 +110,18 @@ export function EventRsvpPanel({
                 </b>
                 <small>
                   {entries.map((entry, index) => {
-                    const person = personByUserId.get(entry.user.id);
+                    const personId = entry.user.person_id;
                     const label =
                       entry.user.name.split(/\s+/)[0] ?? entry.user.name;
                     return (
                       <span key={entry.id}>
                         {index > 0 && ", "}
-                        {person === undefined ? (
+                        {personId === undefined || personId === null ? (
                           label
                         ) : (
                           <Link
                             className="event-person-link"
-                            to={`/families/${encodeURIComponent(familySlug)}/people/${encodeURIComponent(person.id)}`}
+                            to={`/families/${encodeURIComponent(familySlug)}/people/${encodeURIComponent(personId)}`}
                           >
                             {label}
                           </Link>

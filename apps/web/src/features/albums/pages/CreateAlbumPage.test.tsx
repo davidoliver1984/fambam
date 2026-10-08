@@ -119,7 +119,10 @@ beforeEach(() => {
     },
     current_user_person_id: null,
   });
-  vi.mocked(getPeople).mockResolvedValue([person]);
+  vi.mocked(getPeople).mockResolvedValue({
+    items: [person] as never,
+    next_cursor: null,
+  });
   vi.mocked(getPhotos).mockResolvedValue({ items: [photo], next_cursor: null });
   vi.mocked(createAlbum).mockResolvedValue(createdAlbum);
   vi.mocked(setAlbumCover).mockResolvedValue(createdAlbum);

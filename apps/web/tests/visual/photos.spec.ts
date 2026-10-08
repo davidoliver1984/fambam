@@ -191,7 +191,7 @@ async function mockPhotos(
       const photoId = path.split("/").at(-1);
       data = photoData.find((photo) => photo.id === photoId) ?? null;
     } else if (path.endsWith("/people")) {
-      data = [];
+      data = { items: [], next_cursor: null };
     } else if (path.endsWith("/collections")) {
       data = [
         {

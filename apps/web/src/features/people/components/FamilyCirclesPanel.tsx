@@ -10,14 +10,14 @@ import {
   useRemoveCirclePersonMutation,
   useUpdateFamilyCircleMutation,
 } from "../hooks/useCircleQueries";
-import type { Person } from "../types/person";
+import type { PersonOption } from "../types/person";
 
 export function FamilyCirclesPanel({
   familySlug,
   people,
 }: {
   familySlug: string;
-  people: Person[];
+  people: PersonOption[];
 }) {
   const circles = useFamilyCirclesQuery(familySlug);
   const create = useCreateFamilyCircleMutation(familySlug);
