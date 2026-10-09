@@ -20,11 +20,21 @@ class RevokeUserAccess
         ?Request $request = null,
         bool $revokeAccount = false,
         array $auditMetadata = [],
+        bool $preserveCurrentSession = false,
     ): void {
-        DB::transaction(function () use ($user, $cause, $actor, $request, $revokeAccount, $auditMetadata): void {
-            DB::table((string) config('session.table', 'sessions'))
-                ->where('user_id', $user->id)
-                ->delete();
+        $currentSessionId = $preserveCurrentSession && $request?->hasSession() === true
+            ? $request->session()->getId()
+            : null;
+
+        DB::transaction(function () use ($user, $cause, $actor, $request, $revokeAccount, $auditMetadata, $currentSessionId): void {
+            $sessions = DB::table((string) config('session.table', 'sessions'))
+                ->where('user_id', $user->id);
+
+            if ($currentSessionId !== null) {
+                $sessions->where('id', '!=', $currentSessionId);
+            }
+
+            $sessions->delete();
 
             $attributes = ['remember_token' => Str::random(60)];
 
@@ -43,7 +53,7 @@ class RevokeUserAccess
             );
         });
 
-        if ($request?->hasSession() === true) {
+        if (! $preserveCurrentSession && $request?->hasSession() === true) {
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();

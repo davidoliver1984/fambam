@@ -171,6 +171,10 @@ function setup(
             path: "settings",
             element: <h1>Family settings</h1>,
           },
+          {
+            path: "settings/overview",
+            element: <h1>Family overview settings</h1>,
+          },
         ],
       },
       { path: "/account", element: <main>Account page</main> },
@@ -193,9 +197,23 @@ afterEach(() => {
   cleanup();
   document.documentElement.removeAttribute("data-theme");
   window.localStorage.removeItem("fambam-theme");
+  window.sessionStorage.removeItem("fambam.invitation-welcome");
 });
 
 describe("FamilyShell", () => {
+  it("shows the one-time invitation welcome notification", async () => {
+    window.sessionStorage.setItem("fambam.invitation-welcome", "1");
+    setup();
+
+    expect(await screen.findByText("Welcome to Fambam")).toBeInTheDocument();
+    expect(
+      screen.getByText("This is your family newsfeed."),
+    ).toBeInTheDocument();
+    expect(
+      window.sessionStorage.getItem("fambam.invitation-welcome"),
+    ).toBeNull();
+  });
+
   it("shows the approved navigation and routes within the current Family Space", async () => {
     setup();
     expect(
@@ -562,9 +580,13 @@ describe("FamilyShell", () => {
       "/families/first-family/people/person-david",
     );
     await userEvent.click(screen.getByLabelText("Open account menu for David"));
-    expect(
+    await userEvent.click(
       screen.getByRole("menuitem", { name: "Family overview" }),
-    ).toBeDisabled();
+    );
+    expect(router.state.location.pathname).toBe(
+      "/families/first-family/settings/overview",
+    );
+    await userEvent.click(screen.getByLabelText("Open account menu for David"));
     expect(screen.getByRole("menuitem", { name: "Exports" })).toBeEnabled();
     expect(
       screen.getByRole("menuitem", { name: "Platform Admin" }),

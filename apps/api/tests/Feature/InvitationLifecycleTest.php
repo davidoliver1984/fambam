@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Notifications\InvitationIssued;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -111,24 +112,33 @@ class InvitationLifecycleTest extends TestCase
     {
         $owner = User::factory()->create();
         $rawToken = $this->issueInvitation($owner, 'relative@example.test');
+        $familySpaceName = Invitation::query()->sole()->familySpace->name;
+        $this->postJson('/logout')->assertNoContent();
+        Auth::guard('sanctum')->forgetUser();
 
         $exchange = $this->postJson('/api/invitations/exchange', ['token' => $rawToken])
             ->assertOk()
-            ->assertJsonPath('data.email', 'relative@example.test');
+            ->assertJsonPath('data.email', 'relative@example.test')
+            ->assertJsonPath('data.family_space_name', $familySpaceName)
+            ->assertJsonPath('data.inviter.name', $owner->name)
+            ->assertJsonPath('data.inviter.avatar_url', null);
         $claimToken = $exchange->json('data.claim_token');
 
         $this->assertNull(Invitation::query()->sole()->token_hash);
         $this->postJson('/api/invitations/exchange', ['token' => $rawToken])->assertUnprocessable();
 
-        $this->postJson('/api/invitations/accept', [
-            'claim_token' => $claimToken,
-            'name' => 'Invited Relative',
-            'password' => 'a-very-long-passphrase',
-            'password_confirmation' => 'a-very-long-passphrase',
-            'timezone' => 'Europe/Paris',
-        ])->assertCreated()->assertJsonPath('data.email', 'relative@example.test');
+        $this->withHeader('Origin', 'http://localhost')
+            ->withSession([])
+            ->postJson('/api/invitations/accept', [
+                'claim_token' => $claimToken,
+                'name' => 'Invited Relative',
+                'password' => 'a-very-long-passphrase',
+                'password_confirmation' => 'a-very-long-passphrase',
+                'timezone' => 'Europe/Paris',
+            ])->assertCreated()->assertJsonPath('data.email', 'relative@example.test');
 
         $relative = User::query()->where('email', 'relative@example.test')->sole();
+        $this->assertAuthenticatedAs($relative);
         $this->assertSame('Invited Relative', $relative->name);
         $this->assertSame('Europe/Paris', $relative->timezone);
         $this->assertNotNull($relative->email_verified_at);
@@ -157,6 +167,25 @@ class InvitationLifecycleTest extends TestCase
             'timezone' => 'UTC',
         ])->assertUnprocessable();
         $this->assertDatabaseCount('users', 2);
+    }
+
+    public function test_authenticated_user_cannot_create_an_invited_account_for_a_different_email(): void
+    {
+        $owner = User::factory()->create();
+        $rawToken = $this->issueInvitation($owner, 'relative@example.test');
+        $claimToken = $this->postJson('/api/invitations/exchange', ['token' => $rawToken])
+            ->assertOk()
+            ->json('data.claim_token');
+
+        $this->postJson('/api/invitations/accept', [
+            'claim_token' => $claimToken,
+            'name' => 'Invited Relative',
+            'password' => 'a-very-long-passphrase',
+            'password_confirmation' => 'a-very-long-passphrase',
+            'timezone' => 'Europe/London',
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseMissing('users', ['email' => 'relative@example.test']);
     }
 
     public function test_invited_email_cannot_be_overridden_during_acceptance(): void
@@ -219,8 +248,14 @@ class InvitationLifecycleTest extends TestCase
             ->sole();
         $this->assertSame($membershipId, $reactivated->id);
         $this->assertSame(MembershipState::Active, $reactivated->state);
-        $this->assertTrue($reactivated->joined_at->greaterThan($firstJoinedAt));
-        $this->assertTrue($reactivated->created_at->equalTo($createdAt));
+        $this->assertTrue(
+            $reactivated->joined_at->greaterThan($firstJoinedAt),
+            'Reactivation must refresh joined_at.',
+        );
+        $this->assertTrue(
+            $reactivated->created_at->equalTo($createdAt),
+            'Reactivation must preserve created_at.',
+        );
         $this->assertNull($reactivated->removed_at);
         $this->assertNull($reactivated->removed_by);
         $this->assertDatabaseHas('audit_events', ['action' => 'family_space.member_reactivated']);

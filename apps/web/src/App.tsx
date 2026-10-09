@@ -17,7 +17,7 @@ import { RequireAuth } from "@/features/auth/components/RequireAuth";
 import { TwoFactorChallengePage } from "@/features/auth/pages/TwoFactorChallengePage";
 import { FamilyShell } from "@/features/family-spaces/components/FamilyShell";
 import { FamilySpacePage } from "@/features/family-spaces/pages/FamilySpacePage";
-import { FamilyManagementPage } from "@/features/family-spaces/pages/FamilyManagementPage";
+import { SettingsPage } from "@/features/family-spaces/pages/SettingsPage";
 import { InvitationAcceptancePage } from "@/features/invitations/pages/InvitationAcceptancePage";
 import { MediaUploadPage } from "@/features/media-uploads/pages/MediaUploadPage";
 import { PeoplePage } from "@/features/people/pages/PeoplePage";
@@ -134,7 +134,11 @@ export function App() {
           />
           <Route
             path="/families/:familySlug/settings"
-            element={<FamilyManagementPage />}
+            element={<SettingsPage />}
+          />
+          <Route
+            path="/families/:familySlug/settings/:section"
+            element={<SettingsPage />}
           />
           <Route
             path="/families/:familySlug/exports"

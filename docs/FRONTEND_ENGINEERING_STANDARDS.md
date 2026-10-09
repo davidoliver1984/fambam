@@ -456,7 +456,7 @@ sufficient.
 
 **Good example — a form that should move to RHF + Zod:** invitation
 acceptance collects a password and a confirmation with no client-side check
-that they match, and shares a password-length policy (15 characters, per
+that they match, and shares a password-length policy (12 characters, per
 ADR-0004) that should live in one place rather than being re-expressed as a
 `minLength` attribute wherever a password field appears. This is the
 concrete case that should drive introducing React Hook Form + Zod, per the

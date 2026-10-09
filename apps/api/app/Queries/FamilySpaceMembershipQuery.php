@@ -32,7 +32,10 @@ class FamilySpaceMembershipQuery
     public function listForFamilySpace(FamilySpace $familySpace): Collection
     {
         return $this->forFamilySpace($familySpace)
-            ->with('user:id,name,email')
+            ->with([
+                'user:id,name,email,avatar_media_upload_id',
+                'user.avatarMediaUpload',
+            ])
             ->orderBy('joined_at')
             ->get();
     }

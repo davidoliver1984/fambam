@@ -33,7 +33,16 @@ export type UpdateFamilySpaceInput = Partial<
 
 export type FamilyMembership = {
   id: string;
-  user: { id: number; name: string; email: string };
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    avatar: {
+      media_upload_id: string;
+      url: string;
+      expires_at: string;
+    } | null;
+  };
   role: FamilySpaceRole;
   state: "active" | "removed";
   joined_at: string;

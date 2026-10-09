@@ -46,7 +46,11 @@ class FamilySpaceMembershipTest extends TestCase
             'role' => FamilySpaceRole::Owner->value,
             'state' => MembershipState::Active->value,
         ]);
-        $this->assertNotNull($familySpace->memberships()->sole()->joined_at);
+        $this->assertDatabaseMissing('family_space_memberships', [
+            'family_space_id' => $familySpace->id,
+            'user_id' => $user->id,
+            'joined_at' => null,
+        ]);
         $this->assertDatabaseHas('audit_events', [
             'action' => 'family_space.created',
             'actor_user_id' => $user->id,

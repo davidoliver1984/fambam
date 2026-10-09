@@ -2,6 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
+  fireEvent,
   render,
   screen,
   type RenderResult,
@@ -71,7 +72,44 @@ describe("App", () => {
       "autocomplete",
       "current-password",
     );
+    expect(screen.getByLabelText("Password")).toHaveAttribute(
+      "type",
+      "password",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show password" }));
+    expect(screen.getByLabelText("Password")).toHaveAttribute("type", "text");
+    expect(
+      screen.getByRole("button", { name: "Hide password" }),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/create an account/i)).not.toBeInTheDocument();
+  });
+
+  it("routes an existing authenticated session away from sign in", async () => {
+    server.use(
+      http.get("http://localhost:8082/api/user", () =>
+        HttpResponse.json({
+          data: {
+            id: 1,
+            name: "David Mercer",
+            about: null,
+            email: "mercer.owner@fambam.test",
+            pending_email: null,
+            pending_email_requested_at: null,
+            avatar: null,
+            timezone: "Europe/London",
+            email_verified_at: "2026-10-09T07:00:00Z",
+            can_create_family_spaces: true,
+            two_factor_enabled: true,
+          },
+        }),
+      ),
+    );
+
+    renderWithQuery(<App />, "/login");
+
+    expect(
+      await screen.findByRole("heading", { name: "Your account" }),
+    ).toBeInTheDocument();
   });
 
   it("keeps the invited email authoritative on the acceptance form", () => {
@@ -81,6 +119,7 @@ describe("App", () => {
           claim_token: "claim-token",
           email: "relative@example.test",
           family_space_name: "Oliver Family",
+          inviter: { name: "David Oliver", avatar_url: null },
           event: null,
           role: "member",
           existing_account: false,
@@ -90,13 +129,19 @@ describe("App", () => {
     );
 
     expect(screen.getByText("relative@example.test")).toBeInTheDocument();
+    expect(screen.getByText("David Oliver")).toBeInTheDocument();
     expect(
       screen.queryByRole("textbox", { name: /email/i }),
     ).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Password")).toHaveAttribute(
+    expect(screen.getByLabelText("Create a password")).toHaveAttribute(
       "autocomplete",
       "new-password",
     );
+    expect(screen.queryByLabelText("Timezone")).not.toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: "Show password" }),
+    ).toHaveLength(2);
+    expect(screen.getByText("Add a password")).toBeInTheDocument();
   });
 
   it("redirects an unauthenticated Family Space route to sign in", async () => {

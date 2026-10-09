@@ -1,5 +1,6 @@
 import { apiClient, ensureCsrfCookie } from "@/api/client";
 import { type ApiEnvelope, unwrap } from "@/api/envelope";
+import { toAppError } from "@/api/errors";
 import {
   completeMediaUpload,
   putStagedObject,
@@ -75,6 +76,22 @@ export async function uploadAccountAvatar(
 export async function setAccountAvatar(mediaUploadId: string): Promise<void> {
   await ensureCsrfCookie();
   await apiClient.put("/api/user/avatar", { media_upload_id: mediaUploadId });
+}
+
+export async function setAccountAvatarWhenReady(
+  mediaUploadId: string,
+): Promise<void> {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    try {
+      await setAccountAvatar(mediaUploadId);
+      return;
+    } catch (error) {
+      if (toAppError(error).status !== 404) throw error;
+      await new Promise((resolve) => window.setTimeout(resolve, 500));
+    }
+  }
+
+  throw new Error("The account photo did not finish processing in time.");
 }
 
 export async function removeAccountAvatar(): Promise<void> {

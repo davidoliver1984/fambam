@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 type PersonAvatarProps = {
   name: string;
   initials?: string;
@@ -20,13 +22,23 @@ export function PersonAvatar({
   portraitUrl,
   className = "",
 }: PersonAvatarProps) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const visibleUrl =
+    portraitUrl && portraitUrl !== failedUrl ? portraitUrl : null;
+
   return (
     <span
       className={`shell-avatar shell-search-avatar ${className}`.trim()}
       aria-hidden="true"
     >
-      {portraitUrl ? (
-        <img src={portraitUrl} alt="" />
+      {visibleUrl ? (
+        <img
+          src={visibleUrl}
+          alt=""
+          onError={() => {
+            setFailedUrl(visibleUrl);
+          }}
+        />
       ) : (
         initials || initialsFor(name)
       )}

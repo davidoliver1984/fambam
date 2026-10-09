@@ -8,10 +8,11 @@ import {
 } from "react-router";
 
 import { toAppError } from "@/api/errors";
-import { ProductFooter } from "@/components/ui";
+import { ActionNotice, ProductFooter } from "@/components/ui";
 import { useCurrentUserQuery } from "@/features/account/hooks/useCurrentUserQuery";
 import { useAppearancePreference } from "@/features/account/hooks/useAppearancePreference";
 import { useLogoutMutation } from "@/features/auth/hooks/useAuthMutations";
+import { takeInvitationWelcomeNotice } from "@/features/invitations/welcomeNotice";
 
 import { useFamilySpaceQuery } from "../hooks/useFamilySpaceQuery";
 import type { FamilySpaceRole } from "../types/familySpace";
@@ -55,8 +56,11 @@ export function FamilyShell() {
   const family = useFamilySpaceQuery(familySlug);
   const user = useCurrentUserQuery();
   const logout = useLogoutMutation();
-  const { theme, setPreference } = useAppearancePreference();
+  const { preference, theme, setPreference } = useAppearancePreference();
   const [actionError, setActionError] = useState("");
+  const [welcomeNotice, setWelcomeNotice] = useState(
+    takeInvitationWelcomeNotice,
+  );
   const content = useRef<HTMLDivElement>(null);
   const previousPath = useRef(location.pathname);
   const base = `/families/${encodeURIComponent(familySlug)}`;
@@ -126,6 +130,14 @@ export function FamilyShell() {
             </p>
           )}
           <div id="family-content" className="shell-content" tabIndex={-1}>
+            {welcomeNotice !== null && (
+              <ActionNotice
+                {...welcomeNotice}
+                onDismiss={() => {
+                  setWelcomeNotice(null);
+                }}
+              />
+            )}
             <Outlet />
           </div>
           <ProductFooter />
@@ -174,6 +186,7 @@ export function FamilyShell() {
         currentUserPersonId={family.data.current_user_person_id ?? null}
         role={family.data.role}
         userName={user.data?.name ?? "Account"}
+        userAvatarUrl={user.data?.avatar?.url ?? null}
         theme={theme}
         onThemeChange={setPreference}
         canBrowseArchive={canBrowseArchive}
@@ -192,7 +205,21 @@ export function FamilyShell() {
         ref={content}
         tabIndex={-1}
       >
-        <Outlet />
+        {welcomeNotice !== null && (
+          <ActionNotice
+            {...welcomeNotice}
+            onDismiss={() => {
+              setWelcomeNotice(null);
+            }}
+          />
+        )}
+        <Outlet
+          context={{
+            appearancePreference: preference,
+            resolvedTheme: theme,
+            setAppearancePreference: setPreference,
+          }}
+        />
       </div>
       <ProductFooter familyHome={base} />
     </div>

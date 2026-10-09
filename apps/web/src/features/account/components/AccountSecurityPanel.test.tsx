@@ -4,11 +4,35 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { AccountSecurityPanel } from "./AccountSecurityPanel";
+import { AccountSecurityPanel, TwoFactorPanel } from "./AccountSecurityPanel";
 
 afterEach(cleanup);
 
 describe("AccountSecurityPanel", () => {
+  it("keeps password confirmation hidden until disabling the authenticator", async () => {
+    const user = userEvent.setup();
+    const queryClient = new QueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TwoFactorPanel enabled />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.queryByLabelText("Current password")).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Disable authenticator" }),
+    );
+
+    expect(screen.getByLabelText("Current password")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Show password" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByLabelText("Current password")).not.toBeInTheDocument();
+  });
+
   it("rejects mismatched replacement passwords before an API request", async () => {
     const user = userEvent.setup();
     const queryClient = new QueryClient({

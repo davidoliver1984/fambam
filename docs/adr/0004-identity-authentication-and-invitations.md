@@ -321,7 +321,7 @@ where practical.
 
 ### 13. Password policy
 
-Minimum length: **15 characters**. Because MFA is optional and off by
+Minimum length: **12 characters**. Because MFA is optional and off by
 default (§10), the password is, for most accounts, the sole factor
 protecting the account; the higher minimum compensates for that using
 length — the single strongest lever against offline/brute-force guessing —

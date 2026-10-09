@@ -185,11 +185,11 @@ class AlbumDeletionTest extends TestCase
 
         $this->actingAs($owner)->getJson("/api/families/{$family->slug}/albums")
             ->assertOk()
-            ->assertJsonPath('data.0.creator.id', $owner->id)
-            ->assertJsonPath('data.0.creator.name', 'Album Creator')
-            ->assertJsonPath('data.0.photo_count', 1)
-            ->assertJsonPath('data.0.created_at', $album->created_at?->toAtomString())
-            ->assertJsonPath('data.0.updated_at', $album->updated_at?->toAtomString());
+            ->assertJsonPath('data.items.0.creator.id', $owner->id)
+            ->assertJsonPath('data.items.0.creator.name', 'Album Creator')
+            ->assertJsonPath('data.items.0.photo_count', 1)
+            ->assertJsonPath('data.items.0.created_at', $album->created_at?->toAtomString())
+            ->assertJsonPath('data.items.0.updated_at', $album->updated_at?->toAtomString());
     }
 
     /** @return array{User, FamilySpaceMembership} */

@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router";
 
+import { ConfirmDialog } from "@/components/ui";
 import { InvitationManagement } from "@/features/invitations/pages/InvitationManagement";
 
 import { FamilySpaceDeletionPanel } from "../components/FamilySpaceDeletionPanel";
@@ -20,6 +22,10 @@ const roles: FamilySpaceRole[] = [
 
 export function FamilyManagementPage() {
   const { familySlug = "" } = useParams();
+  const [removal, setRemoval] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const family = useFamilySpaceQuery(familySlug);
   const canManage =
     family.data?.role === "owner" || family.data?.role === "administrator";
@@ -78,12 +84,7 @@ export function FamilyManagementPage() {
                     type="button"
                     disabled={actions.remove.isPending}
                     onClick={() => {
-                      if (
-                        window.confirm(
-                          `Remove ${item.user.name} from this Family Space?`,
-                        )
-                      )
-                        actions.remove.mutate(item.id);
+                      setRemoval({ id: item.id, name: item.user.name });
                     }}
                   >
                     Remove
@@ -96,6 +97,29 @@ export function FamilyManagementPage() {
           <p role="alert">The membership change could not be saved.</p>
         )}
       </section>
+      <ConfirmDialog
+        open={removal !== null}
+        title={`Remove ${removal?.name ?? "this member"} from the family?`}
+        confirmLabel="Remove from family"
+        destructive
+        pending={actions.remove.isPending}
+        onCancel={() => {
+          setRemoval(null);
+        }}
+        onConfirm={() => {
+          if (removal === null) return;
+          actions.remove.mutate(removal.id, {
+            onSuccess: () => {
+              setRemoval(null);
+            },
+          });
+        }}
+      >
+        <p>
+          They will lose access. Their linked Person and family memories will
+          remain.
+        </p>
+      </ConfirmDialog>
       <InvitationManagement familySlug={familySlug} />
       <section aria-labelledby="portability-title">
         <h2 id="portability-title">Portability</h2>

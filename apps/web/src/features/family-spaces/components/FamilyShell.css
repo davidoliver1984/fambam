@@ -350,6 +350,12 @@
   font-size: 0.58rem;
 }
 
+.shell-avatar > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .shell-account-menu {
   position: absolute;
   z-index: 90;

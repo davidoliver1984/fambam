@@ -14,6 +14,10 @@ export type AcceptanceClaim = {
   claim_token: string;
   email: string;
   family_space_name: string;
+  inviter: {
+    name: string;
+    avatar_url: string | null;
+  };
   event: { id: string; name: string } | null;
   role: Invitation["role"];
   existing_account: boolean;

@@ -14,6 +14,7 @@ type ProductHeaderProps = {
   currentUserPersonId: string | null;
   role: FamilySpaceRole;
   userName: string;
+  userAvatarUrl: string | null;
   theme: "light" | "dark";
   onThemeChange: (theme: "light" | "dark") => void;
   canBrowseArchive: boolean;
@@ -37,6 +38,7 @@ export function ProductHeader({
   currentUserPersonId,
   role,
   userName,
+  userAvatarUrl,
   theme,
   onThemeChange,
   canBrowseArchive,
@@ -233,7 +235,11 @@ export function ProductHeader({
             }}
           >
             <span className="shell-avatar tiny" aria-hidden="true">
-              {accountInitials(userName)}
+              {userAvatarUrl ? (
+                <img src={userAvatarUrl} alt="" />
+              ) : (
+                accountInitials(userName)
+              )}
             </span>
             <span>{userName.split(/\s+/)[0] || userName}</span>
             <ShellIcon name="chevron-down" />
@@ -288,7 +294,7 @@ export function ProductHeader({
               type="button"
               role="menuitem"
               onClick={() => {
-                navigateAccount("/account");
+                navigateAccount(`${base}/settings/profile`);
               }}
             >
               <ShellIcon name="pencil" />
@@ -298,13 +304,19 @@ export function ProductHeader({
               type="button"
               role="menuitem"
               onClick={() => {
-                navigateAccount("/account");
+                navigateAccount(`${base}/settings/security`);
               }}
             >
               <ShellIcon name="lock" />
               Account &amp; security
             </button>
-            <button type="button" role="menuitem" disabled>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                navigateAccount(`${base}/settings/appearance`);
+              }}
+            >
               <ShellIcon name="palette" />
               Appearance
             </button>
@@ -324,7 +336,7 @@ export function ProductHeader({
               role="menuitem"
               disabled={!canManageFamily}
               onClick={() => {
-                navigateAccount(`${base}/settings`);
+                navigateAccount(`${base}/settings/family`);
               }}
             >
               <ShellIcon name="settings" />
@@ -340,7 +352,13 @@ export function ProductHeader({
               <ShellIcon name="file-text" />
               Exports
             </button>
-            <button type="button" role="menuitem" disabled>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                navigateAccount(`${base}/settings/overview`);
+              }}
+            >
               <ShellIcon name="shield-check" />
               Family overview
             </button>

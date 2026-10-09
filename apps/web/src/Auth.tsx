@@ -1,4 +1,9 @@
-import { type ReactNode, type SyntheticEvent, useState } from "react";
+import {
+  type ReactNode,
+  type SyntheticEvent,
+  useEffect,
+  useState,
+} from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router";
@@ -40,7 +45,12 @@ function FormMessage({ message }: { message: string }) {
 export function LoginPage() {
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const currentUser = useCurrentUserQuery();
   const login = useLoginMutation();
+  const returnTo = new URLSearchParams(window.location.search).get("returnTo");
+  const safeReturnTo =
+    returnTo?.startsWith("/families/") === true ? returnTo : "/account";
   const {
     register,
     handleSubmit,
@@ -50,16 +60,21 @@ export function LoginPage() {
     resolver: zodResolver(loginSchema),
     defaultValues: { remember: false },
   });
+
+  useEffect(() => {
+    if (currentUser.isSuccess) void navigate(safeReturnTo, { replace: true });
+  }, [currentUser.isSuccess, navigate, safeReturnTo]);
+
   const submit = handleSubmit(async (values) => {
+    if (currentUser.isSuccess) {
+      void navigate(safeReturnTo, { replace: true });
+      return;
+    }
+
     setMessage("Signing in…");
 
     try {
       const result = await login.mutateAsync(values);
-      const returnTo = new URLSearchParams(window.location.search).get(
-        "returnTo",
-      );
-      const safeReturnTo =
-        returnTo?.startsWith("/families/") === true ? returnTo : "/account";
       void navigate(result.two_factor ? "/two-factor-challenge" : safeReturnTo);
     } catch (error) {
       const fields = toLaravelFieldErrors(error);
@@ -91,15 +106,46 @@ export function LoginPage() {
           </p>
         )}
         <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          aria-describedby={
-            errors.password ? "login-password-error" : undefined
-          }
-          {...register("password")}
-        />
+        <span className="password-input">
+          <input
+            id="password"
+            type={passwordVisible ? "text" : "password"}
+            autoComplete="current-password"
+            aria-describedby={
+              errors.password ? "login-password-error" : undefined
+            }
+            {...register("password")}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setPasswordVisible((visible) => !visible);
+            }}
+            aria-label={`${passwordVisible ? "Hide" : "Show"} password`}
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              {passwordVisible ? (
+                <>
+                  <path d="m3 3 18 18" />
+                  <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 4.2A10.7 10.7 0 0 1 12 4c7 0 10 8 10 8a18.4 18.4 0 0 1-2.1 3.2M6.6 6.6C3.7 8.4 2 12 2 12s3 8 10 8a10 10 0 0 0 5.4-1.6" />
+                </>
+              ) : (
+                <>
+                  <path d="M2 12s3-8 10-8 10 8 10 8-3 8-10 8S2 12 2 12" />
+                  <circle cx="12" cy="12" r="3" />
+                </>
+              )}
+            </svg>
+          </button>
+        </span>
         {errors.password && (
           <p id="login-password-error" role="alert">
             {errors.password.message}
@@ -109,7 +155,10 @@ export function LoginPage() {
           <input id="remember" type="checkbox" {...register("remember")} />
           Remember me
         </label>
-        <button type="submit" disabled={login.isPending}>
+        <button
+          type="submit"
+          disabled={login.isPending || currentUser.isPending}
+        >
           Sign in
         </button>
         <FormMessage message={message} />

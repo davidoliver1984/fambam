@@ -85,7 +85,8 @@ class AccountSettingsCapabilitiesTest extends TestCase
         $this->assertSame('new@example.test', $user->refresh()->email);
         $this->assertNotNull($user->email_verified_at);
         $this->assertNull($user->pending_email);
-        Event::assertDispatched(Verified::class, fn (Verified $event): bool => $event->user->is($user));
+        Event::assertDispatched(Verified::class, fn (Verified $event): bool => $event->user instanceof User
+            && $event->user->is($user));
     }
 
     public function test_email_change_requires_the_current_password_rejects_collisions_and_is_self_only(): void
@@ -147,10 +148,22 @@ class AccountSettingsCapabilitiesTest extends TestCase
         $this->actingAs($user)->putJson('/api/user/avatar', ['media_upload_id' => $second->id])->assertOk();
         $this->assertSame($second->id, $user->refresh()->avatar_media_upload_id);
         $this->assertDatabaseHas('media_uploads', ['id' => $first->id, 'state' => 'ready']);
+        $this->assertDatabaseHas('audit_events', [
+            'family_space_id' => $family->id,
+            'actor_user_id' => $user->id,
+            'action' => 'account.avatar_changed',
+            'subject_id' => (string) $user->id,
+        ]);
 
         $this->actingAs($user)->deleteJson('/api/user/avatar')->assertNoContent();
         $this->assertNull($user->refresh()->avatar_media_upload_id);
         $this->actingAs($user)->getJson('/api/user')->assertJsonPath('data.avatar', null);
+        $this->assertDatabaseHas('audit_events', [
+            'family_space_id' => $second->family_space_id,
+            'actor_user_id' => $user->id,
+            'action' => 'account.avatar_removed',
+            'subject_id' => (string) $user->id,
+        ]);
     }
 
     public function test_account_avatar_upload_uses_the_existing_authorized_media_pipeline(): void

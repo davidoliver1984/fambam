@@ -10,9 +10,11 @@ use App\Models\User;
 use App\Queries\FamilySpaceMembershipQuery;
 use App\Services\ActorPresentationService;
 use App\Services\FamilySpaceManager;
+use App\Services\MediaDeliveryManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class FamilySpaceMembershipController extends Controller
 {
@@ -20,6 +22,7 @@ class FamilySpaceMembershipController extends Controller
         private readonly FamilySpaceMembershipQuery $memberships,
         private readonly FamilySpaceManager $familySpaces,
         private readonly ActorPresentationService $presentations,
+        private readonly MediaDeliveryManager $mediaDelivery,
     ) {}
 
     public function index(FamilySpace $familySpace, Request $request): JsonResponse
@@ -57,7 +60,10 @@ class FamilySpaceMembershipController extends Controller
             $request,
         );
 
-        $updated->load('user:id,name,email');
+        $updated->load([
+            'user:id,name,email,avatar_media_upload_id',
+            'user.avatarMediaUpload',
+        ]);
         $presentations = $this->presentations->forUsers(collect([$updated->user]), $actor);
 
         return response()->json(['data' => $this->payload($updated, $actor, $presentations)]);
@@ -74,7 +80,10 @@ class FamilySpaceMembershipController extends Controller
         $target = $this->memberships->findForFamilySpace($familySpace, $membership);
         $removed = $this->familySpaces->remove($actor, $target, $request);
 
-        $removed->load('user:id,name,email');
+        $removed->load([
+            'user:id,name,email,avatar_media_upload_id',
+            'user.avatarMediaUpload',
+        ]);
         $presentations = $this->presentations->forUsers(collect([$removed->user]), $actor);
 
         return response()->json(['data' => $this->payload($removed, $actor, $presentations)]);
@@ -87,6 +96,20 @@ class FamilySpaceMembershipController extends Controller
     private function payload(FamilySpaceMembership $membership, User $viewer, array $presentations): array
     {
         $presentation = $presentations[$membership->user_id] ?? null;
+        $avatar = $membership->user->avatarMediaUpload;
+        $avatarPayload = null;
+        if ($avatar !== null) {
+            try {
+                $authorization = $this->mediaDelivery->canonical($avatar);
+                $avatarPayload = [
+                    'media_upload_id' => $avatar->id,
+                    'url' => $authorization->url,
+                    'expires_at' => $authorization->expiresAt->toAtomString(),
+                ];
+            } catch (NotFoundHttpException) {
+                // Missing or unready account media uses the initials fallback.
+            }
+        }
 
         return [
             'id' => $membership->id,
@@ -94,6 +117,7 @@ class FamilySpaceMembershipController extends Controller
                 'id' => $membership->user->id,
                 'name' => $membership->user->name,
                 'email' => $membership->user->email,
+                'avatar' => $avatarPayload,
             ],
             'role' => $membership->role->value,
             'state' => $membership->state->value,

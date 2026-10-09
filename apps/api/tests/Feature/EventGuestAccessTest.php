@@ -20,6 +20,7 @@ use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -217,6 +218,8 @@ class EventGuestAccessTest extends TestCase
         }
 
         $guestToken = $this->issueEventInvitation($family, $event, $owner, 'guest@example.test');
+        $this->postJson('/logout')->assertNoContent();
+        Auth::guard('sanctum')->forgetUser();
         $guestClaim = $this->postJson('/api/invitations/exchange', ['token' => $guestToken])->json('data.claim_token');
         $this->postJson('/api/invitations/accept', [
             'claim_token' => $guestClaim, 'name' => 'Wedding Guest',
@@ -238,6 +241,8 @@ class EventGuestAccessTest extends TestCase
         $email = 'two-events@example.test';
         $firstToken = $this->issueEventInvitation($family, $first, $owner, $email);
         $secondToken = $this->issueEventInvitation($family, $second, $owner, $email);
+        $this->postJson('/logout')->assertNoContent();
+        Auth::guard('sanctum')->forgetUser();
         $firstClaim = $this->postJson('/api/invitations/exchange', ['token' => $firstToken])->json('data.claim_token');
         $secondClaim = $this->postJson('/api/invitations/exchange', ['token' => $secondToken])->json('data.claim_token');
 

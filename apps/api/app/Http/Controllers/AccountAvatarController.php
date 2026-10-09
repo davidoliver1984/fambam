@@ -10,6 +10,7 @@ use App\Models\MediaUpload;
 use App\Models\User;
 use App\Services\AuditRecorder;
 use App\Services\MediaUploadManager;
+use App\Tenancy\DatabaseTenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -36,8 +37,11 @@ class AccountAvatarController extends Controller
         );
     }
 
-    public function update(Request $request, AuditRecorder $audit): JsonResponse
-    {
+    public function update(
+        Request $request,
+        AuditRecorder $audit,
+        DatabaseTenantContext $databaseTenantContext,
+    ): JsonResponse {
         $validated = $request->validate(['media_upload_id' => ['required', 'string', 'ulid']]);
         /** @var User $user */
         $user = $request->user();
@@ -49,7 +53,8 @@ class AccountAvatarController extends Controller
             ->where('state', MediaUploadState::Ready->value)
             ->firstOrFail();
 
-        DB::transaction(function () use ($user, $upload, $request, $audit): void {
+        DB::transaction(function () use ($user, $upload, $request, $audit, $databaseTenantContext): void {
+            $databaseTenantContext->establishFamilySpace($upload->family_space_id);
             $user->forceFill(['avatar_media_upload_id' => $upload->id])->save();
             $audit->record('account.avatar_changed', $user, $user, $request, [
                 'media_upload_id' => $upload->id,
@@ -60,15 +65,23 @@ class AccountAvatarController extends Controller
         return response()->json(['data' => ['media_upload_id' => $upload->id]]);
     }
 
-    public function destroy(Request $request, AuditRecorder $audit): Response
-    {
+    public function destroy(
+        Request $request,
+        AuditRecorder $audit,
+        DatabaseTenantContext $databaseTenantContext,
+    ): Response {
         /** @var User $user */
         $user = $request->user();
-        DB::transaction(function () use ($user, $request, $audit): void {
-            $previous = $user->avatar_media_upload_id;
+        $user->refresh();
+        $previousUpload = $user->avatarMediaUpload()->first();
+        DB::transaction(function () use ($user, $previousUpload, $request, $audit, $databaseTenantContext): void {
+            if ($previousUpload !== null) {
+                $databaseTenantContext->establishFamilySpace($previousUpload->family_space_id);
+            }
             $user->forceFill(['avatar_media_upload_id' => null])->save();
             $audit->record('account.avatar_removed', $user, $user, $request, [
-                'media_upload_id' => $previous,
+                'media_upload_id' => $previousUpload?->id,
+                'family_space_id' => $previousUpload?->family_space_id,
             ]);
         });
 

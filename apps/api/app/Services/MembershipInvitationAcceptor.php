@@ -22,19 +22,20 @@ class MembershipInvitationAcceptor
     /** @return array{membership: FamilySpaceMembership, reactivated: bool}|null */
     private function acceptWithPostgres(Invitation $invitation, User $user): ?array
     {
+        $now = now();
         $result = DB::selectOne(<<<'SQL'
 INSERT INTO family_space_memberships (
     id, family_space_id, user_id, role, state, invitation_id, joined_at,
     removed_at, removed_by, created_at, updated_at
-) VALUES (?, ?, ?, ?, 'active', ?, CURRENT_TIMESTAMP, NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+) VALUES (?, ?, ?, ?, 'active', ?, ?, NULL, NULL, ?, ?)
 ON CONFLICT (family_space_id, user_id) DO UPDATE SET
     role = EXCLUDED.role,
     state = 'active',
     invitation_id = EXCLUDED.invitation_id,
-    joined_at = CURRENT_TIMESTAMP,
+    joined_at = EXCLUDED.joined_at,
     removed_at = NULL,
     removed_by = NULL,
-    updated_at = CURRENT_TIMESTAMP
+    updated_at = EXCLUDED.updated_at
 WHERE family_space_memberships.state = 'removed'
 RETURNING id, (xmax = 0) AS inserted
 SQL, [
@@ -43,6 +44,9 @@ SQL, [
             $user->id,
             $invitation->role->value,
             $invitation->id,
+            $now,
+            $now,
+            $now,
         ]);
 
         if ($result === null) {

@@ -6,6 +6,7 @@ use App\Http\Requests\AcceptInvitationRequest;
 use App\Http\Requests\ExchangeInvitationRequest;
 use App\Services\InvitationManager;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 
 class InvitationAcceptanceController extends Controller
 {
@@ -26,6 +27,11 @@ class InvitationAcceptanceController extends Controller
             'password' => $validated['password'] ?? null,
             'timezone' => $validated['timezone'] ?? null,
         ], $request);
+
+        if ($request->user('sanctum') === null && $request->hasSession()) {
+            Auth::guard('web')->login($accepted['user']);
+            $request->session()->regenerate();
+        }
 
         return response()->json([
             'data' => [

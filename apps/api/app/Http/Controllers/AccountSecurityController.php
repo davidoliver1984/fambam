@@ -20,7 +20,13 @@ class AccountSecurityController extends Controller
             $user->forceFill([
                 'password' => Hash::make($request->validated('password')),
             ])->save();
-            $revokeAccess->handle($user, 'password_changed', $user, $request);
+            $revokeAccess->handle(
+                $user,
+                'password_changed',
+                $user,
+                $request,
+                preserveCurrentSession: true,
+            );
         });
 
         return response()->noContent();

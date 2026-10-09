@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\FamilySpaceRole;
 use App\Enums\InvitationStatus;
+use App\Enums\MediaUploadState;
 use App\Enums\MembershipState;
 use App\Models\FamilyEvent;
 use App\Models\FamilySpace;
@@ -30,6 +31,7 @@ class InvitationManager
         private readonly MembershipInvitationAcceptor $membershipAcceptor,
         private readonly DatabaseTenantContext $databaseTenantContext,
         private readonly EventAdmissionManager $admissions,
+        private readonly MediaDeliveryManager $mediaDelivery,
     ) {}
 
     public function issue(
@@ -183,7 +185,7 @@ class InvitationManager
         return $result;
     }
 
-    /** @return array{claim_token: string, email: string, family_space_name: string, role: string, event: array{id: string, name: string}|null, existing_account: bool, expires_at: string} */
+    /** @return array{claim_token: string, email: string, family_space_name: string, inviter: array{name: string, avatar_url: string|null}, role: string, event: array{id: string, name: string}|null, existing_account: bool, expires_at: string} */
     public function exchange(string $rawToken, Request $request): array
     {
         $claimToken = $this->newToken();
@@ -198,7 +200,10 @@ class InvitationManager
                 return null;
             }
 
-            $this->databaseTenantContext->establishFamilySpace($invitation->family_space_id);
+            $this->databaseTenantContext->establishFamilySpace(
+                $invitation->family_space_id,
+                authoritativeOperation: 'invitation_acceptance',
+            );
 
             if ($invitation->event_id !== null && ! FamilyEvent::query()->whereKey($invitation->event_id)->exists()) {
                 return null;
@@ -215,11 +220,22 @@ class InvitationManager
                 'token_hash' => $this->hashToken($claimToken),
                 'expires_at' => now()->addMinutes((int) config('invitations.claim_lifetime_minutes')),
             ]);
+            $inviter = $invitation->inviter;
+            $inviter->loadMissing('avatarMediaUpload');
+            $avatar = $inviter->avatarMediaUpload;
+            $avatarUrl = $avatar?->state === MediaUploadState::Ready
+                && $avatar->canonical_object_key !== null
+                    ? $this->mediaDelivery->canonical($avatar)->url
+                    : null;
 
             return [
                 'claim_token' => $claimToken,
                 'email' => $invitation->email,
                 'family_space_name' => $invitation->familySpace->name,
+                'inviter' => [
+                    'name' => $inviter->name,
+                    'avatar_url' => $avatarUrl,
+                ],
                 'role' => $invitation->role->value,
                 'event' => $invitation->event === null ? null : [
                     'id' => $invitation->event->id,
@@ -292,8 +308,12 @@ class InvitationManager
 
             $user = User::query()->where('email', $invitation->email)->first();
             $createdUser = $user === null;
+            $requestUser = $request->user('sanctum');
 
             if ($user === null) {
+                if ($requestUser !== null) {
+                    return null;
+                }
                 if (! is_string($attributes['name'] ?? null)
                     || ! is_string($attributes['password'] ?? null)
                     || ! is_string($attributes['timezone'] ?? null)) {
@@ -310,7 +330,6 @@ class InvitationManager
                     'can_create_family_spaces' => false,
                 ])->save();
             } else {
-                $requestUser = $request->user('sanctum');
                 $password = $attributes['password'] ?? null;
                 $mayReuseConcurrentAccount = $invitation->event_id !== null
                     && $requestUser === null

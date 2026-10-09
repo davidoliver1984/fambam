@@ -15,6 +15,14 @@ function isAcceptanceClaim(value: unknown): value is AcceptanceClaim {
     typeof value.email === "string" &&
     "family_space_name" in value &&
     typeof value.family_space_name === "string" &&
+    "inviter" in value &&
+    typeof value.inviter === "object" &&
+    value.inviter !== null &&
+    "name" in value.inviter &&
+    typeof value.inviter.name === "string" &&
+    "avatar_url" in value.inviter &&
+    (typeof value.inviter.avatar_url === "string" ||
+      value.inviter.avatar_url === null) &&
     "role" in value &&
     typeof value.role === "string" &&
     "existing_account" in value &&
@@ -46,7 +54,11 @@ export function useInvitationClaimMutation(token: string | null) {
 
   return {
     data: isAcceptanceClaim(latest?.data) ? latest.data : undefined,
+    error: latest?.status === "error" ? latest.error : undefined,
     isError: latest?.status === "error",
     isPending: latest?.status === "pending",
+    retry: () => {
+      if (token !== null) mutate(token);
+    },
   };
 }

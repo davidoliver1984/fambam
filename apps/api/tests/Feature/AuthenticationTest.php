@@ -154,5 +154,7 @@ class AuthenticationTest extends TestCase
 
         $this->assertTrue(config('cors.supports_credentials'));
         $this->assertSame(['http://localhost:3010'], config('cors.allowed_origins'));
+        $this->assertContains('user/*', config('cors.paths'));
+        $this->assertContains('two-factor-challenge', config('cors.paths'));
     }
 }

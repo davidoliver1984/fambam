@@ -231,7 +231,7 @@ class AccountSecurityTest extends TestCase
         $this->assertRevocationAudit($user, 'password_reset');
     }
 
-    public function test_user_can_change_password_and_revoke_every_session(): void
+    public function test_user_can_change_password_and_revoke_other_sessions_without_logging_out(): void
     {
         $user = User::factory()->create(['password' => Hash::make('current-password')]);
         $rememberToken = $user->remember_token;
@@ -247,6 +247,7 @@ class AccountSecurityTest extends TestCase
         $this->assertNotSame($rememberToken, $user->remember_token);
         $this->assertDatabaseMissing('sessions', ['id' => 'owned-session']);
         $this->assertRevocationAudit($user, 'password_changed', $user);
+        $this->getJson('/api/user')->assertOk();
     }
 
     public function test_user_can_explicitly_log_out_everywhere(): void

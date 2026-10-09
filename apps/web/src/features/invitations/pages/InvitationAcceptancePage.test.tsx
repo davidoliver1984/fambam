@@ -21,6 +21,7 @@ beforeEach(() => {
     claim_token: "opaque-claim",
     email: "relative@example.test",
     family_space_name: "Oliver Family",
+    inviter: { name: "David Oliver", avatar_url: null },
     event: null,
     role: "member",
     existing_account: false,
@@ -53,5 +54,29 @@ describe("InvitationAcceptancePage", () => {
     ).toBeInTheDocument();
     expect(exchangeInvitationToken).toHaveBeenCalledTimes(1);
     expect(window.location.hash).toBe("");
+  });
+
+  it("offers a retry when a valid-looking link cannot be checked", async () => {
+    vi.mocked(exchangeInvitationToken).mockRejectedValueOnce(
+      new Error("network"),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <InvitationAcceptancePage />
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByText(
+        "We couldn’t check this invitation. Please try again.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Try invitation again" }),
+    ).toBeInTheDocument();
   });
 });

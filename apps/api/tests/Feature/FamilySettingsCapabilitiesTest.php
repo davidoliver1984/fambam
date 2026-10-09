@@ -174,6 +174,15 @@ class FamilySettingsCapabilitiesTest extends TestCase
             'user_id' => $member->id,
             'created_by' => $owner->id,
         ]);
+        $avatar = MediaUpload::factory()->create([
+            'family_space_id' => $family->id,
+            'user_id' => $member->id,
+            'purpose' => 'account_avatar',
+            'state' => MediaUploadState::Ready,
+            'canonical_object_key' => "families/{$family->id}/member-avatar.jpg",
+            'canonical_mime_type' => 'image/jpeg',
+        ]);
+        $member->forceFill(['avatar_media_upload_id' => $avatar->id])->save();
         [$otherFamily, $otherOwner] = $this->familyWithOwner('other-member-presentation');
         FamilySpaceMembership::factory()->create([
             'family_space_id' => $otherFamily->id,
@@ -194,11 +203,15 @@ class FamilySettingsCapabilitiesTest extends TestCase
         $response = $this->actingAs($owner)
             ->getJson('/api/families/member-presentation/memberships')
             ->assertOk();
-        $rows = collect($response->json('data'))->keyBy('id');
+        $data = $response->json('data');
+        $this->assertIsArray($data);
+        $rows = collect($data)->keyBy('id');
         $this->assertSame($joinedAt->toAtomString(), $rows[$membership->id]['joined_at']);
         $this->assertSame($person->id, $rows[$membership->id]['linked_person']['id']);
         $this->assertSame('Aunt Ada', $rows[$membership->id]['linked_person']['display_name']);
         $this->assertNull($rows[$membership->id]['linked_person']['portrait_thumbnail_url']);
+        $this->assertSame($avatar->id, $rows[$membership->id]['user']['avatar']['media_upload_id']);
+        $this->assertSame('https://media.example.test/member-avatar.jpg', $rows[$membership->id]['user']['avatar']['url']);
         $this->assertNull($rows[$unlinkedMembership->id]['linked_person']);
         $this->assertTrue(collect($rows)->contains('is_current_user', true));
         $response->assertJsonMissing(['id' => $otherPerson->id]);
