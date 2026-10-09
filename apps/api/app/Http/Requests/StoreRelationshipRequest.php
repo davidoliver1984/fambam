@@ -3,11 +3,14 @@
 namespace App\Http\Requests;
 
 use App\Enums\RelationshipType;
+use App\Http\Requests\Concerns\ValidatesRelationshipStartDate;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreRelationshipRequest extends FormRequest
 {
+    use ValidatesRelationshipStartDate;
+
     public function authorize(): bool
     {
         return $this->user() !== null;
@@ -20,6 +23,7 @@ class StoreRelationshipRequest extends FormRequest
             'related_person_id' => ['required', 'ulid'],
             'type' => ['required', Rule::enum(RelationshipType::class)],
             'context' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            ...$this->relationshipStartDateRules(),
         ];
     }
 }

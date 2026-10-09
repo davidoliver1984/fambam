@@ -29,6 +29,7 @@ use App\Models\MediaUpload;
 use App\Models\NotificationCandidate;
 use App\Models\NotificationDelivery;
 use App\Models\Person;
+use App\Models\PersonRelationship;
 use App\Models\Photo;
 use App\Models\PhotoComment;
 use App\Models\PhotoPerson;
@@ -340,11 +341,31 @@ class FamilyExportHttpTest extends TestCase
         $family = FamilySpace::factory()->create(['name' => 'Archive family']);
         [$owner] = $this->membership($family, FamilySpaceRole::Owner, 'Owner');
         $photo = $this->photo($family, $owner, PhotoVisibility::FamilySpace);
-        Person::factory()->create([
+        $archivalPerson = Person::factory()->create([
             'family_space_id' => $family->id,
             'birth_place' => 'Ashton-under-Lyne',
             'death_place' => 'Manchester, England',
             'residence_place' => 'Glossop, Derbyshire',
+            'profile_quote' => 'Keep the stories where the family can find them.',
+            'profile_quote_attribution' => 'Archive relative',
+        ]);
+        $archivalPerson->knownFor()->create([
+            'family_space_id' => $family->id,
+            'label' => 'Carefully labelled albums',
+            'position' => 0,
+            'created_by' => $owner->id,
+        ]);
+        $partner = Person::factory()->create(['family_space_id' => $family->id]);
+        PersonRelationship::query()->create([
+            'family_space_id' => $family->id,
+            'subject_person_id' => $archivalPerson->id,
+            'related_person_id' => $partner->id,
+            'type' => 'partner_of',
+            'status' => 'confirmed',
+            'relationship_started_on' => '2001-01-01',
+            'relationship_started_on_precision' => 'year',
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
         ]);
         $photo->delete();
         $unattachedBytes = 'unattached-preserved-original';
@@ -391,6 +412,11 @@ class FamilyExportHttpTest extends TestCase
         $this->assertStringContainsString('Ashton-under-Lyne', (string) $archive->getFromName('people.json'));
         $this->assertStringContainsString('Manchester, England', (string) $archive->getFromName('people.json'));
         $this->assertStringContainsString('Glossop, Derbyshire', (string) $archive->getFromName('people.json'));
+        $this->assertStringContainsString('Keep the stories where the family can find them.', (string) $archive->getFromName('people.json'));
+        $this->assertStringContainsString('Archive relative', (string) $archive->getFromName('people.json'));
+        $this->assertStringContainsString('Carefully labelled albums', (string) $archive->getFromName('people.json'));
+        $this->assertStringContainsString('2001-01-01T00:00:00.000000Z', (string) $archive->getFromName('relationships.json'));
+        $this->assertStringContainsString('relationship_started_on_precision', (string) $archive->getFromName('relationships.json'));
         $this->assertStringNotContainsString('face_', (string) $archive->getFromName('photos.json'));
         foreach ($checksums as $path => $checksum) {
             $this->assertSame($checksum, hash('sha256', $archive->getFromName($path)));

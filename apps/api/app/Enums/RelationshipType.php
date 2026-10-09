@@ -43,4 +43,9 @@ enum RelationshipType: string
             default => $this->forwardLabel(),
         };
     }
+
+    public function supportsStartDate(): bool
+    {
+        return in_array($this, [self::PartnerOf, self::CloseFamilyFriendOf], true);
+    }
 }

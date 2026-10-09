@@ -98,7 +98,7 @@ class PersonQuery
     public function findForCurrentFamilySpace(string $personId): Person
     {
         $person = Person::withTrashed()
-            ->with('accountLink.user:id,name')
+            ->with(['accountLink.user:id,name', 'knownFor'])
             ->where('family_space_id', $this->tenantContext->familySpace()->id)
             ->find($personId)
             ?? throw new NotFoundHttpException;

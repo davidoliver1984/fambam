@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DatePrecision;
 use App\Enums\RelationshipProposalAction;
 use App\Enums\RelationshipProposalStatus;
 use App\Enums\RelationshipType;
@@ -17,6 +18,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property RelationshipProposalStatus $status
  * @property array<string, mixed>|null $relationship_snapshot
  * @property CarbonImmutable|null $resolved_at
+ * @property DatePrecision $relationship_started_on_precision
+ * @property CarbonImmutable|null $relationship_started_on
  */
 #[Fillable([
     'family_space_id',
@@ -26,6 +29,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'related_person_id',
     'type',
     'context',
+    'relationship_started_on',
+    'relationship_started_on_precision',
     'relationship_snapshot',
     'status',
     'proposed_by',
@@ -54,6 +59,8 @@ class RelationshipProposal extends Model
             'type' => RelationshipType::class,
             'status' => RelationshipProposalStatus::class,
             'relationship_snapshot' => 'array',
+            'relationship_started_on' => 'immutable_date',
+            'relationship_started_on_precision' => DatePrecision::class,
             'resolved_at' => 'immutable_datetime',
         ];
     }

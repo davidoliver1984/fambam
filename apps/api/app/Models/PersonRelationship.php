@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Enums\DatePrecision;
 use App\Enums\RelationshipStatus;
 use App\Enums\RelationshipType;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property RelationshipType $type
  * @property RelationshipStatus $status
+ * @property DatePrecision $relationship_started_on_precision
+ * @property CarbonImmutable|null $relationship_started_on
  */
 #[Fillable([
     'family_space_id',
@@ -20,6 +24,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'type',
     'status',
     'context',
+    'relationship_started_on',
+    'relationship_started_on_precision',
     'created_by',
     'updated_by',
 ])]
@@ -49,6 +55,8 @@ class PersonRelationship extends Model
         return [
             'type' => RelationshipType::class,
             'status' => RelationshipStatus::class,
+            'relationship_started_on' => 'immutable_date',
+            'relationship_started_on_precision' => DatePrecision::class,
         ];
     }
 }

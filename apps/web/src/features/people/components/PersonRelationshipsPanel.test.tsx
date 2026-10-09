@@ -36,6 +36,10 @@ const person: Person = {
   death_place: null,
   residence_place: null,
   biography: null,
+  profile_quote: null,
+  profile_quote_attribution: null,
+  known_for: [],
+  relationships: [],
   account_link: null,
   redirected_from_person_id: null,
   created_at: "",
@@ -93,6 +97,7 @@ describe("PersonRelationshipsPanel", () => {
       related_person_id: other.id,
       type: "parent_of",
       context: null,
+      relationship_started_on: { precision: "unknown", value: null },
       status: "pending",
       created_at: "",
     });
@@ -129,6 +134,7 @@ describe("PersonRelationshipsPanel", () => {
       label: "parent",
       other_person: { id: other.id, preferred_name: other.preferred_name },
       context: null,
+      relationship_started_on: { precision: "unknown", value: null },
     });
     renderPanel(manager);
     await user.selectOptions(screen.getByLabelText("Person"), other.id);

@@ -31,6 +31,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property CarbonImmutable|null $confirmed_at
  * @property array<string, mixed>|null $biography
  * @property string|null $biography_plain_text
+ * @property string|null $profile_quote
+ * @property string|null $profile_quote_attribution
  */
 #[Fillable([
     'family_space_id',
@@ -46,6 +48,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'death_place',
     'residence_place',
     'biography',
+    'profile_quote',
+    'profile_quote_attribution',
     'created_by',
     'confirmed_by',
     'confirmed_at',
@@ -85,6 +89,12 @@ class Person extends Model
     public function detailProposals(): HasMany
     {
         return $this->hasMany(PersonDetailProposal::class);
+    }
+
+    /** @return HasMany<PersonKnownFor, $this> */
+    public function knownFor(): HasMany
+    {
+        return $this->hasMany(PersonKnownFor::class)->orderBy('position')->orderBy('id');
     }
 
     /** @return HasMany<PersonAccountClaim, $this> */

@@ -142,6 +142,20 @@ final class DemoFamilyToolingTest extends TestCase
         $this->assertSame('Ashton-under-Lyne', $william->birth_place);
         $this->assertNull($william->death_place);
         $this->assertSame('Glossop, Derbyshire', $william->residence_place);
+        $this->assertSame(
+            'A family story is worth keeping when everyone remembers a different detail.',
+            $william->profile_quote,
+        );
+        $this->assertSame('William Mercer', $william->profile_quote_attribution);
+        $this->assertSame(
+            ['Railway journeys', 'Old family photographs', 'Stories after supper'],
+            DB::table('person_known_for')->where('person_id', $william->id)->orderBy('position')->pluck('label')->all(),
+        );
+        $this->assertDatabaseHas('person_relationships', [
+            'subject_person_id' => $william->id,
+            'type' => 'partner_of',
+            'relationship_started_on_precision' => 'year',
+        ]);
         $this->assertGreaterThanOrEqual(10, DB::table('photo_people')->where('family_space_id', $demoId)
             ->where('person_id', $william->id)->where('status', 'approved')->count());
         $this->assertSame(11, DB::table('stories')->where('family_space_id', $demoId)->whereNotNull('photo_id')->count());
@@ -205,7 +219,10 @@ final class DemoFamilyToolingTest extends TestCase
             ->assertJsonPath('data.birth_place', 'Ashton-under-Lyne')
             ->assertJsonPath('data.death_place', null)
             ->assertJsonPath('data.residence_place', 'Glossop, Derbyshire')
-            ->assertJsonPath('data.biography', 'Family storyteller, railway enthusiast and keeper of the old photo boxes.');
+            ->assertJsonPath('data.biography', 'Family storyteller, railway enthusiast and keeper of the old photo boxes.')
+            ->assertJsonPath('data.profile_quote', 'A family story is worth keeping when everyone remembers a different detail.')
+            ->assertJsonPath('data.known_for.0', 'Railway journeys')
+            ->assertJsonPath('data.relationships.0.relationship_started_on.value', '1967');
 
         $alex = DB::table('people')->where('family_space_id', $demoId)->where('preferred_name', 'Alex Mercer')->first();
         $this->assertNotNull($alex);
@@ -219,6 +236,9 @@ final class DemoFamilyToolingTest extends TestCase
         $this->assertNull($alex->residence_place);
         $this->assertNull($alex->biography);
         $this->assertNull($alex->biography_plain_text);
+        $this->assertNull($alex->profile_quote);
+        $this->assertNull($alex->profile_quote_attribution);
+        $this->assertSame(0, DB::table('person_known_for')->where('person_id', $alex->id)->count());
         $this->assertSame(0, DB::table('photo_people')->where('person_id', $alex->id)->count());
         $this->assertSame(0, DB::table('stories')->where('person_id', $alex->id)->count());
         $this->assertSame(0, DB::table('person_relationships')
@@ -233,7 +253,11 @@ final class DemoFamilyToolingTest extends TestCase
             ->assertJsonPath('data.death_date.value', null)
             ->assertJsonPath('data.death_place', null)
             ->assertJsonPath('data.residence_place', null)
-            ->assertJsonPath('data.biography', null);
+            ->assertJsonPath('data.biography', null)
+            ->assertJsonPath('data.profile_quote', null)
+            ->assertJsonPath('data.profile_quote_attribution', null)
+            ->assertJsonPath('data.known_for', [])
+            ->assertJsonPath('data.relationships', []);
 
         $this->artisan('fambam:demo-family:reset', ['--force' => true])->assertSuccessful();
         $this->assertDatabaseHas('family_spaces', ['id' => $demoId, 'status' => 'deleted']);

@@ -58,6 +58,10 @@ export type Person = {
   death_place: string | null;
   residence_place: string | null;
   biography: string | null;
+  profile_quote: string | null;
+  profile_quote_attribution: string | null;
+  known_for: string[];
+  relationships: PersonRelationship[];
   account_link: PersonAccountLink | null;
   redirected_from_person_id: string | null;
   created_at: string;
@@ -106,6 +110,9 @@ export type PersonDetailsInput = {
   death_place?: string | null;
   residence_place?: string | null;
   biography: string | null;
+  profile_quote?: string | null;
+  profile_quote_attribution?: string | null;
+  known_for?: string[];
 };
 
 export type PersonProposal = {
@@ -139,12 +146,14 @@ export type PersonRelationship = {
   label: string;
   other_person: { id: string; preferred_name: string };
   context: string | null;
+  relationship_started_on: UncertainDate;
 };
 
 export type RelationshipInput = {
   related_person_id: string;
   type: RelationshipType;
   context?: string | null;
+  relationship_started_on?: UncertainDate;
 };
 
 export type RelationshipProposal = {
@@ -155,6 +164,7 @@ export type RelationshipProposal = {
   related_person_id: string;
   type: RelationshipType | null;
   context: string | null;
+  relationship_started_on: UncertainDate;
   status: "pending" | "approved" | "rejected";
   created_at: string;
 };
@@ -165,6 +175,7 @@ export type RelationshipProposalInput = {
   related_person_id?: string;
   type?: RelationshipType;
   context?: string | null;
+  relationship_started_on?: UncertainDate;
 };
 
 export type FamilyCircle = {

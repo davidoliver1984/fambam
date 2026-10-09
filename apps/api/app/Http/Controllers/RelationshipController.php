@@ -12,6 +12,7 @@ use App\Models\Person;
 use App\Models\PersonRelationship;
 use App\Models\RelationshipProposal;
 use App\Models\User;
+use App\People\UncertainDate;
 use App\Queries\PersonQuery;
 use App\Queries\RelationshipQuery;
 use App\Services\RelationshipManager;
@@ -54,6 +55,7 @@ class RelationshipController extends Controller
             $related,
             RelationshipType::from((string) $request->validated('type')),
             $request->validated('context'),
+            $this->startDateInput($request->validated()),
             $actor,
             $request,
         );
@@ -79,6 +81,7 @@ class RelationshipController extends Controller
             $related,
             RelationshipType::from((string) $request->validated('type')),
             $request->validated('context'),
+            $this->startDateInput($request->validated()),
             $actor,
             $request,
         );
@@ -200,6 +203,10 @@ class RelationshipController extends Controller
             'label' => $forward ? $relationship->type->forwardLabel() : $relationship->type->inverseLabel(),
             'other_person' => ['id' => $other->id, 'preferred_name' => $other->preferred_name],
             'context' => $relationship->context,
+            'relationship_started_on' => UncertainDate::fromStorage(
+                $relationship->relationship_started_on_precision,
+                $relationship->relationship_started_on?->format('Y-m-d'),
+            )->toPayload(),
         ];
     }
 
@@ -214,8 +221,24 @@ class RelationshipController extends Controller
             'related_person_id' => $proposal->related_person_id,
             'type' => $proposal->type?->value,
             'context' => $proposal->context,
+            'relationship_started_on' => UncertainDate::fromStorage(
+                $proposal->relationship_started_on_precision,
+                $proposal->relationship_started_on?->format('Y-m-d'),
+            )->toPayload(),
             'status' => $proposal->status->value,
             'created_at' => $proposal->created_at?->toAtomString(),
         ];
+    }
+
+    /** @param array<string, mixed> $input
+     * @return array{precision: string, value: string|null}
+     */
+    private function startDateInput(array $input): array
+    {
+        $value = $input['relationship_started_on'] ?? null;
+
+        return is_array($value)
+            ? $value
+            : ['precision' => 'unknown', 'value' => null];
     }
 }

@@ -16,6 +16,7 @@ use App\Models\FamilyNotification;
 use App\Models\NotificationDelivery;
 use App\Models\Person;
 use App\Models\PersonAccountLink;
+use App\Models\PersonKnownFor;
 use App\Models\PersonMerge;
 use App\Models\PersonMergeProposal;
 use App\Models\PersonRelationship;
@@ -101,6 +102,7 @@ class PersonMergeManager
             $this->reconcileEventPeople($lockedAbsorbed, $lockedSurvivor);
             $this->reconcileFamilyActivities($lockedAbsorbed, $lockedSurvivor);
             $this->reconcileStoryReferences($lockedAbsorbed, $lockedSurvivor);
+            $this->reconcileKnownFor($lockedAbsorbed, $lockedSurvivor, $actor);
             $lockedAbsorbed->delete();
 
             $merge = PersonMerge::query()->create([
@@ -330,6 +332,7 @@ class PersonMergeManager
                 ->lockForUpdate()
                 ->first();
             if ($duplicate !== null) {
+                $this->mergeRelationshipStartDate($relationship, $duplicate);
                 $idMap[$relationship->id] = $duplicate->id;
                 RelationshipProposal::query()
                     ->where('relationship_id', $relationship->id)
@@ -358,6 +361,59 @@ class PersonMergeManager
         }
 
         return $idMap;
+    }
+
+    private function mergeRelationshipStartDate(
+        PersonRelationship $absorbedRelationship,
+        PersonRelationship $survivorRelationship,
+    ): void {
+        $absorbedDate = $absorbedRelationship->relationship_started_on?->format('Y-m-d');
+        $survivorDate = $survivorRelationship->relationship_started_on?->format('Y-m-d');
+        $absorbedPrecision = $absorbedRelationship->relationship_started_on_precision->value;
+        $survivorPrecision = $survivorRelationship->relationship_started_on_precision->value;
+
+        if ($absorbedPrecision === 'unknown') {
+            return;
+        }
+        if ($survivorPrecision === 'unknown') {
+            $survivorRelationship->update([
+                'relationship_started_on' => $absorbedDate,
+                'relationship_started_on_precision' => $absorbedPrecision,
+            ]);
+
+            return;
+        }
+        if ($absorbedDate !== $survivorDate || $absorbedPrecision !== $survivorPrecision) {
+            $this->fail('Duplicate relationships have conflicting start dates and must be corrected before merging.');
+        }
+    }
+
+    private function reconcileKnownFor(Person $absorbed, Person $survivor, User $actor): void
+    {
+        $rows = PersonKnownFor::query()
+            ->whereIn('person_id', [$absorbed->id, $survivor->id])
+            ->orderBy('person_id')->orderBy('position')->orderBy('id')
+            ->lockForUpdate()->get();
+        $survivorRows = $rows->where('person_id', $survivor->id);
+        $seen = $survivorRows->mapWithKeys(
+            fn (PersonKnownFor $row): array => [mb_strtolower(trim($row->label)) => true],
+        )->all();
+        $position = $survivorRows->isEmpty() ? 0 : ((int) $survivorRows->max('position')) + 1;
+
+        foreach ($rows->where('person_id', $absorbed->id) as $row) {
+            $key = mb_strtolower(trim($row->label));
+            if (isset($seen[$key])) {
+                continue;
+            }
+            PersonKnownFor::query()->create([
+                'family_space_id' => $survivor->family_space_id,
+                'person_id' => $survivor->id,
+                'label' => $row->label,
+                'position' => $position++,
+                'created_by' => $row->created_by ?? $actor->id,
+            ]);
+            $seen[$key] = true;
+        }
     }
 
     /** @param array<string, string|null> $relationshipIdMap */
@@ -648,6 +704,8 @@ class PersonMergeManager
         $storyMentionQuery = DB::table('story_person_mentions')->whereIn('person_id', $personIds)->orderBy('id');
         $commentMentionQuery = DB::table('story_comment_person_mentions')->whereIn('person_id', $personIds)->orderBy('id');
         $personBiographyMentionQuery = DB::table('person_biography_mentions')->whereIn('person_id', $personIds)->orderBy('id');
+        $knownForQuery = PersonKnownFor::query()->whereIn('person_id', $personIds)
+            ->orderBy('person_id')->orderBy('position')->orderBy('id');
         $albumDescriptionMentionQuery = DB::table('album_description_mentions')->whereIn('person_id', $personIds)->orderBy('id');
         $eventDescriptionMentionQuery = DB::table('event_description_mentions')->whereIn('person_id', $personIds)->orderBy('id');
         $photoCommentMentionQuery = DB::table('photo_comment_person_mentions')->whereIn('person_id', $personIds)->orderBy('id');
@@ -667,6 +725,7 @@ class PersonMergeManager
             $storyMentionQuery->lockForUpdate();
             $commentMentionQuery->lockForUpdate();
             $personBiographyMentionQuery->lockForUpdate();
+            $knownForQuery->lockForUpdate();
             $albumDescriptionMentionQuery->lockForUpdate();
             $eventDescriptionMentionQuery->lockForUpdate();
             $photoCommentMentionQuery->lockForUpdate();
@@ -698,6 +757,16 @@ class PersonMergeManager
             'story_person_mentions' => $storyMentionQuery->get()->map(fn ($row): array => (array) $row)->values()->all(),
             'story_comment_person_mentions' => $commentMentionQuery->get()->map(fn ($row): array => (array) $row)->values()->all(),
             'person_biography_mentions' => $personBiographyMentionQuery->get()->map(fn ($row): array => (array) $row)->values()->all(),
+            'person_known_for' => $knownForQuery->get()->map(fn (PersonKnownFor $row): array => [
+                'id' => $row->id,
+                'family_space_id' => $row->family_space_id,
+                'person_id' => $row->person_id,
+                'label' => $row->label,
+                'position' => $row->position,
+                'created_by' => $row->created_by,
+                'created_at' => $row->getRawOriginal('created_at'),
+                'updated_at' => $row->getRawOriginal('updated_at'),
+            ])->values()->all(),
             'album_description_mentions' => $albumDescriptionMentionQuery->get()->map(fn ($row): array => (array) $row)->values()->all(),
             'event_description_mentions' => $eventDescriptionMentionQuery->get()->map(fn ($row): array => (array) $row)->values()->all(),
             'photo_comment_person_mentions' => $photoCommentMentionQuery->get()->map(fn ($row): array => (array) $row)->values()->all(),
@@ -715,6 +784,8 @@ class PersonMergeManager
             'type' => $relationship->type->value,
             'status' => $relationship->status->value,
             'context' => $relationship->context,
+            'relationship_started_on' => $relationship->relationship_started_on?->format('Y-m-d'),
+            'relationship_started_on_precision' => $relationship->relationship_started_on_precision->value,
             'created_by' => $relationship->created_by,
             'updated_by' => $relationship->updated_by,
             'created_at' => $relationship->getRawOriginal('created_at'),
@@ -897,6 +968,13 @@ class PersonMergeManager
         $memberships = $before['circle_memberships'] ?? [];
         foreach ($memberships as $row) {
             DB::table('family_circle_people')->insert($row);
+        }
+
+        PersonKnownFor::query()->whereIn('person_id', $personIds)->delete();
+        /** @var list<array<string, mixed>> $knownFor */
+        $knownFor = $before['person_known_for'] ?? [];
+        foreach ($knownFor as $row) {
+            DB::table('person_known_for')->insert($row);
         }
 
         PersonAccountLink::query()->whereIn('person_id', $personIds)->delete();

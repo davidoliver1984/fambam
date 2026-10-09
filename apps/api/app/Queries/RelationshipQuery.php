@@ -31,6 +31,21 @@ class RelationshipQuery
             ->get();
     }
 
+    /** @return Collection<int, PersonRelationship> */
+    public function confirmedForPerson(Person $person): Collection
+    {
+        return PersonRelationship::query()
+            ->where('family_space_id', $this->tenantContext->familySpace()->id)
+            ->where('status', RelationshipStatus::Confirmed->value)
+            ->where(function ($query) use ($person): void {
+                $query->where('subject_person_id', $person->id)
+                    ->orWhere('related_person_id', $person->id);
+            })
+            ->with(['subject:id,preferred_name', 'related:id,preferred_name'])
+            ->orderBy('created_at')
+            ->get();
+    }
+
     public function find(string $relationshipId): PersonRelationship
     {
         return PersonRelationship::query()

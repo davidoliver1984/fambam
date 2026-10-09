@@ -39,6 +39,9 @@ class ProposePersonDetailsRequest extends FormRequest
                     'death_place',
                     'residence_place',
                     'biography',
+                    'profile_quote',
+                    'profile_quote_attribution',
+                    'known_for',
                 ])) {
                     $validator->errors()->add('changes', 'At least one Person detail must be proposed.');
                 }

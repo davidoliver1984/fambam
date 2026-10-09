@@ -223,9 +223,20 @@ final class DemoFamilyBuilder
                 'death_date' => null, 'death_date_precision' => DatePrecision::Unknown->value,
                 'residence_place' => $residencePlace,
                 'biography' => $this->documentJson($biography), 'biography_plain_text' => $biography,
+                'profile_quote' => $key === 'william'
+                    ? 'A family story is worth keeping when everyone remembers a different detail.' : null,
+                'profile_quote_attribution' => $key === 'william' ? 'William Mercer' : null,
                 'created_by' => $owner->id, 'confirmed_by' => $owner->id,
                 'confirmed_at' => $anchor->subDays(27), 'recognition_allowed' => false,
             ], $anchor->subDays(27));
+        }
+
+        foreach (['Railway journeys', 'Old family photographs', 'Stories after supper'] as $position => $label) {
+            $this->insert('person_known_for', [
+                'id' => (string) Str::ulid(), 'family_space_id' => $familyId,
+                'person_id' => $ids['william'], 'label' => $label, 'position' => $position,
+                'created_by' => $owner->id,
+            ], $anchor->subDays(27)->addMinutes($position));
         }
 
         $ids['alex'] = (string) Str::ulid();
@@ -235,6 +246,7 @@ final class DemoFamilyBuilder
             'birth_date_precision' => DatePrecision::Unknown->value, 'birth_place' => null, 'is_deceased' => false,
             'death_date' => null, 'death_date_precision' => DatePrecision::Unknown->value,
             'death_place' => null, 'residence_place' => null, 'biography' => null, 'biography_plain_text' => null,
+            'profile_quote' => null, 'profile_quote_attribution' => null,
             'created_by' => $owner->id, 'confirmed_by' => $owner->id,
             'confirmed_at' => $anchor->subDays(27), 'recognition_allowed' => false,
         ], $anchor->subDays(27));
@@ -258,6 +270,8 @@ final class DemoFamilyBuilder
                 'id' => (string) Str::ulid(), 'family_space_id' => $familyId,
                 'subject_person_id' => $people[$subject], 'related_person_id' => $people[$related],
                 'type' => $type, 'status' => 'confirmed', 'context' => 'Synthetic Mercer family ground truth.',
+                'relationship_started_on' => $type === 'partner_of' ? '1967-01-01' : null,
+                'relationship_started_on_precision' => $type === 'partner_of' ? DatePrecision::Year->value : DatePrecision::Unknown->value,
                 'created_by' => $owner->id, 'updated_by' => $owner->id,
             ], $anchor->subDays(26)->addMinutes($offset));
         }

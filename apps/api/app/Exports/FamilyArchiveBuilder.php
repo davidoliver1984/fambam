@@ -224,7 +224,7 @@ class FamilyArchiveBuilder
                 ->where('status', PersonProposalStatus::Approved)->pluck('person_id')->unique()->sort()->values()->all();
         }
         $peopleQuery = $full ? Person::withTrashed() : Person::query();
-        $people = $peopleQuery->whereIn('id', $personIds)->orderBy('id')->get();
+        $people = $peopleQuery->whereIn('id', $personIds)->with('knownFor')->orderBy('id')->get();
         $accountLinks = PersonAccountLink::query()->whereIn('person_id', $people->pluck('id'))
             ->when(! $full, fn ($query) => $query->where('user_id', $export->requested_by))
             ->with('user:id,name')->orderBy('id')->get()->keyBy('person_id');
@@ -295,18 +295,27 @@ class FamilyArchiveBuilder
                 $row = $this->only($person, [
                     'id', 'preferred_name', 'alternate_names', 'identity_status', 'birth_date', 'birth_date_precision',
                     'birth_place', 'is_deceased', 'death_date', 'death_date_precision', 'death_place', 'residence_place',
-                    'biography', 'confirmed_at',
+                    'biography', 'profile_quote', 'profile_quote_attribution', 'confirmed_at',
                     'created_at', 'updated_at', 'deleted_at',
                 ]);
                 $link = $accountLinks->get($person->id);
                 if ($link !== null) {
                     $row['account_link'] = ['id' => $link->id, 'name' => $link->user?->name];
                 }
+                $row['known_for'] = $person->knownFor->map(fn ($knownFor): array => [
+                    'id' => $knownFor->id,
+                    'label' => $knownFor->label,
+                    'position' => $knownFor->position,
+                    'created_by' => $knownFor->created_by,
+                    'created_at' => $knownFor->created_at,
+                    'updated_at' => $knownFor->updated_at,
+                ])->values()->all();
 
                 return $row;
             })->all(),
             'relationships.json' => $relationships->map(fn (PersonRelationship $relationship) => $this->only($relationship, [
-                'id', 'subject_person_id', 'related_person_id', 'type', 'status', 'context', 'created_at', 'updated_at',
+                'id', 'subject_person_id', 'related_person_id', 'type', 'status', 'context',
+                'relationship_started_on', 'relationship_started_on_precision', 'created_at', 'updated_at',
             ]))->all(),
             'photos.json' => $photoRows,
             'albums.json' => $albums->map(function (Album $album): array {

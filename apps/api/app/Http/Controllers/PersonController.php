@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\PersonProposalStatus;
+use App\Enums\RelationshipStatus;
 use App\FaceRecognition\RecognitionConsentManager;
 use App\Http\Requests\ListPeopleRequest;
 use App\Http\Requests\ProposePersonDetailsRequest;
@@ -13,6 +14,7 @@ use App\Models\FamilySpace;
 use App\Models\Person;
 use App\Models\PersonAccountLink;
 use App\Models\PersonDetailProposal;
+use App\Models\PersonRelationship;
 use App\Models\User;
 use App\People\UncertainDate;
 use App\Queries\PersonQuery;
@@ -175,7 +177,7 @@ class PersonController extends Controller
     {
         /** @var User $viewer */
         $viewer = request()->user();
-        $person->loadMissing('accountLink.user:id,name');
+        $person->loadMissing(['accountLink.user:id,name', 'knownFor']);
         $accountLink = $person->accountLink;
 
         return [
@@ -200,6 +202,12 @@ class PersonController extends Controller
             'biography_document' => $person->biography,
             'biography_html' => $this->presenter->html($person->biography, $person, 'person_biography_mentions',
                 'biography_person_id', $this->familySlug(), $this->actor(), $person),
+            'profile_quote' => $person->profile_quote,
+            'profile_quote_attribution' => $person->profile_quote_attribution,
+            'known_for' => $person->knownFor->pluck('label')->values()->all(),
+            'relationships' => $this->relationships->confirmedForPerson($person)->map(
+                fn (PersonRelationship $relationship): array => $this->relationshipPayload($relationship, $person),
+            )->values()->all(),
             'recognition_allowed' => $person->recognition_allowed,
             'account_link' => $accountLink === null ? null : $this->accountLinkPayload($accountLink, $viewer),
             'created_at' => $person->created_at?->toAtomString(),
@@ -284,6 +292,28 @@ class PersonController extends Controller
             'resolved_by' => $proposal->resolved_by,
             'resolved_at' => $proposal->resolved_at?->toAtomString(),
             'created_at' => $proposal->created_at?->toAtomString(),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function relationshipPayload(PersonRelationship $relationship, Person $focus): array
+    {
+        $forward = $relationship->subject_person_id === $focus->id;
+        $other = $forward ? $relationship->related : $relationship->subject;
+
+        return [
+            'id' => $relationship->id,
+            'subject_person_id' => $relationship->subject_person_id,
+            'related_person_id' => $relationship->related_person_id,
+            'type' => $relationship->type->value,
+            'status' => RelationshipStatus::Confirmed->value,
+            'label' => $forward ? $relationship->type->forwardLabel() : $relationship->type->inverseLabel(),
+            'other_person' => ['id' => $other->id, 'preferred_name' => $other->preferred_name],
+            'context' => $relationship->context,
+            'relationship_started_on' => UncertainDate::fromStorage(
+                $relationship->relationship_started_on_precision,
+                $relationship->relationship_started_on?->format('Y-m-d'),
+            )->toPayload(),
         ];
     }
 }

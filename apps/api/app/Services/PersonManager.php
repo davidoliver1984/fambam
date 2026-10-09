@@ -8,6 +8,7 @@ use App\Enums\PersonProposalStatus;
 use App\Models\FamilySpace;
 use App\Models\Person;
 use App\Models\PersonDetailProposal;
+use App\Models\PersonKnownFor;
 use App\Models\User;
 use App\People\UncertainDate;
 use App\Stories\MentionAuthorizer;
@@ -32,6 +33,9 @@ class PersonManager
         'death_place',
         'residence_place',
         'biography',
+        'profile_quote',
+        'profile_quote_attribution',
+        'known_for',
     ];
 
     public function __construct(
@@ -57,6 +61,9 @@ class PersonManager
                 'death_place' => null,
                 'residence_place' => null,
                 'biography' => null,
+                'profile_quote' => null,
+                'profile_quote_attribution' => null,
+                'known_for' => [],
             ]));
             $person->family_space_id = $familySpace->id;
             $person->created_by = $actor->id;
@@ -70,6 +77,7 @@ class PersonManager
             }
 
             $person->save();
+            $this->syncKnownFor($person, $this->normalizeKnownFor($input['known_for'] ?? []), $actor);
             if (array_key_exists('biography', $input)) {
                 $biography = $this->richText->synchronize($person, 'person_biography_mentions', 'biography_person_id',
                     $input['biography'], $this->mentionAuthorizer->for($actor, $person));
@@ -107,6 +115,10 @@ class PersonManager
                     $input['biography'], $this->mentionAuthorizer->for($actor, $locked));
                 $locked->update(['biography' => $biography]);
                 $changes = array_values(array_unique([...$changes, ...array_keys($locked->getChanges())]));
+            }
+            if (array_key_exists('known_for', $input)) {
+                $this->syncKnownFor($locked, $this->normalizeKnownFor($input['known_for']), $actor);
+                $changes[] = 'known_for';
             }
             $changedFields = array_values(array_intersect(
                 $changes,
@@ -187,6 +199,13 @@ class PersonManager
                         $lockedProposal->changes['biography'], $this->mentionAuthorizer->for($actor, $lockedPerson));
                     $lockedPerson->update(['biography' => $biography]);
                 }
+                if (array_key_exists('known_for', $lockedProposal->changes)) {
+                    $this->syncKnownFor(
+                        $lockedPerson,
+                        $this->normalizeKnownFor($lockedProposal->changes['known_for']),
+                        $actor,
+                    );
+                }
             }
 
             $lockedProposal->update([
@@ -226,6 +245,8 @@ class PersonManager
         $birthPlace = $this->normalizePlace($details['birth_place']);
         $deathPlace = $this->normalizePlace($details['death_place']);
         $residencePlace = $this->normalizePlace($details['residence_place']);
+        $profileQuote = $this->normalizePlainText($details['profile_quote']);
+        $profileQuoteAttribution = $this->normalizePlainText($details['profile_quote_attribution']);
 
         if (! $isDeceased && $death->precision !== DatePrecision::Unknown) {
             throw ValidationException::withMessages([
@@ -260,6 +281,8 @@ class PersonManager
             'death_place' => $deathPlace,
             'residence_place' => $residencePlace,
             'biography' => $details['biography'],
+            'profile_quote' => $profileQuote,
+            'profile_quote_attribution' => $profileQuoteAttribution,
         ];
     }
 
@@ -282,6 +305,9 @@ class PersonManager
             'death_place' => $person->death_place,
             'residence_place' => $person->residence_place,
             'biography' => $person->biography,
+            'profile_quote' => $person->profile_quote,
+            'profile_quote_attribution' => $person->profile_quote_attribution,
+            'known_for' => $person->knownFor()->pluck('label')->all(),
         ];
     }
 
@@ -312,6 +338,16 @@ class PersonManager
             $changes['biography'] = $this->documents->normalize($changes['biography']);
         }
 
+        foreach (['profile_quote', 'profile_quote_attribution'] as $field) {
+            if (array_key_exists($field, $changes)) {
+                $changes[$field] = $this->normalizePlainText($changes[$field]);
+            }
+        }
+
+        if (array_key_exists('known_for', $changes)) {
+            $changes['known_for'] = $this->normalizeKnownFor($changes['known_for']);
+        }
+
         return $changes;
     }
 
@@ -324,5 +360,46 @@ class PersonManager
         $place = trim((string) $value);
 
         return $place === '' ? null : $place;
+    }
+
+    private function normalizePlainText(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $text = trim((string) $value);
+
+        return $text === '' ? null : $text;
+    }
+
+    /** @return list<string> */
+    private function normalizeKnownFor(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_map(fn (mixed $label): string => trim((string) $label), $value));
+    }
+
+    /** @param list<string> $labels */
+    private function syncKnownFor(Person $person, array $labels, User $actor): void
+    {
+        $existing = PersonKnownFor::query()->where('person_id', $person->id)->get()->keyBy(
+            fn (PersonKnownFor $row): string => mb_strtolower(trim($row->label)),
+        );
+        PersonKnownFor::query()->where('person_id', $person->id)->delete();
+        foreach ($labels as $position => $label) {
+            $key = mb_strtolower($label);
+            PersonKnownFor::query()->create([
+                'family_space_id' => $person->family_space_id,
+                'person_id' => $person->id,
+                'label' => $label,
+                'position' => $position,
+                'created_by' => $existing->has($key) ? $existing->get($key)->created_by : $actor->id,
+            ]);
+        }
+        $person->unsetRelation('knownFor');
     }
 }

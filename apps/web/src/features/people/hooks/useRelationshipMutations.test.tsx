@@ -39,6 +39,7 @@ const relationship = {
   label: "parent",
   other_person: { id: otherId, preferred_name: "Beth" },
   context: null,
+  relationship_started_on: { precision: "unknown" as const, value: null },
 };
 
 function setup() {
@@ -133,6 +134,7 @@ describe("relationship mutation invalidation", () => {
       related_person_id: otherId,
       type: "parent_of",
       context: null,
+      relationship_started_on: { precision: "unknown", value: null },
       status: "approved",
       created_at: "",
     });

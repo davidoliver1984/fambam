@@ -28,6 +28,10 @@ trait ValidatesPersonDetails
             'death_place' => ['sometimes', 'nullable', 'string', 'max:255'],
             'residence_place' => ['sometimes', 'nullable', 'string', 'max:255'],
             'biography' => ['sometimes', 'nullable'],
+            'profile_quote' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'profile_quote_attribution' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'known_for' => ['sometimes', 'array', 'max:12'],
+            'known_for.*' => ['string', 'min:1', 'max:120', 'distinct:ignore_case'],
         ];
     }
 
@@ -46,6 +50,19 @@ trait ValidatesPersonDetails
                     UncertainDate::fromInput($input);
                 } catch (InvalidArgumentException $exception) {
                     $validator->errors()->add("{$field}.value", $exception->getMessage());
+                }
+            }
+
+            if ($this->has('known_for') && is_array($this->input('known_for'))) {
+                $seen = [];
+                foreach ($this->input('known_for') as $index => $label) {
+                    $normalized = mb_strtolower(trim((string) $label));
+                    if ($normalized === '') {
+                        $validator->errors()->add("known_for.{$index}", 'Known-for labels may not be blank.');
+                    } elseif (isset($seen[$normalized])) {
+                        $validator->errors()->add("known_for.{$index}", 'Known-for labels must be unique.');
+                    }
+                    $seen[$normalized] = true;
                 }
             }
         }];

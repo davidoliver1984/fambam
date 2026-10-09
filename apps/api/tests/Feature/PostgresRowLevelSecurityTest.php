@@ -86,7 +86,7 @@ TRUNCATE TABLE notification_deliveries, notifications, notification_candidates, 
     photo_people, photo_metadata_proposals, photo_tag, tags, photo_provenance_proposals, photos,
     media_variants, media_uploads, person_merge_proposals, person_merges,
     family_circle_people, family_circles, relationship_proposals, person_relationships,
-    person_account_claims, person_account_links, person_detail_proposals, people,
+    person_known_for, person_account_claims, person_account_links, person_detail_proposals, people,
     invitation_claims, invitations, audit_events, family_space_memberships,
     family_spaces, sessions, password_reset_tokens, users RESTART IDENTITY CASCADE;
 DROP TABLE IF EXISTS rls_test_records;
@@ -136,7 +136,7 @@ SELECT relname, relrowsecurity, relforcerowsecurity
 FROM pg_class
 WHERE relname IN (
     'audit_events', 'family_spaces', 'family_space_memberships',
-    'people', 'person_detail_proposals', 'person_account_links', 'person_account_claims',
+    'people', 'person_detail_proposals', 'person_account_links', 'person_account_claims', 'person_known_for',
     'person_relationships', 'relationship_proposals', 'family_circles', 'family_circle_people',
     'person_merges', 'person_merge_proposals', 'media_uploads', 'media_variants',
     'photos', 'photo_provenance_proposals', 'photo_metadata_proposals', 'photo_people', 'tags', 'photo_tag',
@@ -157,7 +157,7 @@ WHERE relname IN (
 ORDER BY relname
 SQL);
 
-        $this->assertCount(59, $tables);
+        $this->assertCount(60, $tables);
         foreach ($tables as $table) {
             $this->assertTrue($table->relrowsecurity, "{$table->relname} does not have RLS enabled.");
             $this->assertTrue($table->relforcerowsecurity, "{$table->relname} does not force RLS.");
@@ -1293,6 +1293,17 @@ SQL);
             'updated_at' => $now,
         ]);
         $this->assertSame(1, DB::table('person_detail_proposals')->count());
+        DB::table('person_known_for')->insert([
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $firstFamily,
+            'person_id' => $firstPerson,
+            'label' => 'Keeping family records',
+            'position' => 0,
+            'created_by' => $ownerId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        $this->assertSame(1, DB::table('person_known_for')->count());
         DB::table('person_account_links')->insert([
             'id' => (string) Str::ulid(),
             'family_space_id' => $firstFamily,
@@ -1345,6 +1356,20 @@ SQL);
                 'changes' => '{}',
                 'status' => 'pending',
                 'proposed_by' => $ownerId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        $this->assertRlsRejects(function () use ($firstFamily, $secondFamily, $secondPerson, $ownerId): void {
+            app(DatabaseTenantContext::class)->establishFamilySpace($firstFamily);
+            DB::table('person_known_for')->insert([
+                'id' => (string) Str::ulid(),
+                'family_space_id' => $secondFamily,
+                'person_id' => $secondPerson,
+                'label' => 'Cross-tenant fact',
+                'position' => 0,
+                'created_by' => $ownerId,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

@@ -27,11 +27,12 @@ describe("relationship and circle API modules", () => {
       id: "01K40000000000000000000000",
       subject_person_id: personId,
       related_person_id: otherId,
-      type: "parent_of",
+      type: "partner_of",
       status: "confirmed",
-      label: "parent",
+      label: "partner",
       other_person: { id: otherId, preferred_name: "Beth" },
       context: null,
+      relationship_started_on: { precision: "year", value: "2001" },
     } as const;
     server.use(
       http.get(`${base}/people/${personId}/relationships`, () =>
@@ -52,8 +53,9 @@ describe("relationship and circle API modules", () => {
               relationship_id: null,
               subject_person_id: personId,
               related_person_id: otherId,
-              type: "parent_of",
+              type: "close_family_friend_of",
               context: null,
+              relationship_started_on: { precision: "year", value: "2001" },
               status: "pending",
               created_at: "2026-08-06T10:00:00Z",
             },
@@ -69,7 +71,8 @@ describe("relationship and circle API modules", () => {
     await expect(
       createRelationship("oliver-family", personId, {
         related_person_id: otherId,
-        type: "parent_of",
+        type: "partner_of",
+        relationship_started_on: { precision: "year", value: "2001" },
       }),
     ).resolves.toEqual(relationship);
     await expect(
@@ -82,7 +85,8 @@ describe("relationship and circle API modules", () => {
       proposeRelationship("oliver-family", personId, {
         action: "create",
         related_person_id: otherId,
-        type: "parent_of",
+        type: "close_family_friend_of",
+        relationship_started_on: { precision: "year", value: "2001" },
       }),
     ).resolves.toMatchObject({ status: "pending" });
   });

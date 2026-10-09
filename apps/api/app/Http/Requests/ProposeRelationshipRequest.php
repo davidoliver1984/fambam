@@ -4,12 +4,17 @@ namespace App\Http\Requests;
 
 use App\Enums\RelationshipProposalAction;
 use App\Enums\RelationshipType;
+use App\Http\Requests\Concerns\ValidatesRelationshipStartDate;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class ProposeRelationshipRequest extends FormRequest
 {
+    use ValidatesRelationshipStartDate {
+        after as relationshipStartDateValidation;
+    }
+
     public function authorize(): bool
     {
         return $this->user() !== null;
@@ -25,13 +30,14 @@ class ProposeRelationshipRequest extends FormRequest
             'related_person_id' => ['sometimes', 'nullable', 'ulid'],
             'type' => ['sometimes', 'nullable', Rule::enum(RelationshipType::class)],
             'context' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            ...$this->relationshipStartDateRules(),
         ];
     }
 
     /** @return list<callable(Validator): void> */
     public function after(): array
     {
-        return [function (Validator $validator): void {
+        return [...$this->relationshipStartDateValidation(), function (Validator $validator): void {
             $action = $this->input('action');
             $needsRelationship = in_array($action, ['replace', 'remove', 'dispute'], true);
             $needsEdge = in_array($action, ['create', 'replace'], true);
