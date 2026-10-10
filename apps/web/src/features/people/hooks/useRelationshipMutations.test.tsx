@@ -40,6 +40,7 @@ const relationship = {
   other_person: { id: otherId, preferred_name: "Beth" },
   context: null,
   relationship_started_on: { precision: "unknown" as const, value: null },
+  created_at: "2026-10-10T12:34:56Z",
 };
 
 function setup() {

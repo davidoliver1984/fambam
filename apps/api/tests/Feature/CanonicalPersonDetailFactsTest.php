@@ -99,6 +99,7 @@ class CanonicalPersonDetailFactsTest extends TestCase
 
     public function test_relationship_start_dates_use_uncertain_date_semantics_and_existing_authority(): void
     {
+        $this->travelTo('2026-10-10 12:34:56');
         [$family, $owner] = $this->family('relationship-chronology');
         $member = $this->member($family, FamilySpaceRole::Member);
         $william = Person::factory()->create(['family_space_id' => $family->id, 'preferred_name' => 'William']);
@@ -111,7 +112,8 @@ class CanonicalPersonDetailFactsTest extends TestCase
             'relationship_started_on' => ['precision' => 'year', 'value' => '1967'],
         ])->assertCreated()
             ->assertJsonPath('data.relationship_started_on.precision', 'year')
-            ->assertJsonPath('data.relationship_started_on.value', '1967');
+            ->assertJsonPath('data.relationship_started_on.value', '1967')
+            ->assertJsonPath('data.created_at', '2026-10-10T12:34:56+00:00');
 
         $this->actingAs($owner)->postJson("/api/families/relationship-chronology/people/{$william->id}/relationships", [
             'related_person_id' => $friend->id,
@@ -127,6 +129,7 @@ class CanonicalPersonDetailFactsTest extends TestCase
                 'relationship_started_on' => ['precision' => 'exact', 'value' => '2001-05-03'],
             ])->assertCreated()
             ->assertJsonPath('data.relationship_started_on.value', '2001-05-03')
+            ->assertJsonPath('data.created_at', '2026-10-10T12:34:56+00:00')
             ->json('data.id');
         $this->assertDatabaseCount('person_relationships', 1);
 
@@ -138,7 +141,11 @@ class CanonicalPersonDetailFactsTest extends TestCase
             ->assertOk()
             ->assertJsonCount(2, 'data.relationships')
             ->assertJsonPath('data.relationships.0.relationship_started_on.value', '1967')
-            ->assertJsonPath('data.relationships.1.relationship_started_on.value', '2001-05-03');
+            ->assertJsonPath('data.relationships.0.created_at', '2026-10-10T12:34:56+00:00')
+            ->assertJsonPath('data.relationships.1.relationship_started_on.value', '2001-05-03')
+            ->assertJsonPath('data.relationships.1.created_at', '2026-10-10T12:34:56+00:00');
+
+        $this->travelBack();
     }
 
     public function test_merge_deduplicates_and_appends_known_for_and_reversal_restores_dates_and_rows(): void

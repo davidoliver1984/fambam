@@ -33,6 +33,7 @@ describe("relationship and circle API modules", () => {
       other_person: { id: otherId, preferred_name: "Beth" },
       context: null,
       relationship_started_on: { precision: "year", value: "2001" },
+      created_at: "2026-10-10T12:34:56Z",
     } as const;
     server.use(
       http.get(`${base}/people/${personId}/relationships`, () =>

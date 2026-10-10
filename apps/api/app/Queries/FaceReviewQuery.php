@@ -5,6 +5,7 @@ namespace App\Queries;
 use App\Enums\FaceAnalysisRunStatus;
 use App\Enums\FaceIdentityAssignmentStatus;
 use App\Enums\FamilySpaceRole;
+use App\Enums\MediaUploadState;
 use App\Enums\MediaVariantTransform;
 use App\Media\MediaDeliveryAuthorization;
 use App\Models\FaceAnalysisRun;
@@ -31,12 +32,12 @@ final class FaceReviewQuery
     ) {}
 
     /**
-     * @param  array{upload_batch_id?: string, photo_id?: string, limit: int, page: int}  $filters
+     * @param  array{upload_batch_id?: string, photo_id?: string, person_id?: string, limit: int, page: int}  $filters
      * @return array<string, mixed>
      */
     public function read(FamilySpace $familySpace, User $viewer, array $filters): array
     {
-        $scope = $this->scope($viewer, $filters);
+        $scope = $this->scope($familySpace, $viewer, $filters);
         $perPhoto = $this->perPhoto($scope, $familySpace);
         $summary = DB::query()->fromSub(clone $perPhoto, 'face_review_photos')
             ->selectRaw('COUNT(*) AS total_photos')
@@ -70,6 +71,7 @@ final class FaceReviewQuery
             'scope' => [
                 'upload_batch_id' => $filters['upload_batch_id'] ?? null,
                 'photo_id' => $filters['photo_id'] ?? null,
+                'person_id' => $filters['person_id'] ?? null,
             ],
             'summary' => [
                 'total_photos' => (int) ($summary->total_photos ?? 0),
@@ -100,10 +102,10 @@ final class FaceReviewQuery
         ];
     }
 
-    /** @param array{upload_batch_id?: string, photo_id?: string, limit: int, page: int} $filters
+    /** @param array{upload_batch_id?: string, photo_id?: string, person_id?: string, limit: int, page: int} $filters
      * @return Builder<Photo>
      */
-    private function scope(User $viewer, array $filters): Builder
+    private function scope(FamilySpace $familySpace, User $viewer, array $filters): Builder
     {
         $query = $this->photos->visibleTo($viewer)->setEagerLoads([])
             ->join('media_uploads', function ($join): void {
@@ -117,6 +119,32 @@ final class FaceReviewQuery
         }
         if (isset($filters['photo_id'])) {
             $query->where('photos.id', $filters['photo_id']);
+        }
+        if (isset($filters['person_id'])) {
+            $identity = config('image-analysis.identity');
+            $query->where('media_uploads.state', MediaUploadState::Ready->value)
+                ->whereExists(function ($approved) use ($familySpace, $filters, $identity): void {
+                    $approved->selectRaw('1')
+                        ->from('face_analysis_runs')
+                        ->join('face_observations', function ($join): void {
+                            $join->on('face_observations.face_analysis_run_id', '=', 'face_analysis_runs.id')
+                                ->on('face_observations.family_space_id', '=', 'face_analysis_runs.family_space_id');
+                        })
+                        ->join('face_identity_assignments', function ($join) use ($filters): void {
+                            $join->on('face_identity_assignments.face_observation_id', '=', 'face_observations.id')
+                                ->on('face_identity_assignments.family_space_id', '=', 'face_observations.family_space_id')
+                                ->where('face_identity_assignments.person_id', $filters['person_id'])
+                                ->where('face_identity_assignments.status', FaceIdentityAssignmentStatus::Approved->value);
+                        })
+                        ->whereColumn('face_analysis_runs.media_upload_id', 'photos.media_upload_id')
+                        ->whereColumn('face_analysis_runs.canonical_sha256', 'media_uploads.canonical_sha256')
+                        ->where('face_analysis_runs.family_space_id', $familySpace->id)
+                        ->where('face_analysis_runs.provider', $identity['provider'])
+                        ->where('face_analysis_runs.model_identifier', $identity['model_identifier'])
+                        ->where('face_analysis_runs.model_weight_checksum', $identity['model_weight_checksum'])
+                        ->where('face_analysis_runs.config_hash', $identity['config_hash'])
+                        ->where('face_analysis_runs.status', FaceAnalysisRunStatus::Succeeded->value);
+                });
         }
 
         return $query;

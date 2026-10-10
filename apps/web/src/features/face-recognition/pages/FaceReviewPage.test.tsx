@@ -56,6 +56,11 @@ const person: Person = {
   known_for: [],
   featured_albums: [],
   relationships: [],
+  recognition_summary: {
+    recognised_photo_count: 0,
+    viewer_identification_count: 0,
+    review_destination: null,
+  },
   account_link: null,
   redirected_from_person_id: null,
   created_at: "2026-10-02T12:00:00Z",
@@ -82,7 +87,7 @@ const reviewPermissions = {
 };
 
 const session: FaceReviewSession = {
-  scope: { upload_batch_id: "batch-one", photo_id: null },
+  scope: { upload_batch_id: "batch-one", photo_id: null, person_id: null },
   summary: {
     total_photos: 2,
     analysis: {
@@ -517,7 +522,11 @@ describe("FaceReviewPage", () => {
   it("keeps Photo-scoped review on one Photo and returns Done to its detail", async () => {
     api.getFaceReview.mockResolvedValue({
       ...session,
-      scope: { upload_batch_id: null, photo_id: "photo-one" },
+      scope: {
+        upload_batch_id: null,
+        photo_id: "photo-one",
+        person_id: null,
+      },
       summary: {
         ...session.summary,
         total_photos: 1,

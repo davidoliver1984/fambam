@@ -28,12 +28,13 @@ class FaceReviewController extends Controller
         $validated = $request->validate([
             'upload_batch_id' => ['sometimes', 'ulid'],
             'photo_id' => ['sometimes', 'ulid'],
+            'person_id' => ['sometimes', 'ulid'],
             'limit' => ['sometimes', 'integer', 'between:1,100'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
-        if (isset($validated['upload_batch_id'], $validated['photo_id'])) {
+        if (count(array_intersect(['upload_batch_id', 'photo_id', 'person_id'], array_keys($validated))) > 1) {
             throw ValidationException::withMessages([
-                'scope' => ['Choose either upload_batch_id or photo_id, not both.'],
+                'scope' => ['Choose only one of upload_batch_id, photo_id or person_id.'],
             ]);
         }
         /** @var User $viewer */

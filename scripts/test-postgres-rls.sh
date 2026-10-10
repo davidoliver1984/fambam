@@ -47,7 +47,7 @@ docker run --rm --network "container:$container_name" \
     DB_USERNAME="$owner_name" \
     DB_PASSWORD="$owner_password" \
     DB_RUNTIME_USERNAME="$runtime_name" \
-    php artisan test tests/Feature/FaceReviewHttpTest.php
+    php artisan test tests/Feature/FaceReviewHttpTest.php tests/Feature/PersonRecognitionSummaryHttpTest.php
 
     docker exec "$container_name" psql --username "$owner_name" --dbname "$database_name" \
         --command 'DROP FUNCTION IF EXISTS app_due_photo_edit_previews();' >/dev/null

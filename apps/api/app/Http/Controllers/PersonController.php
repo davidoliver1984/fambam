@@ -20,6 +20,7 @@ use App\Models\User;
 use App\People\UncertainDate;
 use App\Queries\AlbumQuery;
 use App\Queries\PersonQuery;
+use App\Queries\PersonRecognitionSummaryQuery;
 use App\Queries\RelationshipQuery;
 use App\Services\PersonManager;
 use App\Services\PresentationThumbnailService;
@@ -40,6 +41,7 @@ class PersonController extends Controller
         private readonly RichTextPresenter $presenter,
         private readonly PresentationThumbnailService $thumbnails,
         private readonly RelationshipQuery $relationships,
+        private readonly PersonRecognitionSummaryQuery $recognitionSummary,
     ) {}
 
     public function index(FamilySpace $familySpace, ListPeopleRequest $request): JsonResponse
@@ -239,6 +241,11 @@ class PersonController extends Controller
             'relationships' => $this->relationships->confirmedForPerson($person)->map(
                 fn (PersonRelationship $relationship): array => $this->relationshipPayload($relationship, $person),
             )->values()->all(),
+            'recognition_summary' => $this->recognitionSummary->forPerson(
+                $this->familySpace(),
+                $person,
+                $viewer,
+            ),
             'recognition_allowed' => $person->recognition_allowed,
             'account_link' => $accountLink === null ? null : $this->accountLinkPayload($accountLink, $viewer),
             'created_at' => $person->created_at?->toAtomString(),
@@ -303,6 +310,14 @@ class PersonController extends Controller
         return $familySpace instanceof FamilySpace ? $familySpace->slug : (string) $familySpace;
     }
 
+    private function familySpace(): FamilySpace
+    {
+        $familySpace = request()->route('familySpace');
+        abort_unless($familySpace instanceof FamilySpace, 404);
+
+        return $familySpace;
+    }
+
     private function actor(): User
     {
         $actor = request()->user();
@@ -345,6 +360,7 @@ class PersonController extends Controller
                 $relationship->relationship_started_on_precision,
                 $relationship->relationship_started_on?->format('Y-m-d'),
             )->toPayload(),
+            'created_at' => $relationship->created_at?->toAtomString(),
         ];
     }
 }

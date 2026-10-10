@@ -11,6 +11,7 @@ export const faceRecognitionKeys = {
     filters: {
       uploadBatchId?: string;
       photoId?: string;
+      personId?: string;
       limit?: number;
       page?: number;
     },

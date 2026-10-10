@@ -55,7 +55,7 @@ describe("faceRecognitionApi", () => {
   it("rejects ambiguous or inconsistent face-review presentation states", () => {
     expect(() =>
       parseFaceReviewSession({
-        scope: { upload_batch_id: null, photo_id: "photo-1" },
+        scope: { upload_batch_id: null, photo_id: "photo-1", person_id: null },
         summary: {} as never,
         pagination: { page: 1, limit: 1, has_more: false },
         photos: [
@@ -101,7 +101,7 @@ describe("faceRecognitionApi", () => {
 
   it("rejects read models that escape their requested review scope", () => {
     const photoScoped: FaceReviewSession = {
-      scope: { upload_batch_id: null, photo_id: "photo-1" },
+      scope: { upload_batch_id: null, photo_id: "photo-1", person_id: null },
       summary: {
         total_photos: 1,
         analysis: {
@@ -128,7 +128,11 @@ describe("faceRecognitionApi", () => {
       parseFaceReviewSession(
         {
           ...photoScoped,
-          scope: { upload_batch_id: null, photo_id: "photo-2" },
+          scope: {
+            upload_batch_id: null,
+            photo_id: "photo-2",
+            person_id: null,
+          },
         },
         { photoId: "photo-1" },
       ),
@@ -137,11 +141,28 @@ describe("faceRecognitionApi", () => {
       parseFaceReviewSession(
         {
           ...photoScoped,
-          scope: { upload_batch_id: "batch-2", photo_id: null },
+          scope: {
+            upload_batch_id: "batch-2",
+            photo_id: null,
+            person_id: null,
+          },
         },
         { uploadBatchId: "batch-1" },
       ),
     ).toThrow("Batch-scoped face review escaped its upload batch.");
+    expect(() =>
+      parseFaceReviewSession(
+        {
+          ...photoScoped,
+          scope: {
+            upload_batch_id: null,
+            photo_id: null,
+            person_id: "person-2",
+          },
+        },
+        { personId: "person-1" },
+      ),
+    ).toThrow("Person-scoped face review escaped its requested Person.");
   });
 
   it("owns all Phase 10 functional-review endpoint paths and image mapping", async () => {
@@ -182,7 +203,11 @@ describe("faceRecognitionApi", () => {
         paths.push(`${url.pathname}?${url.searchParams.toString()}`);
         return HttpResponse.json({
           data: {
-            scope: { upload_batch_id: "batch-1", photo_id: null },
+            scope: {
+              upload_batch_id: "batch-1",
+              photo_id: null,
+              person_id: null,
+            },
             summary: {
               total_photos: 1,
               analysis: {

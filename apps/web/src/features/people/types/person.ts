@@ -49,6 +49,15 @@ export type PersonFeaturedAlbum = {
   cover_focal_y: number | null;
 };
 
+export type PersonRecognitionSummary = {
+  recognised_photo_count: number;
+  viewer_identification_count: number;
+  review_destination: {
+    path: string;
+    filter: { person_id: string };
+  } | null;
+};
+
 export type FamilyMembership = {
   id: string;
   user: { id: number; name: string; email: string };
@@ -74,6 +83,7 @@ export type Person = {
   known_for: string[];
   featured_albums: PersonFeaturedAlbum[];
   relationships: PersonRelationship[];
+  recognition_summary: PersonRecognitionSummary;
   account_link: PersonAccountLink | null;
   redirected_from_person_id: string | null;
   created_at: string;
@@ -159,6 +169,7 @@ export type PersonRelationship = {
   other_person: { id: string; preferred_name: string };
   context: string | null;
   relationship_started_on: UncertainDate;
+  created_at: string;
 };
 
 export type RelationshipInput = {

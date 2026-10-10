@@ -2,9 +2,10 @@
 
 This document fixes the product semantics consumed by every face-review entry
 point. The canonical read route is `GET /api/families/{family}/face-review`,
-optionally scoped by exactly one of `photo_id` or `upload_batch_id`. Skipping or
-finishing writes nothing; resumption is always derived from the durable state
-below.
+optionally scoped by exactly one of `photo_id`, `upload_batch_id` or `person_id`.
+Person scope includes only authorised Photos whose current analysis run has an
+active approved identity for that Person. Skipping or finishing writes nothing;
+resumption is always derived from the durable state below.
 
 ## Observation state and progress
 

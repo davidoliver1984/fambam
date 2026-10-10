@@ -56,6 +56,7 @@ export function parseFaceReviewSession(
     if (
       value.scope.photo_id !== filters.photoId ||
       value.scope.upload_batch_id !== null ||
+      value.scope.person_id !== null ||
       value.photos.some((photo) => photo.photo_id !== filters.photoId) ||
       value.photos.length > 1 ||
       value.summary.next_photo_id !== null ||
@@ -68,11 +69,31 @@ export function parseFaceReviewSession(
     if (
       value.scope.upload_batch_id !== filters.uploadBatchId ||
       value.scope.photo_id !== null ||
+      value.scope.person_id !== null ||
       value.photos.some(
         (photo) => photo.upload_batch_id !== filters.uploadBatchId,
       )
     ) {
       throw new Error("Batch-scoped face review escaped its upload batch.");
+    }
+  }
+  if (filters.personId !== undefined) {
+    if (
+      value.scope.person_id !== filters.personId ||
+      value.scope.photo_id !== null ||
+      value.scope.upload_batch_id !== null ||
+      value.photos.some(
+        (photo) =>
+          !photo.observations.some(
+            (observation) =>
+              observation.review_state === "approved_identity" &&
+              observation.current_identity?.person.id === filters.personId,
+          ),
+      )
+    ) {
+      throw new Error(
+        "Person-scoped face review escaped its requested Person.",
+      );
     }
   }
   for (const photo of value.photos) {
@@ -286,6 +307,7 @@ export async function getFaceReview(
     query.set("upload_batch_id", filters.uploadBatchId);
   }
   if (filters.photoId !== undefined) query.set("photo_id", filters.photoId);
+  if (filters.personId !== undefined) query.set("person_id", filters.personId);
   if (filters.limit !== undefined) query.set("limit", String(filters.limit));
   if (filters.page !== undefined) query.set("page", String(filters.page));
   const suffix = query.size === 0 ? "" : `?${query.toString()}`;

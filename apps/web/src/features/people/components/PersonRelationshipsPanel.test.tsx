@@ -41,6 +41,11 @@ const person: Person = {
   known_for: [],
   featured_albums: [],
   relationships: [],
+  recognition_summary: {
+    recognised_photo_count: 0,
+    viewer_identification_count: 0,
+    review_destination: null,
+  },
   account_link: null,
   redirected_from_person_id: null,
   created_at: "",
@@ -136,6 +141,7 @@ describe("PersonRelationshipsPanel", () => {
       other_person: { id: other.id, preferred_name: other.preferred_name },
       context: null,
       relationship_started_on: { precision: "unknown", value: null },
+      created_at: "2026-10-10T12:34:56Z",
     });
     renderPanel(manager);
     await user.selectOptions(screen.getByLabelText("Person"), other.id);

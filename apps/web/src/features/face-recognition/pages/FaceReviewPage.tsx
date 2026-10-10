@@ -42,8 +42,10 @@ export function FaceReviewPage() {
   const navigate = useNavigate();
   const uploadBatchId = searchParams.get("upload_batch_id") ?? undefined;
   const photoId = searchParams.get("photo_id") ?? undefined;
+  const personId = searchParams.get("person_id") ?? undefined;
   const hasValidScope =
-    (uploadBatchId === undefined) !== (photoId === undefined);
+    [uploadBatchId, photoId, personId].filter((value) => value !== undefined)
+      .length === 1;
   const photoScoped = photoId !== undefined && uploadBatchId === undefined;
   const returnTo = safeReturnPath(
     familySlug,
@@ -54,6 +56,7 @@ export function FaceReviewPage() {
   const review = useFaceReviewQuery(hasValidScope ? familySlug : "", {
     ...(uploadBatchId === undefined ? {} : { uploadBatchId }),
     ...(photoId === undefined ? {} : { photoId }),
+    ...(personId === undefined ? {} : { personId }),
     limit: 100,
     page,
   });

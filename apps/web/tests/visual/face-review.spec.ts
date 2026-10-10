@@ -65,7 +65,11 @@ async function mockFaceReview(
       data = { items: people, next_cursor: null };
     } else if (path.endsWith("/face-review")) {
       const session = {
-        scope: { upload_batch_id: "batch-blackpool", photo_id: null },
+        scope: {
+          upload_batch_id: "batch-blackpool",
+          photo_id: null,
+          person_id: null,
+        },
         summary: {
           total_photos: 8,
           analysis: {
@@ -287,6 +291,7 @@ async function mockFaceReview(
         session.scope = {
           upload_batch_id: null,
           photo_id: firstPhoto.photo_id,
+          person_id: null,
         };
         session.summary = {
           total_photos: 1,

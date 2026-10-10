@@ -136,7 +136,11 @@ export type FaceReviewPhoto = {
 };
 
 export type FaceReviewSession = {
-  scope: { upload_batch_id: string | null; photo_id: string | null };
+  scope: {
+    upload_batch_id: string | null;
+    photo_id: string | null;
+    person_id: string | null;
+  };
   summary: {
     total_photos: number;
     analysis: Record<FaceReviewAnalysisState, number> & {
@@ -158,6 +162,7 @@ export type FaceReviewSession = {
 export type FaceReviewFilters = {
   uploadBatchId?: string;
   photoId?: string;
+  personId?: string;
   limit?: number;
   page?: number;
 };

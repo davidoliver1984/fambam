@@ -207,6 +207,7 @@ class RelationshipController extends Controller
                 $relationship->relationship_started_on_precision,
                 $relationship->relationship_started_on?->format('Y-m-d'),
             )->toPayload(),
+            'created_at' => $relationship->created_at?->toAtomString(),
         ];
     }
 

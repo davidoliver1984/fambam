@@ -36,6 +36,11 @@ const person: Person = {
   known_for: ["Sunday lunch", "Seaside trips"],
   featured_albums: [],
   relationships: [],
+  recognition_summary: {
+    recognised_photo_count: 0,
+    viewer_identification_count: 0,
+    review_destination: null,
+  },
   account_link: null,
   redirected_from_person_id: null,
   created_at: "2026-08-06T10:00:00Z",
