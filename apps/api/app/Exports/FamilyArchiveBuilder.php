@@ -234,6 +234,8 @@ class FamilyArchiveBuilder
         $albums = Album::query()->whereIn('id', $selection->albumIds)
             ->with(['albumPhotos' => fn ($query) => $query->whereIn('photo_id', $photoIds)->orderBy('position')])
             ->orderBy('id')->get();
+        $albumPeople = DB::table('album_people')->whereIn('album_id', $albums->pluck('id'))
+            ->orderBy('album_id')->orderBy('person_id')->get()->groupBy('album_id');
         $eventQuery = $full ? FamilyEvent::withTrashed() : FamilyEvent::query();
         $events = $eventQuery->whereIn('id', $selection->eventIds)->orderBy('id')->get();
         $storyQuery = $full ? Story::withTrashed() : Story::query();
@@ -318,9 +320,15 @@ class FamilyArchiveBuilder
                 'relationship_started_on', 'relationship_started_on_precision', 'created_at', 'updated_at',
             ]))->all(),
             'photos.json' => $photoRows,
-            'albums.json' => $albums->map(function (Album $album): array {
+            'albums.json' => $albums->map(function (Album $album) use ($albumPeople): array {
                 $row = $this->only($album, ['id', 'created_by', 'name', 'description', 'visibility', 'event_id', 'guest_participation', 'created_at', 'updated_at']);
                 $row['photos'] = $album->albumPhotos->map(fn ($link) => $this->only($link, ['id', 'photo_id', 'position', 'added_by', 'created_at']))->all();
+                $row['people'] = $albumPeople->get($album->id, collect())->map(fn (object $association): array => [
+                    'id' => (string) $association->id,
+                    'person_id' => (string) $association->person_id,
+                    'added_by' => $association->added_by,
+                    'created_at' => $association->created_at,
+                ])->all();
 
                 return $row;
             })->all(),

@@ -349,6 +349,18 @@ class FamilyExportHttpTest extends TestCase
             'profile_quote' => 'Keep the stories where the family can find them.',
             'profile_quote_attribution' => 'Archive relative',
         ]);
+        $archivalAlbum = Album::query()->create([
+            'family_space_id' => $family->id,
+            'created_by' => $owner->id,
+            'name' => 'Archival album',
+            'visibility' => AlbumVisibility::FamilySpace,
+        ]);
+        $archivalAlbum->people()->attach($archivalPerson->id, [
+            'id' => (string) Str::ulid(),
+            'family_space_id' => $family->id,
+            'added_by' => $owner->id,
+            'created_at' => now(),
+        ]);
         $archivalPerson->knownFor()->create([
             'family_space_id' => $family->id,
             'label' => 'Carefully labelled albums',
@@ -396,9 +408,11 @@ class FamilyExportHttpTest extends TestCase
         $this->assertSame(hash('sha256', $this->storage->finalized[$export->object_key]), $export->archive_sha256);
         $archive = $this->archive($export->object_key);
         $photos = json_decode($archive->getFromName('photos.json'), true, flags: JSON_THROW_ON_ERROR);
+        $albums = json_decode($archive->getFromName('albums.json'), true, flags: JSON_THROW_ON_ERROR);
         $manifest = json_decode($archive->getFromName('manifest.json'), true, flags: JSON_THROW_ON_ERROR);
         $checksums = json_decode($archive->getFromName('checksums.json'), true, flags: JSON_THROW_ON_ERROR)['files'];
         $this->assertSame('family_space_full', $manifest['export_scope']);
+        $this->assertSame($archivalPerson->id, $albums['items'][0]['people'][0]['person_id']);
         $this->assertArrayNotHasKey('archive_sha256', $manifest);
         $this->assertSame($photo->deleted_at?->toJSON(), $photos['items'][0]['deleted_at']);
         $this->assertTrue($photos['items'][0]['original_included']);

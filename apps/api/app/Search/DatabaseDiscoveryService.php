@@ -44,8 +44,8 @@ final class DatabaseDiscoveryService implements DiscoveryService
 
         return [
             'photos' => $photos->map($this->photoSummary(...))->all(),
-            'albums' => $this->visibleAlbums($actor)->whereHas('photos', fn (Builder $query) => $query
-                ->whereIn('photos.id', $photoIds))->orderBy('albums.name')->orderBy('albums.id')
+            'albums' => $this->albums->featuringPerson($actor, $person->id)->setEagerLoads([])
+                ->orderBy('albums.name')->orderBy('albums.id')
                 ->limit(self::LIMIT)->get()
                 ->map($this->albumSummary(...))->all(),
             'events' => $this->eventsForPhotos($actor, $photoIds->all())

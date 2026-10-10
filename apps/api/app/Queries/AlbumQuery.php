@@ -86,6 +86,15 @@ class AlbumQuery
         return $this->visibleTo($viewer)->find($id) ?? throw new NotFoundHttpException;
     }
 
+    /** @return Builder<Album> */
+    public function featuringPerson(User $viewer, string $personId): Builder
+    {
+        return $this->visibleTo($viewer)
+            ->whereHas('people', fn (Builder $people) => $people
+                ->where('people.id', $personId)
+                ->where('album_people.family_space_id', $this->tenantContext->familySpace()->id));
+    }
+
     /** @param Builder<Album> $query */
     private function applyFilters(Builder $query, AlbumListCriteria $criteria): void
     {

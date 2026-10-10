@@ -26,6 +26,7 @@ use App\Queries\PhotoQuery;
 use App\Queries\StoryQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class FamilyExportSelectionService
@@ -175,7 +176,9 @@ class FamilyExportSelectionService
             ->where('family_space_id', $familySpaceId)
             ->where('status', PersonProposalStatus::Approved)
             ->whereIn('photo_id', $allContextIds)
-            ->orderBy('person_id')->pluck('person_id')->map(fn ($id): string => trim((string) $id))->all();
+            ->orderBy('person_id')->pluck('person_id')
+            ->merge(DB::table('album_people')->whereIn('album_id', $albumIds)->pluck('person_id'))
+            ->map(fn ($id): string => trim((string) $id))->unique()->sort()->values()->all();
         $originalPhotoIds = Photo::query()->whereIn('id', $containerPhotoIds)->with('mediaUpload')->get()
             ->filter(fn (Photo $photo): bool => $photo->mediaUpload !== null
                 && Gate::forUser($requester)->allows('downloadOriginal', $photo->mediaUpload))

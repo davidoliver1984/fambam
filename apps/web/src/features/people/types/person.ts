@@ -38,6 +38,17 @@ export type PersonAccountClaim = {
   created_at: string;
 };
 
+export type PersonFeaturedAlbum = {
+  id: string;
+  name: string;
+  starts_on: string | null;
+  ends_on: string | null;
+  location: string | null;
+  cover_thumbnail_url: string | null;
+  cover_focal_x: number | null;
+  cover_focal_y: number | null;
+};
+
 export type FamilyMembership = {
   id: string;
   user: { id: number; name: string; email: string };
@@ -61,6 +72,7 @@ export type Person = {
   profile_quote: string | null;
   profile_quote_attribution: string | null;
   known_for: string[];
+  featured_albums: PersonFeaturedAlbum[];
   relationships: PersonRelationship[];
   account_link: PersonAccountLink | null;
   redirected_from_person_id: string | null;

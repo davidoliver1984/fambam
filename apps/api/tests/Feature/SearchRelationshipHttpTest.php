@@ -204,6 +204,9 @@ class SearchRelationshipHttpTest extends TestCase
         $this->associate($visible, $person, $owner, 'approved');
         $this->associate($visible, $companion, $owner, 'approved');
         $this->associate($hidden, $person, $owner, 'approved');
+        $album->people()->attach($person->id, [
+            'id' => (string) Str::ulid(), 'family_space_id' => $family->id, 'added_by' => $owner->id,
+        ]);
         Story::query()->create([
             'family_space_id' => $family->id, 'photo_id' => $visible->id,
             'author_id' => $owner->id, 'body' => $this->storyBody('A beach story.'),

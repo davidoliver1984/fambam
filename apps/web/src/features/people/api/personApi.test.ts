@@ -34,6 +34,7 @@ const person: Person = {
   profile_quote: "Keep the family stories close.",
   profile_quote_attribution: "Ada Oliver",
   known_for: ["Sunday lunch", "Seaside trips"],
+  featured_albums: [],
   relationships: [],
   account_link: null,
   redirected_from_person_id: null,

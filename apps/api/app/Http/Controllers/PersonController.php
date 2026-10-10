@@ -10,6 +10,7 @@ use App\Http\Requests\ProposePersonDetailsRequest;
 use App\Http\Requests\StorePersonRequest;
 use App\Http\Requests\UpdatePersonRequest;
 use App\Http\Requests\UpdateRecognitionConsentRequest;
+use App\Models\Album;
 use App\Models\FamilySpace;
 use App\Models\Person;
 use App\Models\PersonAccountLink;
@@ -17,6 +18,7 @@ use App\Models\PersonDetailProposal;
 use App\Models\PersonRelationship;
 use App\Models\User;
 use App\People\UncertainDate;
+use App\Queries\AlbumQuery;
 use App\Queries\PersonQuery;
 use App\Queries\RelationshipQuery;
 use App\Services\PersonManager;
@@ -28,8 +30,11 @@ use Illuminate\Support\Facades\Gate;
 
 class PersonController extends Controller
 {
+    private const int FEATURED_ALBUM_LIMIT = 6;
+
     public function __construct(
         private readonly PersonQuery $people,
+        private readonly AlbumQuery $albums,
         private readonly PersonManager $personManager,
         private readonly RecognitionConsentManager $recognitionConsent,
         private readonly RichTextPresenter $presenter,
@@ -179,6 +184,20 @@ class PersonController extends Controller
         $viewer = request()->user();
         $person->loadMissing(['accountLink.user:id,name', 'knownFor']);
         $accountLink = $person->accountLink;
+        $featuredAlbums = $this->albums->featuringPerson($viewer, $person->id)
+            ->setEagerLoads([])
+            ->with('coverPhoto:id,media_upload_id')
+            ->orderByRaw('CASE WHEN albums.starts_on IS NULL THEN 1 ELSE 0 END ASC')
+            ->orderByDesc('albums.starts_on')
+            ->orderByDesc('albums.id')
+            ->limit(self::FEATURED_ALBUM_LIMIT)
+            ->get([
+                'albums.id', 'albums.name', 'albums.starts_on', 'albums.ends_on', 'albums.location',
+                'albums.cover_photo_id', 'albums.cover_focal_x', 'albums.cover_focal_y',
+            ]);
+        $coverUrls = $this->thumbnails->forMediaUploads(
+            $featuredAlbums->pluck('coverPhoto.media_upload_id')->filter()->values()->all(),
+        );
 
         return [
             'id' => $person->id,
@@ -205,6 +224,18 @@ class PersonController extends Controller
             'profile_quote' => $person->profile_quote,
             'profile_quote_attribution' => $person->profile_quote_attribution,
             'known_for' => $person->knownFor->pluck('label')->values()->all(),
+            'featured_albums' => $featuredAlbums->map(fn (Album $album): array => [
+                'id' => $album->id,
+                'name' => $album->name,
+                'starts_on' => $album->starts_on?->format('Y-m-d'),
+                'ends_on' => $album->ends_on?->format('Y-m-d'),
+                'location' => $album->location,
+                'cover_thumbnail_url' => $album->coverPhoto === null
+                    ? null
+                    : ($coverUrls[$album->coverPhoto->media_upload_id] ?? null),
+                'cover_focal_x' => $album->cover_photo_id === null ? null : (float) $album->cover_focal_x,
+                'cover_focal_y' => $album->cover_photo_id === null ? null : (float) $album->cover_focal_y,
+            ])->values()->all(),
             'relationships' => $this->relationships->confirmedForPerson($person)->map(
                 fn (PersonRelationship $relationship): array => $this->relationshipPayload($relationship, $person),
             )->values()->all(),

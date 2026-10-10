@@ -2,7 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\FamilySpace;
+use App\Models\FamilySpaceMembership;
+use App\Models\User;
+use App\Queries\AlbumQuery;
 use App\Tenancy\DatabaseTenantContext;
+use App\Tenancy\TenantContext;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +39,7 @@ class AlbumMetadataPostgresTest extends TestCase
     public function test_album_metadata_fks_checks_and_forced_rls(): void
     {
         [$userId, $familyId, $albumId, $photoId, $personId, $tagId] = $this->fixture('album-pg-one');
-        [, $otherFamilyId, , $otherPhotoId, $otherPersonId, $otherTagId] = $this->fixture('album-pg-two');
+        [$otherUserId, $otherFamilyId, , $otherPhotoId, $otherPersonId, $otherTagId] = $this->fixture('album-pg-two');
 
         $this->admin->table('albums')->where('id', $albumId)->update([
             'starts_on' => '2000-01-01', 'ends_on' => '2000-12-31',
@@ -79,6 +84,8 @@ class AlbumMetadataPostgresTest extends TestCase
         });
         $this->assertSame(1, $visible);
         $this->assertSame(0, $hidden);
+        $this->assertSame([$albumId], $this->relatedAlbumIds($userId, $familyId, $personId));
+        $this->assertSame([], $this->relatedAlbumIds($otherUserId, $otherFamilyId, $personId));
     }
 
     /** @return array{int, string, string, string, string, string} */
@@ -136,5 +143,26 @@ class AlbumMetadataPostgresTest extends TestCase
             $this->fail('The database accepted an invalid Album relationship or value.');
         } catch (QueryException) {
         }
+    }
+
+    /** @return list<string> */
+    private function relatedAlbumIds(int $userId, string $familyId, string $personId): array
+    {
+        return DB::transaction(function () use ($userId, $familyId, $personId): array {
+            app(DatabaseTenantContext::class)->establishUser($userId);
+            app(DatabaseTenantContext::class)->establishFamilySpace($familyId);
+            $viewer = User::query()->findOrFail($userId);
+            app(TenantContext::class)->establish(
+                FamilySpace::query()->findOrFail($familyId),
+                FamilySpaceMembership::query()
+                    ->where('family_space_id', $familyId)
+                    ->where('user_id', $userId)
+                    ->firstOrFail(),
+                $viewer,
+            );
+
+            return app(AlbumQuery::class)->featuringPerson($viewer, $personId)
+                ->setEagerLoads([])->orderBy('albums.id')->pluck('albums.id')->all();
+        });
     }
 }

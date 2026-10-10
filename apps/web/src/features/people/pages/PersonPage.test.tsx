@@ -57,6 +57,7 @@ const person: Person = {
   profile_quote: null,
   profile_quote_attribution: null,
   known_for: [],
+  featured_albums: [],
   relationships: [],
   account_link: null,
   redirected_from_person_id: null,

@@ -8,6 +8,8 @@ use App\Enums\FamilySpaceRole;
 use App\Enums\FamilySpaceStatus;
 use App\Enums\MembershipState;
 use App\Media\FamilyMediaStorageCleaner;
+use App\Media\MediaDeliveryAuthorization;
+use App\Media\MediaDeliveryUrlSigner;
 use App\Media\MediaObjectStorage;
 use App\Media\MediaSigningAudience;
 use App\Media\StoredObject;
@@ -15,6 +17,7 @@ use App\Media\UploadAuthorization;
 use App\Models\FamilySpace;
 use App\Models\FamilySpaceMembership;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +38,14 @@ final class DemoFamilyToolingTest extends TestCase
         $this->cleaner = new DemoStorageCleaner($this->storage);
         $this->app->instance(MediaObjectStorage::class, $this->storage);
         $this->app->instance(FamilyMediaStorageCleaner::class, $this->cleaner);
+        $signer = $this->createMock(MediaDeliveryUrlSigner::class);
+        $signer->method('authorizeRead')->willReturnCallback(
+            fn (string $key, string $type, DateTimeInterface $expiresAt): MediaDeliveryAuthorization => new MediaDeliveryAuthorization(
+                'https://storage.test/'.rawurlencode($key),
+                CarbonImmutable::instance($expiresAt),
+            ),
+        );
+        $this->app->instance(MediaDeliveryUrlSigner::class, $signer);
     }
 
     public function test_seed_refuses_outside_local_even_when_enabled(): void
@@ -96,6 +107,8 @@ final class DemoFamilyToolingTest extends TestCase
         $this->assertSame(12, $second['relationships']);
         $this->assertSame(4, $second['events']);
         $this->assertSame(6, $second['albums']);
+        $this->assertSame(30, $second['album_people']);
+        $this->assertSame(6, $second['album_covers']);
         $this->assertSame(36, $second['photos']);
         $this->assertSame(14, $second['stories']);
         $this->assertSame(1, $second['story_comments']);
@@ -158,6 +171,8 @@ final class DemoFamilyToolingTest extends TestCase
         ]);
         $this->assertGreaterThanOrEqual(10, DB::table('photo_people')->where('family_space_id', $demoId)
             ->where('person_id', $william->id)->where('status', 'approved')->count());
+        $this->assertSame(6, DB::table('album_people')->where('family_space_id', $demoId)
+            ->where('person_id', $william->id)->count());
         $this->assertSame(11, DB::table('stories')->where('family_space_id', $demoId)->whereNotNull('photo_id')->count());
         $this->assertSame(1, DB::table('stories')->where('family_space_id', $demoId)->whereNotNull('person_id')->count());
         $this->assertSame(1, DB::table('stories')->where('family_space_id', $demoId)->whereNotNull('album_id')->count());
@@ -222,6 +237,9 @@ final class DemoFamilyToolingTest extends TestCase
             ->assertJsonPath('data.biography', 'Family storyteller, railway enthusiast and keeper of the old photo boxes.')
             ->assertJsonPath('data.profile_quote', 'A family story is worth keeping when everyone remembers a different detail.')
             ->assertJsonPath('data.known_for.0', 'Railway journeys')
+            ->assertJsonCount(6, 'data.featured_albums')
+            ->assertJsonPath('data.featured_albums.0.name', "William's 80th Birthday")
+            ->assertJsonPath('data.featured_albums.0.cover_thumbnail_url', fn (?string $url): bool => str_contains((string) $url, 'thumbnail.v1.png'))
             ->assertJsonPath('data.relationships.0.relationship_started_on.value', '1967');
 
         $alex = DB::table('people')->where('family_space_id', $demoId)->where('preferred_name', 'Alex Mercer')->first();
@@ -257,6 +275,7 @@ final class DemoFamilyToolingTest extends TestCase
             ->assertJsonPath('data.profile_quote', null)
             ->assertJsonPath('data.profile_quote_attribution', null)
             ->assertJsonPath('data.known_for', [])
+            ->assertJsonPath('data.featured_albums', [])
             ->assertJsonPath('data.relationships', []);
 
         $this->artisan('fambam:demo-family:reset', ['--force' => true])->assertSuccessful();

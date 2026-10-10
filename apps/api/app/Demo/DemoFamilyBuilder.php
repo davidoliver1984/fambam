@@ -192,9 +192,11 @@ final class DemoFamilyBuilder
 
         $events = $this->events($familyId, $users, $anchor);
         $albums = $this->albums($familyId, $events, $users, $anchor);
+        $this->albumPeople($familyId, $albums, $people, $users['owner'], $anchor);
         $tags = $this->tags($familyId, $users['admin'], $anchor);
         $this->eventTags($familyId, $events, $tags, $users['admin'], $anchor);
         $photos = $this->photos($familyId, $people, $events, $albums, $tags, $users, $anchor);
+        $this->albumCovers($albums, $photos);
         $this->collections($familyId, $photos, $users['owner'], $anchor);
         $this->conversations($familyId, $people, $events, $photos, $albums, $users, $anchor);
         $this->savedSearches($familyId, $people, $events, $albums, $users, $anchor);
@@ -314,15 +316,15 @@ final class DemoFamilyBuilder
     private function albums(string $familyId, array $events, array $users, CarbonImmutable $anchor): array
     {
         $definitions = [
-            'wedding' => ["William & Margaret's Wedding", 'wedding'],
-            'christmas' => ['Christmas 1984', 'christmas'],
-            'seaside' => ['Seaside Holiday 1999', 'seaside'],
-            'birthday' => ["William's 80th Birthday", 'birthday'],
-            'william' => ['William Through the Years', null],
-            'holidays' => ['Mercer Family Holidays', null],
+            'wedding' => ["William & Margaret's Wedding", 'wedding', '1967-06-17', '1967-06-17', "St Anne's Hall, Northbridge"],
+            'christmas' => ['Christmas 1984', 'christmas', '1984-12-25', '1984-12-26', '14 Willow Lane, Northbridge'],
+            'seaside' => ['Seaside Holiday 1999', 'seaside', '1999-08-14', '1999-08-21', 'Brightwater Seafront'],
+            'birthday' => ["William's 80th Birthday", 'birthday', '2025-05-17', '2025-05-17', 'Riverside Pavilion, Northbridge'],
+            'william' => ['William Through the Years', null, null, null, null],
+            'holidays' => ['Mercer Family Holidays', null, null, null, null],
         ];
         $ids = [];
-        foreach (array_values($definitions) as $offset => [$name, $eventKey]) {
+        foreach (array_values($definitions) as $offset => [$name, $eventKey, $startsOn, $endsOn, $location]) {
             $key = array_keys($definitions)[$offset];
             $ids[$key] = (string) Str::ulid();
             $this->insert('albums', [
@@ -333,10 +335,64 @@ final class DemoFamilyBuilder
                 'description_plain_text' => 'A curated synthetic collection from the Mercer archive.',
                 'visibility' => 'family_space', 'event_id' => $eventKey === null ? null : $events[$eventKey],
                 'guest_participation' => 'none',
+                'starts_on' => $startsOn, 'ends_on' => $endsOn, 'location' => $location,
             ], $anchor->subDays(22 - $offset));
         }
 
         return $ids;
+    }
+
+    /** @param array<string, string> $albums
+     * @param  array<string, string>  $people
+     */
+    private function albumPeople(
+        string $familyId,
+        array $albums,
+        array $people,
+        User $actor,
+        CarbonImmutable $anchor,
+    ): void {
+        $definitions = [
+            'wedding' => ['william', 'margaret'],
+            'christmas' => ['william', 'margaret', 'elaine', 'thomas', 'sarah'],
+            'seaside' => ['william', 'margaret', 'elaine', 'thomas', 'sarah', 'david', 'maya'],
+            'birthday' => ['william', 'margaret', 'elaine', 'thomas', 'sarah', 'david', 'maya', 'james'],
+            'william' => ['william'],
+            'holidays' => ['william', 'margaret', 'elaine', 'thomas', 'sarah', 'david', 'maya'],
+        ];
+        foreach ($definitions as $albumKey => $personKeys) {
+            foreach ($personKeys as $offset => $personKey) {
+                DB::table('album_people')->insert([
+                    'id' => (string) Str::ulid(),
+                    'family_space_id' => $familyId,
+                    'album_id' => $albums[$albumKey],
+                    'person_id' => $people[$personKey],
+                    'added_by' => $actor->id,
+                    'created_at' => $anchor->subDays(21)->addMinutes($offset),
+                ]);
+            }
+        }
+    }
+
+    /** @param array<string, string> $albums
+     * @param  array<int, string>  $photos
+     */
+    private function albumCovers(array $albums, array $photos): void
+    {
+        foreach ([
+            'wedding' => 1,
+            'christmas' => 7,
+            'seaside' => 13,
+            'birthday' => 25,
+            'william' => 19,
+            'holidays' => 14,
+        ] as $albumKey => $photoNumber) {
+            DB::table('albums')->where('id', $albums[$albumKey])->update([
+                'cover_photo_id' => $photos[$photoNumber],
+                'cover_focal_x' => 0.5,
+                'cover_focal_y' => 0.5,
+            ]);
+        }
     }
 
     /** @return array<string, string> */
@@ -825,6 +881,8 @@ final class DemoFamilyBuilder
                 'relationships' => DB::table('person_relationships')->where('family_space_id', $id)->count(),
                 'events' => DB::table('events')->where('family_space_id', $id)->count(),
                 'albums' => DB::table('albums')->where('family_space_id', $id)->count(),
+                'album_people' => DB::table('album_people')->where('family_space_id', $id)->count(),
+                'album_covers' => DB::table('albums')->where('family_space_id', $id)->whereNotNull('cover_photo_id')->count(),
                 'media_uploads' => DB::table('media_uploads')->where('family_space_id', $id)->count(),
                 'photos' => DB::table('photos')->where('family_space_id', $id)->count(),
                 'stories' => DB::table('stories')->where('family_space_id', $id)->count(),
@@ -844,6 +902,7 @@ final class DemoFamilyBuilder
         return $summary['memberships'] === 3 && $summary['people'] === 9
             && $summary['relationships'] === 12 && $summary['events'] === 4
             && $summary['albums'] === 6 && $summary['media_uploads'] === 36
+            && $summary['album_people'] === 30 && $summary['album_covers'] === 6
             && $summary['photos'] === 36 && $summary['stories'] === 14 && $summary['story_comments'] === 1
             && $summary['comments'] === 10 && $summary['reactions'] === 18
             && $summary['tags'] === 10 && $summary['saved_searches'] === 3
